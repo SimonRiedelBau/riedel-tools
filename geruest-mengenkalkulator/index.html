@@ -53,6 +53,18 @@
           <input type="text" id="raster-custom" placeholder="z. B. 3.07, 2.57, 2.07, 1.57, 1.09, 0.72">
         </label>
       </div>
+
+      <div class="checkbox-row">
+        <label class="checkbox-label">
+          <input type="checkbox" id="corners-connected">
+          Abschnitte bilden einen zusammenhängenden Rundgang (Eck-Ständer/-Spindeln nicht doppelt zählen)
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="corners-closed" disabled>
+          Geschlossener Umlauf (letzter Abschnitt schließt wieder an den ersten an)
+        </label>
+      </div>
+      <p class="hint">Nur relevant bei mehreren Abschnitten. Reihenfolge der Abschnitte in der Tabelle unten = Reihenfolge im Rundgang um das Gebäude. Der Eckständer wird dann nur einmal gezählt (bis zur gemeinsamen Höhe der beiden angrenzenden Seiten), statt doppelt als Ende von Seite A und Anfang von Seite B.</p>
     </section>
 
     <section class="panel" id="sections-panel">
@@ -85,6 +97,7 @@
       <h2>Ergebnis</h2>
 
       <div class="summary-cards" id="summary-cards"></div>
+      <p class="hint hidden" id="corner-note"></p>
 
       <h3>Abschnitte im Detail</h3>
       <div class="table-wrap">

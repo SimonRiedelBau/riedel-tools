@@ -45,6 +45,16 @@ rasterPresetEl.addEventListener("change", () => {
   saveState();
 });
 
+const cornersConnectedEl = document.getElementById("corners-connected");
+const cornersClosedEl = document.getElementById("corners-closed");
+
+cornersConnectedEl.addEventListener("change", () => {
+  cornersClosedEl.disabled = !cornersConnectedEl.checked;
+  if (!cornersConnectedEl.checked) cornersClosedEl.checked = false;
+  saveState();
+});
+cornersClosedEl.addEventListener("change", saveState);
+
 function getRasterLengths() {
   const preset = rasterPresetEl.value;
   if (preset === "custom") {
@@ -101,6 +111,8 @@ function calculate() {
   const diagonalraster = parseFloat(document.getElementById("diagonalraster").value) || 5;
   const rasterLengths = getRasterLengths();
   const bohlenProFeld = Math.max(1, Math.ceil(geruestbreite / belagbreite));
+  const cornersConnected = document.getElementById("corners-connected").checked;
+  const cornersClosed = document.getElementById("corners-closed").checked;
 
   const sections = readSections();
   if (!sections.length) {
@@ -169,7 +181,29 @@ function calculate() {
     }
   );
 
-  return { perSection, totals, settings: { lagenhoehe, geruestbreite, belagbreite, ankerraster, diagonalraster, bohlenProFeld } };
+  let eckStaenderKorrektur = 0;
+  let eckSpindelKorrektur = 0;
+  let eckenAnzahl = 0;
+  if (cornersConnected && perSection.length > 1) {
+    const n = perSection.length;
+    const junctions = cornersClosed ? n : n - 1;
+    for (let i = 0; i < junctions; i += 1) {
+      const a = perSection[i];
+      const b = perSection[(i + 1) % n];
+      eckStaenderKorrektur += Math.min(a.lagen, b.lagen);
+      eckSpindelKorrektur += 1;
+      eckenAnzahl += 1;
+    }
+    totals.staender -= eckStaenderKorrektur;
+    totals.fussspindeln -= eckSpindelKorrektur;
+  }
+
+  return {
+    perSection,
+    totals,
+    corners: { connected: cornersConnected, closed: cornersClosed, count: eckenAnzahl, eckStaenderKorrektur, eckSpindelKorrektur },
+    settings: { lagenhoehe, geruestbreite, belagbreite, ankerraster, diagonalraster, bohlenProFeld },
+  };
 }
 
 function fmt(n, digits = 1) {
@@ -177,7 +211,7 @@ function fmt(n, digits = 1) {
 }
 
 function renderResults(results) {
-  const { perSection, totals } = results;
+  const { perSection, totals, corners } = results;
 
   document.getElementById("results-panel").classList.remove("hidden");
   document.getElementById("export-csv-btn").disabled = false;
@@ -190,6 +224,14 @@ function renderResults(results) {
     <div class="card"><div class="value">${totals.maxLagen}</div><div class="label">Max. Lagen (Abschnitt)</div></div>
     <div class="card"><div class="value">${totals.anker}</div><div class="label">Anker gesamt</div></div>
   `;
+
+  const cornerNote = document.getElementById("corner-note");
+  if (corners.connected && perSection.length > 1) {
+    cornerNote.textContent = `Ecken berücksichtigt: ${corners.count} gemeinsame Eckverbindung(en) (${corners.closed ? "geschlossener Umlauf" : "offener Rundgang"}) – dadurch ${corners.eckStaenderKorrektur} Ständer und ${corners.eckSpindelKorrektur} Fußspindel(n) weniger, da an jeder Ecke ein Ständer von beiden angrenzenden Seiten gemeinsam genutzt wird.`;
+    cornerNote.classList.remove("hidden");
+  } else {
+    cornerNote.classList.add("hidden");
+  }
 
   const resultsBody = document.getElementById("results-body");
   resultsBody.innerHTML = perSection
@@ -210,8 +252,18 @@ function renderResults(results) {
   const materialBody = document.getElementById("material-body");
   const materialRows = [
     ["Gerüstböden/Beläge", totals.belaege, "Stk", `Bohlen à ${fmt(results.settings.belagbreite, 2)} m Breite, ${results.settings.bohlenProFeld} je Feld`],
-    ["Ständer/Vertikalrahmen", totals.staender, "Stk", "je Feldgrenze und Lage"],
-    ["Fußspindeln", totals.fussspindeln, "Stk", "nur Standfläche (unterste Lage)"],
+    [
+      "Ständer/Vertikalrahmen",
+      totals.staender,
+      "Stk",
+      `je Feldgrenze und Lage${results.corners.eckStaenderKorrektur ? ` (−${results.corners.eckStaenderKorrektur} durch ${results.corners.count} gemeinsame Eckständer)` : ""}`,
+    ],
+    [
+      "Fußspindeln",
+      totals.fussspindeln,
+      "Stk",
+      `nur Standfläche (unterste Lage)${results.corners.eckSpindelKorrektur ? ` (−${results.corners.eckSpindelKorrektur} durch gemeinsame Eckspindeln)` : ""}`,
+    ],
     ["Geländerholme (Handlauf + Zwischenholm)", totals.gelaenderholme, "Stk", "2 je Feld und Lage"],
     ["Bordbretter", totals.bordbretter, "Stk", "1 je Feld und Lage"],
     ["Diagonalen", totals.diagonalen, "Stk", `1 je ${results.settings.diagonalraster} Felder und Lage`],
@@ -306,6 +358,8 @@ function saveState() {
         diagonalraster: document.getElementById("diagonalraster").value,
         rasterPreset: rasterPresetEl.value,
         rasterCustom: rasterCustomEl.value,
+        cornersConnected: cornersConnectedEl.checked,
+        cornersClosed: cornersClosedEl.checked,
       },
       sections: readSections(),
     };
@@ -333,6 +387,9 @@ function loadState() {
     rasterPresetEl.value = state.settings.rasterPreset ?? "fein";
     rasterCustomEl.value = state.settings.rasterCustom ?? "";
     rasterCustomLabel.classList.toggle("hidden", rasterPresetEl.value !== "custom");
+    cornersConnectedEl.checked = Boolean(state.settings.cornersConnected);
+    cornersClosedEl.disabled = !cornersConnectedEl.checked;
+    cornersClosedEl.checked = cornersConnectedEl.checked && Boolean(state.settings.cornersClosed);
   }
 
   if (state?.sections?.length) {

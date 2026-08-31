@@ -98,6 +98,31 @@ input:focus, select:focus {
   display: none !important;
 }
 
+.checkbox-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.checkbox-label {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+}
+
+.checkbox-label:has(input:disabled) {
+  color: var(--text-muted);
+}
+
 .table-wrap {
   overflow-x: auto;
 }

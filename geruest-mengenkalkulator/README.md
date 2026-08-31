@@ -7,8 +7,9 @@ Kleines, abhängigkeitsfreies Web-Tool zur überschlägigen Mengenermittlung fü
 `index.html` direkt im Browser öffnen (kein Build, kein Server nötig), oder z. B. via GitHub Pages hosten.
 
 1. Einstellungen anpassen: Lagenhöhe, Gerüstbreite, Belagbreite, Ankerraster, Diagonalraster, Feldlängen-Raster.
-2. Fassadenabschnitte (z. B. Nord-, Ost-, Süd-, Westfassade) mit Länge, Höhe und optionaler Aussparungsfläche eintragen.
-3. **Berechnen** klicken.
+2. Fassadenabschnitte (z. B. Nord-, Ost-, Süd-, Westfassade) mit Länge, Höhe und optionaler Aussparungsfläche eintragen – Reihenfolge = Rundgang um das Gebäude.
+3. Bei mehreren Abschnitten optional „Abschnitte bilden zusammenhängenden Rundgang“ aktivieren, damit gemeinsame Eckständer/-spindeln an den Gebäudeecken nicht doppelt gezählt werden (plus „Geschlossener Umlauf“, falls der letzte Abschnitt wieder an den ersten anschließt).
+4. **Berechnen** klicken.
 
 ## Ergebnis
 
