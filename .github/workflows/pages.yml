@@ -2,7 +2,8 @@ name: Deploy Riedel Tools to GitHub Pages
 
 on:
   push:
-    branches: ["main"]
+    # This repo's default branch is not "main" — update if that ever changes.
+    branches: ["claude/scaffold-quantity-calculator-moi50l"]
   workflow_dispatch:
 
 permissions:
