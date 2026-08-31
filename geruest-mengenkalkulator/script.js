@@ -26,10 +26,19 @@ function addSectionRow(data) {
     <td><input type="number" class="s-length" min="0" step="0.01" value="${data?.length ?? ""}"></td>
     <td><input type="number" class="s-height" min="0" step="0.01" value="${data?.height ?? ""}"></td>
     <td><input type="number" class="s-opening" min="0" step="0.01" value="${data?.opening ?? 0}"></td>
+    <td><input type="number" class="s-angle" step="1" value="${data?.angle ?? 90}"></td>
+    <td><input type="checkbox" class="s-konsole" ${data?.konsole ? "checked" : ""}></td>
+    <td><input type="number" class="s-konsolenbreite" min="0" step="0.01" value="${data?.konsolenbreite ?? 0.30}" ${data?.konsole ? "" : "disabled"}></td>
     <td><button type="button" class="row-remove-btn" title="Zeile entfernen">✕</button></td>
   `;
   tr.querySelector(".row-remove-btn").addEventListener("click", () => {
     tr.remove();
+    saveState();
+  });
+  const konsoleCheckbox = tr.querySelector(".s-konsole");
+  const konsolenbreiteInput = tr.querySelector(".s-konsolenbreite");
+  konsoleCheckbox.addEventListener("change", () => {
+    konsolenbreiteInput.disabled = !konsoleCheckbox.checked;
     saveState();
   });
   sectionsBody.appendChild(tr);
@@ -99,8 +108,12 @@ function readSections() {
       length: parseFloat(tr.querySelector(".s-length").value) || 0,
       height: parseFloat(tr.querySelector(".s-height").value) || 0,
       opening: parseFloat(tr.querySelector(".s-opening").value) || 0,
+      angle: parseFloat(tr.querySelector(".s-angle").value),
+      konsole: tr.querySelector(".s-konsole").checked,
+      konsolenbreite: parseFloat(tr.querySelector(".s-konsolenbreite").value) || 0,
     }))
-    .filter((s) => s.length > 0 && s.height > 0);
+    .filter((s) => s.length > 0 && s.height > 0)
+    .map((s) => ({ ...s, angle: isNaN(s.angle) ? 90 : s.angle }));
 }
 
 function calculate() {
@@ -109,6 +122,7 @@ function calculate() {
   const belagbreite = parseFloat(document.getElementById("belagbreite").value) || 0.32;
   const ankerraster = parseFloat(document.getElementById("ankerraster").value) || 8;
   const diagonalraster = parseFloat(document.getElementById("diagonalraster").value) || 5;
+  const wandabstand = parseFloat(document.getElementById("wandabstand").value) || 0;
   const rasterLengths = getRasterLengths();
   const bohlenProFeld = Math.max(1, Math.ceil(geruestbreite / belagbreite));
   const cornersConnected = document.getElementById("corners-connected").checked;
@@ -128,13 +142,18 @@ function calculate() {
     const felder = fieldFill.totalFields;
     const anker = Math.ceil(flaeche / ankerraster);
 
+    const arbeitsbreite = geruestbreite + (s.konsole ? s.konsolenbreite : 0);
+    const bohlenProFeldSection = Math.max(1, Math.ceil(arbeitsbreite / belagbreite));
+    const ausladung = wandabstand + geruestbreite + (s.konsole ? s.konsolenbreite : 0);
+
     const staender = (felder + 1) * lagen;
     const fussspindeln = felder + 1;
-    const belaege = bohlenProFeld * felder * lagen;
+    const belaege = bohlenProFeldSection * felder * lagen;
     const gelaenderholme = 2 * felder * lagen;
     const bordbretter = felder * lagen;
     const diagonalBays = Math.ceil(felder / diagonalraster);
     const diagonalen = diagonalBays * lagen;
+    const konsolen = s.konsole ? (felder + 1) * lagen : 0;
 
     return {
       ...s,
@@ -144,12 +163,16 @@ function calculate() {
       felder,
       fieldFill,
       anker,
+      arbeitsbreite,
+      bohlenProFeldSection,
+      ausladung,
       staender,
       fussspindeln,
       belaege,
       gelaenderholme,
       bordbretter,
       diagonalen,
+      konsolen,
     };
   });
 
@@ -164,6 +187,7 @@ function calculate() {
       acc.gelaenderholme += s.gelaenderholme;
       acc.bordbretter += s.bordbretter;
       acc.diagonalen += s.diagonalen;
+      acc.konsolen += s.konsolen;
       acc.maxLagen = Math.max(acc.maxLagen, s.lagen);
       return acc;
     },
@@ -177,6 +201,7 @@ function calculate() {
       gelaenderholme: 0,
       bordbretter: 0,
       diagonalen: 0,
+      konsolen: 0,
       maxLagen: 0,
     }
   );
@@ -198,11 +223,29 @@ function calculate() {
     totals.fussspindeln -= eckSpindelKorrektur;
   }
 
+  let geometry = null;
+  if (cornersConnected && perSection.length >= 1) {
+    const edges = perSection.map((s) => ({ length: s.length, angle: s.angle }));
+    const walk = Geometry.turtlePolygon(edges, cornersClosed);
+    const wandDist = perSection.map(() => wandabstand);
+    const outerDist = perSection.map((s) => wandabstand + geruestbreite + (s.konsole ? s.konsolenbreite : 0));
+    const baseOuterDist = perSection.map(() => wandabstand + geruestbreite);
+    geometry = {
+      ring: walk.ring,
+      closed: cornersClosed,
+      closingError: walk.closingError,
+      staenderRing: Geometry.offsetPolygonEdges(walk.ring, cornersClosed, wandDist),
+      outerRing: Geometry.offsetPolygonEdges(walk.ring, cornersClosed, outerDist),
+      baseOuterRing: Geometry.offsetPolygonEdges(walk.ring, cornersClosed, baseOuterDist),
+    };
+  }
+
   return {
     perSection,
     totals,
     corners: { connected: cornersConnected, closed: cornersClosed, count: eckenAnzahl, eckStaenderKorrektur, eckSpindelKorrektur },
-    settings: { lagenhoehe, geruestbreite, belagbreite, ankerraster, diagonalraster, bohlenProFeld },
+    settings: { lagenhoehe, geruestbreite, belagbreite, ankerraster, diagonalraster, wandabstand, bohlenProFeld },
+    geometry,
   };
 }
 
@@ -245,13 +288,21 @@ function renderResults(results) {
         <td>${s.felder}</td>
         <td>${s.lagen}</td>
         <td>${s.anker}</td>
+        <td>${s.konsole ? `ja (${fmt(s.konsolenbreite, 2)} m)` : "–"}</td>
+        <td>${fmt(s.ausladung, 2)}</td>
       </tr>`
     )
     .join("");
 
   const materialBody = document.getElementById("material-body");
+  const konsolenAbschnitte = perSection.filter((s) => s.konsole).length;
   const materialRows = [
-    ["Gerüstböden/Beläge", totals.belaege, "Stk", `Bohlen à ${fmt(results.settings.belagbreite, 2)} m Breite, ${results.settings.bohlenProFeld} je Feld`],
+    [
+      "Gerüstböden/Beläge",
+      totals.belaege,
+      "Stk",
+      `Bohlen à ${fmt(results.settings.belagbreite, 2)} m Breite${konsolenAbschnitte ? `; Breite je Abschnitt inkl. Konsole berücksichtigt (${konsolenAbschnitte} Abschnitt(e) mit Konsole)` : `, ${results.settings.bohlenProFeld} je Feld`}`,
+    ],
     [
       "Ständer/Vertikalrahmen",
       totals.staender,
@@ -269,6 +320,14 @@ function renderResults(results) {
     ["Diagonalen", totals.diagonalen, "Stk", `1 je ${results.settings.diagonalraster} Felder und Lage`],
     ["Wandanker", totals.anker, "Stk", `Raster ${fmt(results.settings.ankerraster, 1)} m² je Anker`],
   ];
+  if (totals.konsolen > 0) {
+    materialRows.push([
+      "Konsolen",
+      totals.konsolen,
+      "Stk",
+      `je Ständerposition und Lage, an ${konsolenAbschnitte} Abschnitt(en); Außenkante rückt dort um die Konsolenbreite nach außen`,
+    ]);
+  }
   materialBody.innerHTML = materialRows
     .map(
       ([name, qty, unit, note]) => `
@@ -297,6 +356,114 @@ function renderResults(results) {
     .join("");
 }
 
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+function renderPlan2D(results) {
+  const svg = document.getElementById("plan2d-svg");
+  const note = document.getElementById("plan2d-note");
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+  const geometry = results.geometry;
+  if (!geometry || geometry.ring.length < 2) {
+    note.textContent =
+      'Aktiviere in den Einstellungen "Abschnitte bilden einen zusammenhängenden Rundgang", damit hieraus automatisch ein Lageplan erzeugt wird.';
+    svg.setAttribute("viewBox", "0 0 100 100");
+    return;
+  }
+
+  const allPoints = [...geometry.ring, ...geometry.staenderRing, ...geometry.outerRing, ...geometry.baseOuterRing];
+  const b = Geometry.bounds([allPoints]);
+  const pad = Math.max(1.5, (b.maxX - b.minX + b.maxY - b.minY) * 0.05);
+  const width = b.maxX - b.minX + pad * 2 || 10;
+  const height = b.maxY - b.minY + pad * 2 || 10;
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+
+  const toSvg = (p) => ({ x: p.x - b.minX + pad, y: b.maxY - p.y + pad });
+
+  function ringToPath(ring, closed) {
+    const pts = ring.map(toSvg);
+    return pts.map((p, i) => (i === 0 ? "M" : "L") + p.x.toFixed(3) + "," + p.y.toFixed(3)).join(" ") + (closed ? " Z" : "");
+  }
+
+  function addPath(d, attrs) {
+    const el = document.createElementNS(SVG_NS, "path");
+    el.setAttribute("d", d);
+    Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v));
+    svg.appendChild(el);
+    return el;
+  }
+
+  const sw = Math.max(width, height) / 300;
+  const fontSize = Math.max(width, height) / 55;
+
+  addPath(ringToPath(geometry.ring, geometry.closed), { fill: "none", stroke: "#1f2430", "stroke-width": sw * 2.2 });
+  addPath(ringToPath(geometry.staenderRing, geometry.closed), {
+    fill: "none",
+    stroke: "#8a8f98",
+    "stroke-width": sw,
+    "stroke-dasharray": `${sw * 3},${sw * 2}`,
+  });
+  addPath(ringToPath(geometry.baseOuterRing, geometry.closed), { fill: "none", stroke: "#1a73e8", "stroke-width": sw * 1.6 });
+  const hasKonsole = results.perSection.some((s) => s.konsole);
+  if (hasKonsole) {
+    addPath(ringToPath(geometry.outerRing, geometry.closed), {
+      fill: "none",
+      stroke: "#b5502e",
+      "stroke-width": sw * 1.2,
+      "stroke-dasharray": `${sw * 2.5},${sw * 1.5}`,
+    });
+  }
+
+  const n = geometry.ring.length;
+  const edgeCount = geometry.closed ? n : n - 1;
+  for (let i = 0; i < edgeCount; i += 1) {
+    const a = geometry.ring[i];
+    const bpt = geometry.ring[(i + 1) % n];
+    const mid = toSvg({ x: (a.x + bpt.x) / 2, y: (a.y + bpt.y) / 2 });
+    const len = Math.hypot(bpt.x - a.x, bpt.y - a.y);
+    const text = document.createElementNS(SVG_NS, "text");
+    text.setAttribute("x", mid.x);
+    text.setAttribute("y", mid.y);
+    text.setAttribute("font-size", fontSize);
+    text.setAttribute("fill", "#1f2430");
+    text.setAttribute("text-anchor", "middle");
+    text.textContent = `${fmt(len, 2)} m`;
+    svg.appendChild(text);
+  }
+
+  geometry.ring.forEach((v) => {
+    const p = toSvg(v);
+    const c = document.createElementNS(SVG_NS, "circle");
+    c.setAttribute("cx", p.x);
+    c.setAttribute("cy", p.y);
+    c.setAttribute("r", sw * 2);
+    c.setAttribute("fill", "#1f2430");
+    svg.appendChild(c);
+  });
+
+  // Scale bar
+  const barLenM = width > 40 ? 10 : width > 15 ? 5 : 1;
+  const barX = pad * 0.3;
+  const barY = height - pad * 0.4;
+  addPath(`M${barX},${barY} L${barX + barLenM},${barY}`, { stroke: "#1f2430", "stroke-width": sw * 1.5 });
+  const barText = document.createElementNS(SVG_NS, "text");
+  barText.setAttribute("x", barX);
+  barText.setAttribute("y", barY - sw * 3);
+  barText.setAttribute("font-size", fontSize * 0.8);
+  barText.setAttribute("fill", "#1f2430");
+  barText.textContent = `${barLenM} m`;
+  svg.appendChild(barText);
+
+  const closingNote =
+    geometry.closingError != null && geometry.closingError > 0.05
+      ? ` Hinweis: Schlussfehler des Rundgangs ${fmt(geometry.closingError, 2)} m – Längen/Winkel prüfen.`
+      : "";
+  note.textContent = `Schwarz = Gebäudelinie (eingegebene Längen/Winkel), grau gestrichelt = Ständerachse (Wandabstand ${fmt(
+    results.settings.wandabstand,
+    2
+  )} m), blau = Gerüst-Außenkante${hasKonsole ? ", orange gestrichelt = Außenkante inkl. Konsole" : ""}.${closingNote}`;
+}
+
 function escapeHtml(str) {
   const div = document.createElement("div");
   div.textContent = str;
@@ -308,6 +475,8 @@ document.getElementById("calc-btn").addEventListener("click", () => {
   if (!results) return;
   lastResults = results;
   renderResults(results);
+  renderPlan2D(results);
+  if (typeof View3D !== "undefined") View3D.render(results);
   saveState();
 });
 
@@ -321,9 +490,11 @@ document.getElementById("export-csv-btn").addEventListener("click", () => {
   const lines = [];
   lines.push("Gerüstmengen-Kalkulator - Ergebnis");
   lines.push("");
-  lines.push("Abschnitt;Laenge (m);Hoehe (m);Flaeche (m2);Felder;Lagen;Anker");
+  lines.push("Abschnitt;Laenge (m);Hoehe (m);Flaeche (m2);Felder;Lagen;Anker;Konsole;Konsolenbreite (m);Ausladung (m)");
   perSection.forEach((s) => {
-    lines.push(`${s.name};${fmt(s.length, 2)};${fmt(s.height, 2)};${fmt(s.flaeche, 1)};${s.felder};${s.lagen};${s.anker}`);
+    lines.push(
+      `${s.name};${fmt(s.length, 2)};${fmt(s.height, 2)};${fmt(s.flaeche, 1)};${s.felder};${s.lagen};${s.anker};${s.konsole ? "ja" : "nein"};${fmt(s.konsolenbreite, 2)};${fmt(s.ausladung, 2)}`
+    );
   });
   lines.push(`Summe;${fmt(totals.laenge, 2)};;${fmt(totals.flaeche, 1)};;;${totals.anker}`);
   lines.push("");
@@ -335,6 +506,7 @@ document.getElementById("export-csv-btn").addEventListener("click", () => {
   lines.push(`Bordbretter;${totals.bordbretter};Stk`);
   lines.push(`Diagonalen;${totals.diagonalen};Stk`);
   lines.push(`Wandanker;${totals.anker};Stk`);
+  if (totals.konsolen > 0) lines.push(`Konsolen;${totals.konsolen};Stk`);
 
   const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
@@ -356,6 +528,7 @@ function saveState() {
         belagbreite: document.getElementById("belagbreite").value,
         ankerraster: document.getElementById("ankerraster").value,
         diagonalraster: document.getElementById("diagonalraster").value,
+        wandabstand: document.getElementById("wandabstand").value,
         rasterPreset: rasterPresetEl.value,
         rasterCustom: rasterCustomEl.value,
         cornersConnected: cornersConnectedEl.checked,
@@ -384,6 +557,7 @@ function loadState() {
     document.getElementById("belagbreite").value = state.settings.belagbreite ?? "0.32";
     document.getElementById("ankerraster").value = state.settings.ankerraster ?? "8";
     document.getElementById("diagonalraster").value = state.settings.diagonalraster ?? "5";
+    document.getElementById("wandabstand").value = state.settings.wandabstand ?? "0.30";
     rasterPresetEl.value = state.settings.rasterPreset ?? "fein";
     rasterCustomEl.value = state.settings.rasterCustom ?? "";
     rasterCustomLabel.classList.toggle("hidden", rasterPresetEl.value !== "custom");
@@ -398,6 +572,20 @@ function loadState() {
     addSectionRow({ name: "Fassade 1" });
   }
 }
+
+window.addEventListener("plan-segments-apply", (evt) => {
+  const { segments, closed } = evt.detail;
+  const defaultHeight = parseFloat(document.getElementById("plan-default-height").value) || 9.3;
+  sectionsBody.innerHTML = "";
+  segments.forEach((seg, i) => {
+    addSectionRow({ name: `Seite ${i + 1}`, length: seg.length.toFixed(2), height: defaultHeight, angle: Math.round(seg.angle) });
+  });
+  cornersConnectedEl.checked = true;
+  cornersClosedEl.disabled = false;
+  cornersClosedEl.checked = closed;
+  saveState();
+  document.getElementById("sections-panel").scrollIntoView({ behavior: "smooth", block: "start" });
+});
 
 // Auto-save on any input change within the settings/sections panels.
 document.getElementById("settings-panel").addEventListener("input", saveState);

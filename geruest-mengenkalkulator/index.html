@@ -40,6 +40,10 @@
           <input type="number" id="diagonalraster" value="5" step="1" min="1">
         </label>
         <label>
+          Wandabstand (m)
+          <input type="number" id="wandabstand" value="0.30" step="0.01" min="0">
+        </label>
+        <label>
           Feldlängen-Raster
           <select id="raster-preset">
             <option value="fein" selected>Modulraster fein (3,07 / 2,57 / 2,07 / 1,57 / 1,09 / 0,72 m)</option>
@@ -69,7 +73,7 @@
 
     <section class="panel" id="sections-panel">
       <h2>Fassadenabschnitte</h2>
-      <p class="hint">Jede zusammenhängende Gerüstseite einzeln eintragen (z. B. Nord-, Ost-, Süd-, Westfassade). Aussparungsfläche ist optional und wird nur von der Fläche abgezogen (Felder/Lagen berücksichtigen sie nicht).</p>
+      <p class="hint">Jede zusammenhängende Gerüstseite einzeln eintragen (z. B. Nord-, Ost-, Süd-, Westfassade), in der Reihenfolge des Rundgangs um das Gebäude. Aussparungsfläche ist optional und wird nur von der Fläche abgezogen (Felder/Lagen berücksichtigen sie nicht). Der Winkel ist der Richtungswechsel zur nächsten Seite (90° = rechtwinklige Ecke) und wird für den automatischen Lageplan/3D benötigt. Konsole verbreitert den Belag an dieser Seite und rückt die Außenkante des Gerüsts entsprechend nach außen.</p>
       <div class="table-wrap">
         <table id="sections-table">
           <thead>
@@ -78,6 +82,9 @@
               <th>Länge (m)</th>
               <th>Höhe (m)</th>
               <th>Aussparung (m²)</th>
+              <th>Winkel (°)</th>
+              <th>Konsole</th>
+              <th>Konsolenbreite (m)</th>
               <th></th>
             </tr>
           </thead>
@@ -85,6 +92,69 @@
         </table>
       </div>
       <button type="button" id="add-section-btn" class="btn-secondary">+ Abschnitt hinzufügen</button>
+    </section>
+
+    <section class="panel" id="plan-panel">
+      <h2>Plan digitalisieren (optional)</h2>
+      <p class="hint">Grundriss- oder Lageplan als Bild oder PDF einlesen, Maßstab kalibrieren und die Gerüstlinie direkt im Plan abklicken. Die abgemessenen Strecken und Winkel können anschließend in die Abschnittstabelle oben übernommen werden.</p>
+
+      <div class="plan-upload-row">
+        <label class="file-label">
+          Plan-Datei (Bild oder PDF)
+          <input type="file" id="plan-file" accept="image/*,.pdf">
+        </label>
+        <span class="hint" id="plan-file-status"></span>
+        <label class="inline-label">
+          Standardhöhe für übernommene Abschnitte (m)
+          <input type="number" id="plan-default-height" step="0.01" min="0.5" value="9.30">
+        </label>
+      </div>
+
+      <div class="plan-steps">
+        <div class="plan-step">
+          <strong>1. Maßstab kalibrieren</strong>
+          <div class="plan-step-actions">
+            <button type="button" id="plan-calibrate-btn" class="btn-secondary" disabled>Zwei Punkte einer bekannten Strecke anklicken</button>
+            <label class="inline-label">
+              Reale Länge dieser Strecke (m)
+              <input type="number" id="plan-calibrate-length" step="0.01" min="0.01" value="1">
+            </label>
+            <button type="button" id="plan-calibrate-confirm" class="btn-secondary" disabled>Maßstab festlegen</button>
+            <span class="hint" id="plan-scale-status">Maßstab noch nicht kalibriert.</span>
+          </div>
+        </div>
+        <div class="plan-step">
+          <strong>2. Gerüstlinie abklicken</strong>
+          <div class="plan-step-actions">
+            <button type="button" id="plan-trace-btn" class="btn-secondary" disabled>Linie zeichnen (Punkte anklicken)</button>
+            <button type="button" id="plan-trace-undo" class="btn-secondary" disabled>Letzten Punkt entfernen</button>
+            <button type="button" id="plan-trace-finish" class="btn-secondary" disabled>Fertig</button>
+            <label class="inline-label">
+              <input type="checkbox" id="plan-trace-closed">
+              Umlauf schließt (letzter Punkt = erster Punkt)
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <canvas id="plan-canvas"></canvas>
+      </div>
+
+      <div class="table-wrap">
+        <table id="plan-segments-table" class="hidden">
+          <thead>
+            <tr>
+              <th>Abschnitt</th>
+              <th>Länge (m)</th>
+              <th>Winkel zur nächsten Seite (°)</th>
+            </tr>
+          </thead>
+          <tbody id="plan-segments-body"></tbody>
+        </table>
+      </div>
+
+      <button type="button" id="plan-apply-btn" class="btn-primary" disabled>In Abschnittstabelle übernehmen (ersetzt vorhandene Abschnitte)</button>
     </section>
 
     <section class="panel actions-panel">
@@ -111,6 +181,8 @@
               <th>Felder</th>
               <th>Lagen</th>
               <th>Anker</th>
+              <th>Konsole</th>
+              <th>Ausladung (m)</th>
             </tr>
           </thead>
           <tbody id="results-body"></tbody>
@@ -146,6 +218,19 @@
         </table>
       </div>
 
+      <h3>2D-Lageplan (automatisch aus Abschnitten)</h3>
+      <p class="hint" id="plan2d-note"></p>
+      <div class="plan2d-wrap">
+        <svg id="plan2d-svg" width="100%" height="480" viewBox="0 0 100 100"></svg>
+      </div>
+
+      <h3>3D-Ansicht (schematisch)</h3>
+      <p class="hint">Ziehen = drehen, Mausrad/Pinch = zoomen.</p>
+      <div class="view3d-wrap">
+        <canvas id="view3d-canvas"></canvas>
+        <p class="hint" id="view3d-status"></p>
+      </div>
+
     </section>
 
     <p class="disclaimer">
@@ -153,12 +238,19 @@
       Es ersetzt keine geprüfte Gerüstbau-Aufstellplanung / Aufbau- und Verwendungsanleitung nach
       DIN EN 12811 / DIN 4420. Ankerzahl, Ankerraster, Diagonalenanordnung und Bauteilmengen sind
       vor Ausführung durch die verantwortliche Fachkraft anhand der tatsächlichen Systemvorgaben
-      des eingesetzten Gerüstsystems zu prüfen.
+      des eingesetzten Gerüstsystems zu prüfen. Lageplan und 3D-Ansicht sind schematische
+      Visualisierungen auf Basis der eingegebenen Längen und Winkel (bzw. des digitalisierten Plans)
+      und ersetzen keine vermessungsgenaue Ausführungsplanung.
     </p>
 
   </main>
 </div>
 
+<script src="vendor/pdf.min.js"></script>
+<script src="vendor/three.min.js"></script>
+<script src="geometry.js"></script>
+<script src="plan.js"></script>
+<script src="view3d.js"></script>
 <script src="script.js"></script>
 </body>
 </html>
