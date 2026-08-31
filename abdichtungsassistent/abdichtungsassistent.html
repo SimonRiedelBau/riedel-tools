@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Abdichtungsassistent · DIN 18533</title>
+<style>
+:root {
+  --bg: #161820;
+  --surface: #1e2029;
+  --surface2: #272a36;
+  --surface3: #2f3344;
+  --border: #383d52;
+  --accent: #e8a23a;
+  --accent2: #4a9ef0;
+  --ok: #3ac87a;
+  --warn: #e8a23a;
+  --danger: #e8503a;
+  --text: #eaecf4;
+  --text2: #b0b8cc;
+  --muted: #6a7490;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --radius: 12px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 14px 60px;
+}
+header {
+  width: 100%; max-width: 660px;
+  display: flex; align-items: center; gap: 14px;
+  margin-bottom: 28px;
+}
+.logo {
+  width: 44px; height: 44px;
+  background: linear-gradient(135deg, #c87c20, #e8a23a);
+  border-radius: 11px;
+  display: grid; place-items: center;
+  font-size: 22px; flex-shrink: 0;
+  box-shadow: 0 2px 10px rgba(232,162,58,0.25);
+}
+.header-text h1 { font-size: 1.15rem; font-weight: 700; letter-spacing: -0.01em; }
+.header-text p  { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 2px; }
+
+.progress-wrap { width: 100%; max-width: 660px; margin-bottom: 14px; }
+.progress-track { height: 3px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+.progress-fill  { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.35s cubic-bezier(.4,0,.2,1); }
+.progress-label { font-size: 0.7rem; color: var(--muted); margin-top: 6px; display: flex; justify-content: space-between; }
+
+.breadcrumb {
+  width: 100%; max-width: 660px;
+  display: flex; flex-wrap: wrap; gap: 4px; align-items: center;
+  margin-bottom: 16px; min-height: 26px;
+}
+.crumb { font-size: 0.72rem; color: var(--muted); background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 2px 9px; white-space: nowrap; }
+.crumb-arrow { color: var(--border); font-size: 0.7rem; }
+
+.card {
+  width: 100%; max-width: 660px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 26px 24px 22px;
+  animation: slideUp 0.22s ease;
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.step-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent); margin-bottom: 12px; }
+.step-dot  { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; }
+.question  { font-size: 1.1rem; font-weight: 600; line-height: 1.45; color: var(--text); margin-bottom: 6px; }
+.hint      { font-size: 0.82rem; color: var(--text2); line-height: 1.55; margin-bottom: 20px; }
+
+.options { display: flex; flex-direction: column; gap: 8px; }
+.opt-btn {
+  background: var(--surface2); border: 1.5px solid var(--border);
+  border-radius: 10px; padding: 13px 16px;
+  cursor: pointer; text-align: left; color: var(--text);
+  font-family: var(--font); font-size: 0.9rem;
+  transition: border-color 0.15s, background 0.15s, transform 0.12s;
+  display: flex; align-items: center; gap: 13px; width: 100%;
+}
+.opt-btn:hover { border-color: var(--accent); background: var(--surface3); transform: translateX(3px); }
+.opt-icon  { font-size: 1.2rem; width: 30px; text-align: center; flex-shrink: 0; }
+.opt-label { font-weight: 600; font-size: 0.9rem; display: block; }
+.opt-desc  { font-size: 0.76rem; color: var(--muted); display: block; margin-top: 2px; line-height: 1.4; }
+
+.back-row { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
+.back-btn {
+  background: none; border: 1px solid var(--border); border-radius: 8px;
+  padding: 7px 14px; color: var(--muted); font-family: var(--font);
+  font-size: 0.8rem; cursor: pointer; transition: color 0.15s, border-color 0.15s;
+}
+.back-btn:hover { color: var(--text); border-color: var(--text2); }
+
+.result-wrap { width: 100%; max-width: 660px; display: flex; flex-direction: column; gap: 12px; animation: slideUp 0.25s ease; }
+.result-hero { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px 24px 20px; }
+.badge { display: inline-block; padding: 3px 11px; border-radius: 20px; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: 10px; }
+.badge-low  { background: rgba(58,200,122,0.12); color: #4ed68a; border: 1px solid rgba(58,200,122,0.28); }
+.badge-mid  { background: rgba(232,162,58,0.12); color: #f0b450; border: 1px solid rgba(232,162,58,0.28); }
+.badge-high { background: rgba(232,80,58,0.12);  color: #f06050; border: 1px solid rgba(232,80,58,0.28); }
+.result-title    { font-size: 1.2rem; font-weight: 700; line-height: 1.35; color: var(--text); }
+.result-subtitle { font-size: 0.82rem; color: var(--text2); margin-top: 5px; line-height: 1.5; }
+
+.warn-list { display: flex; flex-direction: column; gap: 8px; }
+.warn-box  { display: flex; gap: 10px; align-items: flex-start; background: rgba(232,80,58,0.08); border: 1px solid rgba(232,80,58,0.22); border-radius: 9px; padding: 11px 14px; font-size: 0.83rem; color: #f0a090; line-height: 1.5; }
+.warn-box .wi { flex-shrink: 0; font-size: 1rem; }
+
+.section-block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.section-head  { padding: 12px 18px; border-bottom: 1px solid var(--border); font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); background: var(--surface2); }
+.section-body  { padding: 14px 18px; display: flex; flex-direction: column; gap: 8px; }
+
+.sys-item { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; background: var(--surface2); border-radius: 9px; border-left: 3px solid var(--border); }
+.sys-item.prim { border-left-color: var(--ok); }
+.sys-item.alt  { border-left-color: var(--accent2); }
+.sys-tag  { font-size: 0.64rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 2px 7px; border-radius: 4px; white-space: nowrap; flex-shrink: 0; margin-top: 2px; }
+.sys-item.prim .sys-tag { background: rgba(58,200,122,0.14); color: #4ed68a; }
+.sys-item.alt  .sys-tag { background: rgba(74,158,240,0.14); color: #70b8ff; }
+.sys-name { font-weight: 600; font-size: 0.88rem; }
+.sys-note { font-size: 0.76rem; color: var(--muted); margin-top: 2px; line-height: 1.4; }
+
+.check-list  { display: flex; flex-direction: column; gap: 7px; }
+.check-item  { display: flex; align-items: flex-start; gap: 10px; font-size: 0.85rem; color: var(--text2); line-height: 1.45; }
+.check-box   { width: 16px; height: 16px; border: 1.5px solid var(--border); border-radius: 4px; flex-shrink: 0; margin-top: 2px; background: var(--surface3); cursor: pointer; transition: background 0.15s, border-color 0.15s; display: grid; place-items: center; }
+.check-box.checked { background: var(--ok); border-color: var(--ok); }
+.check-box.checked::after { content: "✓"; color: #0a2018; font-size: 10px; font-weight: 900; }
+.check-label          { cursor: pointer; }
+.check-label.checked  { color: var(--muted); text-decoration: line-through; }
+
+.norm-row { display: flex; align-items: center; gap: 8px; font-size: 0.74rem; color: var(--muted); padding: 10px 18px; border-top: 1px solid var(--border); background: var(--surface2); }
+
+.result-footer { display: flex; gap: 10px; flex-wrap: wrap; }
+.action-btn { background: none; border: 1px solid var(--border); border-radius: 9px; padding: 9px 16px; color: var(--text2); font-family: var(--font); font-size: 0.82rem; cursor: pointer; transition: all 0.15s; }
+.action-btn:hover { color: var(--text); border-color: var(--text2); }
+.action-btn.primary-btn { background: var(--accent); border-color: var(--accent); color: #1a0f00; font-weight: 700; }
+.action-btn.primary-btn:hover { background: #f0b050; border-color: #f0b050; }
+
+@media (max-width: 480px) {
+  body { padding: 14px 10px 50px; }
+  .card { padding: 20px 16px 18px; }
+  .result-hero { padding: 18px 16px; }
+  .section-body { padding: 12px 14px; }
+  .question { font-size: 1rem; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🧱</div>
+  <div class="header-text">
+    <h1>Abdichtungsassistent</h1>
+    <p>DIN 18533 · Systemwahl per Klick</p>
+  </div>
+</header>
+
+<div class="progress-wrap">
+  <div class="progress-track">
+    <div class="progress-fill" id="progressFill" style="width:0%"></div>
+  </div>
+  <div class="progress-label">
+    <span id="progressLabel">Schritt 1 von 3</span>
+    <span id="progressPct">0 %</span>
+  </div>
+</div>
+
+<div class="breadcrumb" id="breadcrumb"></div>
+<div id="app"></div>
+
+<script>
+// ─── Navigation stack ─────────────────────────────────────────────────────────
+var navStack   = [];   // [{stepKey, answers, crumb}]
+var answers    = {};
+var currentStep = "bauteil";
+
+// ─── Decision tree ────────────────────────────────────────────────────────────
+var TREE = {
+  bauteil: {
+    step:"Schritt 1 · Bauteil",
+    question:"Was soll abgedichtet werden?",
+    hint:"Wähle das betroffene Bauteil oder den Anschlusstyp.",
+    progress:20,
+    options:[
+      {icon:"🧱",label:"Wand (erdberührt, außen)",      desc:"Kellerw., UG-Außenwand gegen Erdreich",            key:"bauteil",ans:"wand",          next:"wasser"},
+      {icon:"⬜",label:"Bodenplatte / Sohle",            desc:"Unterste Betonplatte, ggf. druckbelastet",         key:"bauteil",ans:"sohle",         next:"wasser"},
+      {icon:"🏗",label:"TG-Decke / Außendecke",          desc:"Tiefgaragendecke, Flachdach, Parkdeck",            key:"bauteil",ans:"tg",            next:"tg_nutzung"},
+      {icon:"📐",label:"Sockel / Spritzwasserzone",      desc:"Übergang Wand zu Gelände, bis 30 cm ü. GOK",       key:"bauteil",ans:"sockel",        next:"sockel_typ"},
+      {icon:"🔩",label:"Durchdringung / Anschluss",      desc:"Rohr, Fenster/Tür, Wand-Boden-Übergang",          key:"bauteil",ans:"durchdringung", next:"dg_typ"},
+    ]
+  },
+  wasser: {
+    step:"Schritt 2 · Wassereinwirkung",
+    question:"Welche Wassereinwirkungsklasse liegt vor?",
+    hint:"Entnimm das Baugrundgutachten oder die GW-Karte. Unsicher? → letzte Option.",
+    progress:50,
+    options:[
+      {icon:"💧",  label:"W1.1-E – Bodenfeuchte",                   desc:"Kapillarwasser, kein Druckwasser; durchlässiger Boden",           key:"wasser",ans:"W1.1-E",next:"result"},
+      {icon:"💧",  label:"W1.2-E – Nicht stauendes Sickerwasser",   desc:"Zeitweise Wasseransammlung, kein Dauerdruck; mäßig durchlässig",   key:"wasser",ans:"W1.2-E",next:"result"},
+      {icon:"🌊",  label:"W2.1-E – Drückendes Wasser ≤ 3 m",        desc:"Grundwasser/Stauspiegel, Druckhöhe bis 3 m",                     key:"wasser",ans:"W2.1-E",next:"result"},
+      {icon:"🌊",  label:"W2.2-E – Drückendes Wasser > 3 m",        desc:"Hoher Grundwasserdruck, Druckhöhe über 3 m",                     key:"wasser",ans:"W2.2-E",next:"result"},
+      {icon:"❓",  label:"Ich weiß es nicht – Leitfragen anzeigen", desc:"Anhand von 2 Fragen wird die Klasse ermittelt",                   key:"wasser",ans:null,    next:"leitfrage1"},
+    ]
+  },
+  leitfrage1: {
+    step:"Schritt 2b · Leitfrage",
+    question:"Ist Grundwasser bekannt oder war Wasser im Aushub sichtbar?",
+    hint:"Grundwasserspiegel laut Gutachten, oder war die Baugrube nass?",
+    progress:55,
+    options:[
+      {icon:"✅",label:"Nein – kein Grundwasser, Boden trocken",  desc:"Boden sandig/kiesig, kein Wasserandrang im Aushub",  key:"gw",ans:"nein",next:"leitfrage2a"},
+      {icon:"⚠",label:"Ja / Unsicher – Grundwasser vorhanden",   desc:"Nasser Aushub, Grundwasserspiegel bekannt",            key:"gw",ans:"ja",  next:"leitfrage2b"},
+    ]
+  },
+  leitfrage2a: {
+    step:"Schritt 2b · Leitfrage",
+    question:"Staut sich nach Starkregen Wasser am Bauwerk?",
+    hint:"Lehmiger oder bindiger Boden? Kein Gefälle zur Drainage?",
+    progress:60,
+    options:[
+      {icon:"✅",label:"Nein – Wasser versickert schnell",   desc:"Kies/Sand, Drainage vorhanden oder nicht nötig",  key:"wasser",ans:"W1.1-E",next:"result"},
+      {icon:"⚠",label:"Ja – Wasser staut sich kurzzeitig", desc:"Lehm/Ton, schlechte Versickerung, kein Gefälle",  key:"wasser",ans:"W1.2-E",next:"result"},
+    ]
+  },
+  leitfrage2b: {
+    step:"Schritt 2b · Leitfrage",
+    question:"Wie hoch steht der Grundwasserspiegel unter GOK?",
+    hint:"Maßgeblich für den Wasserdruck auf die Konstruktion.",
+    progress:60,
+    options:[
+      {icon:"📏",label:"Grundwasser weniger als 3 m unter GOK",  desc:"GW-Spiegel bei UK-Bodenplatte oder knapp darunter",  key:"wasser",ans:"W2.1-E",next:"result"},
+      {icon:"📏",label:"Grundwasser 3 m oder tiefer unter GOK", desc:"Tiefes GW, Druckhöhe über 3 m",                       key:"wasser",ans:"W2.2-E",next:"result"},
+    ]
+  },
+  tg_nutzung: {
+    step:"Schritt 2 · TG-Decke / Nutzung",
+    question:"Wie wird die TG-Decke / Außendecke genutzt?",
+    hint:"Die Nutzung bestimmt Lastklasse, Schichtaufbau und zugelassenes System.",
+    progress:50,
+    options:[
+      {icon:"🌿",label:"Begrünt / Erdüberdeckt",  desc:"Extensive oder intensive Dachbegrünung, Erddach",  key:"nutzung",ans:"gruen",next:"result"},
+      {icon:"🚗",label:"Befahren (PKW / LKW)",     desc:"Parkdeck, Zufahrt, Tiefgaragendecke",               key:"nutzung",ans:"fahr", next:"result"},
+      {icon:"🚶",label:"Begangen (Fußgänger)",     desc:"Dachterrasse, begehbare Fläche",                    key:"nutzung",ans:"geh",  next:"result"},
+    ]
+  },
+  sockel_typ: {
+    step:"Schritt 2 · Sockelzone",
+    question:"Wie ist die Sockelzone ausgebildet?",
+    hint:"Abdichtung muss mindestens 30 cm über GOK hochgezogen werden.",
+    progress:50,
+    options:[
+      {icon:"📏",label:"Nur Spritzwasserzone (unter 30 cm ü. GOK)", desc:"Putzabschluss, Fassadenunterkante",                       key:"sockel",ans:"kurz", next:"result"},
+      {icon:"🔗",label:"Kombi: Sockel + erdberührte Wand",           desc:"Abdichtung zieht von der Wand in die Sockelzone durch",   key:"sockel",ans:"kombi",next:"result"},
+    ]
+  },
+  dg_typ: {
+    step:"Schritt 2 · Durchdringungstyp",
+    question:"Um welchen Typ von Durchdringung handelt es sich?",
+    progress:50,
+    options:[
+      {icon:"🔧",label:"Rohr / Leerrohr (rund)",    desc:"Ver- und Entsorgungsleitungen durch Wand oder Sohle",   key:"dg",ans:"rohr",      next:"result"},
+      {icon:"🚪",label:"Tür- / Fensteranschluss",   desc:"Blendrahmen an Abdichtungsebene anschließen",           key:"dg",ans:"tuer",      next:"result"},
+      {icon:"📐",label:"Wand-Boden-Anschluss",      desc:"Übergang Bodenplatte zu aufgehender Wand / Hohlkehle",  key:"dg",ans:"anschluss", next:"result"},
+    ]
+  },
+};
+
+// ─── Results ──────────────────────────────────────────────────────────────────
+var RESULTS = {
+  "wand|W1.1-E": {
+    klasse:"W1.1-E", badge:"badge-low",
+    title:"Wand erdberührt · Bodenfeuchte",
+    subtitle:"Kein Druckwasser, kapillarfeuchter Boden. Geringe Anforderung.",
+    systeme:[
+      {prim:true, name:"PMBC – Polymer-Bitumen-Dickbeschichtung",  note:"mind. 4 mm Trockenfilmdicke, 2 Lagen kreuzweise · DIN 18533-2 §4.2"},
+      {prim:false,name:"MDS – Mineralische Dichtungsschlämme",     note:"Bei mineralischen Untergründen (Mauerwerk, Beton)"},
+    ],
+    checks:["Untergrund sauber, trocken und tragfähig","Voranstrich (Primer) lt. Herstellervorgabe","Mindestens 2 Lagen kreuzweise aufbringen","Schichtdicke gesamt ≥ 4 mm messen","Kein Auftrag bei Frost, Regen oder über 30 °C","Noppenbahn / Drainagefolie als Schutzschicht"],
+    warnungen:[],
+    norm:"DIN 18533-2:2017, Tab.1, W1.1-E · DIN 18533-1 §4.3",
+  },
+  "wand|W1.2-E": {
+    klasse:"W1.2-E", badge:"badge-low",
+    title:"Wand erdberührt · Sickerwasser",
+    subtitle:"Zeitweise Wasseransammlung, kein Dauerdruck. Mittlere Anforderung.",
+    systeme:[
+      {prim:true, name:"PMBC + Vlies-/Gewebeeinlage",          note:"mind. 4 mm, Gewebeeinlage zwingend an Ecken, Kehlen, Durchdringungen"},
+      {prim:false,name:"MDS – Mineralische Dichtungsschlämme", note:"Nur bei trockenem Untergrund und geringer Beanspruchung"},
+    ],
+    checks:["Hohlkehle Wand/Bodenplatte: Durchmesser 4–6 cm, keine rechten Winkel!","Gewebeeinlage an allen Kehlen und Ecken","Drainageschicht (Noppenbahn + Filtervlies) hinter Abdichtung","Schichtdicke gesamt ≥ 4 mm","Keine Fehlstellen – visuelle Prüfung nach Trocknung"],
+    warnungen:["Drainage und Filterschicht zwingend erforderlich – sonst Rückstau!"],
+    norm:"DIN 18533-2:2017, W1.2-E · DIN 18533-1 §4.3",
+  },
+  "wand|W2.1-E": {
+    klasse:"W2.1-E", badge:"badge-mid",
+    title:"Wand erdberührt · Drückendes Wasser ≤ 3 m",
+    subtitle:"Grundwasserdruck vorhanden. Erhöhte Ausführungsanforderungen.",
+    systeme:[
+      {prim:true, name:"PMBC gewebeverstärkt (alle Lagen)",        note:"Gewebeverstärkung Pflicht in allen Lagen"},
+      {prim:false,name:"Kunststoff- / Bitumenbahnen",              note:"Vollflächig verklebt · DIN 18533-2 §5"},
+      {prim:false,name:"WU-Beton-Konzept (Weiße Wanne)",           note:"Alternative nach WU-Richtlinie DBV + DIN EN 206"},
+    ],
+    checks:["Hohlkehle Wand/Sohle ausführen (Durchmesser mind. 4 cm)","Gewebeverstärkung an ALLEN Lagen Pflicht","Arbeitsfugen planen und abdichten (Fugenband, Quellprofil)","Druckwasserfeste Baugrubenverbauung während Ausführung","Schichtdicken dokumentieren und protokollieren","Dokumentationspflicht nach DIN 18533 beachten!"],
+    warnungen:["Druckwasserlast – erhöhte Ausführungsanforderungen, Protokoll Pflicht!","Baugrundgutachten prüfen, Grundwasserspiegel verifizieren."],
+    norm:"DIN 18533-1:2017 §5 · DIN 18533-2 §4, W2.1-E",
+  },
+  "wand|W2.2-E": {
+    klasse:"W2.2-E", badge:"badge-high",
+    title:"Wand erdberührt · Drückendes Wasser > 3 m",
+    subtitle:"Hoher Grundwasserdruck. Höchste Anforderungen – Fachplaner erforderlich.",
+    systeme:[
+      {prim:true, name:"Abdichtungsbahnen – wannenartig, vollflächig", note:"Bitumen-Schweißbahnen oder Kunststoffbahnen, lückenloser Wannenanschluss"},
+      {prim:false,name:"WU-Beton (Weiße Wanne)",                       note:"Gesamtkonzept mit Tragwerksplaner und Abdichtungsfachmann"},
+    ],
+    checks:["Fachplaner (LP 5 Abdichtung) einbinden – vor Ausführungsbeginn!","Wannenanschluss lückenlos – kein Systemwechsel ohne Übergangsdetail","Druckwasseranker / Rückhaltung gegen Auftrieb statisch nachweisen","Qualitätssicherungsplan (QSP) erstellen","Prüfung nach jeder Lage"],
+    warnungen:["HOHES SCHADENSRISIKO – Ausführung nur mit geprüftem Abdichtungsplan!","Keinen Systemwechsel ohne Prüfung des Übergangsdetails."],
+    norm:"DIN 18533-1:2017 §5 · DIN 18533-2 §4, W2.2-E",
+  },
+  "sohle|W1.1-E": {
+    klasse:"W1.1-E", badge:"badge-low",
+    title:"Bodenplatte · Bodenfeuchte",
+    subtitle:"Kein Druckwasser. Einfachste Abdichtungsanforderung.",
+    systeme:[
+      {prim:true, name:"PMBC auf Sauberkeitsschicht", note:"2-lagig auf Sauberkeitsschicht (mind. 5 cm), Aufkantung an Wand mind. 15 cm"},
+      {prim:false,name:"PE-Folie mind. 0,5 mm",       note:"Nähte mind. 20 cm überlappen und verschweißen"},
+    ],
+    checks:["Sauberkeitsschicht mind. 5 cm (Magerbeton oder Kiessand)","Abdichtung vollständig geschlossen – keine Perforierung!","Aufkantung an aufgehende Wand mind. 15 cm","Bewehrung nicht durch Folie / PMBC führen (Schutzschicht!)"],
+    warnungen:[],
+    norm:"DIN 18533-2:2017, Sohle W1.1-E",
+  },
+  "sohle|W1.2-E": {
+    klasse:"W1.2-E", badge:"badge-low",
+    title:"Bodenplatte · Sickerwasser",
+    subtitle:"Zeitweise Feuchtebelastung von unten. Mittlere Anforderung.",
+    systeme:[
+      {prim:true, name:"PMBC 2-lagig mit Vlieseinlage",      note:"Schichtdicke mind. 4 mm, Vlies in alle Kehlenübergänge"},
+      {prim:false,name:"Bitumenbahn 1-lagig (mind. R 500)",  note:"Auf Sauberkeitsschicht, Nähte mind. 10 cm überlappen"},
+    ],
+    checks:["Hohlkehle Sohle/Wand Durchmesser 4–6 cm ausführen","Nahtüberlappungen mind. 10 cm, Stöße versetzt","Drainage um das Bauwerk vorsehen","Aufkantung an Wand mind. 15 cm, systemkonform anschließen"],
+    warnungen:[],
+    norm:"DIN 18533-2:2017, Sohle W1.2-E",
+  },
+  "sohle|W2.1-E": {
+    klasse:"W2.1-E", badge:"badge-mid",
+    title:"Bodenplatte · Drückendes Wasser ≤ 3 m",
+    subtitle:"Grundwasserdruck von unten. Auftrieb statisch prüfen!",
+    systeme:[
+      {prim:true, name:"Bitumen-Schweißbahnen 2-lagig",   note:"Vollflächig verklebt, Nähte mind. 10 cm, Aufkantung lückenlos"},
+      {prim:false,name:"WU-Beton-Konzept (Weiße Wanne)",  note:"Alternative nach DBV WU-Richtlinie, Tragwerksplaner einbinden"},
+    ],
+    checks:["Statischen Nachweis gegen Auftrieb – Tragwerksplaner einbinden!","Aufkantung an Wand durchgehend bis Abdichtungsebene","Dehnfuge / Fugenband an allen Anschlussbereichen","Schwimmende Aufkantung (Trennung Sohle/Wand) vermeiden"],
+    warnungen:["Auftriebsgefahr – statischen Nachweis VOR Ausführung einholen!"],
+    norm:"DIN 18533-2:2017, Sohle W2.1-E",
+  },
+  "sohle|W2.2-E": {
+    klasse:"W2.2-E", badge:"badge-high",
+    title:"Bodenplatte · Drückendes Wasser > 3 m",
+    subtitle:"Hoher Wasserdruck von unten. Höchste Anforderungen.",
+    systeme:[
+      {prim:true, name:"Wannensystem – Schwarze Wanne (Bahnen + Rücklage)", note:"Vollständig geschlossene Wanne, geprüftes Bahnen-System"},
+      {prim:false,name:"WU-Beton (Weiße Wanne)",                            note:"Nur mit geprüftem WU-Konzept, Prüfingenieur und QSP"},
+    ],
+    checks:["Fachplanung LP 5 Abdichtung zwingend vor Ausführungsbeginn","Baugrundgutachten auf aktuellem Stand vorliegend?","Auftriebssicherung statisch nachgewiesen?","Qualitätssicherungsplan (QSP) erstellt?"],
+    warnungen:["FACHPLANER UND PRÜFINGENIEUR EINSCHALTEN – kein Eigenversuch!"],
+    norm:"DIN 18533-1/2:2017, hohe Beanspruchung W2.2-E",
+  },
+  "tg|gruen": {
+    klasse:"W3-E", badge:"badge-mid",
+    title:"TG-Decke · Begrünt / Erdüberdeckt",
+    subtitle:"Dauernde Feuchtebelastung durch Pflanzenwurzeln. FLL-Richtlinie beachten.",
+    systeme:[
+      {prim:true, name:"Bitumen-Schweißbahnen 2-lagig (wurzelfest)",  note:"FLL-zugelassene wurzelfeste Lage, Systemnachweis des Herstellers"},
+      {prim:false,name:"Flüssigkunststoff (PUR/PMMA) + Schutzbahn",   note:"Nur bei Extensivbegrünung, Schutzschicht Pflicht"},
+    ],
+    checks:["Wurzelfestigkeit nachgewiesen (FLL-Zulassung vorliegend)?","Gefälle mind. 1,5 % (besser 2 %) zur Entwässerung","Schutzmatte / Schutzbahn über gesamter Fläche","Drainageschicht + Filtervlies systemkonform","Notüberläufe geplant und eingebaut?"],
+    warnungen:["Begrünungsaufbau und Abdichtungssystem abstimmen – Systemgeber konsultieren!"],
+    norm:"DIN 18533 · FLL-Richtlinie Dachbegrünung · DIN SPEC 20000-202",
+  },
+  "tg|fahr": {
+    klasse:"W3-E", badge:"badge-high",
+    title:"TG-Decke · Befahrbar (PKW / LKW)",
+    subtitle:"Mechanische und dynamische Belastung durch Verkehr. OS-System erforderlich.",
+    systeme:[
+      {prim:true, name:"Reaktionsharz-System OS 11a/11b",    note:"Nach DIN 28052, zugelassenes PMMA- oder PU-System, Schichtdickenkontrolle"},
+      {prim:false,name:"Bitumenbahnen + Gussasphalt-Belag",  note:"Klassischer TG-Aufbau, Fugen und Abläufe druckwasserdicht"},
+    ],
+    checks:["Risse im Untergrund vorher verpressen oder schließen","Dehnfugenprofile druckwasserdicht ausführen","Abläufe mit systemkonformem Anschluss einbauen","Schichtdickennachweis für OS-System (Nassfilm messen)","Befahrbarkeit erst nach vollständiger Aushärtung freigeben"],
+    warnungen:["Befahrbare Abdichtung – OS-System-Zulassung prüfen und dokumentieren!"],
+    norm:"DIN 28052:2022 (OS-Systeme) · ZTV-ING · DIN 18533",
+  },
+  "tg|geh": {
+    klasse:"W3-E", badge:"badge-low",
+    title:"TG-Decke · Begehbar (Terrasse)",
+    subtitle:"Geringe mechanische Belastung. Gefälle und Sockelhöhe beachten.",
+    systeme:[
+      {prim:true, name:"Bitumenbahnen 2-lagig + Schutzbahn",     note:"Plattenbelag stelzgelagert, hinterlüftet"},
+      {prim:false,name:"Flüssigkunststoff (PUR/PMMA), nahtlos",  note:"Alternative bei komplexer Geometrie, Schutzschicht Pflicht"},
+    ],
+    checks:["Gefälle mind. 1,5 % (besser 2 %) zur Entwässerung","Sockelhöhe Abdichtung mind. 15 cm über OK Plattenbelag","Anschluss Geländer / Aufkantungen abdichten","Plattenbelag stelzgelagert und hinterlüftet"],
+    warnungen:[],
+    norm:"DIN 18533 · Flachdachrichtlinie (FDR) 2023",
+  },
+  "sockel|kurz": {
+    klasse:"W4-E", badge:"badge-low",
+    title:"Sockel · Spritzwasserzone",
+    subtitle:"Nur Spritzwasser und Schlagregen. Geringe Beanspruchung.",
+    systeme:[
+      {prim:true, name:"PMBC 2-lagig (Dickbeschichtung)", note:"Mindesthöhe mind. 30 cm über GOK hochziehen"},
+      {prim:false,name:"MDS + Zementputz",                note:"Nur bei trockenem Standort und mineralischem Untergrund"},
+    ],
+    checks:["Abdichtung mind. 30 cm über GOK hochziehen","Übergang Wärmedämmung / Abdichtung abdichten","Abtropfkante / Abschlussblech vorsehen","Systemkonform zur restlichen Wandabdichtung"],
+    warnungen:[],
+    norm:"DIN 18533-1:2017 §4.4, Sockel W4-E",
+  },
+  "sockel|kombi": {
+    klasse:"W4-E + Wand", badge:"badge-mid",
+    title:"Sockel + Erdberührte Wand (Kombination)",
+    subtitle:"Abdichtung muss aus einem Guss von Wand bis Sockel durchgehen.",
+    systeme:[
+      {prim:true, name:"PMBC durchgehend (Wand + Sockel)",             note:"Übergangsloses System, Sockel mind. 30 cm über GOK"},
+      {prim:false,name:"Bitumenbahn ab Sohle bis Sockelabschluss",     note:"Wenn Wand ebenfalls mit Bahn – systemkonformer Übergang"},
+    ],
+    checks:["Systemwechsel im Übergangsbereich vermeiden","Gleiche Materialfamilie: Wand, Sockel, WD/WU-Übergang","Abtropfkante und Abschlussblech planen","30 cm Mindesthöhe über GOK sicherstellen"],
+    warnungen:["Übergang Sockel / Erdwand = kritische Fehlstellenzone!"],
+    norm:"DIN 18533-1/2:2017, Kombi Sockel + Wand",
+  },
+  "durchdringung|rohr": {
+    klasse:"Sonderdetail", badge:"badge-mid",
+    title:"Durchdringung · Rohr / Leerrohr",
+    subtitle:"Jede Durchdringung ist eine potenzielle Schwachstelle.",
+    systeme:[
+      {prim:true, name:"Flanschanschluss (systemzugelassen)",  note:"Flansch auf Abdichtungsebene aufschweißen/kleben – gleicher Systemgeber!"},
+      {prim:false,name:"Manschette mit Klemmring",             note:"Für nachträgliche Einbauten, nur bei W1-Klassen geeignet"},
+    ],
+    checks:["Flansch systemkonform (gleicher Hersteller wie Fläche)?","Mindestabstand Rohr zu Rohr mind. 15 cm einhalten","Bewegungsausgleich: thermische Längenänderung beachten","Nach Einbau abdichten und optisch prüfen","Einbetoniertes Anschlussrohr bei Betonbauteilen?"],
+    warnungen:["Durchdringungen sind häufigste Leckagequellen – immer Fachbetrieb!"],
+    norm:"DIN 18533-1:2017 §6 · Systemzulassungen der Flanschhersteller",
+  },
+  "durchdringung|tuer": {
+    klasse:"Sonderdetail", badge:"badge-mid",
+    title:"Anschluss Tür / Fenster an Abdichtung",
+    subtitle:"Türanschlüsse sind die häufigste Leckage-Stelle im Keller!",
+    systeme:[
+      {prim:true, name:"Anschlussband + PMBC-Anbindung",         note:"Hersteller-Anschlussprofil, mind. 10 cm Überdeckung in Abdichtungsfläche"},
+      {prim:false,name:"Manschettenband mit Einbettung in PMBC", note:"Mind. 10 cm Überlappung, Eckformteile verwenden"},
+    ],
+    checks:["Rahmenunterkante > OK Abdichtungsoberkante? (mind. 15 cm Überstand!)","Keine Unterschneidung am Blendrahmen – Hinterlaufen ausschließen","Türschwelle druckwasserfest ausgeführt?","Eckausbildungen mit Formteilen (kein Freihandschnitt!)","Anschlussprofil systemkonform zum Flächensystem?"],
+    warnungen:["Türanschluss = häufigste Leckage-Stelle im Keller – besondere Sorgfalt!"],
+    norm:"DIN 18533-1:2017 §6.5 · Systemdetails der Hersteller",
+  },
+  "durchdringung|anschluss": {
+    klasse:"Sonderdetail", badge:"badge-mid",
+    title:"Wand-Boden-Anschluss / Hohlkehle",
+    subtitle:"Kritischer Übergangsbereich – ohne Hohlkehle keine dauerhaft dichte Abdichtung.",
+    systeme:[
+      {prim:true, name:"Hohlkehle + PMBC durchgehend",         note:"Innenradius mind. 4 cm, Gewebeeinlage Pflicht, zuerst Kehle dann Fläche"},
+      {prim:false,name:"Fugenband + Bahn durchgehend (Kehle)", note:"Bei Bahnenabdichtung: durchgehende Lage von Sohle auf Wand"},
+    ],
+    checks:["Hohlkehle Durchmesser 4–6 cm ausführen – KEIN rechter Winkel!","Gewebeeinlage in Kehle zuerst einbetten","PMBC: erst Kehle abdichten, dann Fläche anschließen","Fugenriss Platte/Wand vorhanden? Fugenband oder Quellprofil einbauen","Übergang systemkonform (gleiche Materialfamilie)"],
+    warnungen:["Anschluss ohne Hohlkehle = Fehlstelle vorprogrammiert – immer Hohlkehle!"],
+    norm:"DIN 18533-1:2017 §6.3 · DIN 18533-2 §4",
+  },
+};
+
+// ─── Navigation ───────────────────────────────────────────────────────────────
+function chooseOption(idx) {
+  var step = TREE[currentStep];
+  var opt  = step.options[idx];
+  // Save answer
+  if (opt.key && opt.ans !== undefined && opt.ans !== null) {
+    answers[opt.key] = opt.ans;
+  }
+  // Push to stack
+  navStack.push({ stepKey: currentStep, answers: JSON.parse(JSON.stringify(answers)), crumb: opt.label });
+  currentStep = opt.next;
+  render();
+}
+
+function goBack() {
+  if (navStack.length === 0) return;
+  var prev = navStack.pop();
+  currentStep = prev.stepKey;
+  answers     = prev.answers;
+  render();
+}
+
+function resetAll() {
+  navStack    = [];
+  answers     = {};
+  currentStep = "bauteil";
+  render();
+}
+
+function toggleCheck(i) {
+  var box = document.getElementById("cb" + i);
+  var lbl = document.getElementById("cl" + i);
+  var on  = box.classList.toggle("checked");
+  if (on) lbl.classList.add("checked"); else lbl.classList.remove("checked");
+}
+
+// ─── Render ───────────────────────────────────────────────────────────────────
+function setProgress(pct, label) {
+  document.getElementById("progressFill").style.width = pct + "%";
+  document.getElementById("progressLabel").textContent = label;
+  document.getElementById("progressPct").textContent   = pct + " %";
+}
+
+function renderBreadcrumb() {
+  var bc  = document.getElementById("breadcrumb");
+  var out = "";
+  for (var i = 0; i < navStack.length; i++) {
+    out += '<span class="crumb">' + navStack[i].crumb + '</span>';
+    if (i < navStack.length - 1) out += '<span class="crumb-arrow">›</span>';
+  }
+  bc.innerHTML = out;
+}
+
+function render() {
+  renderBreadcrumb();
+
+  if (currentStep === "result") {
+    renderResult();
+    return;
+  }
+
+  var step = TREE[currentStep];
+  if (!step) {
+    document.getElementById("app").innerHTML =
+      '<div class="card"><p style="color:var(--muted)">Unbekannter Schritt.</p>' +
+      '<div class="back-row"><button class="back-btn" onclick="resetAll()">Neu starten</button></div></div>';
+    return;
+  }
+
+  setProgress(step.progress, step.step);
+
+  var opts = "";
+  for (var i = 0; i < step.options.length; i++) {
+    var o = step.options[i];
+    opts += '<button class="opt-btn" onclick="chooseOption(' + i + ')">' +
+      '<span class="opt-icon">' + o.icon + '</span>' +
+      '<span class="opt-text">' +
+        '<span class="opt-label">' + o.label + '</span>' +
+        (o.desc ? '<span class="opt-desc">' + o.desc + '</span>' : '') +
+      '</span>' +
+      '</button>';
+  }
+
+  var backBtn = navStack.length > 0
+    ? '<div class="back-row"><button class="back-btn" onclick="goBack()">← Zurück</button></div>'
+    : '';
+
+  document.getElementById("app").innerHTML =
+    '<div class="card">' +
+      '<div class="step-chip"><span class="step-dot"></span>' + step.step + '</div>' +
+      '<div class="question">' + step.question + '</div>' +
+      (step.hint ? '<div class="hint">' + step.hint + '</div>' : '<div style="margin-bottom:16px"></div>') +
+      '<div class="options">' + opts + '</div>' +
+      backBtn +
+    '</div>';
+}
+
+function renderResult() {
+  setProgress(100, "Ergebnis");
+
+  // Build result key
+  var b   = answers.bauteil || "";
+  var w   = answers.wasser  || "";
+  var tg  = answers.nutzung || "";
+  var sk  = answers.sockel  || "";
+  var dg  = answers.dg      || "";
+
+  var key = "";
+  if (b === "wand" || b === "sohle")  key = b + "|" + w;
+  else if (b === "tg")                key = "tg|" + tg;
+  else if (b === "sockel")            key = "sockel|" + sk;
+  else if (b === "durchdringung")     key = "durchdringung|" + dg;
+
+  var r = RESULTS[key];
+
+  if (!r) {
+    document.getElementById("app").innerHTML =
+      '<div class="card"><p style="color:var(--muted)">Kombination nicht erkannt (Key: ' + key + ').</p>' +
+      '<div class="back-row">' +
+        '<button class="back-btn" onclick="goBack()">← Zurück</button>&nbsp;&nbsp;' +
+        '<button class="back-btn" onclick="resetAll()">Neu starten</button>' +
+      '</div></div>';
+    return;
+  }
+
+  var warns = "";
+  for (var i = 0; i < r.warnungen.length; i++) {
+    warns += '<div class="warn-box"><span class="wi">⚠️</span><span>' + r.warnungen[i] + '</span></div>';
+  }
+  if (warns) warns = '<div class="warn-list">' + warns + '</div>';
+
+  var sys = "";
+  for (var i = 0; i < r.systeme.length; i++) {
+    var s = r.systeme[i];
+    sys += '<div class="sys-item ' + (s.prim ? "prim" : "alt") + '">' +
+      '<span class="sys-tag">' + (s.prim ? "Empfohlen" : "Alternativ") + '</span>' +
+      '<div><div class="sys-name">' + s.name + '</div><div class="sys-note">' + s.note + '</div></div>' +
+      '</div>';
+  }
+
+  var checks = "";
+  for (var i = 0; i < r.checks.length; i++) {
+    checks += '<div class="check-item">' +
+      '<div class="check-box" id="cb' + i + '" onclick="toggleCheck(' + i + ')"></div>' +
+      '<span class="check-label" id="cl' + i + '" onclick="toggleCheck(' + i + ')">' + r.checks[i] + '</span>' +
+      '</div>';
+  }
+
+  document.getElementById("app").innerHTML =
+    '<div class="result-wrap">' +
+
+      '<div class="result-hero">' +
+        '<div class="badge ' + r.badge + '">' + r.klasse + '</div>' +
+        '<div class="result-title">' + r.title + '</div>' +
+        '<div class="result-subtitle">' + r.subtitle + '</div>' +
+      '</div>' +
+
+      warns +
+
+      '<div class="section-block">' +
+        '<div class="section-head">Abdichtungssystem</div>' +
+        '<div class="section-body">' + sys + '</div>' +
+      '</div>' +
+
+      '<div class="section-block">' +
+        '<div class="section-head">Ausführungs-Checkliste (Bauleiter)</div>' +
+        '<div class="section-body check-list">' + checks + '</div>' +
+        '<div class="norm-row"><span>📖</span>' + r.norm + '</div>' +
+      '</div>' +
+
+      '<div class="result-footer">' +
+        '<button class="back-btn" onclick="goBack()">← Zurück</button>' +
+        '<button class="action-btn primary-btn" onclick="resetAll()">↩ Neue Abfrage</button>' +
+      '</div>' +
+
+    '</div>';
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+render();
+</script>
+</body>
+</html>
