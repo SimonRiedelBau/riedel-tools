@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Statik-Assistent · Autohaus Ferrari München</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0c0d0f;
+  --surface:#16181b;
+  --surface2:#1d2024;
+  --border:#2a2d32;
+  --border-light:#383c42;
+  --text:#eae8e3;
+  --text-dim:#9a9da3;
+  --text-dim2:#7b7e84;
+  --rosso:#d81324;
+  --rosso-dim:#8f0d18;
+  --rosso-glow:rgba(216,19,36,0.18);
+  --steel:#5b8aa8;
+  --ok:#3fa564;
+  --warn:#d9a441;
+  --radius:3px;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:
+    linear-gradient(180deg, rgba(216,19,36,0.05) 0%, transparent 260px),
+    var(--bg);
+  color:var(--text);
+  font-family:'Inter',system-ui,sans-serif;
+  font-size:15px;
+  line-height:1.55;
+  min-height:100vh;
+}
+.grain{
+  position:fixed;inset:0;pointer-events:none;opacity:0.035;z-index:0;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+header{
+  position:sticky;top:0;z-index:20;
+  background:rgba(12,13,15,0.92);
+  backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--border);
+}
+.header-top{
+  max-width:1180px;margin:0 auto;padding:18px 24px 14px;
+  display:flex;align-items:baseline;justify-content:space-between;gap:20px;flex-wrap:wrap;
+}
+.brand{display:flex;align-items:baseline;gap:12px;}
+.brand .mark{
+  font-family:'Oswald',sans-serif;font-weight:700;font-size:13px;letter-spacing:0.18em;
+  color:var(--rosso);border:1px solid var(--rosso-dim);padding:4px 8px;border-radius:2px;
+  background:var(--rosso-glow);
+}
+.brand h1{
+  font-family:'Oswald',sans-serif;font-weight:600;font-size:21px;margin:0;letter-spacing:0.01em;
+  color:var(--text);
+}
+.brand .sub{color:var(--text-dim2);font-size:12.5px;font-family:'IBM Plex Mono',monospace;}
+.meta-strip{
+  max-width:1180px;margin:0 auto;padding:0 24px 16px;
+  display:flex;gap:28px;flex-wrap:wrap;
+  font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--text-dim2);
+}
+.meta-strip b{color:var(--text-dim);font-weight:500;}
+nav{
+  max-width:1180px;margin:0 auto;padding:0 24px;
+  display:flex;gap:2px;overflow-x:auto;
+}
+nav button{
+  background:none;border:none;color:var(--text-dim2);
+  font-family:'Oswald',sans-serif;font-weight:500;font-size:13.5px;letter-spacing:0.03em;
+  padding:12px 16px;cursor:pointer;white-space:nowrap;
+  border-bottom:2px solid transparent;transition:all .15s;
+}
+nav button:hover{color:var(--text);}
+nav button.active{color:var(--rosso);border-bottom-color:var(--rosso);}
+
+main{max-width:1180px;margin:0 auto;padding:32px 24px 80px;position:relative;z-index:1;}
+.view{display:none;animation:fade .25s ease;}
+.view.active{display:block;}
+@keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+
+h2.section-title{
+  font-family:'Oswald',sans-serif;font-weight:600;font-size:22px;margin:0 0 4px;
+  color:var(--text);display:flex;align-items:center;gap:10px;
+}
+h2.section-title::before{
+  content:'';width:4px;height:20px;background:var(--rosso);display:inline-block;border-radius:1px;
+}
+.section-intro{color:var(--text-dim);font-size:14px;margin:0 0 28px;max-width:760px;}
+
+.card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:22px 24px;margin-bottom:18px;
+}
+.card h3{
+  font-family:'Oswald',sans-serif;font-weight:500;font-size:15.5px;margin:0 0 12px;
+  color:var(--text);text-transform:uppercase;letter-spacing:0.04em;
+  display:flex;align-items:center;gap:8px;
+}
+.card h3 .num{color:var(--rosso);font-family:'IBM Plex Mono',monospace;font-size:13px;}
+.card p{margin:0 0 10px;color:var(--text-dim);font-size:14px;}
+.card p:last-child{margin-bottom:0;}
+.card ul{margin:8px 0 0;padding-left:18px;color:var(--text-dim);font-size:14px;}
+.card li{margin-bottom:5px;}
+
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+.three-col{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;}
+@media(max-width:800px){.two-col,.three-col{grid-template-columns:1fr;}}
+
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:14px 0;}
+.kpi{
+  background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);
+  padding:12px 14px;
+}
+.kpi .label{font-size:11px;color:var(--text-dim2);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;}
+.kpi .value{font-family:'IBM Plex Mono',monospace;font-size:17px;color:var(--rosso);font-weight:600;}
+.kpi .unit{font-size:11px;color:var(--text-dim2);margin-left:2px;}
+
+table{width:100%;border-collapse:collapse;font-size:13.5px;}
+table.data th{
+  text-align:left;font-family:'Oswald',sans-serif;font-weight:500;font-size:11.5px;
+  letter-spacing:0.05em;text-transform:uppercase;color:var(--text-dim2);
+  padding:9px 10px;border-bottom:1px solid var(--border-light);
+}
+table.data td{padding:9px 10px;border-bottom:1px solid var(--border);color:var(--text-dim);vertical-align:top;}
+table.data tr:hover td{background:rgba(255,255,255,0.015);}
+table.data td.mono, table.data th.mono{font-family:'IBM Plex Mono',monospace;}
+.badge{
+  display:inline-block;padding:2px 7px;border-radius:2px;font-size:11px;font-family:'IBM Plex Mono',monospace;
+  border:1px solid var(--border-light);color:var(--text-dim);
+}
+.badge.ok{border-color:rgba(63,165,100,0.4);color:var(--ok);background:rgba(63,165,100,0.08);}
+.badge.warn{border-color:rgba(217,164,65,0.4);color:var(--warn);background:rgba(217,164,65,0.08);}
+.badge.steel{border-color:rgba(91,138,168,0.4);color:var(--steel);background:rgba(91,138,168,0.08);}
+.badge.rosso{border-color:rgba(216,19,36,0.4);color:#ff5c68;background:var(--rosso-glow);}
+
+/* Bauteile view */
+.filter-bar{
+  display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;align-items:center;
+  position:sticky;top:96px;z-index:5;background:var(--bg);padding:10px 0;
+}
+.filter-bar input[type=text]{
+  flex:1;min-width:200px;background:var(--surface);border:1px solid var(--border-light);
+  color:var(--text);padding:10px 14px;border-radius:var(--radius);font-size:14px;font-family:'IBM Plex Mono',monospace;
+  outline:none;
+}
+.filter-bar input[type=text]:focus{border-color:var(--rosso);}
+.filter-bar select{
+  background:var(--surface);border:1px solid var(--border-light);color:var(--text);
+  padding:10px 12px;border-radius:var(--radius);font-size:13px;font-family:'Inter',sans-serif;outline:none;
+}
+.result-count{color:var(--text-dim2);font-size:12.5px;margin-bottom:10px;font-family:'IBM Plex Mono',monospace;}
+.pos-table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+.pos-table-wrap table{font-size:13px;}
+.pos-table-wrap th{position:sticky;top:0;background:var(--surface2);}
+.pos-table-wrap td.id{font-family:'IBM Plex Mono',monospace;color:var(--text);font-weight:600;white-space:nowrap;}
+.pos-table-wrap td.page{font-family:'IBM Plex Mono',monospace;color:var(--text-dim2);white-space:nowrap;text-align:right;}
+.pos-table-wrap td.cat{white-space:nowrap;}
+.cat-pill{font-size:10.5px;padding:2px 6px;border-radius:2px;background:var(--surface2);border:1px solid var(--border-light);color:var(--text-dim2);}
+
+.chapter-list{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;}
+.chapter-list li{
+  display:flex;gap:10px;padding:8px 0;border-bottom:1px dashed var(--border);
+  font-size:13.5px;color:var(--text-dim);
+}
+.chapter-list b{color:var(--rosso);font-family:'IBM Plex Mono',monospace;font-weight:600;min-width:44px;}
+@media(max-width:700px){.chapter-list{grid-template-columns:1fr;}}
+
+.callout{
+  border-left:3px solid var(--rosso);background:var(--rosso-glow);
+  padding:12px 16px;border-radius:0 var(--radius) var(--radius) 0;font-size:13.5px;color:#f0d5d7;margin:14px 0;
+}
+.callout.steel{border-left-color:var(--steel);background:rgba(91,138,168,0.1);color:#cfe3ee;}
+.callout.warn{border-left-color:var(--warn);background:rgba(217,164,65,0.1);color:#f1e0bb;}
+
+footer{
+  max-width:1180px;margin:0 auto;padding:20px 24px 40px;color:var(--text-dim2);
+  font-size:11.5px;font-family:'IBM Plex Mono',monospace;border-top:1px solid var(--border);margin-top:40px;
+}
+a{color:var(--steel);}
+::selection{background:var(--rosso-glow);}
+
+/* PDF config bar */
+.pdf-config{
+  background:var(--surface2);border:1px solid var(--border-light);border-radius:var(--radius);
+  padding:14px 16px;margin-bottom:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+}
+.pdf-config .lbl{font-size:12px;color:var(--text-dim2);white-space:nowrap;font-family:'IBM Plex Mono',monospace;}
+.pdf-config input[type=text]{
+  flex:1;min-width:220px;background:var(--bg);border:1px solid var(--border-light);color:var(--text);
+  padding:8px 12px;border-radius:var(--radius);font-size:13px;font-family:'IBM Plex Mono',monospace;outline:none;
+}
+.pdf-config input[type=text]:focus{border-color:var(--rosso);}
+.pdf-config button{
+  background:var(--rosso);border:none;color:#fff;padding:8px 16px;border-radius:var(--radius);
+  font-family:'Oswald',sans-serif;font-weight:500;font-size:12.5px;letter-spacing:0.03em;cursor:pointer;
+}
+.pdf-config button:hover{background:#ff2233;}
+.pdf-config .status{font-size:11.5px;color:var(--ok);font-family:'IBM Plex Mono',monospace;}
+
+/* position rows */
+.pos-row{cursor:pointer;}
+.pos-row td.chev{width:18px;color:var(--text-dim2);font-size:11px;text-align:center;}
+.pos-detail-row td{background:var(--surface2);padding:16px 18px;border-bottom:1px solid var(--border);}
+.pos-detail-row{display:none;}
+.pos-detail-row.open{display:table-row;}
+.pos-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media(max-width:750px){.pos-detail-grid{grid-template-columns:1fr;}}
+.pos-detail-block h4{
+  margin:0 0 6px;font-family:'Oswald',sans-serif;font-size:11.5px;text-transform:uppercase;
+  letter-spacing:0.05em;color:var(--rosso);
+}
+.pos-detail-block pre{
+  margin:0;white-space:pre-wrap;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text-dim);
+  line-height:1.5;
+}
+.pos-detail-block .empty{color:var(--text-dim2);font-size:12px;font-style:italic;}
+.flag-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+.flag-chip{
+  font-size:10.5px;padding:3px 8px;border-radius:2px;background:rgba(217,164,65,0.1);
+  border:1px solid rgba(217,164,65,0.35);color:var(--warn);
+}
+.pdf-jump-btn{
+  display:inline-flex;align-items:center;gap:6px;margin-top:12px;
+  background:var(--rosso);color:#fff;text-decoration:none;padding:8px 14px;border-radius:var(--radius);
+  font-family:'Oswald',sans-serif;font-weight:500;font-size:12.5px;letter-spacing:0.03em;
+}
+.pdf-jump-btn:hover{background:#ff2233;}
+.pdf-jump-btn.disabled{background:var(--surface);color:var(--text-dim2);border:1px solid var(--border-light);pointer-events:none;}
+.chapter-list li a.pdf-link{
+  color:var(--rosso);font-size:11.5px;margin-left:6px;text-decoration:none;font-family:'IBM Plex Mono',monospace;
+}
+.chapter-list li a.pdf-link:hover{text-decoration:underline;}
+</style>
+</head>
+<body>
+<div class="grain"></div>
+
+<header>
+  <div class="header-top">
+    <div class="brand">
+      <span class="mark">STATIK</span>
+      <div>
+        <h1>Neubau Autohaus Ferrari München</h1>
+        <div class="sub">Moosacher Straße 40, 80809 München · Statik-Assistent für die Bauleitung</div>
+      </div>
+    </div>
+  </div>
+  <div class="meta-strip">
+    <span><b>Tragwerksplaner:</b> Ametsbichler+Lehr Ingenieurgesellschaft mbH</span>
+    <span><b>GU:</b> Riedel Bau AG</span>
+    <span><b>Stand:</b> Mai 2026</span>
+    <span><b>Quelle:</b> Statik_gesamt.pdf · 2130 Seiten</span>
+  </div>
+  <nav id="nav">
+    <button data-view="uebersicht" class="active">Übersicht</button>
+    <button data-view="baustoffe">Baustoffe &amp; Baugrund</button>
+    <button data-view="lasten">Lastannahmen</button>
+    <button data-view="brandschutz">Brandschutz</button>
+    <button data-view="bauteile">Bauteil-Datenbank</button>
+    <button data-view="normen">Normen &amp; Software</button>
+  </nav>
+</header>
+
+<main>
+
+  <!-- ================= ÜBERSICHT ================= -->
+  <section class="view active" id="view-uebersicht">
+    <h2 class="section-title">Projektübersicht</h2>
+    <p class="section-intro">Zusammenfassung der statischen Berechnung – die für die Bauleitung wesentlichen Eckpunkte auf einen Blick.</p>
+
+    <div class="card">
+      <h3><span class="num">01</span> Baubeschreibung</h3>
+      <p>Neubau eines Autohauses mit Tiefgarage für die Fa. Ferrari in der Moosacher Straße 40, München. Gebäude mit drei Obergeschossen und einer unterirdischen Tiefgarage (1.UG). Grundfläche ca. 53,0 × 32,0 m, die Tiefgarage erstreckt sich im Westen zusätzlich um ca. 20,0 m. Ausführung als fugenlose Massivbauweise in Stahlbeton.</p>
+      <p><b style="color:var(--text)">Optionale Aufstockung:</b> Im 2.OG wird statisch eine zukünftige Aufstockung in Stahlbau berücksichtigt (Stahlträger auf Stahlbetonstützen). Der Aufzugskern wird bereits massiv bis ins 2.OG geführt. Eine komplette Massivaufstockung ist ausgeschlossen und nicht berücksichtigt.</p>
+      <p><b style="color:var(--text)">Tragkonzept 1.OG / ZG (Werkstatt):</b> Große, stützenfreie Bereiche über vorgespannte Fertigteilbinder (ca. 60×80 cm, im Werkstattbereich bis 21,5 m Spannweite mit ca. 60×180 cm), aufgelagert auf Konsolen an Wänden/Unterzügen. Filigrandecken 16 cm bei ca. 4,20 m Feldweite.</p>
+      <div class="kpi-grid">
+        <div class="kpi"><div class="label">Deckenstärke OG</div><div class="value">30<span class="unit">cm</span></div></div>
+        <div class="kpi"><div class="label">Decke Aufstockung</div><div class="value">24<span class="unit">cm</span></div></div>
+        <div class="kpi"><div class="label">Decke UG</div><div class="value">32–34<span class="unit">cm</span></div></div>
+        <div class="kpi"><div class="label">Filigrandecke</div><div class="value">16<span class="unit">cm</span></div></div>
+        <div class="kpi"><div class="label">FT-Binder Regel</div><div class="value">60×80<span class="unit">cm</span></div></div>
+        <div class="kpi"><div class="label">FT-Binder Werkstatt</div><div class="value">60×180<span class="unit">cm</span></div></div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="card">
+        <h3><span class="num">02</span> Gründung</h3>
+        <p>Grundsätzlich Einzel- und Streifenfundamente. Nur im Bereich der Aufzugsunterfahrt liegt anstehendes Grundwasser vor – dort tragende Bodenplatte in <b style="color:var(--text)">WU-Konstruktion</b>. Übrige TG-Bereiche: Pflasterbelag, nicht tragende Bodenplatten in Technik-/Lagerflächen. Rampenplatte als nicht tragende Platte in Polymerfaserbeton auf Kies.</p>
+      </div>
+      <div class="card">
+        <h3><span class="num">03</span> Gebäudeklasse</h3>
+        <p><span class="badge rosso">Gebäudeklasse 5</span> – wegen möglicher optionaler Aufstockung.</p>
+        <div class="callout">Die statische Berechnung darf erst nach Vorlage des Prüfberichts eines Prüfsachverständigen der weiteren Planung zugrunde gelegt werden.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><span class="num">04</span> Gebäudeaussteifung &amp; Tragkonzept</h3>
+      <p>Aussteifung über die vorhandenen Stahlbetonwände und -decken. Haupttragachsen aus Stahlbetonwänden/-stützen führen Lasten weitgehend durchgehend bis ins UG. Einzelne Wände als wandartige Träger (Wandscheiben) zur Lastumlenkung auf Stützen/Wände der Tiefgarage.</p>
+    </div>
+
+    <div class="card">
+      <h3><span class="num">05</span> Kapitelübersicht der Statik</h3>
+      <ul class="chapter-list">
+        <li><b>Kap. A</b> Vorbemerkungen <a class="pdf-link" data-pdf="A_vorbemerkungen.pdf" data-page="1" href="#">PDF öffnen ↗</a></li>
+        <li><b>Kap. B</b> Lastannahmen <a class="pdf-link" data-pdf="B_lastannahmen.pdf" data-page="1" href="#">PDF öffnen ↗</a></li>
+        <li><b>Kap. C</b> Feuerwiderstandsdauer tragender Bauteile <a class="pdf-link" data-pdf="C_brandschutz.pdf" data-page="1" href="#">PDF öffnen ↗</a></li>
+        <li><b>Kap. D</b> Nachweis Gebäudeaussteifung / Geomodell <a class="pdf-link" data-pdf="D_geomodell_treppen.pdf" data-page="1" href="#">PDF öffnen ↗</a></li>
+        <li><b>Kap. E</b> Treppen und Treppenpodeste <a class="pdf-link" data-pdf="D_geomodell_treppen.pdf" data-page="69" href="#">PDF öffnen ↗</a></li>
+        <li><b>Kap. F</b> Decken und Durchstanznachweise <a class="pdf-link" data-pdf="F_decken_durchstanz.pdf" data-page="1" href="#">PDF öffnen ↗</a></li>
+        <li><b>Kap. G.1</b> Unterzüge und Konsolen <a class="pdf-link" data-pdf="G1a_unterzuege.pdf" data-page="1" href="#">PDF öffnen ↗</a></li>
+        <li><b>Kap. G.2</b> FT-Unterzüge <a class="pdf-link" data-pdf="G2_ft_unterzuege.pdf" data-page="1" href="#">PDF öffnen ↗</a></li>
+        <li><b>Kap. G.3</b> FT-Spannbeton-Unterzüge <a class="pdf-link" data-pdf="G3_ft_spannbeton.pdf" data-page="1" href="#">PDF öffnen ↗</a></li>
+        <li><b>Kap. H</b> Wände und Wandscheiben <a class="pdf-link" data-pdf="H_waende_wandscheiben.pdf" data-page="1" href="#">PDF öffnen ↗</a></li>
+        <li><b>Kap. I</b> Stützen <a class="pdf-link" data-pdf="I_stuetzen.pdf" data-page="1" href="#">PDF öffnen ↗</a></li>
+        <li><b>Kap. J</b> Gründung (Fundamente) <a class="pdf-link" data-pdf="J1_streifenfundamente.pdf" data-page="1" href="#">PDF öffnen ↗</a></li>
+        <li><b>Kap. K</b> Außenbauteile (Zerrbalken, Bodenplatten, Winkelstützwände) <a class="pdf-link" data-pdf="J3_zerrbalken_bodenplatten_wsw.pdf" data-page="1" href="#">PDF öffnen ↗</a></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ================= BAUSTOFFE ================= -->
+  <section class="view" id="view-baustoffe">
+    <h2 class="section-title">Baustoffe &amp; Baugrundverhältnisse</h2>
+    <p class="section-intro">Materialübersicht und geotechnische Kennwerte gemäß Baugrundgutachten der GHB Consult GmbH (01.07.2025).</p>
+
+    <div class="card">
+      <h3><span class="num">01</span> Baustoffe (überwiegend verwendet)</h3>
+      <div class="kpi-grid">
+        <div class="kpi"><div class="label">Stahlbeton</div><div class="value" style="font-size:14px">C25/30–C50/60</div></div>
+        <div class="kpi"><div class="label">Betonstahl</div><div class="value" style="font-size:14px">B500A / B500B</div></div>
+        <div class="kpi"><div class="label">Baustahl</div><div class="value" style="font-size:14px">S235 / S355</div></div>
+      </div>
+      <p style="margin-top:14px">Die dominierenden Festigkeitsklassen im Bauwerk sind <b style="color:var(--text)">C30/37</b> (Regelfall Decken, Wände, Stützen, Fundamente) sowie <b style="color:var(--text)">C35/45</b> in höher beanspruchten/exponierten Bereichen (z. B. EG-Decke, UG-Stützen mit XF1). Details je Bauteil siehe Reiter „Bauteil-Datenbank“.</p>
+      <div class="callout warn">Für die Güte der einzubauenden Materialien und die Standsicherheit im Montagezustand haften die ausführenden Unternehmen. Nicht genormte Baustoffe benötigen eine bauaufsichtliche Zulassung bzw. Zulassung im Einzelfall.</div>
+    </div>
+
+    <div class="two-col">
+      <div class="card">
+        <h3><span class="num">02</span> Baugrund – Kennwerte</h3>
+        <div class="kpi-grid">
+          <div class="kpi"><div class="label">HHW (Bemessung)</div><div class="value" style="font-size:15px">501,1<span class="unit">m ü. NN</span></div></div>
+          <div class="kpi"><div class="label">MGHW (Bauzustand)</div><div class="value" style="font-size:15px">499,3<span class="unit">m ü. NN</span></div></div>
+          <div class="kpi"><div class="label">Gründungssohle</div><div class="value" style="font-size:15px">501,9–502,2<span class="unit">m ü. NN</span></div></div>
+          <div class="kpi"><div class="label">Bettungsmodul ks</div><div class="value" style="font-size:15px">≈50<span class="unit">MN/m³</span></div></div>
+          <div class="kpi"><div class="label">σR,d max (Spitze)</div><div class="value" style="font-size:15px">300<span class="unit">kN/m²</span></div></div>
+          <div class="kpi"><div class="label">Setzungen</div><div class="value" style="font-size:15px">0,5–1,5<span class="unit">cm</span></div></div>
+        </div>
+        <p>Tragfähige quartäre Kiese (typisch München). Gründung muss in dicht gelagerten Kiesen erfolgen (ab ca. 1,0 m Tiefe). MGHW liegt ca. 2,60 m unterhalb Gründungssohle → <b style="color:var(--text)">kein Auftriebssicherheitsnachweis für den Bauzustand erforderlich</b>.</p>
+        <div class="callout warn">Im Zuge der Baugrubenarbeiten sind die Angaben gemäß DIN 1054 vor Ort zu überprüfen. Bei Abweichungen ist eine Neudimensionierung der Gründung erforderlich!</div>
+      </div>
+      <div class="card">
+        <h3><span class="num">03</span> Abdichtung &amp; Beschichtungskonzept TG</h3>
+        <p>Nicht tragende/nicht überbaute Bereiche der Decken werden <b style="color:var(--text)">bituminös nach DIN 18533</b> abgedichtet.</p>
+        <p>Zum Schutz vor Chlorideintrag (Tausalz) werden im 1.UG (TG-Fahrbahn Pflasterbelag) alle Fundamente und aufgehenden Stahlbetonbauteile (Wände, Stützen) in der Tiefgarage und den Aufbereitungsräumen <b style="color:var(--text)">bituminös abgedichtet</b>, mit einem Hochzug von <b style="color:var(--text)">50 cm</b> an aufgehenden Bauteilen.</p>
+        <p>Außenwände UG: Wandstärken 25 / 30 / 35 cm. Zufahrtsrampe: Betonplatte in Polymerfaserbeton auf Kies gelagert.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><span class="num">04</span> Unterlagen zur Information</h3>
+      <ul>
+        <li>Eingabe-/Bereitschaftspläne des Architekturbüros Vorstadt Architekten / Möckel Architekten</li>
+        <li>Baugrundgutachten der GHB Consult GmbH vom 01.07.2025</li>
+        <li>Fortgeschriebenes Brandschutzkonzept der Riedelbau AG vom 03.11.2025</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ================= LASTANNAHMEN ================= -->
+  <section class="view" id="view-lasten">
+    <h2 class="section-title">Lastannahmen (Kapitel B)</h2>
+    <p class="section-intro">Charakteristische Einwirkungen je Bauteilbereich – Auszug relevanter Kennwerte.</p>
+
+    <div class="pos-table-wrap" style="margin-bottom:22px;">
+      <table class="data">
+        <thead><tr>
+          <th>Bereich</th><th>Ständige Last gk</th><th>Veränderliche Last pk</th><th>Bemerkung</th>
+        </tr></thead>
+        <tbody>
+          <tr><td>Decke ü. 2.OG (Stahldach, optional)</td><td class="mono">3,00 kN/m²</td><td class="mono">1,00 kN/m² (Wartung) / sk 1,15</td><td>Begrünung 2,00 + PV 0,35 + Abdichtung/Trapezblech 0,65</td></tr>
+          <tr><td>Decke ü. 2.OG (Stahlbetonkern)</td><td class="mono">3,00 kN/m²</td><td class="mono">1,00 kN/m² (Kat. H)</td><td>Qk = 1,00 kN Ersatzflächenlast Wartung</td></tr>
+          <tr><td>Decke ü. 1.OG (opt. Aufstockung)</td><td class="mono">4,00 kN/m²</td><td class="mono">Kat. F1 (min.)</td><td>Verkehrs-/Parkflächen</td></tr>
+          <tr><td>Decke ü. ZG/EG (Regelbereich)</td><td class="mono">4,00 kN/m²</td><td class="mono">Kat. B1</td><td>Fliesenbelag 0,44 + Zementestrich 2,20 + …</td></tr>
+          <tr><td>Decke ü. 1.UG – Büro/Verkauf</td><td class="mono">–</td><td class="mono">2,00 + 1,20 kN/m²</td><td>Kat. B1 + Trennwandzuschlag Tz</td></tr>
+          <tr><td>Decke ü. 1.UG – Teilelager EG</td><td class="mono">2,75 kN/m²</td><td class="mono">7,50 kN/m²</td><td>Kat. E2.1</td></tr>
+          <tr><td>Nicht überbaute Hofdecke</td><td class="mono">g1 8,50 kN/m² (+g2)</td><td class="mono">p1 (max. Wert)</td><td>Stb.-Platte 34 cm</td></tr>
+          <tr><td>Decke ü. Rampe (überschüttet)</td><td class="mono">9,80 kN/m²</td><td class="mono">16,40 kN/m²</td><td>analog Hofdecke</td></tr>
+          <tr><td>Decke ü. Rampe (reduziert, Einfahrt)</td><td class="mono">10,20 kN/m²</td><td class="mono">16,70 kN/m²</td><td>SLW 30, Stb.-Platte 24 cm</td></tr>
+          <tr><td>Bodenplatten UG</td><td class="mono">2,00 kN/m²</td><td class="mono">7,50 kN/m² (TGA)</td><td>Technikflächen einheitlich bemessen</td></tr>
+          <tr><td>Treppen / Treppenpodeste</td><td class="mono">–</td><td class="mono">5,00 kN/m²</td><td>Kat. T2</td></tr>
+          <tr><td>Fassade</td><td class="mono">4,0 kN/m</td><td class="mono">–</td><td>pauschal angesetzt</td></tr>
+          <tr><td>Schnee (München)</td><td class="mono">–</td><td class="mono">sk = 1,15 kN/m²</td><td>Vorgabe LBK München, Stadtbereich</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3><span class="num">02</span> Windlasten</h3>
+      <div class="kpi-grid">
+        <div class="kpi"><div class="label">Windzone</div><div class="value" style="font-size:15px">WZ 2</div></div>
+        <div class="kpi"><div class="label">Geländekategorie</div><div class="value" style="font-size:15px">III</div></div>
+        <div class="kpi"><div class="label">qb,0</div><div class="value" style="font-size:15px">0,39<span class="unit">kN/m²</span></div></div>
+        <div class="kpi"><div class="label">vb,0</div><div class="value" style="font-size:15px">25,0<span class="unit">m/s</span></div></div>
+        <div class="kpi"><div class="label">Bauwerkshöhe h</div><div class="value" style="font-size:15px">16,0<span class="unit">m</span></div></div>
+        <div class="kpi"><div class="label">b (quer) / d (längs)</div><div class="value" style="font-size:15px">32,6 / 52,3<span class="unit">m</span></div></div>
+      </div>
+      <p>Windlasten werden im Programm Frilo GEO programmintern als Horizontallasten über alle Geschosse generiert und sind in den Überlagerungen Max./Min. berücksichtigt (nicht separat je Auflager ausgegeben).</p>
+    </div>
+
+    <div class="two-col">
+      <div class="card">
+        <h3><span class="num">03</span> Sonderlasten</h3>
+        <p><b style="color:var(--text)">PKW-Aufzug:</b> Lasten für Schachtdecke und Bodenplatte separat ermittelt (Kap. B.8).</p>
+        <p><b style="color:var(--text)">Trafolasten:</b> Trafohäuschen auf TG-Decke im Bereich Achse A/-3, Lastangaben durch Riedel Bau (Kap. B.9).</p>
+      </div>
+      <div class="card">
+        <h3><span class="num">04</span> Hinweis für die Bauleitung</h3>
+        <div class="callout steel">Nutzlastkategorien sind bauteilscharf – bei Nutzungsänderungen (z. B. Umwidmung Lager → Werkstatt) vor Ausführung mit dem Tragwerksplaner abstimmen, da dies die Bemessung der Decken/Unterzüge betrifft.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= BRANDSCHUTZ ================= -->
+  <section class="view" id="view-brandschutz">
+    <h2 class="section-title">Feuerwiderstandsdauer (Kapitel C)</h2>
+    <p class="section-intro">Gebäudeklasse 5 (wegen optionaler Aufstockung) → alle Geschosse einheitlich <span class="badge rosso">F90</span>, nachgewiesen nach DIN EN 1992-1-2:2010-12.</p>
+
+    <div class="callout">Gebäude: 3 Vollgeschosse + 1 UG, Höhe &lt; 13 m → eigentlich Gebäudeklasse 4 (F60, UG F90). Wegen möglicher optionaler Aufstockung wird jedoch <b>durchgängig nach Gebäudeklasse 5 (F90 in allen Geschossen)</b> ausgeführt, um spätere Ertüchtigung zu vermeiden.</div>
+
+    <div class="pos-table-wrap" style="margin:18px 0;">
+      <table class="data">
+        <thead><tr>
+          <th>Bauteil</th><th>Mindestmaß erf.</th><th>vorh. Maß</th><th>Achsabstand a</th><th>Betondeckung cv</th><th>Mindest-Ø</th>
+        </tr></thead>
+        <tbody>
+          <tr><td>Stb.-Decken (alle)</td><td class="mono">hs = 200 mm</td><td class="mono">240 mm</td><td class="mono">a = 25 mm</td><td class="mono">25 mm (XC1)</td><td class="mono">Ø8</td></tr>
+          <tr><td>Treppenzwischenpodeste</td><td class="mono">hs = 100 mm</td><td class="mono">200 mm</td><td class="mono">a = 30 mm</td><td class="mono">25 mm (XC1)</td><td class="mono">Ø8 Bügel / Ø10 Läng.</td></tr>
+          <tr><td>Stb.-Wände (α1=0,7)</td><td class="mono">h = 170 mm</td><td class="mono">200 mm</td><td class="mono">a = 25 mm</td><td class="mono">25 mm (XC1)</td><td class="mono">Ø8</td></tr>
+          <tr><td>Unterzüge, Brüstung bmin=150</td><td class="mono">b = 150 mm</td><td class="mono">250 mm</td><td class="mono">a = 35 / asd 45 mm</td><td class="mono">30 mm (XC1)</td><td class="mono">Ø8 Bügel / Ø14 Läng.</td></tr>
+          <tr><td>Unterzüge bmin=250/200</td><td class="mono">b = 200–250 mm</td><td class="mono">200 mm</td><td class="mono">a = 35 / asd 45 mm</td><td class="mono">30 mm (XC1)</td><td class="mono">Ø8 Bügel / Ø14 Läng.</td></tr>
+          <tr><td>Stb.-Treppenläufe (1-achsig)</td><td class="mono">hs = 100 mm</td><td class="mono">200 mm</td><td class="mono">a = 30 mm</td><td class="mono">25 mm (XC1)</td><td class="mono">Ø8</td></tr>
+          <tr><td>Konsolen, abgesetztes Treppenauflager</td><td class="mono">h = 80 mm</td><td class="mono">145 mm</td><td class="mono">a = 10 mm</td><td class="mono">25 mm (XC1)</td><td class="mono">Ø8</td></tr>
+          <tr><td>Konsolen, Linienkonsole Treppenauflager</td><td class="mono">h = 80 mm</td><td class="mono">160 mm</td><td class="mono">a = 10–24 mm</td><td class="mono">25 mm (XC1)</td><td class="mono">Ø8</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3><span class="num">01</span> Stützen</h3>
+      <p>Für Stahlbetonstützen wird – anders als bei den übrigen Bauteilen – kein pauschaler konstruktiver Wert verwendet, sondern der <b style="color:var(--text)">Ausnutzungsfaktor je Stütze individuell ermittelt</b>. Die Brandschutzbemessung erfolgt direkt im Anschluss an die Kaltbemessung jeder Stützenposition in der Statik (siehe Bauteil-Datenbank, Kategorie „Stützen“).</p>
+    </div>
+    <div class="callout warn">Alle hier genannten Werte sind konstruktive Mindestanforderungen (Tabellenwerte nach DIN EN 1992-1-2). Die tatsächlich ausgeführten Maße/Bewehrungen je Position sind den jeweiligen Bewehrungsplänen zu entnehmen – bei Putzbekleidung ergeben sich günstigere Verhältnisse.</div>
+  </section>
+
+  <!-- ================= BAUTEILE ================= -->
+  <section class="view" id="view-bauteile">
+    <h2 class="section-title">Bauteil-Datenbank</h2>
+    <p class="section-intro">Alle 171 statisch nachgewiesenen Positionen aus der Statik – durchsuchbar nach Positions-Nr., Bauteiltyp, Betongüte oder Abmessung. Seitenangabe bezieht sich auf die Gesamt-PDF (Statik_gesamt.pdf, 2130 Seiten).</p>
+
+    <div class="pdf-config">
+      <span class="lbl">📁 PDF-Quelle:</span>
+      <input type="text" id="pdfBase" placeholder="z. B. ./chunks/  oder  https://.../statik-chunks/">
+      <button id="pdfBaseSave">Speichern</button>
+      <span class="status" id="pdfBaseStatus"></span>
+    </div>
+    <div class="callout" style="margin:0 0 18px;">
+      Die Statik liegt als 14 kapitelweise PDF-Dateien (je &lt;100 MB) im <code>chunks/</code>-Ordner dieses Repos und wird direkt über GitHub Pages ausgeliefert. Standardmäßig ist relativ <code>./chunks/</code> voreingestellt. GitHub-Release-Anhänge funktionieren hier bewusst nicht, da sie als Download erzwungen werden und der Seitensprung dann nicht greift.
+    </div>
+
+    <div class="filter-bar">
+      <input type="text" id="search" placeholder="Suche: z. B. FU-11, C35/45, Wandscheibe, 40/40 …">
+      <select id="catFilter"><option value="">Alle Kategorien</option></select>
+    </div>
+    <div class="result-count" id="resultCount"></div>
+    <div class="pos-table-wrap">
+      <table class="data">
+        <thead><tr>
+          <th style="width:18px;"></th>
+          <th style="width:110px;">Position</th>
+          <th style="width:160px;">Kategorie</th>
+          <th>Beschreibung (Bauteil, Abmessung, Beton, Deckung)</th>
+          <th style="width:90px;" class="mono">Seite</th>
+        </tr></thead>
+        <tbody id="posBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ================= NORMEN ================= -->
+  <section class="view" id="view-normen">
+    <h2 class="section-title">Normen, Regelwerke &amp; Software</h2>
+
+    <div class="two-col">
+      <div class="card">
+        <h3><span class="num">01</span> Angewandte Normen</h3>
+        <table class="data">
+          <tbody>
+            <tr><td class="mono">DIN EN 1990</td><td>Grundlagen der Tragwerksplanung</td></tr>
+            <tr><td class="mono">DIN EN 1991</td><td>Einwirkungen auf Tragwerke</td></tr>
+            <tr><td class="mono" style="padding-left:20px;">– 1991-1-1</td><td>Eigengewichte und Nutzlasten</td></tr>
+            <tr><td class="mono" style="padding-left:20px;">– 1991-1-3</td><td>Schneelasten</td></tr>
+            <tr><td class="mono" style="padding-left:20px;">– 1991-1-4</td><td>Windlasten</td></tr>
+            <tr><td class="mono">DIN EN 1992</td><td>Bemessung Stahlbeton- und Spannbetontragwerke</td></tr>
+            <tr><td class="mono">DIN EN 1993</td><td>Bemessung Stahlbauten</td></tr>
+            <tr><td class="mono">DIN EN 1995</td><td>Bemessung Holzbauten</td></tr>
+            <tr><td class="mono">DIN EN 1996</td><td>Bemessung Mauerwerksbauten</td></tr>
+            <tr><td class="mono">DIN EN 1997</td><td>Entwurf, Berechnung, Bemessung Geotechnik</td></tr>
+            <tr><td class="mono">DIN 1054</td><td>Baugrund – Sicherheitsnachweise (Baugrube!)</td></tr>
+            <tr><td class="mono">DIN 18533</td><td>Abdichtung nicht überbauter Bereiche</td></tr>
+            <tr><td class="mono">Heft 240 / 525</td><td>DAfStb</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h3><span class="num">02</span> Verwendete Bemessungssoftware</h3>
+        <ul>
+          <li>FriLo (Friedrich + Lochner GmbH) – Hauptprogramm, u. a. GEO-Modell</li>
+          <li>BauText (Veit Christoph GmbH)</li>
+          <li>Halfen HDB Dübelleiste (Version 13.80)</li>
+          <li>Halfen HSC Stud Connector (Version 3.1.0) – Konsolen KO-01 … KO-08</li>
+        </ul>
+        <h3 style="margin-top:20px;"><span class="num">03</span> Projektbeteiligte</h3>
+        <table class="data">
+          <tbody>
+            <tr><td>Bauherr</td><td>ADIMO Immobilien Erschließungs- &amp; Administrations GmbH</td></tr>
+            <tr><td>Entwurfsverfasser</td><td>Möckel Architekten GmbH</td></tr>
+            <tr><td>Architekt LP5</td><td>Vorstadt Architekten</td></tr>
+            <tr><td>Generalunternehmer</td><td>Riedel Bau AG</td></tr>
+            <tr><td>Tragwerksplanung</td><td>Ametsbichler+Lehr Ingenieurgesellschaft mbH</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  Statik-Assistent · Neubau Autohaus Ferrari München · Datenbasis: Statik_gesamt.pdf (Ametsbichler+Lehr Ingenieurgesellschaft mbH, Stand Mai 2026) · Erstellt zur internen Nutzung durch die Bauleitung. Ersetzt nicht die geprüfte statische Berechnung — bei Widersprüchen gilt stets das Original-PDF.
+</footer>
+
+<script>
+const POS = [{"id":"E2-01","cat":"Decken","desc":"Stb. Decke h=24cm, C30/37, oben XC3, cnom=35mm, unten XC1, cnom=30mm","page":199,"pdf":"F_decken_durchstanz.pdf","ppage":3,"bel":"extensive Begrünung g2 =              3,00 kN/m²\n\n                         Summe gk =        3,00 kN/m²\n\nVeränderlich:\nKat. H, Qk = 1,00 kN, als Ersatzflächenlast für Wartung\n     Verkehr pk =                       1,00 kN/m²\n\n        Abhängelasten aus Aufzug, pauschal als Flächenlast\n     Verkehr pk =                    7,50 kN/m²\n\n        2xAbhängelast aus Aufzug, pauschal in Feldmitte mit\n     Pk =                                 40,00 kN","bew":"Unten+Oben: kreuzweise Grundbewehrung Æ 12/15 # (7,54 cm²/m)\nÞ Erforderliche Zulagen s. Plattenbemessung (Differenzbewehrung)","flags":[]},{"id":"E1-02","cat":"Decken","desc":"Stb. Filigrandecke h=16cm, C30/37, oben XC3, cnom=35mm, unten XC1, cnom=30mm","page":226,"pdf":"F_decken_durchstanz.pdf","ppage":30,"bel":"Stahlbetonplatte 30 cm eg1= 0,30*25                  =     7,50 kN/m²\n         Ausbaulasten eg2=                                          4,00 kN/m²\n\n         Summe gk=                       eg1+eg2              =    11,50 kN/m²\n\nVeränderlich:\nVerkehr pk=                                                4,00 kN/m²","bew":"","flags":[]},{"id":"E1-01","cat":"Decken","desc":"Stb. Decke h=30cm, C30/37, oben XC3, cnom=35mm, unten XC1, cnom=30mm","page":226,"pdf":"F_decken_durchstanz.pdf","ppage":30,"bel":"","bew":"","flags":[]},{"id":"ZG-01","cat":"Decken","desc":"Stb. Decke h=30cm, C30/37, XC1, cnom=30mm","page":284,"pdf":"F_decken_durchstanz.pdf","ppage":88,"bel":"","bew":"","flags":[]},{"id":"ZG-03","cat":"Decken","desc":"Stb. Filigrandecke h=16cm, C30/37, Bereich Dachterrassten oben XC3, cnom=35mm","page":284,"pdf":"F_decken_durchstanz.pdf","ppage":88,"bel":"Stahlbetonplatte 30 cm eg1= 0,30*25                   =     7,50 kN/m²\n        Ausbaulasten eg2=                                           2,75 kN/m²\n\n        Summe gk=                        eg1+eg2              =    10,25 kN/m²\n\nVeränderlich:\nVerkehr pk=                                                 5,00 kN/m²","bew":"","flags":[]},{"id":"ZG-02","cat":"Decken","desc":"Stb. Decke (siehe ZG-03), C30/37","page":284,"pdf":"F_decken_durchstanz.pdf","ppage":88,"bel":"","bew":"","flags":[]},{"id":"E0-01","cat":"Decken","desc":"Stb. Decke h=30cm, C35/45, XC1, cnom=30mm","page":343,"pdf":"F_decken_durchstanz.pdf","ppage":147,"bel":"Ständige Einwirkungen\n\n        Stahlbetonplatte 30 cm eg1= 0,30*25                   =     7,50 kN/m²\n        Ausbaulasten eg2=                                           2,75 kN/m²\n\n        Summe gk=                        eg1+eg2              =    10,25 kN/m²\n\nVeränderlich:\nVerkehr pk=                                                 5,00 kN/m²","bew":"","flags":[]},{"id":"U1-01","cat":"Decken","desc":"Stb. Decke, h = 32 cm, C30/37, oben XC1 cnom = 30mm, unten XC3 cnom = 35mm","page":396,"pdf":"F_decken_durchstanz.pdf","ppage":200,"bel":"Stahlbetonplatte 32 cm eg1= 0,32*25              =    8,00 kN/m²\n          Ausbaulasten eg2=                                     2,75 kN/m²\n\n          Summe gk=                       eg1+eg2          = 10,75 kN/m²\n\n     In Teilbereichen in Werkstatt Aufkantung mit 18cm Dicke s. Positionsplan\n          Differenzlast gk =            0,18*25-eg2 =      1,75 kN/m²\n\nVeränderlich:\nRegelbereiche\n        Verkehr pk=                                             5,00 kN/m²\n\nTeilelager im EG\n          maßg. Lastkategorie E2.1 =                            7,50 kN/m²","bew":"Unten+Oben: kreuzweise Grundbewehrung Æ 12/10 # (11,31 cm²/m) bzw. Æ 16/10 (31,42 cm²/m)\ns. Ausdruck Grundbewehrung\nÞ Erforderliche Zulagen s. Plattenbemessung (Differenzbewehrung)","flags":[]},{"id":"U1-02","cat":"Decken","desc":"Stb. Decke, h = 34 cm, C35/45, oben: XC2, cnom = 35mm, unten: XC3, cnom =35mm","page":399,"pdf":"F_decken_durchstanz.pdf","ppage":203,"bel":"","bew":"Oben: Grundbewehrung Æ14/10 # (15,39 cm²/m)\nUnten: Grundbewehrung Æ14/10 # (15,39 cm²/m)\nÞ Erforderliche Zulagen s. Plattenbemessung (Differenzbewehrung) bzw. Durchstanznachweise!\nÞ Bewehrungsausdrucke s. Anlage A2!\nÞ Bauseitige Bewehrung Schöck Dorne beachten s. Bemessung Schöck Dorne Achse 0","flags":["Schöck-Bauteil (Isokorb/Dorne)","Schöck Dübel/Dorne"]},{"id":"R-01","cat":"Decken","desc":"Stb. Decke, h = 24 bzw. 30 cm, C30/37, oben: XC2, cnom = 35mm, unten: XC3, cnom = 35mm","page":512,"pdf":"F_decken_durchstanz.pdf","ppage":316,"bel":"eg1:\n        Stahlbetonplatte 24 cm g1:         0,24 * 25    =    6,00 kN/m²\n\n        eg2: (50% der Überschüttung wird der Verkehrslast zugeordnet)\n\n        6cm Asphalt:                       0,06 * 23    =    1,38 kN/m²\n        Gefällebeton i.M. 10 cm =          0,10*25      =    2,50 kN/m²\n        Abdichtung:                                          0,30 kN/m²\n        Aufrundung:                                          0,02 kN/m²\n\nVeränderlich:\nNutzlast aus Anlieferverkehr SLW 30 (ohne Lastverteilung und mit reduzierter Überschüttung)\n        Verkehrslast pk =                               ","bew":"","flags":["Schöck-Bauteil (Isokorb/Dorne)","Schöck Isokorb"]},{"id":"R-51","cat":"Decken","desc":"Stb. Deckensprung Rampe, b/h = 30/70 cm, C30/37, oben XC2, cnom = 35mm, unten XC3 cnom = 35mm","page":743,"pdf":"G1a_unterzuege.pdf","ppage":153,"bel":"","bew":"unten 4 Æ 20 (12,6 cm²)\noben 4 Æ 16 ( 8,04 cm²)\nBügel Æ 10/15 2-schnittig (10,48 cm²/m)","flags":["Schöck-Bauteil (Isokorb/Dorne)","Schöck Isokorb"]},{"id":"O1-50","cat":"Unterzüge","desc":"Stb. Unterzug, b/h = 25/75 cm, C30/37, XC1, cnom = 30mm","page":595,"pdf":"G1a_unterzuege.pdf","ppage":5,"bel":"Für die Ermittlung der Belastung auf den Unterzug wurde in der Bemessung der Decke eine\nMauerwerkswand als Wandauflager eingegeben.\n\naus Decke:\n        aus Eigengewicht g =                       33,40 kN/m\n        aus Verkehrslast q =      2,8+21,7     = 24,50 kN/m","bew":"unten 3 Æ 25 (= 14,7 cm²) in zwei Lagen\noben 3 Æ 20 (= 9,42 cm²) konstruktiv in Wand eingespannt\nBügel Æ 10/20 2-schnittig (7,86 cm²/m)\nVerbunduge in Bemessung berücksichtigt! Ausführung mit rauer Fuge!","flags":["Ausführung mit rauer Fuge (Verbundfuge)"]},{"id":"O1-51","cat":"Unterzüge","desc":"Stb. Unterzug (siehe Positionsplan OG1)","page":603,"pdf":"G1a_unterzuege.pdf","ppage":13,"bel":"","bew":"","flags":[]},{"id":"O1-52","cat":"Unterzüge","desc":"Stb. Unterzug (siehe Positionsplan OG1)","page":620,"pdf":"G1a_unterzuege.pdf","ppage":30,"bel":"","bew":"","flags":[]},{"id":"O1-53","cat":"Unterzüge","desc":"Stb. Unterzug, b/h = 35/186 cm, C30/37, XC1, cnom = 30mm","page":635,"pdf":"G1a_unterzuege.pdf","ppage":45,"bel":"Für die Ermittlung der Belastung auf den Unterzug wurde in der Bemessung der Decke eine\nMauerwerkswand als Wandauflager eingegeben.\n\naus Decke:\n           aus Eigengewicht g =              20,60 kN/m\n           aus Verkehrslast q =                7,00 kN/m","bew":"unten+oben 4 Æ 25 (= 19,6 cm²)\nBügel Æ 10/20 2-schnittig (7,86 cm²/m)\nVerbunduge in Bemessung berücksichtigt! Ausführung mit rauer Fuge!","flags":["Ausführung mit rauer Fuge (Verbundfuge)"]},{"id":"O1-54","cat":"Unterzüge","desc":"Stb. Unterzug, b/h = 50/96 cm, C30/37, XC3, cnom = 35mm","page":643,"pdf":"G1a_unterzuege.pdf","ppage":53,"bel":"Für die Ermittlung der Belastung der Decke über 1.OG wurde in der Bemessung eine Mauerwerkswand als\nWandauflager eingegeben.\n\naus Decke Feld 1 und 2:\n           aus Eigengewicht g1 =                        20,50 kN/m\n           aus Verkehrslast q1 =     13,8+0,8      =    14,60 kN/m\n\n           aus Eigengewicht g2 =                        33,70 kN/m","bew":"unten 6 Æ 28 (36,9 cm²)\noben 6 Æ 28 (36,9 cm²)\nseitlich 2x5 = 10 Æ 16 (= 20,1 cm²) Torsionslängsbewehrung\nBügel Æ 12/12,5 2-schnittig (18,1 cm²/m) bzw. Æ 12/12,5 4-schnittig (36,2 cm²/m)\nÞ 1,50m links und rechts vom Mittelauflager-Auflager\nDie äußeren Bügel sind als Torsionsbügel auszuführen\nBügel im Bereich Einzelkonsolen (s. Pos. KO-08) 8 Æ 12\nVerbunduge in Bemessung berücksichtigt! Ausführung mit rauer Fuge!","flags":["Ausführung mit rauer Fuge (Verbundfuge)"]},{"id":"O1-55","cat":"Unterzüge","desc":"Stb. Unterzug, b/h = 30/186 cm, C30/37, XC1, cnom = 30mm","page":659,"pdf":"G1a_unterzuege.pdf","ppage":69,"bel":"Für die Ermittlung der Belastung auf den Unterzug wurde in der Bemessung der Decke eine\nMauerwerkswand als Wandauflager eingegeben.\n\naus Decke:\n           aus Eigengewicht g =              19,00 kN/m\n           aus Verkehrslast q =                6,00 kN/m","bew":"unten 3 Æ 25 (= 14,7 cm²)\noben 3 Æ 16 (= 6,03 cm²)\nBügel Æ 10/20 2-schnittig (7,86 cm²/m)\nVerbunduge in Bemessung berücksichtigt! Ausführung mit rauer Fuge!","flags":["Ausführung mit rauer Fuge (Verbundfuge)"]},{"id":"O1-56","cat":"Unterzüge","desc":"Stb. Unterzug, b/h = 35/186 cm, C30/37, XC1, cnom = 30mm","page":667,"pdf":"G1a_unterzuege.pdf","ppage":77,"bel":"Für die Ermittlung der Belastung auf den Unterzug wurde in der Bemessung der Decke eine\nMauerwerkswand als Wandauflager eingegeben.\n\naus Decke:\n        aus Eigengewicht g =                11,00 kN/m\n        aus Verkehrslast q =                 2,00 kN/m\n\naus FT-Unterzug Pos. O1-101:\n        aus Eigengewicht Gk =              316,3 kN","bew":"unten 4 Æ 25 (= 19,6 cm²)\noben 4 Æ 16 (= 8,04 cm²)\nseitlich 2x6 = 12 Æ 16 (= 24,12 cm²) Torsionslängsbewehrung\nBügel Æ 12/10 2-schnittig (22,62 cm²/m) als Torsionsbügel ausführen\nBügel im Bereich Einzelkonsolen (s. Pos. KO-03 bzw. KO-07) 8 Æ 14\nVerbunduge in Bemessung berücksichtigt! Ausführung mit rauer Fuge!","flags":["Ausführung mit rauer Fuge (Verbundfuge)"]},{"id":"ZG-50","cat":"Unterzüge","desc":"Stb. Unterzug, b/h = 40/100 cm, C30/37, XC1, cnom = 30mm","page":679,"pdf":"G1a_unterzuege.pdf","ppage":89,"bel":"Für die Ermittlung der Belastung auf den Unterzug wurde in der Bemessung der Decke eine\nMauerwerkswand als Wandauflager eingegeben.\n\naus Decke Feld 1:\n         aus Eigengewicht g =                       19,00 kN/m\n         aus Verkehrslast q =                         9,00 kN/m\n\naus Decke Feld 2:","bew":"unten 6 Æ 25 (= 29,5 cm²)\noben 6 Æ 20 (= 18,8 cm²)\nBügel Æ 10/15 2-schnittig (10,48 cm²/m)\nim Bereich Treppenkonsole Bügel Æ 10/15 mit langem Schenkel in Decke als Zentrierbewehrung\nÞ s. Nachweis Zentrierung durch Decke\nVerbunduge in Bemessung berücksichtigt! Ausführung mit rauer Fuge!","flags":["Ausführung mit rauer Fuge (Verbundfuge)"]},{"id":"ZG-51","cat":"Unterzüge","desc":"Stb. Unterzug, b/h = 40/100 cm, C30/37, XC1, cnom = 30mm","page":689,"pdf":"G1a_unterzuege.pdf","ppage":99,"bel":"Für die Ermittlung der Belastung auf den Unterzug wurde in der Bemessung der Decke eine\nMauerwerkswand als Wandauflager eingegeben.\n\naus Decke Feld 1:\n         aus Eigengewicht g =                       31,30 kN/m\n         aus Verkehrslast q =       5+13,5      = 18,50 kN/m\n\naus Decke Feld 2:","bew":"unten 6 Æ 25 (= 29,5 cm²)\noben 6 Æ 20 (= 18,8 cm²)\nBügel Æ 10/15 2-schnittig (10,48 cm²/m)\nVerbunduge in Bemessung berücksichtigt! Ausführung mit rauer Fuge!","flags":["Ausführung mit rauer Fuge (Verbundfuge)"]},{"id":"ZG-52","cat":"Unterzüge","desc":"Stb. Unterzug (siehe Positionsplan ZG)","page":697,"pdf":"G1a_unterzuege.pdf","ppage":107,"bel":"","bew":"","flags":[]},{"id":"ZG-53","cat":"Unterzüge","desc":"Stb. Unterzug, b/h = 35/199 cm, C30/37, XC1, cnom = 30mm","page":711,"pdf":"G1a_unterzuege.pdf","ppage":121,"bel":"Für die Ermittlung der Belastung auf den Unterzug wurde in der Bemessung der Decke eine\nMauerwerkswand als Wandauflager eingegeben.\n\naus Decke:\n           aus Eigengewicht g =              16,40 kN/m\n           aus Verkehrslast q =                7,90 kN/m","bew":"unten+oben 4 Æ 25 (= 19,6 cm²)\nBügel Æ 10/20 2-schnittig (7,86 cm²/m)\nVerbunduge in Bemessung berücksichtigt! Ausführung mit rauer Fuge!","flags":["Ausführung mit rauer Fuge (Verbundfuge)"]},{"id":"ZG-54","cat":"Unterzüge","desc":"Stb. Brüstung, b/h = 25/130 cm, C30/37, XC1, cnom = 30mm","page":719,"pdf":"G1a_unterzuege.pdf","ppage":129,"bel":"Für die Ermittlung der Belastung auf den Unterzug wurde in der Bemessung der Decke eine\nMauerwerkswand als Wandauflager eingegeben.\n\naus Decke:\n           aus Eigengewicht g =              35,10 kN/m\n           aus Verkehrslast q =              11,90 kN/m","bew":"unten 3 Æ 20 (= 9,4 cm²)\noben 3 Æ 16 (= 6,0 cm²)\nBügel Æ 10/20 2-schnittig (7,86 cm²/m)","flags":[]},{"id":"E0-50","cat":"Unterzüge","desc":"Stb. Unterzug, b/h = 25/100cm, C30/37, XC1, cnom = 30mm","page":726,"pdf":"G1a_unterzuege.pdf","ppage":136,"bel":"Für die Ermittlung der Belastung auf den Unterzug wurde in der Bemessung der Decke eine\nMauerwerkswand als Wandauflager eingegeben.\n\naus Decke:\n         aus Eigengewicht g =              2,50 kN/m\n         aus Verkehrslast q =              6,50 kN/m\n\naus Zwischenbühne:","bew":"unten 4 Æ 20 (= 12,6 cm²) in zwei Lagen\noben 3 Æ 16 (= 5,03 cm²) konstruktiv in Wand eingespannt\nBügel Æ 8/15 2-schnittig (6,7 cm²/m)\nVerbunduge in Bemessung berücksichtigt! Ausführung mit rauer Fuge!","flags":["Ausführung mit rauer Fuge (Verbundfuge)"]},{"id":"E0-51","cat":"Unterzüge","desc":"Stb. Unterzug, b/h = 30/80cm, C30/37, XC1, cnom = 30mm","page":733,"pdf":"G1a_unterzuege.pdf","ppage":143,"bel":"W20\n              Für die Ermittlung der Belastung auf den Unterzug wurde in der Bemessung der Decke eine","bew":"W89\n\n              unten 5 Æ 28 (= 30,8 cm²) in zwei Lagen\n              oben 4 Æ 20 (= 9,42 cm²) in Wand bzw. Sturz eingespannt\n              Bügel Æ 12/10 2-schnittig (22,62 cm²/m)\n                                                                                                                                                                          (22)","flags":[]},{"id":"E0-52","cat":"Unterzüge","desc":"Stb. Unterzug, b/h = 25/104,5cm, C30/37, XC1, cnom = 30mm","page":741,"pdf":"G1a_unterzuege.pdf","ppage":151,"bel":"","bew":"unten+oben 3 Æ 16 (4,62 cm²)\nBügel Æ 8/20 2-schnittig (5,02 cm²/m)","flags":[]},{"id":"R-50","cat":"Unterzüge","desc":"Stb. Brüstung Rampe, b/h = 25/129 cm, C30/37, XC4, XF1, cnom = 40mm","page":742,"pdf":"G1a_unterzuege.pdf","ppage":152,"bel":"","bew":"unten+oben 3 Æ 16 (6,03 cm²)\nBügel Æ 10/15 2-schnittig (10,48 cm²/m)","flags":["Schöck-Bauteil (Isokorb/Dorne)","Schöck Isokorb","Anpralllast berücksichtigt"]},{"id":"U1-50","cat":"Unterzüge","desc":"Stb. Brüstung, b/h = 25/128 cm, C30/37, XC1, cnom = 30mm","page":744,"pdf":"G1a_unterzuege.pdf","ppage":154,"bel":"Für die Ermittlung der Belastung auf den Unterzug wurde in der Bemessung der Decke eine\nMauerwerkswand als Wandauflager eingegeben.\n\naus Decke:\n           aus Eigengewicht g =                          31,00 kN/m\n           aus Verkehrslast q =                          10,00 kN/m","bew":"unten 3 Æ 20 (= 9,4 cm²)\noben 3 Æ 16 (= 6,0 cm²)\nBügel Æ 10/20 2-schnittig (7,86 cm²/m)","flags":[]},{"id":"U1-51","cat":"Unterzüge","desc":"Stb. Unterzug, b/h = 35/71 cm, C30/37, XC3, cnom = 35mm","page":751,"pdf":"G1a_unterzuege.pdf","ppage":161,"bel":"Für die Ermittlung der Belastung der Decke über UG wurde in der Bemessung eine Mauerwerkswand als\nWandauflager eingegeben.\n\naus Decke:\n           aus Eigengewicht g =                            56,50 kN/m\n           aus Verkehrslast q =      2,4+16,4        =     18,80 kN/m","bew":"unten 4 Æ 28 (24,6 cm²)\noben 4 Æ 16 (8,04 cm²)\nBügel Æ 10/15 2-schnittig (10,48 cm²/m)\nVerbunduge in Bemessung berücksichtigt! Ausführung mit rauer Fuge!","flags":["Ausführung mit rauer Fuge (Verbundfuge)"]},{"id":"U1-52","cat":"Unterzüge","desc":"Stb. Unterzug, b/h = 35/71 cm, C30/37, XC3, cnom = 35mm","page":758,"pdf":"G1a_unterzuege.pdf","ppage":168,"bel":"Für die Ermittlung der Belastung der Decke über UG wurde in der Bemessung eine Mauerwerkswand als\nWandauflager eingegeben.\n\naus Decke:\n           aus Eigengewicht g =                            39,40 kN/m\n           aus Verkehrslast q =      14,7+4,5        =     19,20 kN/m","bew":"unten 4 Æ 28 (24,6 cm²)\noben 4 Æ 16 (8,04 cm²)\nBügel Æ 10/15 2-schnittig (10,48 cm²/m)\nVerbunduge in Bemessung berücksichtigt! Ausführung mit rauer Fuge!","flags":["Ausführung mit rauer Fuge (Verbundfuge)"]},{"id":"U1-53","cat":"Unterzüge","desc":"Stb. Unterzug, b/h = 35/70 cm, C30/37, XC3, cnom = 35mm","page":759,"pdf":"G1a_unterzuege.pdf","ppage":169,"bel":"Für die Ermittlung der Belastung der Decke über UG wurde in der Bemessung eine Mauerwerkswand als\nWandauflager eingegeben.\n\naus Decke:\n           aus Eigengewicht g =                            50,10 kN/m\n           aus Verkehrslast q =      2,8+20,6        =     23,40 kN/m","bew":"unten 4 Æ 28 (24,6 cm²)\noben 4 Æ 16 (8,04 cm²)\nBügel Æ 10/15 2-schnittig (10,48 cm²/m)\nVerbunduge in Bemessung berücksichtigt! Ausführung mit rauer Fuge!","flags":["Ausführung mit rauer Fuge (Verbundfuge)"]},{"id":"U1-54","cat":"Unterzüge","desc":"Stb. Unterzug, b/h = 20/106,5 cm, C30/37, XC3, cnom = 35mm","page":760,"pdf":"G1a_unterzuege.pdf","ppage":170,"bel":"","bew":"unten+oben 3 Æ 14 (4,62 cm²)\nBügel Æ 8/20 2-schnittig (5,02 cm²/m)","flags":[]},{"id":"U1-55","cat":"Unterzüge","desc":"Stb. Unterzug, b/h = 30/105 cm, C30/37, XC3, cnom = 35mm","page":761,"pdf":"G1a_unterzuege.pdf","ppage":171,"bel":"Für die Ermittlung der Belastung der Decke über UG wurde in der Bemessung eine Mauerwerkswand als\nWandauflager eingegeben.\n\naus Decke:\n           aus Eigengewicht g =                            46,80 kN/m\n           aus Verkehrslast q =      9,9+23,6        =     33,50 kN/m","bew":"unten 4 Æ 20 (15,7 cm²)\noben 4 Æ 16 (8,04 cm²)\nBügel Æ 8/15 2-schnittig (6,7 cm²/m)\nVerbunduge in Bemessung berücksichtigt! Ausführung mit rauer Fuge!\nACHUTNG: Im Bereich Schöck Dorne bauseitige Bewehrung beachten!!!","flags":["Schöck-Bauteil (Isokorb/Dorne)","Schöck Dübel/Dorne","Ausführung mit rauer Fuge (Verbundfuge)"]},{"id":"U1-56","cat":"Unterzüge","desc":"Stb. Unterzug, b/h = 60/90 cm, C30/37, XC3, cnom = 35mm","page":769,"pdf":"G1a_unterzuege.pdf","ppage":179,"bel":"Für die Ermittlung der Belastung der Decke über UG wurde in der Bemessung eine Mauerwerkswand als\n         Wandauflager eingegeben.\n\n         aus Decke Feld 1:\n                    aus Eigengewicht g =                                                           8,30 kN/m\n                    aus Verkehrslast q =                                                           5,50 kN/m\n\n         aus Decke Feld 2:","bew":"","flags":[]},{"id":"O1-101/102","cat":"Unterzüge","desc":"Bemessung gilt für Pos. O1-101 und O1-102 (siehe FT-Unterzüge OG)","page":894,"pdf":"G2_ft_unterzuege.pdf","ppage":40,"bel":"","bew":"","flags":[]},{"id":"O1-103/104","cat":"Unterzüge","desc":"Bemessung gilt für Pos. O1-103 und O1-104 (siehe FT-Unterzüge OG)","page":897,"pdf":"G2_ft_unterzuege.pdf","ppage":43,"bel":"","bew":"","flags":[]},{"id":"O1-101","cat":"FT-Unterzüge","desc":"Stb. Unterzug, b/h = 60/80 cm + 16cm Ortbetonergänzung, C30/37","page":857,"pdf":"G2_ft_unterzuege.pdf","ppage":3,"bel":"Für die Ermittlung der Belastung aus der Decke über 1.OG wurde in der Bemessung eine Mauerwerkswand\nals Wandauflager eingegeben.\n\naus Decke erstes Randfeld:\n           aus Eigengewicht g1 =                                                         38,00 kN/m\n           aus Verkehrslast q1 =          9,1+9,2                           =            18,30 kN/m\n           rEd =                          1,35*g1 + 1,5*q1                  =            78,75 kN/m","bew":"unten 8+2 = 10 Æ 28 (61,6 cm²) in zwei Lagen\noben 6 Æ 16 (12,1 cm²)\nBügel Æ 12/20 2-schnittig (11,31 cm²/m)\nBewehrung Schulterschub Q335A (3,35cm²/m) aus obere + unterer Lage Decke\nVerbunduge in Bemessung berücksichtigt! Ausführung mit rauer Fuge!\nBewehrung ausgeklinktes Auflager s. separate Bemessung","flags":["Ausführung mit rauer Fuge (Verbundfuge)"]},{"id":"O1-102","cat":"FT-Unterzüge","desc":"Stb. Unterzug, b/h = 60/80 cm + 16cm Ortbetonergänzung, C30/37","page":865,"pdf":"G2_ft_unterzuege.pdf","ppage":11,"bel":"Für die Ermittlung der Belastung aus der Decke über 1.OG wurde in der Bemessung eine Mauerwerkswand\nals Wandauflager eingegeben.\n\naus Decke Innenfelder:\n           aus Eigengewicht g1 =                               34,00 kN/m\n           aus Verkehrslast q1 =     8,2+8,1               = 16,30 kN/m\n           rEd =                     1,35*g1 + 1,5*q1      = 70,35 kN/m","bew":"unten 8+2 = 10 Æ 28 (61,6 cm²) in zwei Lagen\noben 6 Æ 16 (12,1 cm²)\nBügel Æ 12/15 2-schnittig (15,08 cm²/m)\nBewehrung Schulterschub Q335A (3,35cm²/m) aus obere + unterer Lage Decke\nVerbunduge in Bemessung berücksichtigt! Ausführung mit rauer Fuge!\nBewehrung Aussparungen s. folgende Seiten !\nBewehrung ausgeklinktes Auflager s. separate Bemessung","flags":["Ausführung mit rauer Fuge (Verbundfuge)"]},{"id":"O1-103","cat":"FT-Unterzüge","desc":"Stb. Unterzug, b/h = 60/80 cm + 16cm Ortbetonergänzung, C30/37","page":876,"pdf":"G2_ft_unterzuege.pdf","ppage":22,"bel":"Für die Ermittlung der Belastung aus der Decke über 1.OG wurde in der Bemessung eine Mauerwerkswand\nals Wandauflager eingegeben.\n\naus Decke erstes Randfeld:\n           aus Eigengewicht g1 =                               37,50 kN/m\n           aus Verkehrslast q1 =     9,1+9,1               = 18,20 kN/m\n           rEd =                     1,35*g1 + 1,5*q1      = 77,92 kN/m","bew":"unten 8 Æ 28 (49,3 cm²)\noben 6 Æ 16 (12,1 cm²)\nBügel Æ 12/20 4-schnittig (22,62 cm²/m)\nBewehrung Schulterschub Q335A (3,35cm²/m) aus obere + unterer Lage Decke\nVerbunduge in Bemessung berücksichtigt! Ausführung mit rauer Fuge!\nBewehrung ausgeklinktes Auflager s. separate Bemessung","flags":["Ausführung mit rauer Fuge (Verbundfuge)"]},{"id":"O1-104","cat":"FT-Unterzüge","desc":"Stb. Unterzug, b/h = 60/80 cm + 16cm Ortbetonergänzung, C30/37","page":884,"pdf":"G2_ft_unterzuege.pdf","ppage":30,"bel":"Für die Ermittlung der Belastung aus der Decke über 1.OG wurde in der Bemessung eine Mauerwerkswand\nals Wandauflager eingegeben.\n\naus Decke Innenfelder:\n           aus Eigengewicht g1 =                               33,00 kN/m\n           aus Verkehrslast q1 =     8,5+7,9               = 16,40 kN/m\n           rEd =                     1,35*g1 + 1,5*q1      = 69,15 kN/m","bew":"unten 8+2 = 10 Æ 28 (61,6 cm²) in zwei Lagen\noben 6 Æ 16 (12,1 cm²)\nBügel Æ 12/20 4-schnittig (22,62 cm²/m)\nBewehrung Schulterschub Q335A (3,35cm²/m) aus obere + unterer Lage Decke\nVerbunduge in Bemessung berücksichtigt! Ausführung mit rauer Fuge!\nBewehrung Aussparungen s. folgende Seiten !\nBewehrung ausgeklinktes Auflager s. separate Bemessung","flags":["Ausführung mit rauer Fuge (Verbundfuge)"]},{"id":"ZG-101","cat":"FT-Unterzüge","desc":"Stb. Unterzug, b/h = 60/80 cm + 16cm Ortbetonergänzung, C30/37","page":900,"pdf":"G2_ft_unterzuege.pdf","ppage":46,"bel":"Für die Ermittlung der Belastung aus der Decke über ZG wurde in der Bemessung eine Mauerwerkswand als\nWandauflager eingegeben.\n\naus Decke erstes Randfeld:\n         aus Eigengewicht g1 =                                 34,10 kN/m\n         aus Verkehrslast q1 =     10,6+10,2            =      20,80 kN/m\n         rEd =                     1,35*g1 + 1,5*q1 =          77,23 kN/m","bew":"","flags":["Elastomerlager"]},{"id":"ZG-V01","cat":"FT-Spannbeton-Unterzüge (Werkstatt)","desc":"Vorgespannter FT-Unterzug, XC1, cnom = 30mm","page":908,"pdf":"G3_ft_spannbeton.pdf","ppage":8,"bel":"Für die Ermittlung der Belastung aus der Decke über ZG wurde in der Bemessung eine Mauerwerkswand als\nWandauflager eingegeben (s. vor).\n\naus Decke erstes Randfeld:\n         aus Eigengewicht g1 =                                  25,00 kN/m\n         aus Verkehrslast q1 =      8,6+11,5             =      20,10 kN/m\n         rEd =                      1,35*g1 + 1,5*q1 =          63,90 kN/m","bew":"","flags":[]},{"id":"ZG-V02","cat":"FT-Spannbeton-Unterzüge (Werkstatt)","desc":"Vorgespannter FT-Unterzug, XC1, cnom = 30mm","page":944,"pdf":"G3_ft_spannbeton.pdf","ppage":44,"bel":"Für die Ermittlung der Belastung aus der Decke über ZG wurde in der Bemessung eine Mauerwerkswand als\nWandauflager eingegeben (s. vor).\n\naus Decke erstes Randfeld:\n         aus Eigengewicht g1 =                                  25,00 kN/m\n         aus Verkehrslast q1 =      8,6+9,7              =      18,30 kN/m\n         rEd =                      1,35*g1 + 1,5*q1 =          61,20 kN/m","bew":"","flags":[]},{"id":"ZG-V03","cat":"FT-Spannbeton-Unterzüge (Werkstatt)","desc":"Vorgespannter FT-Unterzug, XC1, cnom = 30mm","page":967,"pdf":"G3_ft_spannbeton.pdf","ppage":67,"bel":"Für die Ermittlung der Belastung aus der Decke über ZG wurde in der Bemessung eine Mauerwerkswand als\nWandauflager eingegeben (s. vor).\n\naus Decke\n         aus Eigengewicht g1 =                                     24,40 kN/m\n         aus Verkehrslast q1 =         7,8+9,6                =    17,40 kN/m\n         rEd =                         1,35*g1 + 1,5*q1 =          59,04 kN/m","bew":"","flags":[]},{"id":"DS-ZG-01","cat":"Durchstanznachweise","desc":"Durchstanznachweis","page":540,"pdf":"F_decken_durchstanz.pdf","ppage":344,"bel":"","bew":"","flags":["Halfen-Anschluss (HDB/HSC)","Halfen HDB Dübelleiste"]},{"id":"DS-ZG-02","cat":"Durchstanznachweise","desc":"Durchstanznachweis","page":543,"pdf":"F_decken_durchstanz.pdf","ppage":347,"bel":"","bew":"","flags":["Halfen-Anschluss (HDB/HSC)","Halfen HDB Dübelleiste"]},{"id":"DS-E0-01","cat":"Durchstanznachweise","desc":"Durchstanznachweis","page":547,"pdf":"F_decken_durchstanz.pdf","ppage":351,"bel":"","bew":"","flags":["Halfen-Anschluss (HDB/HSC)","Halfen HDB Dübelleiste"]},{"id":"DS-U1-01","cat":"Durchstanznachweise","desc":"Durchstanznachweis","page":552,"pdf":"F_decken_durchstanz.pdf","ppage":356,"bel":"","bew":"","flags":["Halfen-Anschluss (HDB/HSC)","Halfen HDB Dübelleiste"]},{"id":"DS-U1-02","cat":"Durchstanznachweise","desc":"Durchstanznachweis","page":555,"pdf":"F_decken_durchstanz.pdf","ppage":359,"bel":"","bew":"","flags":["Halfen-Anschluss (HDB/HSC)","Halfen HDB Dübelleiste"]},{"id":"DS-U1-03","cat":"Durchstanznachweise","desc":"Durchstanznachweis","page":558,"pdf":"F_decken_durchstanz.pdf","ppage":362,"bel":"","bew":"","flags":["Halfen-Anschluss (HDB/HSC)","Halfen HDB Dübelleiste"]},{"id":"DS-U1-04","cat":"Durchstanznachweise","desc":"Durchstanznachweis","page":561,"pdf":"F_decken_durchstanz.pdf","ppage":365,"bel":"","bew":"","flags":["Halfen-Anschluss (HDB/HSC)","Halfen HDB Dübelleiste"]},{"id":"DS-U1-05","cat":"Durchstanznachweise","desc":"Durchstanznachweis","page":564,"pdf":"F_decken_durchstanz.pdf","ppage":368,"bel":"","bew":"","flags":["Halfen-Anschluss (HDB/HSC)","Halfen HDB Dübelleiste"]},{"id":"DS-U1-06","cat":"Durchstanznachweise","desc":"Durchstanznachweis","page":567,"pdf":"F_decken_durchstanz.pdf","ppage":371,"bel":"","bew":"","flags":["Halfen-Anschluss (HDB/HSC)","Halfen HDB Dübelleiste"]},{"id":"DS-U1-07","cat":"Durchstanznachweise","desc":"Durchstanznachweis","page":570,"pdf":"F_decken_durchstanz.pdf","ppage":374,"bel":"","bew":"","flags":["Halfen-Anschluss (HDB/HSC)","Halfen HDB Dübelleiste"]},{"id":"DS-U1-08","cat":"Durchstanznachweise","desc":"Durchstanznachweis","page":573,"pdf":"F_decken_durchstanz.pdf","ppage":377,"bel":"","bew":"","flags":["Halfen-Anschluss (HDB/HSC)","Halfen HDB Dübelleiste"]},{"id":"DS-U1-09","cat":"Durchstanznachweise","desc":"Durchstanznachweis","page":576,"pdf":"F_decken_durchstanz.pdf","ppage":380,"bel":"","bew":"","flags":["Halfen-Anschluss (HDB/HSC)","Halfen HDB Dübelleiste"]},{"id":"DS-U1-10","cat":"Durchstanznachweise","desc":"Durchstanznachweis","page":579,"pdf":"F_decken_durchstanz.pdf","ppage":383,"bel":"","bew":"","flags":["Halfen-Anschluss (HDB/HSC)","Halfen HDB Dübelleiste"]},{"id":"DS-U1-11","cat":"Durchstanznachweise","desc":"Durchstanznachweis","page":582,"pdf":"F_decken_durchstanz.pdf","ppage":386,"bel":"","bew":"","flags":["Halfen-Anschluss (HDB/HSC)","Halfen HDB Dübelleiste"]},{"id":"DS-U1-12","cat":"Durchstanznachweise","desc":"Durchstanznachweis","page":585,"pdf":"F_decken_durchstanz.pdf","ppage":389,"bel":"","bew":"","flags":["Halfen-Anschluss (HDB/HSC)","Halfen HDB Dübelleiste"]},{"id":"DS-U1-13","cat":"Durchstanznachweise","desc":"Durchstanznachweis","page":588,"pdf":"F_decken_durchstanz.pdf","ppage":392,"bel":"","bew":"","flags":["Halfen-Anschluss (HDB/HSC)","Halfen HDB Dübelleiste"]},{"id":"KO-01","cat":"Konsolen","desc":"Konsole (Halfen HSC)","page":785,"pdf":"G1b_konsolen.pdf","ppage":2,"bel":"","bew":"","flags":["Halfen-Anschluss (HDB/HSC)","Halfen HSC Konsolanschluss"]},{"id":"KO-02","cat":"Konsolen","desc":"Konsole (Halfen HSC)","page":793,"pdf":"G1b_konsolen.pdf","ppage":10,"bel":"","bew":"","flags":["Halfen-Anschluss (HDB/HSC)","Halfen HSC Konsolanschluss"]},{"id":"KO-03","cat":"Konsolen","desc":"Konsole (Halfen HSC)","page":800,"pdf":"G1b_konsolen.pdf","ppage":17,"bel":"","bew":"","flags":["Halfen-Anschluss (HDB/HSC)","Halfen HSC Konsolanschluss","Hochhängebewehrung erforderlich"]},{"id":"KO-04","cat":"Konsolen","desc":"Konsole (Halfen HSC)","page":811,"pdf":"G1b_konsolen.pdf","ppage":28,"bel":"","bew":"","flags":["Halfen-Anschluss (HDB/HSC)","Halfen HSC Konsolanschluss"]},{"id":"KO-05","cat":"Konsolen","desc":"Konsole (Halfen HSC)","page":821,"pdf":"G1b_konsolen.pdf","ppage":38,"bel":"","bew":"","flags":["Halfen-Anschluss (HDB/HSC)","Halfen HSC Konsolanschluss"]},{"id":"KO-06","cat":"Konsolen","desc":"Konsole (Halfen HSC)","page":831,"pdf":"G1b_konsolen.pdf","ppage":48,"bel":"","bew":"","flags":["Halfen-Anschluss (HDB/HSC)","Halfen HSC Konsolanschluss"]},{"id":"KO-07","cat":"Konsolen","desc":"Konsole (Halfen HSC)","page":841,"pdf":"G1b_konsolen.pdf","ppage":58,"bel":"","bew":"","flags":["Halfen HSC Konsolanschluss","Hochhängebewehrung erforderlich"]},{"id":"KO-08","cat":"Konsolen","desc":"Konsole (Halfen HSC)","page":842,"pdf":"G1b_konsolen.pdf","ppage":59,"bel":"Einzellast FEd =         FEd2                                                   =    455,7 kN\n        Einzelast HEd =          HEd2                                                   =     91,1 kN\n\nSchnittgrößen und Bemessung","bew":"","flags":["Halfen-Anschluss (HDB/HSC)","Halfen HSC Konsolanschluss","Hochhängebewehrung erforderlich"]},{"id":"W-01","cat":"Wände","desc":"Stb. Wand, h = 20cm, C30/37, 1-geschossig","page":991,"pdf":"H_waende_wandscheiben.pdf","ppage":9,"bel":"","bew":"beidseits Q 335-A aus Knicksicherheitsnachweis","flags":[]},{"id":"W-02","cat":"Wände","desc":"Stb. Wand, h = 25cm, C30/37, 1-geschossig","page":997,"pdf":"H_waende_wandscheiben.pdf","ppage":15,"bel":"","bew":"beidseits Q 424-A aus Knicksicherheitsnachweis\n\nKonstruktive Einspannbewehrung in Decken (Wände an Deckenrändern)\nÆ 10/15 (5,24 cm²/m)","flags":[]},{"id":"W-03","cat":"Wände","desc":"Stb.Wand, h = 30cm, C30/37, 1-geschossig","page":1004,"pdf":"H_waende_wandscheiben.pdf","ppage":22,"bel":"","bew":"beidseits Q 524-A aus Knicksicherheitsnachweis\n\nKonstruktive Einspannbewehrung in Decken (Wände an Deckenrändern)\nÆ 10/15 (5,24 cm²/m)","flags":[]},{"id":"W-04","cat":"Wände","desc":"Stb. Wand, h = 30cm, C30/37, 1-geschossig mit Konsole","page":1011,"pdf":"H_waende_wandscheiben.pdf","ppage":29,"bel":"","bew":"beidseits Q 524-A aus Knicksicherheitsnachweis\n+ vertikal Æ 8/15 vertikal aus ausmittiger Belasung Konsole","flags":[]},{"id":"W-05","cat":"Wände","desc":"Stb. Wand, h = 35cm, C30/37, 1-geschossig","page":1016,"pdf":"H_waende_wandscheiben.pdf","ppage":34,"bel":"","bew":"beidseits Q 524-A aus Knicksicherheitsnachweis\n+ vertikal Æ 8/15 vertikal aus ausmittiger Belasung Konsole","flags":[]},{"id":"W-11","cat":"Wände","desc":"Stb.Wand, h = 25cm, C30/37, 2-geschossig","page":1021,"pdf":"H_waende_wandscheiben.pdf","ppage":39,"bel":"","bew":"beidseits Q 524-A aus Knicksicherheitsnachweis\n\nKonstruktive Einspannbewehrung in Decken (Wände an Deckenrändern)\nÆ 10/15 (5,24 cm²/m)","flags":[]},{"id":"W-12","cat":"Wände","desc":"Stb.Wand, h = 25cm, C35/45, 2-geschossig","page":1028,"pdf":"H_waende_wandscheiben.pdf","ppage":46,"bel":"","bew":"beidseits Q 524-A aus Knicksicherheitsnachweis\n\nKonstruktive Einspannbewehrung in Decken (Wände an Deckenrändern)\nÆ 10/15 (5,24 cm²/m)","flags":["Anpralllast berücksichtigt"]},{"id":"W-13","cat":"Wände","desc":"Stb.Wand, h = 30cm, C35/45, 2-geschossig","page":1041,"pdf":"H_waende_wandscheiben.pdf","ppage":59,"bel":"","bew":"beidseits Q 524-A aus Knicksicherheitsnachweis\n\nKonstruktive Einspannbewehrung in Decken (Wände an Deckenrändern)\nÆ 10/15 (5,24 cm²/m)","flags":[]},{"id":"W-14","cat":"Wände","desc":"Stb.Wand, h = 30cm, C30/37, 2-geschossig","page":1043,"pdf":"H_waende_wandscheiben.pdf","ppage":61,"bel":"","bew":"beidseits Q 524-A aus Knicksicherheitsnachweis\n\nKonstruktive Einspannbewehrung in Decken (Wände an Deckenrändern)\nÆ 10/15 (5,24 cm²/m)","flags":[]},{"id":"W-15","cat":"Wände","desc":"Stb.Wand, h = 35cm, C35/45, 2-geschossig","page":1045,"pdf":"H_waende_wandscheiben.pdf","ppage":63,"bel":"","bew":"beidseits Q 524-A aus Knicksicherheitsnachweis\n\nKonstruktive Einspannbewehrung in Decken (Wände an Deckenrändern)\nÆ 10/15 (5,24 cm²/m)","flags":[]},{"id":"W-21","cat":"Wände","desc":"Stb. Innenwwand, h = 25cm, C30/37, 1-geschossig","page":1052,"pdf":"H_waende_wandscheiben.pdf","ppage":70,"bel":"","bew":"beidseits Q 524-A aus Knicksicherheitsnachweis\n+ beidseits horizontale Zulagen Æ 8/30 (=insg. 6,92 cm²/m) aus NW Rissbreitenbegrenzung","flags":[]},{"id":"W-22","cat":"Wände","desc":"Stb. Innenwwand, h = 30cm, C30/37, 1-geschossig","page":1060,"pdf":"H_waende_wandscheiben.pdf","ppage":78,"bel":"","bew":"beidseits Q 524-A aus Knicksicherheitsnachweis\n+ beidseits horizontale Zulagen Æ 8/20 (=insg. 7,75 cm²/m) aus NW Rissbreitenbegrenzung","flags":[]},{"id":"W-23","cat":"Wände","desc":"Stb. Innenwwand, h = 35cm, C30/37, 1-geschossig","page":1068,"pdf":"H_waende_wandscheiben.pdf","ppage":86,"bel":"","bew":"beidseits Q 524-A aus Knicksicherheitsnachweis\n+ beidseits horizontale Zulagen Æ 8/15 (=insg. 8,59 cm²/m) aus NW Rissbreitenbegrenzung","flags":[]},{"id":"W-24","cat":"Wände","desc":"Stb. Wandpfeiler TG, h = 35cm, C35/45, 1-geschossig","page":1072,"pdf":"H_waende_wandscheiben.pdf","ppage":90,"bel":"","bew":"vertikal Æ 16/10 aus Knicksicherheitsnachweis\nÞ im Übergang zu Wandscheiben Wandscheibenbemessung beachten!!!\n+ horizontal Æ 12/15 (= 7,54 je Seite cm²/m)","flags":["Anpralllast berücksichtigt"]},{"id":"W-25","cat":"Wände","desc":"Stb. Wandpfeiler TG, h = 40cm, C35/45, 1-geschossig","page":1079,"pdf":"H_waende_wandscheiben.pdf","ppage":97,"bel":"","bew":"vertikal Æ 16/10 aus Knicksicherheitsnachweis (Belastung geringer, Ausführung analog Pos. W-24)\nÞ im Übergang zu Wandscheiben Wandscheibenbemessung beachten!!!\n+ horizontal Æ 12/15 (= 7,54 je Seite cm²/m)","flags":["Anpralllast berücksichtigt"]},{"id":"W-26","cat":"Wände","desc":"Stb. Sockel für Stempfelhebebühne h = 70cm, C30/37","page":1081,"pdf":"H_waende_wandscheiben.pdf","ppage":99,"bel":"","bew":"vertikal Æ 10/15 in das Fundament eingespannt\n+ horizontal Æ 10/15 (= 5,24 je Seite cm²/m)","flags":["Anpralllast berücksichtigt"]},{"id":"UG-AW-1","cat":"Wände","desc":"Stb. Außenwand gegen Erdreich, h = 25cm, C30/37","page":1083,"pdf":"H_waende_wandscheiben.pdf","ppage":101,"bel":"","bew":"beidseits Q 524-A aus NW Erddruck\n+ beidseits Zulagen horizontal Æ 8/30 (= insg. 6,92 cm²/m) aus NW Rissbreitenbegrenzung\n\nKonstruktive Anschlußbewehrung aus Streifenfundament\nÆ 10/15 (5,24 cm²/m)\n\nKonstruktive Einspannbewehrung in Decke über UG1\nÆ 10/15 (5,24 cm²/m)","flags":[]},{"id":"UG-AW-2","cat":"Wände","desc":"Stb. Außenwand gegen Erdreich, h = 30cm, C30/37","page":1091,"pdf":"H_waende_wandscheiben.pdf","ppage":109,"bel":"","bew":"beidseits Q 524-A aus NW Erddruck\n+ beidseits Zulagen horizontal Æ 8/20 (=insg. 7,75 cm²/m) aus NW Rissbreitenbegrenzung\n\nKonstruktive Anschlußbewehrung aus Streifenfundament\nÆ 10/15 (5,24 cm²/m)\n\nKonstruktive Einspannbewehrung in Decke über UG1\nÆ 10/15 (5,24 cm²/m)","flags":[]},{"id":"UG-AW-3","cat":"Wände","desc":"Stb. Außenwand gegen Erdreich, h = 35cm, C30/37","page":1099,"pdf":"H_waende_wandscheiben.pdf","ppage":117,"bel":"","bew":"beidseits Q 524-A aus NW Erddruck\n+ beidseits horizontale Zulagen Æ 8/15 (=insg. 8,59 cm²/m) aus NW Rissbreitenbegrenzung\n\nKonstruktive Anschlußbewehrung aus Streifenfundament\nÆ 10/15 (5,24 cm²/m)\n\nKonstruktive Einspannbewehrung in Decke über UG1\nÆ 10/15 (5,24 cm²/m)","flags":[]},{"id":"UG-AW-4","cat":"Wände","desc":"Stb. Außenwand gegen Erdreich Bereich Außentreppen, h = 25cm, C30/37","page":1108,"pdf":"H_waende_wandscheiben.pdf","ppage":126,"bel":"","bew":"beidseits Q 524-A aus NW Erddruck\n+ beidseits Zulagen horizontal Æ 8/30 (= insg. 6,92 cm²/m) aus NW Rissbreitenbegrenzung\n+ Zulagen s. Plattenbemessung! Vor Allem Einspannbewehrung Seitenwände Æ12/10 (11,31cm²/m) beachten.\n\nKonstruktive Anschlußbewehrung aus Streifenfundament\nÆ 10/15 (5,24 cm²/m)","flags":[]},{"id":"FU-21","cat":"Wände","desc":"Streifenfundament unter Wandpfeiler 300x440x90 cm, C30/37","page":2006,"pdf":"J2_einzelfundamente.pdf","ppage":92,"bel":"aus Eigengewicht Gk = 1260+3576                 = 4836,00 kN\n           aus Verkehrslast Qk = 190+235+1225              = 1650,00 kN\n           aus Wind Wk =                                       16,00 kN\n           Vd =                  1,35 * Gk + 1,5 * (Qk+Wk) = 9027,60 kN\n\n           Wandlänge L =                                                2,385 m\n           aus Eigengewicht gk =     Gk / L                        = 2027,67 kN/m\n           aus Verkehrslast pk =     (Qk+Wk) / L                   =  698,53 kN/m","bew":"unten in Quer-Richtung 28 Æ 20/15\nunten in Längs-Richtung 18 Æ 16/17,5\n\nAnschlußbewehrung s. Wandkapitel\n\nMax. Belastung vertikal s. Auflagerkräfte Deckenbemessung:","flags":["Anpralllast berücksichtigt"]},{"id":"FU-22","cat":"Wände","desc":"Streifenfundament unter Wandpfeiler 150x300x60 cm, C30/37","page":2016,"pdf":"J2_einzelfundamente.pdf","ppage":102,"bel":"aus Eigengewicht Gk =          554+540                   = 1094,00 kN\n            aus Verkehrslast Qk =          137+120+278               =  535,00 kN\n            aus Wind Wk =                                                83,00 kN\n            Vd =                           1,35 * Gk + 1,5 * (Qk+Wk) = 2403,90 kN\n            Wandlänge L =                                                 2,275 m\n            aus Eigengewicht gk =          Gk / L                    =  480,88 kN/m\n            aus Verkehrslast pk =          (Qk+Wk) / L               =  271,65 kN/m\n\n            Anprall Hk,x =       ","bew":"unten in Quer-Richtung 20 Æ 10/15\nunten in Längs-Richtung 10 Æ 10/15\n\nAnschlußbewehrung s. Wandkapitel\n\nMax. Belastung vertikal s. Auflagerkräfte Deckenbemessung:\n\n            aus Eigengewicht Gk =          554+540                   = 1094,00 kN\n            aus Verkehrslast Qk =          137+120+278               =  535,00 kN\n            aus Wind Wk =                                                83,00 kN","flags":["Anpralllast berücksichtigt"]},{"id":"FU-23","cat":"Wände","desc":"Streifenfundament unter Wandpfeiler 200x300x60 cm, C30/37","page":2024,"pdf":"J2_einzelfundamente.pdf","ppage":110,"bel":"aus Eigengewicht Gk =      397+1281                  = 1678,00 kN\n               aus Verkehrslast Qk =      73+67+442                 =  582,00 kN\n               aus Wind Wk =                                            24,00 kN\n               Vd =                       1,35 * Gk + 1,5 * (Qk+Wk) = 3174,30 kN\n               Wandlänge L =                                             2,050 m\n               aus Eigengewicht gk =      Gk / L                    =  818,54 kN/m\n               aus Verkehrslast pk =      (Qk+Wk) / L               =  295,61 kN/m\n\n               Anprall Hk,x =              ","bew":"unten in Quer-Richtung 20 Æ 14/15\nunten in Längs-Richtung 10 Æ 12/20\nAnschlußbewehrung s. Wandkapitel\n\nMax. Belastung vertikal s. Auflagerkräfte Deckenbemessung:\n\n               aus Eigengewicht Gk =      397+1281                  = 1678,00 kN\n               aus Verkehrslast Qk =      73+67+442                 =  582,00 kN\n               aus Wind Wk =                                            24,00 kN","flags":["Anpralllast berücksichtigt"]},{"id":"FU-24","cat":"Wände","desc":"Streifenfundament unter Wandpfeiler Stempelbühne 100x60 cm, C30/37","page":2033,"pdf":"J2_einzelfundamente.pdf","ppage":119,"bel":"Maximale Linienlasten für Fundamentbemessung in Vertikalrichtung.\nMaßgebend Bemessung Pos. U1-01, Wand W107:\n\n           aus Eigengewicht g =          hW * bW *25       = 22,84 kN/m\n\nDie beiden Einzellasten aus der Stempelbühne werden über die Wandlänge verteilt\n         aus Stempelbühne 2x Fu =                     53,60 kN/m\n         pStempel =                  2* Fu / L    = 36,59 kN/m","bew":"unten in Quer-Richtung 20 Æ 14/15\nunten in Längs-Richtung 10 Æ 12/20\nAnschlußbewehrung s. Wandkapitel\n\nBelastung aus Stempelbühne und Eigengewicht Stb. Sockel:\nDie Belastungen s. farbige Markierungen in den Schnitten Fo und Mx und My (folgende Seite) werden über die\nDecke abgetragen. Für das Fundament ist lediglich die Belastung Fu anzusetzen gemäß der Belastungstabelle\nauf der folgenden Seite:","flags":["Anpralllast berücksichtigt"]},{"id":"WSWA-01","cat":"Wände","desc":"Winkelstützwand","page":2106,"pdf":"J3_zerrbalken_bodenplatten_wsw.pdf","ppage":63,"bel":"","bew":"Wand beidseits Q 524-A\n+ beidseits Zulagen horizontal Æ 8/30 (= insg. 6,92 cm²/m) aus NW Rissbreitenbegrenzung\n+ Einspannbewehrung vertikal erdseitig Æ 12/10 aus NW Erddruck\nÞ s. auch Bewehrungsgrafik letzte Seite Bemessung Erddruck\n\nBodenplatte: oben + unten Æ 12/10 # (= 11,31 cm²/m) aus NW Rissbreitenbegrenzung","flags":[]},{"id":"E2-WS-1","cat":"Wandscheiben","desc":"Stb. Wandscheibe, h = 25 cm, C30/37, XC1, cnom = 30 mm","page":1135,"pdf":"H_waende_wandscheiben.pdf","ppage":153,"bel":"","bew":"Pos. 1: Netzbewehrung beidseits Q 335-A\nPos. 2: Feldbewehrung 2 Æ 16 je Seite (= insg. 8,04 cm²)\nPos. 3: versteckte Stütze konstruktiv 4 Æ 14 (6,16 cm² Auflager)","flags":[]},{"id":"E1-WS-1","cat":"Wandscheiben","desc":"Stb. Wandscheibe, h = 25 cm, C30/37, XC1, cnom = 30 mm","page":1138,"pdf":"H_waende_wandscheiben.pdf","ppage":156,"bel":"","bew":"Pos. 1: Netzbewehrung beidseits Q 335-A\nPos. 2: Feldbewehrung 3 Æ 16 je Seite (= insg. 12,1 cm²)\nPos. 3: versteckte Stütze konstruktiv 4 Æ 14 (6,16 cm² Auflager)","flags":[]},{"id":"E1-WS-2","cat":"Wandscheiben","desc":"Stb. Wandscheibe, h = 30 cm, C30/37, XC1, cnom = 30 mm","page":1141,"pdf":"H_waende_wandscheiben.pdf","ppage":159,"bel":"gEd =                        gk * 1,35            =    215,32 kN/m\n        pEd =                        pk * 1,5             =     64,50 kN/m\n\n         rEd =                       1,35*gk+1,5*pk       =    279,82 kN/m","bew":"Pos. 1: Netzbewehrung beidseits Q 524-A\nPos. 2: Feldbewehrung 3 Æ 16 je Seite (= insg. 12,1 cm²)\nPos. 3: Stützbewehrung 3 Æ 16 je Seite (= insg. 12,1 cm²)\nPos. 4: Konstruktiv versteckte Stütze 4 Æ 14 (6,16 cm² Auflager) an allen drei Auflagern","flags":[]},{"id":"E1-WS-3","cat":"Wandscheiben","desc":"Stb. Wandscheibe, h = 25 cm, C30/37, XC1, cnom = 30 mm","page":1144,"pdf":"H_waende_wandscheiben.pdf","ppage":162,"bel":"","bew":"Pos. 1: Netzbewehrung beidseits Q 524-A\nPos. 2: Feldbewehrung 4 Æ 16 je Seite (= insg. 16,1 cm²)\nPos. 3: versteckte Stütze 4 Æ 14 (6,16 cm² Auflager) aus Außenwand\nPos. 4: Verstärkte Netzbewehrung an Auflager Außenwand\n         je Seite # Æ 10/15 (5,24 cm²/m) auf 2,0m Höhe und Breite\nPos. 5: versteckte Stütze konstruktiv 4 Æ 14 (6,16 cm² Auflager) aus Stütze in Achse A'/7","flags":[]},{"id":"E1-WS-4","cat":"Wandscheiben","desc":"Stb. Wandscheibe, h = 30 cm, C30/37, XC1, cnom = 30 mm","page":1148,"pdf":"H_waende_wandscheiben.pdf","ppage":166,"bel":"gEd =                        gk * 1,35            =    284,85 kN/m\n        pEd =                        pk * 1,5             =    129,00 kN/m\n\n         rEd =                       1,35*gk+1,5*pk       =    413,85 kN/m","bew":"Pos. 1: Netzbewehrung beidseits Q 524-A\nPos. 2: Feldbewehrung 2 Æ 16 je Seite (= insg. 8,1 cm²)\nPos. 3: Stützbewehrung 2 Æ 16 je Seite (= insg. 8,1 cm²)\nPos. 4: Konstruktiv versteckte Stütze 4 Æ 14 (6,16 cm² Auflager) an TRH-Wand und Stütze in Achse B/7\nPos. 5: Versteckte Stütze 4 Æ 16 (8,1 cm² Auflager) aus Wandscheibe Pos. ZG-WS-5\nPos. 6: Verstärkte Netzbewehrung an Mittelauflager auf Pos. ZG-WS-05\n         je Seite # Æ 12/15 (7,54 cm²/m) auf 2,0m Höhe und Breite","flags":[]},{"id":"ZG-WS-1","cat":"Wandscheiben","desc":"Stb. Wandscheibe, h = 30 cm, C30/37, XC1, cnom = 30 mm","page":1152,"pdf":"H_waende_wandscheiben.pdf","ppage":170,"bel":"","bew":"Pos. 1: Netzbewehrung beidseits Q 524-A\nPos. 2: Feldbewehrung 3 Æ 20 je Seite (= insg. 18,8 cm²) + Bügel unter Türöffnung Æ 12/15 2-schnittig\nPos. 3: versteckte Stütze konstruktiv 4 Æ 14 (6,16 cm² Auflager)\n\nPos. 10: Sturzbewehrung oben und unten 3 Æ 20 (9,42 cm²)\nPos. 11: Sturz Bügelbewehrung Æ 12/15 2-schnittig (15,1 cm²/m)\n\nPos. 20: seitlich senkrechte Zusatzbewehrung je Seite 4 Nadeln Æ 14 (12,3 cm² je Seite)","flags":[]},{"id":"ZG-WS-2","cat":"Wandscheiben","desc":"Stb. Wandscheibe, h = 25 cm, C30/37, XC1, cnom = 30 mm","page":1160,"pdf":"H_waende_wandscheiben.pdf","ppage":178,"bel":"","bew":"Pos. 1: Netzbewehrung Æ 12/10 # beiseits (Grundbew.+verstärkte Netzbewehrung)\nPos. 2: Feldbewehrung 4 Æ 20 je Seite (= insg. 25,1 cm²)\nPos. 3: versteckte Stütze 4 Æ 28 (24,6 cm² Auflager)","flags":[]},{"id":"ZG-WS-3","cat":"Wandscheiben","desc":"Stb. Wandscheibe, h = 35 cm, C35/45, XC1, cnom = 30 mm","page":1164,"pdf":"H_waende_wandscheiben.pdf","ppage":182,"bel":"","bew":"Pos. 1: Netzbewehrung beidseits Q 524-A\n    Pos. 2: Feldbewehrung 10 Æ 20/10 je Seite (= insg. 62,8 cm²)\n    Pos. 3: versteckte Stütze konstruktiv 4 Æ 16 (6,16 cm² Auflager) an allen Auflagern\n\n    ACHTUNG: Spaltzugbewehrung unter Binderauflagern beachten s. Nachweis zu Beginn dieses Kapitels","flags":[]},{"id":"ZG-WS-4","cat":"Wandscheiben","desc":"Stb. Wandscheibe (siehe Positionsplan ZG)","page":1181,"pdf":"H_waende_wandscheiben.pdf","ppage":199,"bel":"","bew":"Pos. 1: Netzbewehrung Q335-A beiseits\nPos. 2: Feldbewehrung 3 Æ 16 je Seite (= insg. 12,1 cm²)\nPos. 3: versteckte Stütze konstruktiv 4 Æ 14 (6,16 cm² Auflager)","flags":[]},{"id":"ZG-WS-5","cat":"Wandscheiben","desc":"Stb. Wandscheibe, h = 25 cm, C30/37, XC1, cnom = 30 mm","page":1184,"pdf":"H_waende_wandscheiben.pdf","ppage":202,"bel":"","bew":"Pos. 1: Netzbewehrung Q524-A beiseits\nPos. 2: Feldbewehrung 5 Æ 16 je Seite (= insg. 20,1 cm²)\nPos. 3: versteckte Stütze konstruktiv 4 Æ 16 (8,04 cm² Auflager)","flags":[]},{"id":"E0-WS-1","cat":"Wandscheiben","desc":"Stb. Wandscheibe, h = 30 cm, C30/37, XC1, cnom = 30 mm","page":1187,"pdf":"H_waende_wandscheiben.pdf","ppage":205,"bel":"","bew":"Pos. 1, 2, 3, 4: s. Bewehrungsskizze\nPos. 10: versteckte Stütze: 4 Æ 20\nPos. 11: versteckte Stütze: 4 Æ 28\nPos. 12: versteckte Stütze: 4 Æ 28\nPos. 13: Konstruktiv versteckte Stütze: 4 Æ 16\nPos. 15: Seitliche Aufhängebewehrung 4 Æ 14/10 (11,31 cm²)\nPos. 21: Netzbewehrung beidseits Q 524-A ab E1","flags":[]},{"id":"E0-WS-2","cat":"Wandscheiben","desc":"Stb. Wandscheibe, h = 30 cm, C30/37, XC1, cnom = 30 mm","page":1264,"pdf":"H_waende_wandscheiben.pdf","ppage":282,"bel":"Die Lasten werden aus Gründen der Übersichtlichkeit in einer Grafik zusammengestelllt und auf eine händische\nZusammenstellung verzichtet.\n\n                                              Last aus Decke ZG-01:\n                                              gk = -10 kN/m\n                                              pk = 13 kN/m\n                Last aus Decke ZG-01:                                            Last aus Decke ZG-01:                                      Last aus Decke ZG-01:                 Last aus Decke ZG-01:","bew":"Pos. 1 und 2 Feldbewehrung: s. Bewehrungsskizze\nPos. 10: versteckte Stütze: 4 Æ 20\nPos. 11: versteckte Stütze: 4 Æ 20 + verstärkte Netzbewehrung Æ12/15 # (7,54 cm²/m)\n         auf 2,5m Höhe und Breite\nPos. 12: versteckte Stütze: 4 Æ 25 + verstärkte Netzbewehrung Æ12/15 # (7,54 cm²/m)\n         auf 2,5m Höhe und Breite\nPos. 13: Konstruktiv versteckte Stütze: 4 Æ 16\nPos. 20: Netzbewehrung beidseits Q 524-A","flags":[]},{"id":"E0-WS-3","cat":"Wandscheiben","desc":"Stb. Wandscheibe, h = 30 cm, C30/37, XC1, cnom = 30 mm","page":1334,"pdf":"H_waende_wandscheiben.pdf","ppage":352,"bel":"Die Lasten werden aus Gründen der Übersichtlichkeit in einer Grafik zusammengestelllt und auf eine händische\n    Zusammenstellung verzichtet.\n\n                                                     Auflagerkraft Stütze inkl. G:                                  Auflagerkraft Stütze inkl. G:\n                                                     Gk = 295 kN                                                    Gk = 345 kN\n                                                     Pk = 125 kN                                                    Pk = 140 kN\n\n                        Last aus Decke E1-01:   Last a","bew":"Pos. 1 und 2 Feldbewehrung: s. Bewehrungsskizze\nPos. 10: versteckte Stütze: 8 Æ 16\nPos. 11: versteckte Stütze: 4 Æ 25 + verstärkte Netzbewehrung Æ14/10 # (15,39 cm²/m)\n         auf 2,5m Höhe und Breite\nPos. 12: versteckte Stütze: 8 Æ 28 + verstärkte Netzbewehrung Æ14/10 # (15,39 cm²/m)\n         auf 2,5m Höhe und Breite\nPos. 13: Konstruktiv versteckte Stütze: 4 Æ 20\nPos. 20: Netzbewehrung beidseits Q 524-A","flags":[]},{"id":"E0-WS-4","cat":"Wandscheiben","desc":"Stb. Wandscheibe, h = 30 cm, C30/37, XC1, cnom = 30 mm","page":1396,"pdf":"H_waende_wandscheiben.pdf","ppage":414,"bel":"Die Lasten werden aus Gründen der Übersichtlichkeit in einer Grafik zusammengestelllt und auf eine händische\nZusammenstellung verzichtet.\n\n                         0                                            1                                              2               3        4\n\n                                                  Last aus Decke ZG-01:                                      Last aus Decke ZG-01:\n                                                  gk = 244 kN/m                                              gk = 227 kN/m","bew":"Pos. 1, 2, 3, 4: s. Bewehrungsskizze\nPos. 10: Konstruktiv versteckte Stütze: 4 Æ 16\nPos. 11: Konstruktiv versteckte Stütze: Æ 14/10\nPos. 12: versteckte Stütze: 10 Æ 25\nPos. 13: versteckte Stütze: 6 Æ 28\nPos. 14: versteckte Stütze: 4 Æ 20\nÞ Verstärkte Netzbwehrung an Auflager d, e und f s. Bewehrungsskizze\nPos. 20: Grundbewehrung beidseits Æ 10/15 # (wenn nicht anders angegeben)","flags":[]},{"id":"E0-WS-5","cat":"Wandscheiben","desc":"Stb. Wandscheibe, h = 25 cm, C30/37, XC1, cnom = 30 mm","page":1453,"pdf":"H_waende_wandscheiben.pdf","ppage":471,"bel":"","bew":"Pos. 1: Netzbewehrung Æ 14/10 # beiseits (Grundbew.+verstärkte Netzbewehrung)\nPos. 2: Feldbewehrung 4 Æ 28 je Seite (= insg. 24,6 cm²)\nPos. 3: versteckte Stütze 4 Æ 25 (19,63 cm² Auflager)","flags":[]},{"id":"E0-WS-6","cat":"Wandscheiben","desc":"Stb. Wandscheibe, h = 25 cm, C30/37, XC1, cnom = 30 mm","page":1457,"pdf":"H_waende_wandscheiben.pdf","ppage":475,"bel":"","bew":"Pos. 1: Netzbewehrung Æ 12/10 # beiseits (Grundbew.+verstärkte Netzbewehrung)\nPos. 2: Feldbewehrung 4 Æ 20 je Seite (= insg. 12,6 cm²)\nPos. 3: Konstruktiv versteckte Stütze 4 Æ 20 (12,6 cm² Auflager)","flags":[]},{"id":"E0-WS-7","cat":"Wandscheiben","desc":"Stb. Wandscheibe, h = 25 cm, C30/37, XC1, cnom = 30 mm","page":1461,"pdf":"H_waende_wandscheiben.pdf","ppage":479,"bel":"","bew":"Pos. 1: Feldbewehrung 2x4 = 8Ø20\nPos. 10: versteckte Stütze 4 Æ 28 (19,6 cm² Auflager) an allen Auflagern\nPos. 20: Netzbewehrung beidseits Q 524-A ab ZG\nVerstärkte Netzbewehrung s. Bewehrungsskizze","flags":[]},{"id":"E0-WS-8","cat":"Wandscheiben","desc":"Stb. Wandscheibe, h = 30 cm, C35/45","page":1487,"pdf":"H_waende_wandscheiben.pdf","ppage":505,"bel":"","bew":"Pos. 1: Feldbewehrung 2x4 = 8 Ø 25/10\nPos. 2: Feldbewehrung 2x5 = 10 Ø 14/10\nPos. 10: versteckte Stütze 6 Æ 28 (36,9 cm² Auflager) an Stütze Achse C\nPos. 11: Konstruktiv versteckte Stütze 4 Æ 20 (12,1 cm² Auflager) an Stütze Achse A\nPos. 20: Netzbewehrung beidseits Q 524-A bzw. Æ 10/15 #\nVerstärkte Netzbewehrung s. Bewehrungsskizze","flags":[]},{"id":"E0-WS-9","cat":"Wandscheiben","desc":"Stb. Wandscheibe, h = 35 cm, C35/45","page":1514,"pdf":"H_waende_wandscheiben.pdf","ppage":532,"bel":"","bew":"Pos. 1 Feldbewehrung: s. Bewehrungsskizze\nPos. 10: versteckte Stütze: 10 Æ 25\nPos. 11: versteckte Stütze: 14 Æ 28\nPos. 12: konstruktiv versteckte Stütze: 8 Æ 20\nPos. 20: Netzbewehrung beidseits Æ 12/15 # (wenn nicht anders angegeben)\nverstärkte Netzbewehrung s. Bewehrungsskizze\n\nACHTUNG: Spaltzugbewehrung unter Binderauflagern beachten s. Nachweis zu Beginn dieses Kapitels","flags":[]},{"id":"O1-S-1","cat":"Stützen","desc":"Stb. Außenstütze 35x35cm rechteckig, C30/37, XC1, WO, cnom = 30mm","page":1579,"pdf":"I_stuetzen.pdf","ppage":6,"bel":"","bew":"8 Æ 20 (25,13 cm²)\nBügel Æ 10/20 (7,85 cm²/m)\nAnschlussbewehrung aus Decke konstruktiv 4 Æ 28 (24,63 cm²)","flags":[]},{"id":"O1-S-2","cat":"Stützen","desc":"Stb. Innenstütze 40x40cm rechteckig, C30/37, XC1, WO, cnom = 30mm","page":1586,"pdf":"I_stuetzen.pdf","ppage":13,"bel":"","bew":"8 Æ 20 (25,13 cm²)\nBügel Æ 10/20 (7,85 cm²/m)\nAnschlussbewehrung aus Decke konstruktiv 4 Æ 16 (8,04 cm²)","flags":[]},{"id":"O1-S-3","cat":"Stützen","desc":"Stb. Innenstütze Ø40cm rund, C30/37, XC1, WO, cnom = 30mm","page":1593,"pdf":"I_stuetzen.pdf","ppage":20,"bel":"","bew":"8 Æ 20 (25,13 cm²)\nBügel Æ 10/20 (7,85 cm²/m)\nAnschlussbewehrung aus Decke konstruktiv 4 Æ 16 (8,04 cm²)","flags":[]},{"id":"O1-S-04","cat":"Stützen","desc":"Stb. Innenstütze 40x60cm rechteckig, C30/37, XC1, WO, cnom = 30mm","page":1600,"pdf":"I_stuetzen.pdf","ppage":27,"bel":"","bew":"8 Æ 20 (25,13 cm²)\nBügel Æ 10/20 (7,85 cm²/m)\nAnschlussbewehrung aus Decke konstruktiv 4 Æ 20 (12,60 cm²)","flags":[]},{"id":"E0-S-1","cat":"Stützen","desc":"Stb. Außenstütze 35x35cm rechteckig, C35/45, XC1, WO, cnom = 30mm","page":1609,"pdf":"I_stuetzen.pdf","ppage":36,"bel":"","bew":"8 Æ 28 (49,30 cm²)\nBügel Æ 10/20 (7,85 cm²/m)\nAnschlussbewehrung aus Decke mind. 4 Æ 28 (24,6 cm²)","flags":[]},{"id":"E0-S-2","cat":"Stützen","desc":"Stb. Innenstütze Æ 35cm, C30/37, XC1, WO, cnom = 30mm","page":1619,"pdf":"I_stuetzen.pdf","ppage":46,"bel":"","bew":"6 Æ 16 (12,10 cm²)\nBügel Æ 10/15 (10,48 cm²/m)\nAnschlussbewehrung aus Decke konstruktiv 4 Æ 16 (8,04cm²)","flags":[]},{"id":"E0-S-3","cat":"Stützen","desc":"Stb. Innenstütze 40x60cm, C30/37, XC1, WO, cnom = 30mm","page":1627,"pdf":"I_stuetzen.pdf","ppage":54,"bel":"","bew":"8 Æ 20 (25,1 cm²)\nBügel Æ 10/15 (10,48 cm²/m)\nAnschlussbewehrung aus Decke 4 Æ 28 (28,63cm²) s. Bemessung Wandscheibe","flags":[]},{"id":"E0-S-4","cat":"Stützen","desc":"Stb. Innenstütze 30x40cm, C30/37, XC1, WO, cnom = 30mm","page":1635,"pdf":"I_stuetzen.pdf","ppage":62,"bel":"","bew":"8 Æ 16 (16,10 cm²)\nBügel Æ 10/15 (10,48 cm²/m)\nAnschlussbewehrung aus Decke konstruktiv 4 Æ 16 (8,04cm²)","flags":[]},{"id":"E0-S-5","cat":"Stützen","desc":"Stb. Innenstütze 30x40cm, C30/37, XC1, WO, cnom = 30mm","page":1643,"pdf":"I_stuetzen.pdf","ppage":70,"bel":"","bew":"8 Æ 25 (39,39 cm²)\nBügel Æ 10/20 (7,85 cm²/m)\nAnschlussbewehrung aus Decke konstruktiv 4 Æ 16 (19,6 cm²)","flags":[]},{"id":"E0-S-6","cat":"Stützen","desc":"Stb. Innenstütze 40x40cm, C30/37, XC1, WO, cnom = 30mm","page":1650,"pdf":"I_stuetzen.pdf","ppage":77,"bel":"","bew":"8 Æ 20 (25,13 cm²)\nBügel Æ 10/20 (7,85 cm²/m)\nAnschlussbewehrung aus Decke konstruktiv 4 Æ 16 (8,04cm²)","flags":[]},{"id":"E0-S-7","cat":"Stützen","desc":"Stb. Innenstütze 40x60cm, C30/37, XC1, WO, cnom = 30mm","page":1658,"pdf":"I_stuetzen.pdf","ppage":85,"bel":"","bew":"10 Æ 25 (49,10 cm²)\nBügel Æ 10/20 (7,85 cm²/m)\nAnschlussbewehrung aus Decke konstruktiv 4 Æ 28 (8,04cm²)","flags":[]},{"id":"E0-S-8","cat":"Stützen","desc":"Stb. Innenstütze 35x35cm, C30/37, XC1, WO, cnom = 30mm","page":1666,"pdf":"I_stuetzen.pdf","ppage":93,"bel":"","bew":"8 Æ 16 (20,10cm²)\nBügel Æ 10/20 (7,85 cm²/m)\nAnschlussbewehrung aus Decke konstruktiv 4 Æ 16 (8,04cm²)","flags":[]},{"id":"E0-S-9","cat":"Stützen","desc":"Stb. Innenstütze 30x30cm, C30/37, XC1, WO, cnom = 30mm","page":1673,"pdf":"I_stuetzen.pdf","ppage":100,"bel":"","bew":"8 Æ 20 (25,13 cm²)\nBügel Æ 10/20 (7,85 cm²/m)\nAnschlussbewehrung aus Decke mind. 4 Æ 20 (12,60 cm²)","flags":[]},{"id":"E0-S-10","cat":"Stützen","desc":"Stb. Innenstütze 30x50cm, C30/37, XC1, WO, cnom = 30mm","page":1681,"pdf":"I_stuetzen.pdf","ppage":108,"bel":"","bew":"8 Æ 20 (25,13 cm²)\nBügel Æ 10/20 (7,85 cm²/m)\nAnschlussbewehrung aus Decke mind. 4 Æ 20 (12,60 cm²)","flags":[]},{"id":"U1-S-1","cat":"Stützen","desc":"Stb. Stützen, a/b = 40/60cm, C35/45, XC3, XF1 cnom = 55mm","page":1692,"pdf":"I_stuetzen.pdf","ppage":119,"bel":"","bew":"16 Æ 28 (98,56 cm²)\nBügel Æ 10/20 (7,86 cm²/m)\nAnschlussbewehrung aus Fundament mind. 14 Æ 28 (86,24 cm²)","flags":[]},{"id":"U1-S-2","cat":"Stützen","desc":"Stb. Stützen, a/b = 35/50cm, C35/45, XC3, XF1 cnom = 55mm","page":1702,"pdf":"I_stuetzen.pdf","ppage":129,"bel":"aus Eigengewicht Gk = 731+937                                                      = 1668,00 kN\n        aus Verkehrslast Pk = 161+127+360                                                  =  648,00 kN\n        aus Wind Wk =                                                                          21,50 kN\n            NEd1 =                    (1,35*Gk+(1,5*Pk+Wk)) * 10-3                         =       3,245 MN\n\nmax. Belastung aus Wandscheibe Pos. E0-WS-3","bew":"10 Æ 20 (31,4 cm²)\nBügel Æ 10/20 (7,86 cm²/m)\nAnschlussbewehrung aus Fundament mind. 4 Æ 20 (12,6 cm²)","flags":[]},{"id":"U1-S-3","cat":"Stützen","desc":"Stb. Stützen, a/b = 50/50cm, C35/45, XC3, XF1 cnom = 55mm","page":1711,"pdf":"I_stuetzen.pdf","ppage":138,"bel":"aus Eigengewicht Gk = 798+1908                                                     = 2706,00 kN\n        aus Verkehrslast Pk = 81+335+578                                                   =  994,00 kN\n        aus Wind Wk =                                                                          71,00 kN\n            NEd =                     (1,35*Gk+(1,5*Pk+Wk)) * 10-3                         =       5,215 MN","bew":"12 Æ 20 (37,68 cm²)\nBügel Æ 10/20 (7,86 cm²/m)\nAnschlussbewehrung aus Fundament mind. 8 Æ 20 (25,1 cm²)","flags":[]},{"id":"U1-S-4","cat":"Stützen","desc":"Stb. Stützen, a/b = 30/50cm, C35/45, XC3, XF1 cnom = 55mm","page":1720,"pdf":"I_stuetzen.pdf","ppage":147,"bel":"aus Eigengewicht Gk =                                                                   773,00 kN\n        aus Verkehrslast Pk = 338+319                                                      =    657,00 kN\n            NEd =                     (1,35*Gk+1,5*Pk) * 10-3                              =       2,029 MN","bew":"10 Æ 16 (20,1 cm²)\nBügel Æ 8/15 (6,7 cm²/m)\nKonstruktive Anschlussbewehrung aus Fundament 4 Æ 16 (8,04 cm²)","flags":[]},{"id":"U1-S-5","cat":"Stützen","desc":"Stb. Stützen, a/b = 40/40cm, C30/37, XC3, XF1 cnom = 55mm","page":1729,"pdf":"I_stuetzen.pdf","ppage":156,"bel":"aus Eigengewicht Gk = 52+807                                                       =    859,00 kN\n        aus Verkehrslast Pk = 28+276                                                       =    304,00 kN\n        aus Wind Wk =                                                                            18,00 kN\n            NEd =                     (1,35*Gk+(1,5*Pk+Wk)) * 10-3                         =       1,634 MN","bew":"10 Æ 16 (20,1 cm²)\nBügel Æ 8/15 (6,7 cm²/m)\nKonstruktive Anschlussbewehrung aus Fundament 4 Æ 16 (8,04 cm²)","flags":[]},{"id":"U1-S-6","cat":"Stützen","desc":"Stb. Stützen, a/b = 25/25cm, C30/37, XC3, XF1 cnom = 55mm","page":1738,"pdf":"I_stuetzen.pdf","ppage":165,"bel":"aus Eigengewicht Gk = 94+330                                                       =    424,00 kN\n        aus Verkehrslast Pk = 39+92                                                        =    131,00 kN\n        aus Wind Wk =                                                                             2,00 kN\n            NEd =                     (1,35*Gk+(1,5*Pk+Wk)) * 10-3                         =       0,771 MN","bew":"8 Æ 16 (16,1 cm²)\nBügel Æ 8/15 (6,7 cm²/m)\nKonstruktive Anschlussbewehrung aus Fundament 4 Æ 16 (8,04 cm²)","flags":[]},{"id":"U1-S-7","cat":"Stützen","desc":"Stb. Stützen, a/b = 35/35cm, C30/37, XC3, XF1 cnom = 55mm","page":1747,"pdf":"I_stuetzen.pdf","ppage":174,"bel":"aus Eigengewicht Gk = 110+691                                                      =    801,00 kN\n        aus Verkehrslast Pk = 39+15+216                                                    =    270,00 kN\n        aus Wind Wk =                                                                            20,00 kN\n            NEd =                     (1,35*Gk+(1,5*Pk+Wk)) * 10-3                         =       1,506 MN","bew":"8 Æ 20 (25,1 cm²)\nBügel Æ 10/20 (7,86 cm²/m)\nKonstruktive Anschlussbewehrung aus Fundament 4 Æ 16 (8,04 cm²)","flags":[]},{"id":"U1-S-8","cat":"Stützen","desc":"Stb. Stützen, a/b = 30/50cm, C30/37, XC3, XF1 cnom = 55mm","page":1756,"pdf":"I_stuetzen.pdf","ppage":183,"bel":"aus Eigengewicht Gk = 49+1088                                                      = 1137,00 kN\n        aus Verkehrslast Pk = 4+11+6+349                                                   =  370,00 kN\n        aus Wind Wk =                                                                           0,00 kN\n            NEd =                     (1,35*Gk+(1,5*Pk+Wk)) * 10-3                         =       2,090 MN","bew":"8 Æ 20 (25,1 cm²)\nBügel Æ 10/20 (7,86 cm²/m)\nKonstruktive Anschlussbewehrung aus Fundament 4 Æ 16 (8,04 cm²)","flags":[]},{"id":"U1-S-9","cat":"Stützen","desc":"Stb. Stütze bzw. Stb. Lisene, a/b = 50/60cm, C30/37 WU, XC3, XF1 cnom = 55mm","page":1765,"pdf":"I_stuetzen.pdf","ppage":192,"bel":"aus Eigengewicht Gk = 132+190                                                      =    322,00 kN\n        aus Verkehrslast Pk = 13+78+42                                                     =    133,00 kN\n        aus Wind Wk =                                                                            11,00 kN\n            NEd1 =                    (1,35*Gk+(1,5*Pk+Wk)) * 10-3                         =       0,645 MN\n\nmax. Belastung aus Unterzug Pos. U1-56","bew":"12 Æ 20 (37,7 cm²)\nBügel Æ 10/20 (7,86 cm²/m)\nAnschlussbewehrung aus Fundament mind. 4 Æ 20 (12,6 cm²)","flags":["WU-Beton (wasserundurchlässig)"]},{"id":"U1-S-10","cat":"Stützen","desc":"Stb. Stütze bzw. Stb. Lisene, a/b = 40/37,5cm, C30/37 WU, XC3, XF1 cnom = 55mm","page":1775,"pdf":"I_stuetzen.pdf","ppage":202,"bel":"aus Eigengewicht Gk = 57+516                                                       =    573,00 kN\n        aus Verkehrslast Pk = 22+21+114                                                    =    157,00 kN\n        aus Wind Wk =                                                                             0,00 kN\n            NEd =                     (1,35*Gk+(1,5*Pk+Wk)) * 10-3                         =       1,009 MN","bew":"8 Æ 16 (16,1 cm²)\nBügel Æ 10/15 (10,48 cm²/m)\nAnschlussbewehrung aus Fundament mind. 4 Æ 16 (8,04 cm²)","flags":["WU-Beton (wasserundurchlässig)"]},{"id":"FU-11","cat":"Fundamente","desc":"Streifenfundament b/h=80/50cm, C30/37, oben XC3, cnom = 35mm, unten XC2, cnom = 35mm","page":1805,"pdf":"J1_streifenfundamente.pdf","ppage":28,"bel":"Maximale Linienlasten für Fundamentbemessung in Vertikalrichtung.\nMaßgebend Bemessung Pos. U1-01, Wand W16:\n\n         aus Eigengewicht g =        45 + hW * bW *25              =   62,50 kN/m\n         aus Verkehrslast p =        17+30                         =   47,00 kN/m\n\n         aus Eigengewicht GU =                                           0,00 kN/m\n         aus Verkehrslast PU =                                           0,00 kN/m","bew":"unten+oben 4 Æ 12 (3,14 cm²)\nseitlich zusätzlich 4 Ø 12 (insg. 4+2 Æ 12 = 6,79 cm²) aus NW in Querrichtung\nBügel Æ 10 / 20 (7,86 cm²/m) aus NW in Querrichtung\nAnschlussbewehrung Wand Æ 10 / 15 (5,24 cm²/m)","flags":[]},{"id":"FU-12","cat":"Fundamente","desc":"Streifenfundament b/h=100/60cm, C30/37, oben XC3, cnom = 35mm, unten XC2, cnom = 35mm","page":1822,"pdf":"J1_streifenfundamente.pdf","ppage":45,"bel":"Maximale Linienlasten für Fundamentbemessung in Vertikalrichtung.\nMaßgebend Bemessung Pos. U1-01, Wand W107:\n\n         aus Eigengewicht g =        15 + hW * bW *25       =    38,85 kN/m\n         aus Verkehrslast p =                                     7,00 kN/m\n         aus Wind w =                                            22,00 kN/m\n\n         aus Eigengewicht GU =                                  212,00 kN/m\n         aus Verkehrslast PU =                                   35,00 kN/m","bew":"unten+oben 4 Æ 12 (4,52 cm²)\nseitlich zusätzlich 5 Ø 12 (insg. 5+2 Æ 12 = 7,92 cm²) aus NW in Querrichtung\nBügel Æ 10 / 20 (7,86 cm²/m) aus NW in Querrichtung\nAnschlussbewehrung Wand Æ 10 / 15 (5,24 cm²/m)","flags":[]},{"id":"FU-13","cat":"Fundamente","desc":"Streifenfundament b/h=140/60cm, C30/37, oben XC3, cnom = 35mm, unten XC2, cnom = 35mm","page":1840,"pdf":"J1_streifenfundamente.pdf","ppage":63,"bel":"Maximale Linienlasten für Fundamentbemessung in Vertikalrichtung.\nMaßgebend Bemessung Pos. U1-01, Wand W24:\n\n         aus Eigengewicht g =        28 + hW * bW *25              =    55,83 kN/m\n         aus Verkehrslast p =                                           13,00 kN/m\n\n         aus Eigengewicht GU =                                         486,00 kN/m\n         aus Verkehrslast PU =                                         147,00 kN/m","bew":"unten+oben 4 Æ 12 (4,52 cm²)\nseitlich zusätzlich 4 Ø 12 (insg. 4+2 Æ 12 = 6,79 cm²) aus NW in Querrichtung\nBügel Æ 10 / 20 (7,86 cm²/m) aus NW in Querrichtung\nAnschlussbewehrung Wand Æ 10 / 15 (5,24 cm²/m)","flags":[]},{"id":"FU-14","cat":"Fundamente","desc":"Streifenfundament b/h=150/60cm, C30/37, oben XC3, cnom = 35mm, unten XC2, cnom = 35mm","page":1867,"pdf":"J1_streifenfundamente.pdf","ppage":90,"bel":"Maximale Linienlasten für Fundamentbemessung in Vertikalrichtung.\nMaßgebend Bemessung Pos. R-01, Wand W24:\n\n         aus Eigengewicht g =        34,5 + hW * bW *25            =   54,88 kN/m\n         aus Verkehrslast p =                                          33,00 kN/m\n\n         aus Eigengewicht GU =                                           0,00 kN/m\n         aus Verkehrslast PU =                                           0,00 kN/m","bew":"unten+oben 4 Æ 14 (6,16 cm²)\nseitlich zusätzlich 4 Ø 14 (insg. 4+2 Æ 14 = 9,24 cm²) aus NW in Querrichtung\nBügel Æ 10 / 20 (7,86 cm²/m) aus NW in Querrichtung\nAnschlussbewehrung Wand Æ 10 / 15 (5,24 cm²/m)","flags":[]},{"id":"FU-15","cat":"Fundamente","desc":"Streifenfundament b/h=100/60cm, C30/37, oben XC3, cnom = 35mm, unten XC2, cnom = 35mm","page":1883,"pdf":"J1_streifenfundamente.pdf","ppage":106,"bel":"Maximale Linienlasten für Fundamentbemessung in Vertikalrichtung.\nMaßgebend Bemessung Pos. U-01, Wand W24:\n\n         aus Eigengewicht g =        53,0 + hW * bW *25      =    76,85 kN/m\n         aus Verkehrslast p =        26+40                   =    66,00 kN/m\n         aus Wind w =                                             18,00 kN/m\n\n         aus Eigengewicht GU =                                   158,00 kN/m\n         aus Verkehrslast PU =                                    29,00 kN/m","bew":"Fundament unbewehrt\nAnschlussbewehrung Wand Æ 8 / 15 (3,35 cm²/m)\n\nHinweis: Im Torbereich zwischen den TGs und in Bereichen mit Türöffnungen wird das Fundament\nverbügelt und konstruktiv eine obere und untere Lage vorgesehen.","flags":[]},{"id":"FU-16","cat":"Fundamente","desc":"Streifenfundament b/h=180/60cm, C30/37, oben XC3, cnom = 35mm, unten XC2, cnom = 35mm","page":1892,"pdf":"J1_streifenfundamente.pdf","ppage":115,"bel":"Maximale Linienlasten für Fundamentbemessung in Vertikalrichtung.\nMaßgebend Bemessung Pos. U-01, Wand W4, Wandpfeiler in Achse B/1:\n\n         aus Eigengewicht g =         283,0 + hW * bW *25      = 306,85 kN/m\n         aus Verkehrslast p =                                     97,00 kN/m\n         aus Wind w =                                              5,00 kN/m\n\n         aus Eigengewicht GU =                                    1016,00 kN/m\n         aus Verkehrslast PU =                                     338,00 kN/m","bew":"unten längs 8 Æ 12 (9,05 cm²)\nunten quer Æ 14 / 10 (15,39 cm²/m)\nAnschlussbewehrung Wand Æ 10 / 15 (5,24 cm²/m)","flags":[]},{"id":"FU-17","cat":"Fundamente","desc":"Streifenfundament b/h=60/50cm, C30/37, oben XC3, cnom = 35mm, unten XC2, cnom = 35mm","page":1902,"pdf":"J1_streifenfundamente.pdf","ppage":125,"bel":"Maximale Linienlasten für Fundamentbemessung in Vertikalrichtung.\nDie Belastung resultiert nur aus dem Eigengewicht der Lichtschachtwände und teilweise aus der aufgelegten\nFertigteil-Treppe\n\n         aus Eigengewicht g =        hW * bW *25             =    19,88 kN/m\n         aus Verkehrslast p =                                      0,00 kN/m\n\n         aus Treppe:\n         aus Eigengewicht GU =                                    24,00 kN/m","bew":"unten+oben 4 Æ 14 (6,16 cm²)\nseitlich zusätzlich 3 Ø 14 (insg. 3+2 Æ 14 = 7,7 cm²) aus NW in Querrichtung\nBügel Æ 8 / 15 (6,7 cm²/m) aus NW in Querrichtung\nAnschlussbewehrung Wand Æ 10 / 15 (5,24 cm²/m)","flags":[]},{"id":"FU-01","cat":"Fundamente","desc":"Einzelfundament 330x330x100 cm, C30/37","page":1916,"pdf":"J2_einzelfundamente.pdf","ppage":2,"bel":"aus Eigengewicht Gk = 785+2910                  = 3695,00 kN\n           aus Verkehrslast Qk = 109+145+1037              = 1291,00 kN\n           aus Wind Wk =                                       36,00 kN\n           Vd =                  1,35 * Gk + 1,5 * (Qk+Wk) = 6978,75 kN\n\n           Anprall Hk,x =                                                 50,00 kN\n           Anprall Hk,y =                                                 25,00 kN\n\n           aus Anprall auf Stütze, wird nicht für Fundamentbemessung berücksichtigt werden.","bew":"unten in x- und y-Richtung:\n30 Æ 25/10\nAnschlußbewehrung s. Übersichten Stützen\n\nMax. Belastung vertikal s. Auflagerkräfte Deckenbemessung:\n\n           aus Eigengewicht Gk = 785+2910                  = 3695,00 kN\n           aus Verkehrslast Qk = 109+145+1037              = 1291,00 kN","flags":["Anpralllast berücksichtigt"]},{"id":"FU-02","cat":"Fundamente","desc":"Einzelfundament 280x280x90 cm, C30/37","page":1930,"pdf":"J2_einzelfundamente.pdf","ppage":16,"bel":"Gk =             796+1722                           = 2518,00 kN\n           Qk =             80+334+515                         =  929,00 kN\n           Wk =                                                    72,00 kN\n           Vd =             1,35 * Gk + 1,5 * (Qk + Wk)        = 4900,80 kN\n\nBelastung aus Überschüttung, Fahrbelag und Verkehrslast wird im Programm berücksichtigt.","bew":"unten in x- und y-Richtung:\n22 Æ 20/12,5\nAnschlußbewehrung s. Übersichten Stützen\n\nMax. Belastung vertikal s. Auflagerkräfte Deckenbemessung:\n\n           Gk =             796+1722                           = 2518,00 kN\n           Qk =             80+334+515                         =  929,00 kN\n           Wk =                                                    72,00 kN","flags":[]},{"id":"FU-03","cat":"Fundamente","desc":"Einzelfundament 200x200x60 cm, C30/37","page":1945,"pdf":"J2_einzelfundamente.pdf","ppage":31,"bel":"aus Eigengewicht Gk = 296+1003                            = 1299,00 kN\n           aus Verkehrslast Qk = 63+41+334                           =  438,00 kN\n           aus Wind Wk =                                                  0,00 kN\n           Vd =                  1,35 * Gk + 1,5 * (Qk+Wk)           = 2410,65 kN\n\n           Anprall Hk,x =                                                  50,00 kN\n           Anprall Hk,y =                                                  25,00 kN\n\n           aus Anprall auf Stütze, wird nicht für Fundamentbemessung berücksichtigt werden.","bew":"unten in x- und y-Richtung:\n16 Æ 16/12,5\nAnschlußbewehrung s. Übersichten Stützen\n\nMax. Belastung vertikal s. Auflagerkräfte Deckenbemessung:\n\n           aus Eigengewicht Gk = 296+1003                            = 1299,00 kN\n           aus Verkehrslast Qk = 63+41+334                           =  438,00 kN\n           aus Wind Wk =                                                  0,00 kN","flags":["Anpralllast berücksichtigt"]},{"id":"FU-04","cat":"Fundamente","desc":"Einzelfundament 160x160x60 cm, C30/37","page":1959,"pdf":"J2_einzelfundamente.pdf","ppage":45,"bel":"aus Eigengewicht Gk = 750+10                              =  760,00 kN\n           aus Verkehrslast Qk = 175+175                             =  350,00 kN\n           aus Wind Wk =                                                  0,00 kN\n           Vd =                  1,35 * Gk + 1,5 * (Qk+Wk)           = 1551,00 kN\n\n           Anprall Hk,x =                                                  50,00 kN\n           Anprall Hk,y =                                                  25,00 kN\n\n           aus Anprall auf Stütze, wird nicht für Fundamentbemessung berücksichtigt werden.","bew":"unten in x- und y-Richtung:\n10 Æ 14/15\nAnschlußbewehrung s. Übersichten Stützen\n\nMax. Belastung vertikal s. Auflagerkräfte Deckenbemessung:\n\n           aus Eigengewicht Gk = 750+10                              =  760,00 kN\n           aus Verkehrslast Qk = 175+175                             =  350,00 kN\n           aus Wind Wk =                                                  0,00 kN","flags":["Anpralllast berücksichtigt"]},{"id":"FU-05","cat":"Fundamente","desc":"Einzelfundament 140x200x60 cm, C30/37","page":1969,"pdf":"J2_einzelfundamente.pdf","ppage":55,"bel":"aus Eigengewicht Gk = 110+804                             =  914,00 kN\n           aus Verkehrslast Qk = 38+15+245                           =  298,00 kN\n           aus Wind Wk =                                                 21,00 kN\n           Vd =                  1,35 * Gk + 1,5 * (Qk+Wk)           = 1712,40 kN\n\n           Anprall Hk,x =                                                  50,00 kN\n           Anprall Hk,y =                                                  25,00 kN\n\n           aus Anprall auf Stütze, wird nicht für Fundamentbemessung berücksichtigt werden.","bew":"unten in x-Richtung 10 Æ 16/20\nunten in y-Richtung 12 Æ 16/12,5\n\nAnschlußbewehrung s. Übersichten Stützen\n\nMax. Belastung vertikal s. Auflagerkräfte Deckenbemessung:\n\n           aus Eigengewicht Gk = 110+804                             =  914,00 kN","flags":["Anpralllast berücksichtigt"]},{"id":"FU-06","cat":"Fundamente","desc":"Einzelfundament 130x130x50 cm, C30/37","page":1981,"pdf":"J2_einzelfundamente.pdf","ppage":67,"bel":"aus Eigengewicht Gk = 79+508                              =  587,00 kN\n           aus Verkehrslast Qk = 14+125                              =  139,00 kN\n           aus Wind Wk =                                                  4,00 kN\n           Vd =                  1,35 * Gk + 1,5 * (Qk+Wk)           = 1006,95 kN\n\n           Anprall Hk,x =                                                  50,00 kN\n           Anprall Hk,y =                                                  25,00 kN\n\n           aus Anprall auf Stütze, wird nicht für Fundamentbemessung berücksichtigt werden.","bew":"unten in x- und y-Richtung:\n10 Æ 12/12,5\nAnschlußbewehrung s. Übersichten Stützen\n\nMax. Belastung vertikal s. Auflagerkräfte Deckenbemessung:\n\n           aus Eigengewicht Gk = 79+508                              =  587,00 kN\n           aus Verkehrslast Qk = 14+125                              =  139,00 kN","flags":["Anpralllast berücksichtigt"]},{"id":"FU-07","cat":"Fundamente","desc":"Einzelfundament 120x200x60 cm, C30/37","page":1994,"pdf":"J2_einzelfundamente.pdf","ppage":80,"bel":"Gk =                                                 582,00 kN\n           Qk =            124+146                           =  270,00 kN\n           Vd =            1,35 * Gk + 1,5 * Qk              = 1190,70 kN\n\nBelastung aus Überschüttung, Fahrbelag und Verkehrslast wird im Programm berücksichtigt.\n\nBelastung horizontal","bew":"unten in x-Richtung 10 Æ 14/20\nunten in y-Richtung 10 Æ 14/10\n\nAnschlußbewehrung s. Übersichten Stützen\n\nMax. Belastung vertikal s. Auflagerkräfte Deckenbemessung:\n\n           Gk =                                                 582,00 kN","flags":[]},{"id":"FU-LS","cat":"Fundamente","desc":"Streifenfundament Lichtschacht b/h=40/40cm, C25/30, oben XC3, cnom = 35mm, unten XC2, cnom = 35mm","page":2044,"pdf":"J3_zerrbalken_bodenplatten_wsw.pdf","ppage":1,"bel":"","bew":"","flags":[]},{"id":"ZB-01","cat":"Zerrbalken","desc":"Stb. Zerrbalken 40/40cm, C30/37, oben XC3, cnom = 35mm, unten XC2, cnom = 35mm","page":2045,"pdf":"J3_zerrbalken_bodenplatten_wsw.pdf","ppage":2,"bel":"Normalkraft aus Streifenfundament (Maßgebend ist Pos. FU-13, Auflager Nr. 9, Achse G/6)\n        NG =                              326,00 kN\n        NQ =                               98,00 kN\n\n         Nd = 1,35 * NG + 1,50 * NQ         =    587,10 kN\n\nMoment aus ungewollter Ausmitte beim Streifenfundament\n        e=                                    0,10 m","bew":"aus Streifenfundament\nunten+oben 2 Æ 16 (4,02 cm²)\naus Einzelfundament (als L-Eisen aus Fundament gebogen)\nunten+oben 2 Æ 16 (4,02 cm²)\nBügel Æ 10/20 (7,85 cm²/m)","flags":[]},{"id":"BP-01","cat":"Bodenplatten","desc":"Stb.-Bodenplatte","page":2055,"pdf":"J3_zerrbalken_bodenplatten_wsw.pdf","ppage":12,"bel":"","bew":"","flags":["WU-Beton (wasserundurchlässig)"]},{"id":"SK-01","cat":"Frostschürzen / Schubknagge","desc":"Stb. Schubknagge, b/h=50/80cm, C35/45","page":2054,"pdf":"J3_zerrbalken_bodenplatten_wsw.pdf","ppage":11,"bel":"","bew":"","flags":["Schubknagge"]},{"id":"FS-01","cat":"Frostschürzen / Schubknagge","desc":"Stb. Frostschürze, b/h=25/100cm, C35/45","page":2054,"pdf":"J3_zerrbalken_bodenplatten_wsw.pdf","ppage":11,"bel":"","bew":"","flags":["Frostschürze"]},{"id":"T-01","cat":"Treppen / Treppenpodeste","desc":"Stb.-Fertigteil-Treppenlauf, h = 20cm, C30/37, XC1 WO, cnom = 25mm","page":146,"pdf":"D_geomodell_treppen.pdf","ppage":74,"bel":"aus Eigengewicht: h * 25/100 / COS(a)                                    =     6,18 kN/m²\n           aus Stufen:       s * 25/100 / 2                                         =     2,36 kN/m²\n           aus Belag:        gL/COS(a)                                              =     1,85 kN/m²\n           Zuschlag:                                                                      0,01 kN/m²\n\n                                                                                  gk =   10,40 kN/m²\n\n                                                                                  qk =    5,00 kN/m²","bew":"","flags":[]},{"id":"T-02","cat":"Treppen / Treppenpodeste","desc":"Stb.-Fertigteil-Treppenlauf, h = 20cm, C30/37, XC1 WO, cnom = 25mm","page":152,"pdf":"D_geomodell_treppen.pdf","ppage":80,"bel":"aus Eigengewicht: h * 25/100 / COS(a)                                          6,18 kN/m²\n           aus Stufen:       s * 25/100 / 2                                               2,36 kN/m²\n           aus Belag:        gL/COS(a)                                                    1,85 kN/m²\n           Zuschlag:                                                                      0,01 kN/m²\n\n                                                                                  gk =   10,40 kN/m²\n\n                                                                                  qk =    5,00 kN/m²","bew":"","flags":[]},{"id":"T-03","cat":"Treppen / Treppenpodeste","desc":"Stb.-Fertigteil-Treppenlauf mit angeformtem Podest, h = 20cm, C30/37, XC1 WO, cnom = 25mm","page":160,"pdf":"D_geomodell_treppen.pdf","ppage":88,"bel":"","bew":"","flags":[]},{"id":"T-04","cat":"Treppen / Treppenpodeste","desc":"Stb.-Fertigteil-Treppenlauf mit angeformtem Podest, h = 20cm, C30/37, XC1 WO, cnom = 25mm","page":161,"pdf":"D_geomodell_treppen.pdf","ppage":89,"bel":"","bew":"","flags":[]},{"id":"TP-01","cat":"Treppen / Treppenpodeste","desc":"Treppenpodest h=25cm, C30/37, XC1 cnom = 25 mm","page":162,"pdf":"D_geomodell_treppen.pdf","ppage":90,"bel":"Bodenaufbau:\n        g1=                             1,50 kN/m²\n\nNutzlast, Kat. T2:\n          qk=                           5,00 kN/m²\n\nAus Treppenlauf, Pos. T-02 und T-03:\n        gk= gk,1                  23,40 kN/m\n        qk= qk,1                  11,25 kN/m\n        qd= gk*1,35+qk*1,5        48,47 kN/m","bew":"unten + oben Æ 10/15 # (=5,24 cm²/m )\nAuflagerung mittels Schöck Tronsolen","flags":["Schöck-Bauteil (Isokorb/Dorne)"]},{"id":"TP-02","cat":"Treppen / Treppenpodeste","desc":"Treppenpodest h=20cm, C30/37, XC1 cnom = 25 mm","page":164,"pdf":"D_geomodell_treppen.pdf","ppage":92,"bel":"Bodenaufbau:\n        g1=                             1,50 kN/m²\n\nNutzlast, Kat. T2:\n          qk=                           5,00 kN/m²\n\nAus Treppenlauf, Pos. T-02 und T-03:\n        gk= gk,1               = 23,40 kN/m\n        qk= qk,1               = 11,25 kN/m\n        qd= gk*1,35+qk*1,5 = 48,47 kN/m","bew":"unten + oben Æ 10/15 # (=5,24 cm²/m )\nAuflagerung mittels Schöck Tronsolen","flags":["Schöck-Bauteil (Isokorb/Dorne)"]},{"id":"T-05","cat":"Treppen / Treppenpodeste","desc":"Stb.-Treppe Foyer EG, h = 32cm, C30/37; 18,5 / 27,0cm, XC1 WO,cnom = 25mm","page":170,"pdf":"D_geomodell_treppen.pdf","ppage":98,"bel":"Sicherheitsbeiwerte:\n        gG =                                                                                          1,35\n        gQ =                                                                                          1,50\n\n         Eigengewicht Treppenlauf:\n         aus Eigengewicht: h * 25/100/COS(j)                                                    =     9,70 kN/m²\n         aus Putz+Belag:                                                                              1,50 kN/m²\n         Stufenkeile:       0,5*s/100*23,0                                                      =     2","bew":"","flags":[]},{"id":"T-06","cat":"Treppen / Treppenpodeste","desc":"Stb.-Fertigteil-Treppenlauf, h = 20cm, C30/37, XC1 WO, cnom = 25mm,","page":184,"pdf":"D_geomodell_treppen.pdf","ppage":112,"bel":"aus Eigengewicht: h * 25/100 / COS(a)                                    =     6,09 kN/m²\n           aus Stufen:       s * 25/100 / 2                                         =     2,35 kN/m²\n           aus Belag:        gL/COS(a)                                              =     1,83 kN/m²\n           Zuschlag:                                                                      0,01 kN/m²\n\n                                                                                  gk =   10,28 kN/m²\n\n                                                                                  qk =    5,00 kN/m²","bew":"","flags":[]},{"id":"AT-01","cat":"Attika","desc":"Stb. Attika, b/h = 20/60 cm, C30/37, XC4, XF1 cnom = 40mm","page":593,"pdf":"G1a_unterzuege.pdf","ppage":3,"bel":"","bew":"","flags":[]},{"id":"AT-02","cat":"Attika","desc":"Stb. Attika, b/h = 20/56 cm, C30//37, XC4, XF1 cnom = 40mm","page":594,"pdf":"G1a_unterzuege.pdf","ppage":4,"bel":"","bew":"","flags":[]},{"id":"D-04","cat":"Stahlträger (Dach 2.OG, optional)","desc":"Stahlträger IPE 300, S235 (Dach 2.OG, optionale Aufstockung)","page":18,"pdf":"B_lastannahmen.pdf","ppage":5,"bel":"","bew":"","flags":[]},{"id":"D-05","cat":"Stahlträger (Dach 2.OG, optional)","desc":"Stahlträger IPE 300, S235 (Dach 2.OG, optionale Aufstockung)","page":21,"pdf":"B_lastannahmen.pdf","ppage":8,"bel":"","bew":"","flags":[]},{"id":"D-06","cat":"Stahlträger (Dach 2.OG, optional)","desc":"Stahlträger IPE 450, S235 (Dach 2.OG, optionale Aufstockung)","page":24,"pdf":"B_lastannahmen.pdf","ppage":11,"bel":"","bew":"","flags":[]},{"id":"D-07","cat":"Stahlträger (Dach 2.OG, optional)","desc":"Stahlträger IPE 450, S235 (Dach 2.OG, optionale Aufstockung)","page":27,"pdf":"B_lastannahmen.pdf","ppage":14,"bel":"","bew":"","flags":[]},{"id":"D-08","cat":"Stahlträger (Dach 2.OG, optional)","desc":"Stahlträger IPE 550, S235 (Dach 2.OG, optionale Aufstockung)","page":30,"pdf":"B_lastannahmen.pdf","ppage":17,"bel":"","bew":"","flags":[]},{"id":"D-09","cat":"Stahlträger (Dach 2.OG, optional)","desc":"Stahlträger IPE 400, S235 (Dach 2.OG, optionale Aufstockung)","page":33,"pdf":"B_lastannahmen.pdf","ppage":20,"bel":"","bew":"","flags":[]}];
+
+// populate category filter
+const catFilter = document.getElementById('catFilter');
+const cats = [...new Set(POS.map(p=>p.cat))];
+cats.forEach(c=>{
+  const opt = document.createElement('option');
+  opt.value = c; opt.textContent = c + ' (' + POS.filter(p=>p.cat===c).length + ')';
+  catFilter.appendChild(opt);
+});
+
+const posBody = document.getElementById('posBody');
+const resultCount = document.getElementById('resultCount');
+const searchInput = document.getElementById('search');
+
+// --- PDF base path config (persisted in this browser) ---
+const pdfBaseInput = document.getElementById('pdfBase');
+const pdfBaseStatus = document.getElementById('pdfBaseStatus');
+function getPdfBase(){
+  return localStorage.getItem('statikPdfBase') || './chunks/';
+}
+pdfBaseInput.value = getPdfBase();
+document.getElementById('pdfBaseSave').addEventListener('click', ()=>{
+  let v = pdfBaseInput.value.trim();
+  if(v && !v.endsWith('/')) v += '/';
+  if(!v) v = './chunks/';
+  localStorage.setItem('statikPdfBase', v);
+  pdfBaseInput.value = v;
+  pdfBaseStatus.textContent = 'gespeichert ✓';
+  setTimeout(()=>pdfBaseStatus.textContent='', 2000);
+  render();
+});
+
+function pdfUrl(pdfFile, page){
+  if(!pdfFile) return null;
+  return getPdfBase() + pdfFile + '#page=' + page;
+}
+
+function escapeHtml(s){
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+let openId = null;
+
+function render(){
+  const q = searchInput.value.trim().toLowerCase();
+  const cat = catFilter.value;
+  let rows = POS.filter(p=>{
+    const matchesQ = !q || (p.id+' '+p.desc+' '+p.cat+' '+(p.bel||'')+' '+(p.bew||'')).toLowerCase().includes(q);
+    const matchesCat = !cat || p.cat===cat;
+    return matchesQ && matchesCat;
+  });
+  rows.sort((a,b)=> a.page - b.page);
+  resultCount.textContent = rows.length + ' von ' + POS.length + ' Positionen · Position anklicken für Kurzübersicht';
+  posBody.innerHTML = rows.map(p=>{
+    const url = pdfUrl(p.pdf, p.ppage);
+    const detailId = 'det-' + p.id.replace(/[^A-Za-z0-9]/g,'_');
+    const flagsHtml = (p.flags && p.flags.length)
+      ? '<div class="flag-chips">' + p.flags.map(f=>`<span class="flag-chip">${escapeHtml(f)}</span>`).join('') + '</div>'
+      : '';
+    const belHtml = p.bel ? `<pre>${escapeHtml(p.bel)}</pre>` : '<div class="empty">Keine gesondert ausgewiesene Belastungsangabe im Positionskopf gefunden – siehe PDF.</div>';
+    const bewHtml = p.bew ? `<pre>${escapeHtml(p.bew)}</pre>` : '<div class="empty">Keine Bewehrungsangabe im Positionskopf gefunden – siehe PDF.</div>';
+    const btn = url
+      ? `<a class="pdf-jump-btn" href="${url}" target="_blank" rel="noopener">Im PDF öffnen · Seite ${p.page} ↗</a>`
+      : `<span class="pdf-jump-btn disabled">PDF-Seite unbekannt</span>`;
+    return `
+    <tr class="pos-row" data-target="${detailId}">
+      <td class="chev">▸</td>
+      <td class="id">${p.id}</td>
+      <td class="cat"><span class="cat-pill">${p.cat}</span></td>
+      <td>${escapeHtml(p.desc)}</td>
+      <td class="page">S. ${p.page}</td>
+    </tr>
+    <tr class="pos-detail-row" id="${detailId}">
+      <td colspan="5">
+        <div class="pos-detail-grid">
+          <div class="pos-detail-block">
+            <h4>Lasteinwirkung / Belastung</h4>
+            ${belHtml}
+          </div>
+          <div class="pos-detail-block">
+            <h4>Gewählte Bewehrung</h4>
+            ${bewHtml}
+          </div>
+        </div>
+        ${flagsHtml}
+        ${btn}
+      </td>
+    </tr>`;
+  }).join('');
+
+  posBody.querySelectorAll('.pos-row').forEach(row=>{
+    row.addEventListener('click', ()=>{
+      const id = row.dataset.target;
+      const detail = document.getElementById(id);
+      const chev = row.querySelector('.chev');
+      const wasOpen = detail.classList.contains('open');
+      posBody.querySelectorAll('.pos-detail-row.open').forEach(r=>r.classList.remove('open'));
+      posBody.querySelectorAll('.pos-row .chev').forEach(c=>c.textContent='▸');
+      if(!wasOpen){
+        detail.classList.add('open');
+        chev.textContent = '▾';
+      }
+    });
+  });
+}
+searchInput.addEventListener('input', render);
+catFilter.addEventListener('change', render);
+render();
+
+// nav
+document.querySelectorAll('nav button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    document.getElementById('view-'+btn.dataset.view).classList.add('active');
+    window.scrollTo({top:0, behavior:'instant'});
+  });
+});
+
+// chapter PDF links (Übersicht tab)
+document.querySelectorAll('a.pdf-link').forEach(a=>{
+  a.addEventListener('click', (e)=>{
+    e.preventDefault();
+    const url = pdfUrl(a.dataset.pdf, a.dataset.page);
+    window.open(url, '_blank');
+  });
+});
+
+</script>
+</body>
+</html>
