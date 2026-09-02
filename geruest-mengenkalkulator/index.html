@@ -96,12 +96,21 @@
 
     <section class="panel" id="plan-panel">
       <h2>Plan digitalisieren (optional)</h2>
-      <p class="hint">Grundriss- oder Lageplan als Bild oder PDF einlesen, Maßstab kalibrieren und die Gerüstlinie direkt im Plan abklicken. Die abgemessenen Strecken und Winkel können anschließend in die Abschnittstabelle oben übernommen werden.</p>
+      <p class="hint">
+        Grundriss/Lageplan als Bild, PDF oder DXF einlesen. Bei Bild/PDF: Maßstab kalibrieren und die
+        Gerüstlinie im Plan abklicken. Bei DXF: Ebene mit dem Gebäudeumriss wählen – die Eckpunkte werden
+        exakt aus der Zeichnung übernommen, kein Kalibrieren nötig. In beiden Fällen lassen sich die Punkte
+        danach per Ziehen verschieben, per Rechtsklick löschen und die Strecken/Winkel in der Tabelle unten
+        von Hand korrigieren, bevor sie in die Abschnittstabelle übernommen werden.
+        <strong>Hinweis:</strong> Echte DWG-Dateien lassen sich im Browser nicht zuverlässig lesen (proprietäres
+        Binärformat) – aus AutoCAD/Revit/ArchiCAD etc. bitte als <strong>DXF</strong> exportieren
+        (Speichern unter → DXF), das ist das offene Austauschformat und liefert exakte Koordinaten.
+      </p>
 
       <div class="plan-upload-row">
         <label class="file-label">
-          Plan-Datei (Bild oder PDF)
-          <input type="file" id="plan-file" accept="image/*,.pdf">
+          Plan-Datei (Bild, PDF oder DXF)
+          <input type="file" id="plan-file" accept="image/*,.pdf,.dxf">
         </label>
         <span class="hint" id="plan-file-status"></span>
         <label class="inline-label">
@@ -110,9 +119,9 @@
         </label>
       </div>
 
-      <div class="plan-steps">
+      <div class="plan-steps" id="plan-steps-raster">
         <div class="plan-step">
-          <strong>1. Maßstab kalibrieren</strong>
+          <strong>1. Maßstab kalibrieren (nur Bild/PDF)</strong>
           <div class="plan-step-actions">
             <button type="button" id="plan-calibrate-btn" class="btn-secondary" disabled>Zwei Punkte einer bekannten Strecke anklicken</button>
             <label class="inline-label">
@@ -123,10 +132,42 @@
             <span class="hint" id="plan-scale-status">Maßstab noch nicht kalibriert.</span>
           </div>
         </div>
+      </div>
+
+      <div class="plan-steps hidden" id="plan-steps-dxf">
         <div class="plan-step">
-          <strong>2. Gerüstlinie abklicken</strong>
+          <strong>1. DXF-Ebene wählen</strong>
           <div class="plan-step-actions">
-            <button type="button" id="plan-trace-btn" class="btn-secondary" disabled>Linie zeichnen (Punkte anklicken)</button>
+            <label class="inline-label">
+              Ebene mit Gebäudeumriss
+              <select id="dxf-layer-select"></select>
+            </label>
+            <label class="inline-label">
+              Einheit der Zeichnung
+              <select id="dxf-unit-select">
+                <option value="1000">Millimeter (mm)</option>
+                <option value="100">Zentimeter (cm)</option>
+                <option value="1" selected>Meter (m)</option>
+                <option value="custom">Benutzerdefiniert (Einheiten je Meter)</option>
+              </select>
+            </label>
+            <label class="inline-label hidden" id="dxf-unit-custom-label">
+              Einheiten je Meter
+              <input type="number" id="dxf-unit-custom" step="0.0001" min="0.0001" value="1000">
+            </label>
+            <button type="button" id="dxf-load-layer-btn" class="btn-secondary" disabled>Ebene übernehmen</button>
+          </div>
+          <p class="hint" id="dxf-layer-status"></p>
+        </div>
+      </div>
+
+      <div class="plan-steps" id="plan-steps-trace">
+        <div class="plan-step">
+          <strong>2. Gerüstlinie abklicken / bearbeiten</strong>
+          <div class="plan-step-actions">
+            <button type="button" id="plan-trace-btn" class="btn-secondary" disabled>Punkte anklicken (neue Linie)</button>
+            <button type="button" id="plan-pan-btn" class="btn-secondary" disabled>Verschieben (Pan)</button>
+            <button type="button" id="plan-zoom-fit-btn" class="btn-secondary" disabled>Einpassen</button>
             <button type="button" id="plan-trace-undo" class="btn-secondary" disabled>Letzten Punkt entfernen</button>
             <button type="button" id="plan-trace-finish" class="btn-secondary" disabled>Fertig</button>
             <label class="inline-label">
@@ -134,6 +175,7 @@
               Umlauf schließt (letzter Punkt = erster Punkt)
             </label>
           </div>
+          <p class="hint">Mausrad = zoomen, "Verschieben" + ziehen = schwenken, vorhandenen Punkt anklicken und ziehen = verschieben, Rechtsklick auf Punkt = löschen.</p>
         </div>
       </div>
 
@@ -153,8 +195,10 @@
           <tbody id="plan-segments-body"></tbody>
         </table>
       </div>
+      <p class="hint">Werte in der Vorschau-Tabelle sind direkt editierbar, falls einzelne Maße von Hand korrigiert werden sollen.</p>
 
       <button type="button" id="plan-apply-btn" class="btn-primary" disabled>In Abschnittstabelle übernehmen (ersetzt vorhandene Abschnitte)</button>
+      <p class="hint" id="plan-apply-status"></p>
     </section>
 
     <section class="panel actions-panel">
@@ -248,6 +292,7 @@
 
 <script src="vendor/pdf.min.js"></script>
 <script src="vendor/three.min.js"></script>
+<script src="vendor/dxf-parser.js"></script>
 <script src="geometry.js"></script>
 <script src="plan.js"></script>
 <script src="view3d.js"></script>

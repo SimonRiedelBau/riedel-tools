@@ -28,12 +28,30 @@ Eingaben werden automatisch im Browser (localStorage) zwischengespeichert.
 
 ## Plan digitalisieren
 
-Statt Längen/Winkel von Hand einzutragen, kann ein vorhandener Grundriss- oder Lageplan (Bild oder PDF) eingelesen werden:
+Statt Längen/Winkel von Hand einzutragen, kann ein vorhandener Grundriss- oder Lageplan eingelesen werden – als Bild/PDF (Nachklicken) oder als **DXF** (exakte Koordinaten, kein Nachklicken nötig).
+
+**Warum DXF und nicht DWG?** DWG ist ein proprietäres Binärformat von Autodesk ohne offenen Standard – im Browser nicht zuverlässig lesbar. DXF ist das offene, textbasierte Austauschformat, das praktisch jedes CAD-Programm (AutoCAD, Revit, ArchiCAD, …) über „Speichern unter“ exportieren kann, und liefert die Koordinaten exakt.
+
+### Bild/PDF (Nachzeichnen)
 
 1. Plan-Datei hochladen (PDF wird über die mitgelieferte pdf.js-Bibliothek als Seite 1 gerendert).
 2. Maßstab kalibrieren: zwei Punkte einer bekannten Strecke im Plan anklicken (z. B. eine bemaßte Wandlänge) und die reale Länge in Metern eingeben.
-3. Gerüstlinie abklicken: Eckpunkte der Reihe nach anklicken; Länge und Winkel jedes Abschnitts werden live berechnet. „Umlauf schließt“ aktivieren, falls der letzte Punkt wieder auf den ersten trifft.
-4. „In Abschnittstabelle übernehmen“ ersetzt die Fassadenabschnitte durch die digitalisierten Strecken (inkl. Standardhöhe, die danach pro Abschnitt angepasst werden kann) und aktiviert automatisch den zusammenhängenden Rundgang.
+3. Gerüstlinie abklicken: Eckpunkte der Reihe nach anklicken; Länge und Winkel jedes Abschnitts werden live berechnet.
+
+### DXF (exakter Import)
+
+1. DXF-Datei hochladen – das Tool listet alle Ebenen mit Linien-/Polylinien-Geometrie auf.
+2. Ebene mit dem Gebäudeumriss wählen und die Zeichnungseinheit angeben (mm/cm/m/benutzerdefiniert).
+3. „Ebene übernehmen“ – die Eckpunkte werden direkt aus der Zeichnung übernommen (eine einzelne Polylinie wird direkt verwendet; mehrere Linienzüge werden anhand gemeinsamer Endpunkte automatisch zu einer durchgehenden Linie verkettet, mit Hinweis, falls das nicht eindeutig möglich war).
+
+### Interaktive Zeichenfläche (beide Wege)
+
+- **Zoomen**: Mausrad (zoomt zum Mauszeiger).
+- **Verschieben**: Button „Verschieben (Pan)“ aktivieren und ziehen; „Einpassen“ setzt die Ansicht zurück.
+- **Punkt korrigieren**: vorhandenen Punkt anklicken und ziehen.
+- **Punkt löschen**: Rechtsklick auf den Punkt.
+- Länge/Winkel jedes Abschnitts werden live in einer Vorschau-Tabelle angezeigt – die Zellen sind **direkt editierbar**, falls einzelne Maße von Hand nachkorrigiert werden sollen.
+- „In Abschnittstabelle übernehmen“ schreibt die Werte in die Fassadenabschnitte (inkl. Standardhöhe, danach pro Abschnitt anpassbar) und aktiviert automatisch den zusammenhängenden Rundgang. **Die Abschnittstabelle bleibt danach ganz normal editierbar** – Werte dort korrigieren und erneut auf „Berechnen“ klicken, um neu zu rechnen.
 
 ## Bibliotheken (vendor/)
 
@@ -41,8 +59,9 @@ Für Offline-Nutzung und Zuverlässigkeit hinter Firmen-Proxys sind folgende Bib
 
 - `vendor/three.min.js` – [three.js](https://threejs.org/) r128, MIT-Lizenz (3D-Ansicht)
 - `vendor/pdf.min.js` + `vendor/pdf.worker.min.js` – [pdf.js](https://mozilla.github.io/pdf.js/) 3.11.174, Apache-2.0-Lizenz (PDF-Digitalisierung)
+- `vendor/dxf-parser.js` – [dxf-parser](https://github.com/bjnortier/dxf-parser) 1.1.2, MIT-Lizenz (DXF-Import)
 
-Fehlen diese Dateien oder können sie nicht geladen werden, funktionieren Mengenberechnung, 2D-Lageplan und Bild-Digitalisierung trotzdem uneingeschränkt weiter – nur die 3D-Ansicht bzw. der PDF-Import stehen dann nicht zur Verfügung (entsprechender Hinweis erscheint im Tool).
+Fehlen diese Dateien oder können sie nicht geladen werden, funktionieren Mengenberechnung, 2D-Lageplan und Bild-Digitalisierung trotzdem uneingeschränkt weiter – nur die 3D-Ansicht bzw. der PDF-/DXF-Import stehen dann nicht zur Verfügung (entsprechender Hinweis erscheint im Tool).
 
 ## Hinweis
 
