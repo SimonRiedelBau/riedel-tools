@@ -1,0 +1,1338 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Entwässerungsassistent – Riedel Bau</title>
+<style>
+  /* ── Design-Token ── */
+  :root {
+    --bg:        #0f1117;
+    --surface:   #181c25;
+    --card:      #1e2330;
+    --border:    #2a3045;
+    --accent:    #2d7dd2;     /* Wasser-Blau */
+    --accent2:   #17b890;     /* Freigabe-Grün */
+    --warn:      #e8a838;     /* Warn-Amber */
+    --danger:    #d64045;
+    --text:      #e4e8f0;
+    --muted:     #7a8299;
+    --font-ui:   'Inter', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+    --radius:    8px;
+    --shadow:    0 4px 24px rgba(0,0,0,.45);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-ui);
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ── Sidebar + Layout ── */
+  .shell { display: flex; min-height: 100vh; }
+
+  aside {
+    width: 280px;
+    flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+
+  .logo {
+    padding: 20px 20px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .logo-icon {
+    width: 38px; height: 38px;
+    background: #0c1624;
+    border: 1px solid #1e3a58;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  .logo-text { font-size: 13px; font-weight: 700; line-height: 1.3; letter-spacing: .02em; }
+  .logo-sub  { font-size: 11px; color: var(--muted); font-weight: 400; }
+
+  nav { padding: 12px 0; flex: 1; }
+
+  .nav-group { margin-bottom: 4px; }
+  .nav-label {
+    font-size: 10px; font-weight: 700; letter-spacing: .12em;
+    color: var(--muted); text-transform: uppercase;
+    padding: 12px 20px 6px;
+  }
+
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 20px;
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: background .15s, border-color .15s;
+    font-size: 13.5px;
+    color: var(--muted);
+  }
+  .nav-item:hover { background: rgba(255,255,255,.04); color: var(--text); }
+  .nav-item.active {
+    border-left-color: var(--accent);
+    background: rgba(45,125,210,.1);
+    color: var(--text);
+    font-weight: 600;
+  }
+  .nav-item .icon { font-size: 16px; flex-shrink: 0; }
+  .nav-badge {
+    margin-left: auto;
+    background: var(--accent);
+    color: #fff;
+    font-size: 10px; font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 20px;
+  }
+
+  .sidebar-footer {
+    padding: 14px 20px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  /* ── Main ── */
+  main {
+    flex: 1;
+    overflow-y: auto;
+    padding: 32px 40px;
+    max-width: 960px;
+  }
+
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ── Page Header ── */
+  .page-header { margin-bottom: 28px; }
+  .page-header h1 {
+    font-size: 26px; font-weight: 800;
+    letter-spacing: -.02em;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+  .page-header p { color: var(--muted); font-size: 14px; max-width: 620px; }
+
+  .norm-tag {
+    display: inline-block;
+    font-size: 11px; font-weight: 700; letter-spacing: .06em;
+    background: rgba(45,125,210,.15);
+    color: var(--accent);
+    border: 1px solid rgba(45,125,210,.3);
+    border-radius: 4px;
+    padding: 2px 8px;
+    margin-right: 6px; margin-bottom: 6px;
+  }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    margin-bottom: 16px;
+  }
+  .card-title {
+    font-size: 14px; font-weight: 700;
+    margin-bottom: 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card-title .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent);
+    flex-shrink: 0;
+  }
+
+  /* ── Info Grid ── */
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .info-cell {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+  }
+  .info-cell .label { font-size: 11px; color: var(--muted); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 4px; }
+  .info-cell .value { font-size: 15px; font-weight: 700; color: var(--text); }
+
+  /* ── Tabelle ── */
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th {
+    text-align: left;
+    font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+    color: var(--muted);
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(42,48,69,.6);
+    vertical-align: top;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,.02); }
+
+  .pill {
+    display: inline-block;
+    font-size: 11px; font-weight: 700;
+    padding: 2px 9px;
+    border-radius: 20px;
+  }
+  .pill-blue  { background: rgba(45,125,210,.2);  color: #6ab4ff; }
+  .pill-green { background: rgba(23,184,144,.2);  color: #2ed8a8; }
+  .pill-amber { background: rgba(232,168,56,.2);  color: #f0c060; }
+  .pill-red   { background: rgba(214,64,69,.2);   color: #ff7b7e; }
+
+  /* ── Checkliste ── */
+  .checklist { list-style: none; }
+  .checklist li {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 9px 0;
+    border-bottom: 1px solid rgba(42,48,69,.5);
+    cursor: pointer;
+    transition: opacity .15s;
+  }
+  .checklist li:last-child { border-bottom: none; }
+  .checklist li.done { opacity: .5; }
+  .checklist li.done .check-label { text-decoration: line-through; }
+  .check-box {
+    width: 20px; height: 20px; flex-shrink: 0;
+    border: 2px solid var(--border);
+    border-radius: 5px;
+    display: flex; align-items: center; justify-content: center;
+    margin-top: 2px;
+    transition: background .15s, border-color .15s;
+  }
+  .checklist li.done .check-box {
+    background: var(--accent2);
+    border-color: var(--accent2);
+  }
+  .check-box svg { display: none; }
+  .checklist li.done .check-box svg { display: block; }
+  .check-label { font-size: 13.5px; }
+  .check-norm { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .checklist-actions {
+    display: flex; gap: 10px;
+    margin-top: 16px;
+  }
+  .btn {
+    padding: 8px 18px;
+    border-radius: var(--radius);
+    font-size: 13px; font-weight: 600;
+    border: none; cursor: pointer;
+    transition: filter .15s;
+  }
+  .btn:hover { filter: brightness(1.12); }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-ghost   { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+  .btn-danger  { background: var(--danger); color: #fff; }
+
+  /* ── Ausschreibungstext ── */
+  .ausschreibung-block {
+    background: #111520;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin-bottom: 12px;
+  }
+  .ausschreibung-block h4 {
+    font-size: 13px; font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  .ausschreibung-block pre {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: #a8b4cc;
+    white-space: pre-wrap;
+    line-height: 1.65;
+  }
+  .copy-btn {
+    margin-top: 10px;
+    font-size: 12px;
+    padding: 5px 12px;
+  }
+
+  /* ── Section Divider ── */
+  .section-divider {
+    display: flex; align-items: center; gap: 12px;
+    margin: 24px 0 16px;
+  }
+  .section-divider span {
+    font-size: 11px; font-weight: 700; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--muted);
+    white-space: nowrap;
+  }
+  .section-divider::before, .section-divider::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+
+  /* ── Accordion ── */
+  .accordion { margin-bottom: 10px; }
+  .accordion-head {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 14px; font-weight: 600;
+    transition: background .15s;
+    user-select: none;
+  }
+  .accordion-head:hover { background: #232838; }
+  .accordion-head .arr { transition: transform .2s; font-size: 12px; color: var(--muted); }
+  .accordion.open .accordion-head .arr { transform: rotate(90deg); }
+  .accordion-body {
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 var(--radius) var(--radius);
+    padding: 16px 18px;
+    font-size: 13.5px;
+    line-height: 1.7;
+  }
+  .accordion.open .accordion-body { display: block; }
+
+  /* ── Progress Bar ── */
+  .progress-wrap { margin-bottom: 8px; }
+  .progress-label { font-size: 12px; color: var(--muted); margin-bottom: 5px; display: flex; justify-content: space-between; }
+  .progress-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .progress-bar .fill { height: 100%; background: var(--accent2); border-radius: 3px; transition: width .4s; }
+
+  /* ── Toast ── */
+  #toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent2);
+    color: var(--text);
+    padding: 12px 20px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity .25s, transform .25s;
+    pointer-events: none;
+    z-index: 999;
+  }
+  #toast.show { opacity: 1; transform: translateY(0); }
+
+  /* ── Mobile ── */
+  @media (max-width: 768px) {
+    .shell { flex-direction: column; }
+    aside { width: 100%; height: auto; position: static; }
+    main  { padding: 20px 16px; }
+    .info-grid { grid-template-columns: 1fr 1fr; }
+  }
+
+  /* ── Highlight ── */
+  mark { background: rgba(45,125,210,.25); color: var(--text); padding: 0 3px; border-radius: 3px; }
+
+  /* ── Flow Diagram ── */
+  .flow { display: flex; align-items: flex-start; gap: 0; flex-wrap: wrap; margin: 12px 0; }
+  .flow-step {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 16px;
+    font-size: 12.5px;
+    text-align: center;
+    min-width: 110px;
+  }
+  .flow-step .step-no { font-size: 10px; color: var(--accent); font-weight: 700; letter-spacing: .08em; }
+  .flow-arrow { color: var(--muted); padding: 0 6px; font-size: 18px; line-height: 2.4; }
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+<!-- ══════════════════ SIDEBAR ══════════════════ -->
+<aside>
+  <div class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 38 38" xmlns="http://www.w3.org/2000/svg" width="38" height="38">
+        <defs>
+          <linearGradient id="pg" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#0e2a45"/>
+            <stop offset="35%" stop-color="#1e5080"/>
+            <stop offset="100%" stop-color="#0e2a45"/>
+          </linearGradient>
+          <linearGradient id="mg" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#091c30"/>
+            <stop offset="50%" stop-color="#163d60"/>
+            <stop offset="100%" stop-color="#091c30"/>
+          </linearGradient>
+          <linearGradient id="wg" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#41c0f5"/>
+            <stop offset="100%" stop-color="#1a7abf"/>
+          </linearGradient>
+        </defs>
+        <!-- Pipe shaft -->
+        <rect x="13" y="3" width="12" height="20" fill="url(#pg)" rx="1"/>
+        <!-- Pipe shine -->
+        <rect x="15" y="3" width="3" height="20" fill="rgba(255,255,255,0.07)" rx="1"/>
+        <!-- Left shadow -->
+        <rect x="13" y="3" width="1.5" height="20" fill="rgba(0,0,0,0.3)"/>
+        <!-- Right shadow -->
+        <rect x="23.5" y="3" width="1.5" height="20" fill="rgba(0,0,0,0.35)"/>
+        <!-- Muffe (coupling ring) -->
+        <rect x="10" y="15" width="18" height="7" fill="url(#mg)" rx="2"/>
+        <rect x="10" y="15" width="18" height="1.5" fill="rgba(255,255,255,0.06)"/>
+        <rect x="10" y="20.5" width="18" height="1.5" fill="rgba(0,0,0,0.2)"/>
+        <!-- Water stream -->
+        <path d="M17 22 Q16 28 14.5 36 Q17 37.5 19 37.5 Q21 37.5 23.5 36 Q22 28 21 22 Z" fill="url(#wg)" opacity="0.92"/>
+        <!-- Stream highlight -->
+        <line x1="17.5" y1="22" x2="16" y2="35" stroke="rgba(255,255,255,0.28)" stroke-width="1" stroke-linecap="round"/>
+        <!-- Droplets -->
+        <ellipse cx="11" cy="31" rx="1.6" ry="2.2" fill="#41c0f5" opacity="0.65"/>
+        <ellipse cx="27" cy="33" rx="1.3" ry="1.8" fill="#2da8e0" opacity="0.55"/>
+        <!-- Top rim -->
+        <ellipse cx="19" cy="3" rx="6" ry="1.5" fill="#163d60"/>
+        <ellipse cx="19" cy="3" rx="4.5" ry="1" fill="#091c30"/>
+      </svg>
+    </div>
+    <div>
+      <div class="logo-text">Entwässerungsassistent</div>
+      <div class="logo-sub">Riedel Bau GmbH · Rohbau</div>
+    </div>
+  </div>
+
+  <nav>
+    <div class="nav-group">
+      <div class="nav-label">Normen &amp; Grundlagen</div>
+      <div class="nav-item active" onclick="show('start')">
+        <span class="icon">🏠</span> Startübersicht
+      </div>
+      <div class="nav-item" onclick="show('din752')">
+        <span class="icon">📐</span> DIN EN 752
+      </div>
+      <div class="nav-item" onclick="show('din1610')">
+        <span class="icon">🔧</span> DIN EN 1610
+      </div>
+      <div class="nav-item" onclick="show('din1986')">
+        <span class="icon">🏗️</span> DIN 1986
+      </div>
+      <div class="nav-item" onclick="show('din12056')">
+        <span class="icon">💧</span> DIN EN 12056
+      </div>
+      <div class="nav-item" onclick="show('din124')">
+        <span class="icon">🔩</span> DIN EN 124
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-label">Praxis-Tools</div>
+      <div class="nav-item" onclick="show('checkliste')">
+        <span class="icon">✅</span> Checkliste Baustelle
+        <span class="nav-badge" id="badge">—</span>
+      </div>
+      <div class="nav-item" onclick="show('ausschreibung')">
+        <span class="icon">📋</span> StLB-Ausschreibung
+      </div>
+      <div class="nav-item" onclick="show('pruefung')">
+        <span class="icon">🔍</span> Dichtheitsprüfung
+      </div>
+    </div>
+  </nav>
+
+  <div class="sidebar-footer">
+    Stand: 06/2025 · DIN EN 752:2017 · DIN EN 1610:2015<br>
+    DIN 1986-100:2016 · DIN EN 12056:2001 · DIN EN 124:2015
+  </div>
+</aside>
+
+<!-- ══════════════════ MAIN ══════════════════ -->
+<main>
+
+<!-- ── START ── -->
+<div class="page active" id="page-start">
+  <div class="page-header">
+    <h1>Entwässerungsassistent</h1>
+    <p>Normgerechte Planung und Ausführung von Entwässerungsanlagen auf der Baustelle – DIN EN 752, DIN EN 1610, DIN 1986, DIN EN 12056, DIN EN 124.</p>
+    <br>
+    <span class="norm-tag">DIN EN 752</span>
+    <span class="norm-tag">DIN EN 1610</span>
+    <span class="norm-tag">DIN 1986-100</span>
+    <span class="norm-tag">DIN EN 12056</span>
+    <span class="norm-tag">DIN EN 124</span>
+  </div>
+
+  <div class="info-grid">
+    <div class="info-cell">
+      <div class="label">Normen gesamt</div>
+      <div class="value">5</div>
+    </div>
+    <div class="info-cell">
+      <div class="label">Ausschreibungstexte</div>
+      <div class="value">12</div>
+    </div>
+    <div class="info-cell">
+      <div class="label">Checklisten-Punkte</div>
+      <div class="value">28</div>
+    </div>
+    <div class="info-cell">
+      <div class="label">Prüfverfahren</div>
+      <div class="value">3</div>
+    </div>
+  </div>
+
+  <div class="section-divider"><span>Normenüberblick</span></div>
+
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>Norm</th>
+          <th>Titel (kurz)</th>
+          <th>Anwendungsbereich</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>DIN EN 752:2017</strong></td>
+          <td>Entwässerungssysteme außerhalb von Gebäuden</td>
+          <td>Kanalisation, Planung, Bemessung</td>
+          <td><span class="pill pill-green">Gültig</span></td>
+        </tr>
+        <tr>
+          <td><strong>DIN EN 1610:2015</strong></td>
+          <td>Verlegung und Prüfung von Abwasserleitungen</td>
+          <td>Bettung, Verfüllung, Dichtheitsprüfung</td>
+          <td><span class="pill pill-green">Gültig</span></td>
+        </tr>
+        <tr>
+          <td><strong>DIN 1986-100:2016</strong></td>
+          <td>Entwässerungsanlagen für Gebäude und Grundstücke</td>
+          <td>Hausanschluss, Grundleitung, Schacht</td>
+          <td><span class="pill pill-green">Gültig</span></td>
+        </tr>
+        <tr>
+          <td><strong>DIN EN 12056:2001</strong></td>
+          <td>Schwerkraftentwässerungsanlagen innerhalb Gebäude</td>
+          <td>Dachentwässerung, Rohrdimensionierung</td>
+          <td><span class="pill pill-green">Gültig</span></td>
+        </tr>
+        <tr>
+          <td><strong>DIN EN 124:2015</strong></td>
+          <td>Aufsätze und Abdeckungen für Verkehrsflächen</td>
+          <td>Schachtdeckel, Belastungsklassen</td>
+          <td><span class="pill pill-green">Gültig</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section-divider"><span>Planungsablauf Entwässerung</span></div>
+
+  <div class="card">
+    <div class="flow">
+      <div class="flow-step"><div class="step-no">01</div>Bestandsaufnahme / Hydrologisches Konzept</div>
+      <div class="flow-arrow">›</div>
+      <div class="flow-step"><div class="step-no">02</div>Bemessung Kanal/Leitung (DIN EN 752)</div>
+      <div class="flow-arrow">›</div>
+      <div class="flow-step"><div class="step-no">03</div>Innere Entwässerung (DIN EN 12056)</div>
+      <div class="flow-arrow">›</div>
+      <div class="flow-step"><div class="step-no">04</div>Grundstücksentwässerung (DIN 1986)</div>
+      <div class="flow-arrow">›</div>
+      <div class="flow-step"><div class="step-no">05</div>Verlegung &amp; Prüfung (DIN EN 1610)</div>
+      <div class="flow-arrow">›</div>
+      <div class="flow-step"><div class="step-no">06</div>Aufsätze / Schachtdeckel (DIN EN 124)</div>
+      <div class="flow-arrow">›</div>
+      <div class="flow-step"><div class="step-no">07</div>Abnahme &amp; Dokumentation</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── DIN EN 752 ── -->
+<div class="page" id="page-din752">
+  <div class="page-header">
+    <h1>DIN EN 752:2017</h1>
+    <p>Entwässerungssysteme außerhalb von Gebäuden – Planung, Bau und Betrieb.</p>
+    <span class="norm-tag">Außenkanalisation</span>
+    <span class="norm-tag">Bemessung</span>
+    <span class="norm-tag">Überflutungsschutz</span>
+  </div>
+
+  <div class="section-divider"><span>Anwendungsbereich</span></div>
+  <div class="card">
+    <p>DIN EN 752 gilt für <strong>Entwässerungssysteme außerhalb von Gebäuden</strong>, die häusliches Schmutzwasser, Regenwasser und Mischwasser ableiten. Sie regelt Planung, Bau, Betrieb und Sanierung – von der Grundstücksgrenze bis zum Vorfluter.</p>
+  </div>
+
+  <div class="section-divider"><span>Systemarten</span></div>
+  <div class="card">
+    <table>
+      <thead><tr><th>System</th><th>Beschreibung</th><th>Anwendung</th></tr></thead>
+      <tbody>
+        <tr><td><span class="pill pill-blue">Trennkanal</span></td><td>Schmutz- und Regenwasser in getrennten Leitungen</td><td>Neubaugebiete, Industriegebiete</td></tr>
+        <tr><td><span class="pill pill-amber">Mischkanal</span></td><td>Schmutz- und Regenwasser gemeinsam</td><td>Altbestand, Sanierungsgebiete</td></tr>
+        <tr><td><span class="pill pill-green">Regenwasserkanal</span></td><td>Nur Niederschlagswasser (RW)</td><td>Versickerung, Retention</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section-divider"><span>Überflutungsschutz – Jährlichkeiten</span></div>
+  <div class="card">
+    <table>
+      <thead><tr><th>Lage / Nutzung</th><th>Überflutungshäufigkeit T</th><th>Schutzniveau</th></tr></thead>
+      <tbody>
+        <tr><td>Ländliche Gebiete, Felder</td><td>T = 1 Jahr</td><td><span class="pill pill-amber">Gering</span></td></tr>
+        <tr><td>Wohngebiete</td><td>T = 2 Jahre</td><td><span class="pill pill-blue">Standard</span></td></tr>
+        <tr><td>Stadtzentren, Wohngebiete mit Keller</td><td>T = 5 Jahre</td><td><span class="pill pill-blue">Erhöht</span></td></tr>
+        <tr><td>Unterführungen, Tiefgaragen</td><td>T = 10 Jahre</td><td><span class="pill pill-red">Hoch</span></td></tr>
+        <tr><td>Tunnel, Unterführungen Bahnen</td><td>T = 50 Jahre</td><td><span class="pill pill-red">Sehr hoch</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section-divider"><span>Planungsgrundlagen</span></div>
+  <div class="accordion">
+    <div class="accordion-head" onclick="toggleAcc(this)">Hydraulische Bemessung <span class="arr">›</span></div>
+    <div class="accordion-body">
+      <p>Bemessung nach dem <strong>Bemessungsregen</strong> (KOSTRA-DWD). Maßgebende Parameter:</p>
+      <ul style="margin-left:20px;margin-top:8px;line-height:1.9">
+        <li><strong>r(D,T)</strong> – Regenspende [l/(s·ha)] für Regendauer D und Jährlichkeit T</li>
+        <li>Abflussbeiwert ψ (versiegelte Flächen: 0,9; Grünflächen: 0,1–0,3)</li>
+        <li>Mindestfließgeschwindigkeit: <mark>v<sub>min</sub> ≥ 0,6 m/s</mark> (Selbstreinigung)</li>
+        <li>Maximale Rohrfüllung: <strong>70 % des Rohrquerschnitts</strong> bei Bemessungsregen</li>
+      </ul>
+    </div>
+  </div>
+  <div class="accordion">
+    <div class="accordion-head" onclick="toggleAcc(this)">Mindestgefälle nach Rohrdurchmesser <span class="arr">›</span></div>
+    <div class="accordion-body">
+      <table>
+        <thead><tr><th>DN</th><th>Mindestgefälle</th><th>Empfehlung</th></tr></thead>
+        <tbody>
+          <tr><td>DN 100</td><td>1,5 %</td><td>2 %</td></tr>
+          <tr><td>DN 150</td><td>1,0 %</td><td>1,5 %</td></tr>
+          <tr><td>DN 200</td><td>0,5 %</td><td>1,0 %</td></tr>
+          <tr><td>DN 300</td><td>0,33 %</td><td>0,5 %</td></tr>
+          <tr><td>DN 400</td><td>0,25 %</td><td>0,33 %</td></tr>
+          <tr><td>DN ≥ 500</td><td>Hydraulischer Nachweis</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="accordion">
+    <div class="accordion-head" onclick="toggleAcc(this)">Schachtabstände &amp; Mindestüberdeckung <span class="arr">›</span></div>
+    <div class="accordion-body">
+      <ul style="margin-left:20px;line-height:1.9">
+        <li>Schachtabstände: max. <mark>50 m</mark> (begehbar) / max. <mark>60 m</mark> (inspizierbar DN ≥ 300)</li>
+        <li>Mindestüberdeckung Fahrbahn: <strong>1,0 m</strong> (mit Betondecke) / <strong>0,8 m</strong> (Schutzplatte)</li>
+        <li>Mindestüberdeckung Grünfläche: <strong>0,6 m</strong></li>
+        <li>Frosttiefe Bayern: in der Regel <strong>0,8 m</strong> (Ø), lokal bis 1,0 m</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ── DIN EN 1610 ── -->
+<div class="page" id="page-din1610">
+  <div class="page-header">
+    <h1>DIN EN 1610:2015</h1>
+    <p>Einbau und Prüfung von Abwasserleitungen und -kanälen – Bettung, Verfüllung, Dichtheitsprüfung.</p>
+    <span class="norm-tag">Verlegung</span>
+    <span class="norm-tag">Bettung</span>
+    <span class="norm-tag">Dichtheitsprüfung</span>
+  </div>
+
+  <div class="section-divider"><span>Bettungsarten</span></div>
+  <div class="card">
+    <table>
+      <thead><tr><th>Bettungsklasse</th><th>Bettungsmaterial</th><th>Einbaubereich</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><span class="pill pill-blue">Klasse D</span></td>
+          <td>Geformte Bettung ohne seitliche Stützung (Sand, geringwertig)</td>
+          <td>Nur bei ausreichend tragfähigem Untergrund</td>
+        </tr>
+        <tr>
+          <td><span class="pill pill-green">Klasse F</span></td>
+          <td>Geformte Bettung mit seitlicher Stützung (Einbaumaterial verdichtet)</td>
+          <td>Standardfall im Tiefbau</td>
+        </tr>
+        <tr>
+          <td><span class="pill pill-amber">Klasse B</span></td>
+          <td>Ausgehobenes Material (gesiebt, ohne Steine &gt; 22 mm)</td>
+          <td>Nur mit Nachweis</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section-divider"><span>Einbauvorschriften</span></div>
+  <div class="accordion">
+    <div class="accordion-head" onclick="toggleAcc(this)">Grabenbreite &amp; Rohrzone <span class="arr">›</span></div>
+    <div class="accordion-body">
+      <ul style="margin-left:20px;line-height:1.9">
+        <li>Mindestgrabenbr. = DN + <mark>2 × 0,20 m</mark> (bei DN ≤ 200); mind. 0,60 m</li>
+        <li>Rohrauflager: Bettung mind. <strong>10 cm unter Rohrschaft</strong></li>
+        <li>Seitliche Verdichtung: lagenweise in max. <strong>15 cm Lagen</strong></li>
+        <li>Bis Scheitel + 15 cm: verdichtet auf <strong>D<sub>Pr</sub> ≥ 97 %</strong> (Hauptverdichtzone)</li>
+        <li>Verfüllzone darüber: <strong>D<sub>Pr</sub> ≥ 97 %</strong> (unter Verkehrsflächen), ≥ 95 % sonst</li>
+      </ul>
+    </div>
+  </div>
+  <div class="accordion">
+    <div class="accordion-head" onclick="toggleAcc(this)">Verbindungen &amp; Rohrwerkstoffe <span class="arr">›</span></div>
+    <div class="accordion-body">
+      <table>
+        <thead><tr><th>Werkstoff</th><th>Verbindungsart</th><th>Anwendungsbereich</th></tr></thead>
+        <tbody>
+          <tr><td>PVC-U / PP</td><td>Steckmuffe mit Gummidichtring</td><td>Hausanschluss, Grundleitungen</td></tr>
+          <tr><td>Beton / Stahlbeton</td><td>Muffenverbindung mit Gummidichtring</td><td>Kanalisation ab DN 300</td></tr>
+          <tr><td>GFK</td><td>Laminatverbindung / Muffenverbindung</td><td>Sonderbauwerke, aggressive Medien</td></tr>
+          <tr><td>Duktiles Gusseisen</td><td>Tyton-Verbindung</td><td>Druckleitungen, Unterquerungen</td></tr>
+          <tr><td>Steinzeug</td><td>Steckmuffe</td><td>Schmutzwasser, Bestand</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="accordion">
+    <div class="accordion-head" onclick="toggleAcc(this)">Dichtheitsprüfung – Wasserprüfung (Verfahren W) <span class="arr">›</span></div>
+    <div class="accordion-body">
+      <ul style="margin-left:20px;line-height:1.9">
+        <li>Prüfdruck: <mark>0,5 m Wassersäule</mark> über Scheitelpunkt höchsten Rohres</li>
+        <li>Vorläufige Prüfphase: <strong>30 Minuten</strong> (Sättigung)</li>
+        <li>Prüfphase: <strong>30 Minuten</strong></li>
+        <li>Zulässiger Wasserverlust: <strong>0,15 l/m²</strong> benetzter Fläche für Rohre; <strong>0,20 l/m²</strong> für Schächte</li>
+        <li>Alternativ: Luftprüfung Verfahren LA / LB / LC (geringere Drücke)</li>
+      </ul>
+    </div>
+  </div>
+  <div class="accordion">
+    <div class="accordion-head" onclick="toggleAcc(this)">Dichtheitsprüfung – Luftprüfung (Verfahren L) <span class="arr">›</span></div>
+    <div class="accordion-body">
+      <table>
+        <thead><tr><th>Verfahren</th><th>Anfangsdruck</th><th>Enddruck</th><th>Prüfzeit</th></tr></thead>
+        <tbody>
+          <tr><td>LA</td><td>10 mbar</td><td>≥ 9 mbar</td><td>5 min</td></tr>
+          <tr><td>LB</td><td>50 mbar</td><td>≥ 45 mbar</td><td>5 min</td></tr>
+          <tr><td>LC</td><td>100 mbar</td><td>≥ 90 mbar</td><td>5 min</td></tr>
+          <tr><td>LD</td><td>200 mbar</td><td>≥ 180 mbar</td><td>5 min</td></tr>
+        </tbody>
+      </table>
+      <p style="margin-top:10px;color:var(--muted);font-size:13px;">Verfahren LA und LB bei nicht druckbeaufschlagten Leitungen DN 100–600; LB Standard im Wohnungsbau.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── DIN 1986 ── -->
+<div class="page" id="page-din1986">
+  <div class="page-header">
+    <h1>DIN 1986-100:2016</h1>
+    <p>Entwässerungsanlagen für Gebäude und Grundstücke – Bestimmungen in Verbindung mit DIN EN 752 und DIN EN 12056.</p>
+    <span class="norm-tag">Grundstücksentwässerung</span>
+    <span class="norm-tag">Hausanschluss</span>
+    <span class="norm-tag">Rückstau</span>
+  </div>
+
+  <div class="section-divider"><span>Leitungsarten auf dem Grundstück</span></div>
+  <div class="card">
+    <table>
+      <thead><tr><th>Bezeichnung</th><th>Lage</th><th>Mindest-DN</th></tr></thead>
+      <tbody>
+        <tr><td>Grundleitung</td><td>Im Erdreich unter/um das Gebäude</td><td>DN 100 (Schmutz), DN 100 (Regen)</td></tr>
+        <tr><td>Anschlussleitung</td><td>Gebäude bis Grundstücksgrenze</td><td>DN 100</td></tr>
+        <tr><td>Kontrollschacht</td><td>An der Grundstücksgrenze</td><td>DN 400 (Revisionsschacht)</td></tr>
+        <tr><td>Sammelleitung</td><td>Mehrere Anschlüsse bündelnd</td><td>DN 150</td></tr>
+        <tr><td>Regenwasserleitung</td><td>Dach → Erdreich/Kanal</td><td>DN 100 (Fallleitung)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section-divider"><span>Rückstausicherung</span></div>
+  <div class="card">
+    <div class="card-title"><div class="dot"></div>Rückstauebene &amp; Schutzmassnahmen</div>
+    <p>Als <strong>Rückstauebene</strong> gilt i. d. R. die Straßenoberkante (SOK) oder die festgelegte Rückstauebene lt. Kanal­netz­betreiber.</p>
+    <br>
+    <table>
+      <thead><tr><th>Entwässerungsobjekt</th><th>Lage zu Rückstauebene</th><th>Maßnahme</th></tr></thead>
+      <tbody>
+        <tr><td>Bodenablauf, WC, Dusche im Keller</td><td>Unterhalb Rückstauebene</td><td><span class="pill pill-red">Rückstauverschluss / Hebeanlage</span></td></tr>
+        <tr><td>Waschmaschinenanschluss Keller</td><td>Unterhalb Rückstauebene</td><td><span class="pill pill-red">Hebeanlage (DIN EN 12056-4)</span></td></tr>
+        <tr><td>Bodenablauf EG</td><td>Über Rückstauebene</td><td><span class="pill pill-green">Kein Schutz nötig</span></td></tr>
+        <tr><td>Lichtschacht-Ablauf</td><td>Unterhalb SOK</td><td><span class="pill pill-amber">Rückstauverschluss mit Notüberlauf</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section-divider"><span>Schächte &amp; Revisionsöffnungen</span></div>
+  <div class="accordion">
+    <div class="accordion-head" onclick="toggleAcc(this)">Revisionsschacht (Kontrollschacht) <span class="arr">›</span></div>
+    <div class="accordion-body">
+      <ul style="margin-left:20px;line-height:1.9">
+        <li>Anordnung: an der <mark>Grundstücksgrenze</mark> (Übergabepunkt an öffentlichen Kanal)</li>
+        <li>Mindestgröße: DN 400 (Fertigteilschacht) oder 600×600 mm (Mauerwerk)</li>
+        <li>Schachttiefe ≤ 1,0 m: Schachtring DN 400 möglich</li>
+        <li>Schachttiefe &gt; 1,0 m: Begehbarkeit prüfen → DN ≥ 600 mm</li>
+        <li>Anfahrschutz bei Verkehrslast: Schachtring mit Aufstockring + belastbarer Abdeckung nach DIN EN 124</li>
+      </ul>
+    </div>
+  </div>
+  <div class="accordion">
+    <div class="accordion-head" onclick="toggleAcc(this)">Mindestanforderungen Grundleitungsverlegung <span class="arr">›</span></div>
+    <div class="accordion-body">
+      <ul style="margin-left:20px;line-height:1.9">
+        <li>Werkstoff: PVC-U KG², PP oder Steinzeug nach DIN EN 295</li>
+        <li>Minimalgefälle unter dem Gebäude: <mark>1 %</mark> (Schmutzwasser), <mark>0,5 %</mark> (Regenwasser)</li>
+        <li>Überdeckung unter Bodenplatte: mind. <strong>0,5 m</strong> Sandbettung</li>
+        <li>Durchführung durch Fundament/Bodenplatte: Manschettendurchführung mit Formstück zur Entkoppelung</li>
+        <li>Reinigungsöffnung: max. <strong>20 m</strong> Leitungsabstand</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ── DIN EN 12056 ── -->
+<div class="page" id="page-din12056">
+  <div class="page-header">
+    <h1>DIN EN 12056:2001</h1>
+    <p>Schwerkraftentwässerungsanlagen innerhalb von Gebäuden – Rohrdimensionierung, Dachentwässerung, Lüftung.</p>
+    <span class="norm-tag">Gebäude-Innen</span>
+    <span class="norm-tag">Fallleitung</span>
+    <span class="norm-tag">Dachentwässerung</span>
+  </div>
+
+  <div class="section-divider"><span>Systemarten (Schmutzwasser)</span></div>
+  <div class="card">
+    <table>
+      <thead><tr><th>System</th><th>Merkmal</th><th>Füllung Fallleitung</th></tr></thead>
+      <tbody>
+        <tr><td><span class="pill pill-blue">I</span></td><td>Einzelanschlüsse, jede Leitung belüftet</td><td>1/2 Querschnitt</td></tr>
+        <tr><td><span class="pill pill-green">II</span></td><td>Sammelanschlüsse, Hauptlüftungsleitung</td><td>1/2 Querschnitt</td></tr>
+        <tr><td><span class="pill pill-amber">III</span></td><td>Sammelanschlüsse, reduzierte Lüftung</td><td>2/3 Querschnitt</td></tr>
+        <tr><td><span class="pill pill-red">IV</span></td><td>Druckentwässerung (Sonderfall)</td><td>voll</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section-divider"><span>Dachentwässerung (Teil 3)</span></div>
+  <div class="accordion">
+    <div class="accordion-head" onclick="toggleAcc(this)">Bemessung Regenfallleitungen <span class="arr">›</span></div>
+    <div class="accordion-body">
+      <p>Berechnungsregenspende <strong>r = 0,03 l/(s·m²)</strong> für Bayern als Mindestwert; nach KOSTRA-Daten lokal anpassen.</p>
+      <br>
+      <table>
+        <thead><tr><th>Entwässerungsfläche A<sub>E</sub></th><th>Mindest-Nenngröße DN</th><th>Anzahl Abläufe (Empf.)</th></tr></thead>
+        <tbody>
+          <tr><td>bis 150 m²</td><td>DN 100</td><td>1</td></tr>
+          <tr><td>150–300 m²</td><td>DN 125</td><td>1–2</td></tr>
+          <tr><td>300–600 m²</td><td>DN 150</td><td>2</td></tr>
+          <tr><td>600–1000 m²</td><td>DN 200</td><td>2–3</td></tr>
+          <tr><td>&gt; 1000 m²</td><td>Hydraulischer Nachweis</td><td>≥ 3</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="accordion">
+    <div class="accordion-head" onclick="toggleAcc(this)">Notentwässerung (Überlauf) <span class="arr">›</span></div>
+    <div class="accordion-body">
+      <ul style="margin-left:20px;line-height:1.9">
+        <li>Pflicht bei Flachdach und eingeschränkter Entwässerungsmöglichkeit (DIN EN 12056-3 §6.3)</li>
+        <li>Notüberlauf-Oberkante: <mark>50 mm über Ablauf-OK</mark> (Rückstauebene Dach)</li>
+        <li>Notüberlaufmenge: 100 % der Bemessungsregenmenge (parallel zur Normenentwässerung)</li>
+        <li>Freier Auslauf sichtbar, keine Sammlung in Dachentwässerungsleitung</li>
+        <li>Statischer Nachweis: Dachkonstruktion für <strong>50 mm Wasseraufstau</strong> nachweisen</li>
+      </ul>
+    </div>
+  </div>
+  <div class="accordion">
+    <div class="accordion-head" onclick="toggleAcc(this)">Druckentwässerung (Siphonic System) <span class="arr">›</span></div>
+    <div class="accordion-body">
+      <ul style="margin-left:20px;line-height:1.9">
+        <li>Druckentwässerung nach DIN EN 12056-3 bei Großdächern &gt; 1.000 m² üblich</li>
+        <li>Vorteil: kleinere Rohrdurchmesser, horizontale Sammelleitung ohne Gefälle</li>
+        <li>Anlauf durch Wasseraufstau am speziellen Druckablauf (kein Lufteintrag)</li>
+        <li>Nachweis nach Hersteller-Software (Geberit Pluvia, Wavin QuickStream o. ä.)</li>
+        <li><strong>Achtung:</strong> Notentwässerung zwingend zusätzlich vorsehen</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ── DIN EN 124 ── -->
+<div class="page" id="page-din124">
+  <div class="page-header">
+    <h1>DIN EN 124:2015</h1>
+    <p>Aufsätze und Abdeckungen für Verkehrsflächen – Belastungsklassen, Materialien, Einbauanforderungen.</p>
+    <span class="norm-tag">Schachtdeckel</span>
+    <span class="norm-tag">Belastungsklassen</span>
+    <span class="norm-tag">Einbau</span>
+  </div>
+
+  <div class="section-divider"><span>Belastungsklassen</span></div>
+  <div class="card">
+    <table>
+      <thead><tr><th>Klasse</th><th>Last [kN]</th><th>Einsatzbereich</th><th>Typisches Material</th></tr></thead>
+      <tbody>
+        <tr><td><span class="pill pill-green">A 15</span></td><td>15 kN</td><td>Gehwege, Fußgängerzonen, PKW-Parkplätze</td><td>Grauguss, PP, PE</td></tr>
+        <tr><td><span class="pill pill-blue">B 125</span></td><td>125 kN</td><td>Gehwege, Parkflächen, PKW bis 3,5 t</td><td>Grauguss, Duktiles Gusseisen</td></tr>
+        <tr><td><span class="pill pill-blue">C 250</span></td><td>250 kN</td><td>Bordstreifen, Rinnen, Randbereiche Straße</td><td>Duktiles Gusseisen</td></tr>
+        <tr><td><span class="pill pill-amber">D 400</span></td><td>400 kN</td><td>Fahrbahnen, Straßen, Tankstellen</td><td>Duktiles Gusseisen (Standard)</td></tr>
+        <tr><td><span class="pill pill-red">E 600</span></td><td>600 kN</td><td>Industriezufahrten, Flughäfen, Schwerlast</td><td>Duktiles Gusseisen</td></tr>
+        <tr><td><span class="pill pill-red">F 900</span></td><td>900 kN</td><td>Rollwege, Frachtbereiche Luftfahrt</td><td>Duktiles Gusseisen, Stahl</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section-divider"><span>Einbauhinweise</span></div>
+  <div class="accordion">
+    <div class="accordion-head" onclick="toggleAcc(this)">Einbau in Asphaltflächen <span class="arr">›</span></div>
+    <div class="accordion-body">
+      <ul style="margin-left:20px;line-height:1.9">
+        <li>Auflagerfläche: Beton C20/25 mind. <mark>20 cm</mark> rings um den Rahmen</li>
+        <li>Rahmenhöhe exakt auf Fertigoberflächenhöhe (FOH) einstellen</li>
+        <li>Fugendichtstoff oder Dichtband zwischen Rahmen und Asphalt</li>
+        <li>Bei D 400: Auflagerring aus duktilem Gusseisen (kein Kunststoff)</li>
+        <li>Prüfprotokoll: Lage, Klasse, Fabrikat, Datum vor Abnahme dokumentieren</li>
+      </ul>
+    </div>
+  </div>
+  <div class="accordion">
+    <div class="accordion-head" onclick="toggleAcc(this)">Einbau in Pflasterflächen <span class="arr">›</span></div>
+    <div class="accordion-body">
+      <ul style="margin-left:20px;line-height:1.9">
+        <li>Höhenausgleich durch verstellbare Rahmen (≤ 40 mm Hub) oder Distanzringe</li>
+        <li>Bettung: Drainagemörtel oder Kiesbett (kein gebundenes Bett – Setzungsausgleich)</li>
+        <li>Pflasterstein-Einfassung: mind. <strong>2 Steinreihen</strong> rings um Rahmen</li>
+      </ul>
+    </div>
+  </div>
+  <div class="accordion">
+    <div class="accordion-head" onclick="toggleAcc(this)">Rinnenaufsätze &amp; Schlitzrinnen <span class="arr">›</span></div>
+    <div class="accordion-body">
+      <ul style="margin-left:20px;line-height:1.9">
+        <li>Schlitzrinnen (z. B. DALLMER, ACO Drain): nach DIN EN 1433 (eigene Norm!)</li>
+        <li>Belastungsklasse wie DIN EN 124 (A15–F900) – Aufdruck auf Rinne prüfen</li>
+        <li>Innengefälle Werksrinne: i. d. R. 0,5 % (bei Längsgefälle Nullgefälle-Rinne möglich)</li>
+        <li>Ablaufanschluss: DN 100 seitlich oder DN 150 vertikal</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ── CHECKLISTE ── -->
+<div class="page" id="page-checkliste">
+  <div class="page-header">
+    <h1>Checkliste Baustelle Entwässerung</h1>
+    <p>28 Punkte – von Leitungsverlegung bis Abnahme. Klicken zum Abhaken.</p>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-label">
+      <span>Fortschritt</span>
+      <span id="prog-text">0 / 28</span>
+    </div>
+    <div class="progress-bar"><div class="fill" id="prog-fill" style="width:0%"></div></div>
+  </div>
+
+  <div class="section-divider"><span>Planung &amp; Vorbereitung</span></div>
+  <div class="card">
+    <ul class="checklist" id="cl1">
+      <li onclick="tick(this)"><div class="check-box"><svg width="12" height="10" viewBox="0 0 12 10" fill="none"><polyline points="1,5 4.5,9 11,1" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div><div><div class="check-label">Entwässerungskonzept vorhanden (Trenn-/Mischsystem festgelegt)</div><div class="check-norm">DIN EN 752 § 4</div></div></li>
+      <li onclick="tick(this)"><div class="check-box"><svg width="12" height="10" viewBox="0 0 12 10" fill="none"><polyline points="1,5 4.5,9 11,1" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div><div><div class="check-label">Bemessungsregen / Jährlichkeit T festgelegt (KOSTRA-Daten)</div><div class="check-norm">DIN EN 752 Tab. 1</div></div></li>
+      <li onclick="tick(this)"><div class="check-box"><svg width="12" height="10" viewBox="0 0 12 10" fill="none"><polyline points="1,5 4.5,9 11,1" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div><div><div class="check-label">Rückstauebene mit Netzbetreiber abgestimmt</div><div class="check-norm">DIN 1986-100 § 5.1</div></div></li>
+      <li onclick="tick(this)"><div class="check-box"><svg width="12" height="10" viewBox="0 0 12 10" fill="none"><polyline points="1,5 4.5,9 11,1" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div><div><div class="check-label">Leitungsplan / Entwässerungsatlas vorhanden</div><div class="check-norm">DIN 1986-100 § 4</div></div></li>
+      <li onclick="tick(this)"><div class="check-box"><svg width="12" height="10" viewBox="0 0 12 10" fill="none"><polyline points="1,5 4.5,9 11,1" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div><div><div class="check-label">Schachtabstände max. 50 m geplant</div><div class="check-norm">DIN EN 752 § 7.4</div></div></li>
+    </ul>
+  </div>
+
+  <div class="section-divider"><span>Leitungsverlegung</span></div>
+  <div class="card">
+    <ul class="checklist" id="cl2">
+      <li onclick="tick(this)"><div class="check-box"><svg width="12" height="10" viewBox="0 0 12 10" fill="none"><polyline points="1,5 4.5,9 11,1" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div><div><div class="check-label">Rohrwerkstoff mit Klasse + Norm auf Lieferschein geprüft</div><div class="check-norm">DIN EN 1610 § 5</div></div></li>
+      <li onclick="tick(this)"><div class="check-box"><svg width="12" height="10" viewBox="0 0 12 10" fill="none"><polyline points="1,5 4.5,9 11,1" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div><div><div class="check-label">Grabensohle verdichtet, Bettung eingebaut (Klasse F Standard)</div><div class="check-norm">DIN EN 1610 § 7.1</div></div></li>
+      <li onclick="tick(this)"><div class="check-box"><svg width="12" height="10" viewBox="0 0 12 10" fill="none"><polyline points="1,5 4.5,9 11,1" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div><div><div class="check-label">Gefälle kontrolliert (Richtschnur / Laser-Gefällmessgerät)</div><div class="check-norm">DIN EN 752 Tab. Mindestgefälle</div></div></li>
+      <li onclick="tick(this)"><div class="check-box"><svg width="12" height="10" viewBox="0 0 12 10" fill="none"><polyline points="1,5 4.5,9 11,1" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div><div><div class="check-label">Muffen-Verbindungen geprüft (Dichtring sitzt korrekt)</div><div class="check-norm">DIN EN 1610 § 6</div></div></li>
+      <li onclick="tick(this)"><div class="check-box"><svg width="12" height="10" viewBox="0 0 12 10" fill="none"><polyline points="1,5 4.5,9 11,1" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div><div><div class="check-label">Leitungszone lagenweise verdichtet (max. 15 cm Lagen)</div><div class="check-norm">DIN EN 1610 § 7.3</div></div></li>
+      <li onclick="tick(this)"><div class="check-box"><svg width="12" height="10" viewBox="0 0 12 10" fill="none"><polyline points="1,5 4.5,9 11,1" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div><div><div class="check-label">Mindestüberdeckung eingehalten (1,0 m unter Fahrbahn)</div><div class="check-norm">DIN EN 752 § 7.3</div></div></li>
+      <li onclick="tick(this)"><div class="check-box"><svg width="12" height="10" viewBox="0 0 12 10" fill="none"><polyline points="1,5 4.5,9 11,1" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div><div><div class="check-label">Leitungsplan aktualisiert (As-Built)</div><div class="check-norm">VOB/B § 14</div></div></li>
+    </ul>
+  </div>
+
+  <div class="section-divider"><span>Schächte &amp; Bauwerke</span></div>
+  <div class="card">
+    <ul class="checklist" id="cl3">
+      <li onclick="tick(this)"><div class="check-box"><svg width="12" height="10" viewBox="0 0 12 10" fill="none"><polyline points="1,5 4.5,9 11,1" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div><div><div class="check-label">Schächte senkrecht und fluchtend eingebaut</div><div class="check-norm">DIN EN 1610 § 9</div></div></li>
+      <li onclick="tick(this)"><div class="check-box"><svg width="12" height="10" viewBox="0 0 12 10" fill="none"><polyline points="1,5 4.5,9 11,1" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div><div><div class="check-label">Gerinne im Schacht korrekt ausgeführt (Scheitelhöhe ≥ Rohrsohle)</div><div class="check-norm">DIN EN 1610 § 9.4</div></div></li>
+      <li onclick="tick(this)"><div class="check-box"><svg width="12" height="10" viewBox="0 0 12 10" fill="none"><polyline points="1,5 4.5,9 11,1" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div><div><div class="check-label">Schachtabdeckung richtige Klasse nach DIN EN 124 verbaut</div><div class="check-norm">DIN EN 124 Tab. 1</div></div></li>
+      <li onclick="tick(this)"><div class="check-box"><svg width="12" height="10" viewBox="0 0 12 10" fill="none"><polyline points="1,5 4.5,9 11,1" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div><div><div class="check-label">Schachtrahmen bündig mit FOH eingebaut</div><div class="check-norm">DIN EN 124 § 6</div></div></li>
+      <li onclick="tick(this)"><div class="check-box"><svg width="12" height="10" viewBox="0 0 12 10" fill="none"><polyline points="1,5 4.5,9 11,1" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div><div><div class="check-label">Kontrollschacht an Grundstücksgrenze angeordnet</div><div class="check-norm">DIN 1986-100 § 9</div></div></li>
+    </ul>
+  </div>
+
+  <div class="section-divider"><span>Dachentwässerung &amp; Gebäude</span></div>
+  <div class="card">
+    <ul class="checklist" id="cl4">
+      <li onclick="tick(this)"><div class="check-box"><svg width="12" height="10" viewBox="0 0 12 10" fill="none"><polyline points="1,5 4.5,9 11,1" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div><div><div class="check-label">Notentwässerung Flachdach geplant und ausgeführt</div><div class="check-norm">DIN EN 12056-3 § 6.3</div></div></li>
+      <li onclick="tick(this)"><div class="check-box"><svg width="12" height="10" viewBox="0 0 12 10" fill="none"><polyline points="1,5 4.5,9 11,1" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div><div><div class="check-label">Dachabläufe DN gemäß Bemessung eingebaut</div><div class="check-norm">DIN EN 12056-3 Tab.</div></div></li>
+      <li onclick="tick(this)"><div class="check-box"><svg width="12" height="10" viewBox="0 0 12 10" fill="none"><polyline points="1,5 4.5,9 11,1" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div><div><div class="check-label">Rückstausicherung für Kellerentwässerung eingebaut</div><div class="check-norm">DIN 1986-100 § 5.1</div></div></li>
+      <li onclick="tick(this)"><div class="check-box"><svg width="12" height="10" viewBox="0 0 12 10" fill="none"><polyline points="1,5 4.5,9 11,1" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div><div><div class="check-label">Lüftungsleitungen über Dach geführt (keine Ausblasventile ohne Nachweis)</div><div class="check-norm">DIN EN 12056-2 § 5</div></div></li>
+    </ul>
+  </div>
+
+  <div class="section-divider"><span>Dichtheitsprüfung &amp; Abnahme</span></div>
+  <div class="card">
+    <ul class="checklist" id="cl5">
+      <li onclick="tick(this)"><div class="check-box"><svg width="12" height="10" viewBox="0 0 12 10" fill="none"><polyline points="1,5 4.5,9 11,1" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div><div><div class="check-label">Dichtheitsprüfung vor Verfüllung durchgeführt (Protokoll)</div><div class="check-norm">DIN EN 1610 § 10</div></div></li>
+      <li onclick="tick(this)"><div class="check-box"><svg width="12" height="10" viewBox="0 0 12 10" fill="none"><polyline points="1,5 4.5,9 11,1" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div><div><div class="check-label">Prüfprotokoll Wasserprüfung / Luftprüfung LB vorhanden</div><div class="check-norm">DIN EN 1610 § 10.4</div></div></li>
+      <li onclick="tick(this)"><div class="check-box"><svg width="12" height="10" viewBox="0 0 12 10" fill="none"><polyline points="1,5 4.5,9 11,1" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div><div><div class="check-label">TV-Inspektion (Kamerabefahrung) veranlasst</div><div class="check-norm">DIN EN 13508-2</div></div></li>
+      <li onclick="tick(this)"><div class="check-box"><svg width="12" height="10" viewBox="0 0 12 10" fill="none"><polyline points="1,5 4.5,9 11,1" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div><div><div class="check-label">Abnahme-Unterlagen: Bestandsplan, Prüfprotokolle, Schachtbücher übergeben</div><div class="check-norm">VOB/B § 12 / § 14</div></div></li>
+    </ul>
+  </div>
+
+  <div class="checklist-actions">
+    <button class="btn btn-primary" onclick="checkAll()">Alle abhaken</button>
+    <button class="btn btn-ghost" onclick="resetAll()">Zurücksetzen</button>
+  </div>
+</div>
+
+<!-- ── AUSSCHREIBUNG ── -->
+<div class="page" id="page-ausschreibung">
+  <div class="page-header">
+    <h1>StLB-Ausschreibungstexte</h1>
+    <p>Standardleistungsbuch Entwässerung – 12 konforme Ausschreibungstexte zum Kopieren.</p>
+  </div>
+
+  <div class="section-divider"><span>Leitungsverlegung</span></div>
+
+  <div class="ausschreibung-block">
+    <h4>LV-01 · Abwasserleitung PVC-U KG² DN 150 verlegen</h4>
+    <pre>Liefern und Einbauen von Abwasserleitung PVC-U, Rohrklasse SN 8,
+Nennweite DN 150, Länge lt. Planung.
+Einbettung in Sandbettung 10 cm unter Rohrsohle, seitliche
+Verdichtung in Lagen ≤ 15 cm, Proctordichte D_Pr ≥ 97 %.
+Einschließlich Formstücke, Verbindungselemente und Zulage
+für Muffenverbindungen mit Gummidichtring nach DIN EN 1610.
+Dichtheitsprüfung nach Verfahren LB vor Verfüllung inklusive.
+
+Einheit: m</pre>
+    <button class="btn btn-ghost copy-btn" onclick="copyText(this)">📋 Kopieren</button>
+  </div>
+
+  <div class="ausschreibung-block">
+    <h4>LV-02 · Betonrohr DN 300 in Grabenbettung verlegen</h4>
+    <pre>Liefern und Verlegen von Beton-Rohren DN 300 nach DIN V 1201,
+Bettungsklasse F nach DIN EN 1610, Einbau in maschinell
+verdichtetes Sandbett, Korngröße 0/8 mm.
+Seitliche Verdichtung bis Scheitel + 15 cm, D_Pr ≥ 97 %.
+Verbindung: Muffenverbindung mit Gummidichtung.
+Dichtheitsprüfung Wasserverfahren W, Prüfprotokoll inklusive.
+
+Einheit: m</pre>
+    <button class="btn btn-ghost copy-btn" onclick="copyText(this)">📋 Kopieren</button>
+  </div>
+
+  <div class="ausschreibung-block">
+    <h4>LV-03 · Grundleitung PP DN 100 unter Gebäude verlegen</h4>
+    <pre>Liefern und Einbauen von Grundleitung PP, Nennweite DN 100,
+unter der Bodenplatte des Gebäudes gemäß DIN 1986-100.
+Einbettung in Sandbettung 50 cm, Manschettendurchführung
+durch Fundamentanschluss (elastische Entkopplung).
+Mindestgefälle 1,0 %, Kontrolle per Laser-Gefällmessung.
+Reinigungsöffnungen max. alle 20 m.
+
+Einheit: m</pre>
+    <button class="btn btn-ghost copy-btn" onclick="copyText(this)">📋 Kopieren</button>
+  </div>
+
+  <div class="section-divider"><span>Schächte</span></div>
+
+  <div class="ausschreibung-block">
+    <h4>LV-04 · Fertigteil-Revisionsschacht DN 1000 liefern und setzen</h4>
+    <pre>Liefern und Einbauen eines Fertigteil-Revisionsschachtes aus
+Stahlbeton, Innendurchmesser DN 1000 nach DIN V 4034-1,
+Schachttiefen lt. Planung.
+Einschließlich Schachtsohle mit Gerinne (Betonausgleich),
+Steigeisen aus nichtrostendem Stahl, Konus und Aufstockring.
+Abdeckung nach gesonderter Position.
+Montage auf Kiesbettung ≥ 15 cm, Verdichtung D_Pr ≥ 97 %.
+
+Einheit: Stk</pre>
+    <button class="btn btn-ghost copy-btn" onclick="copyText(this)">📋 Kopieren</button>
+  </div>
+
+  <div class="ausschreibung-block">
+    <h4>LV-05 · Kontrollschacht DN 400 an Grundstücksgrenze setzen</h4>
+    <pre>Liefern und Einbauen eines Kontrollschachtes (Revisionsschacht)
+DN 400 aus PVC-U oder PP nach DIN 1986-100 § 9,
+an der Grundstücksgrenze, Tiefe lt. Planung.
+Einschließlich Teleskopaufsatz, Geruchsverschluss und
+Abdeckplatte A 15 (gehweggerechte Ausführung).
+
+Einheit: Stk</pre>
+    <button class="btn btn-ghost copy-btn" onclick="copyText(this)">📋 Kopieren</button>
+  </div>
+
+  <div class="section-divider"><span>Schachtabdeckungen &amp; Aufsätze</span></div>
+
+  <div class="ausschreibung-block">
+    <h4>LV-06 · Schachtabdeckung D 400 in Fahrbahn</h4>
+    <pre>Liefern und Einbauen einer Schachtabdeckung aus duktilem
+Gusseisen, Belastungsklasse D 400 nach DIN EN 124,
+lichte Weite ≥ 600 mm, mit Auflagering.
+Einbau in C 20/25 Betonaufnahmerahmen, Breite 200 mm,
+bündig mit Fahrbahnoberkante (FOK).
+Kennzeichnung: Aufschrift „KAM" oder „REG" eingegossen.
+
+Einheit: Stk</pre>
+    <button class="btn btn-ghost copy-btn" onclick="copyText(this)">📋 Kopieren</button>
+  </div>
+
+  <div class="ausschreibung-block">
+    <h4>LV-07 · Schlitzrinne ACO oder gleichwertig B 125 einbauen</h4>
+    <pre>Liefern und Einbauen von Schlitzrinnen aus Beton oder Polymer-
+beton, Klasse B 125 nach DIN EN 1433, Rinnenkörper Nennweite
+NW 100, inkl. Rinnengitter aus Stahl feuerverzinkt.
+Innengefälle 0,5 %, Ablauf DN 100 (Seitenablauf).
+Bettung in C 16/20 Magerbeton, Fugendichtstoff seitlich.
+Länge lt. Leistungsverzeichnis.
+
+Einheit: m</pre>
+    <button class="btn btn-ghost copy-btn" onclick="copyText(this)">📋 Kopieren</button>
+  </div>
+
+  <div class="section-divider"><span>Dachentwässerung</span></div>
+
+  <div class="ausschreibung-block">
+    <h4>LV-08 · Flachdachentwässerung Ablauf DN 100</h4>
+    <pre>Liefern und Einbauen von Dachabläufen für Flachdach,
+DN 100, mit Klemmprofil für Dachabdichtung, Laubschutzaufsatz,
+inkl. Anschlussleitung senkrecht DN 100 als Regenfall-
+leitung bis Grundleitung / Außenanlage.
+Ausführung nach DIN EN 12056-3, Nachweis der Entwässerungs-
+fläche ≤ 150 m² je Ablauf liegt vor.
+
+Einheit: Stk</pre>
+    <button class="btn btn-ghost copy-btn" onclick="copyText(this)">📋 Kopieren</button>
+  </div>
+
+  <div class="ausschreibung-block">
+    <h4>LV-09 · Notentwässerung Flachdach (Notüberlauf)</h4>
+    <pre>Liefern und Einbauen von Notentwässerungsaufsätzen für
+Flachdach nach DIN EN 12056-3 § 6.3.
+Oberkante Notüberlauf: 50 mm über Ablauf-OK.
+Freier Auslauf als Speier senkrecht durch Attika / Wanddurch-
+führung, sichtbar von Außen, ohne Anbindung an Dachableitung.
+Statischer Nachweis für 50 mm Wasseraufstau liegt vor.
+
+Einheit: Stk</pre>
+    <button class="btn btn-ghost copy-btn" onclick="copyText(this)">📋 Kopieren</button>
+  </div>
+
+  <div class="section-divider"><span>Rückstau &amp; Sonderbauwerke</span></div>
+
+  <div class="ausschreibung-block">
+    <h4>LV-10 · Rückstauverschluss DN 100 einbauen</h4>
+    <pre>Liefern und Einbauen eines Rückstauverschlusses für Schmutz-
+wasser DN 100 nach DIN EN 13564, in der Hausanschlussleitung,
+Einbaulage horizontal, Einbauort: Kellerbereich.
+Einschließlich Zugangsklappe zur Wartung und Bedienung,
+Kennzeichnung Rückstauebene mit Aufkleber.
+Nachweis Fabrikat und Zulassung (DIBt) inklusive.
+
+Einheit: Stk</pre>
+    <button class="btn btn-ghost copy-btn" onclick="copyText(this)">📋 Kopieren</button>
+  </div>
+
+  <div class="ausschreibung-block">
+    <h4>LV-11 · Dichtheitsprüfung Luftverfahren LB – Abnahmeprüfung</h4>
+    <pre>Dichtheitsprüfung der verlegten Abwasserleitung nach
+DIN EN 1610, Verfahren LB (Luftprüfung).
+Anfangsdruck 50 mbar, Enddruck ≥ 45 mbar nach 5 Minuten.
+Einschließlich Absperrblasen, Messprotokoll je Prüfabschnitt
+mit Angabe von Haltung, Datum, Prüfer, Ergebnis.
+Prüfung vor Verfüllung des Rohrgrabens.
+
+Einheit: m</pre>
+    <button class="btn btn-ghost copy-btn" onclick="copyText(this)">📋 Kopieren</button>
+  </div>
+
+  <div class="ausschreibung-block">
+    <h4>LV-12 · TV-Kamerabefahrung und Zustandsprotokoll</h4>
+    <pre>Kamerabefahrung der verlegten Abwasserleitungen nach
+DIN EN 13508-2 (ISYBAU-Format) mit Videodokumentation
+und Schadensklassifizierung.
+Einschließlich digitalem Kamera-Bericht (PDF + Video-Datei),
+Lageplan der befahrenen Haltungen, Übergabe an Auftraggeber.
+Durchmesserbereich DN 100–DN 300.
+
+Einheit: m</pre>
+    <button class="btn btn-ghost copy-btn" onclick="copyText(this)">📋 Kopieren</button>
+  </div>
+</div>
+
+<!-- ── DICHTHEITSPRÜFUNG ── -->
+<div class="page" id="page-pruefung">
+  <div class="page-header">
+    <h1>Dichtheitsprüfung – Entscheidungshilfe</h1>
+    <p>Welches Prüfverfahren für welchen Fall? Anforderungen, Kennwerte, Protokoll-Pflichten nach DIN EN 1610.</p>
+  </div>
+
+  <div class="section-divider"><span>Verfahrenswahl</span></div>
+  <div class="card">
+    <table>
+      <thead><tr><th>Verfahren</th><th>Druck</th><th>Dauer</th><th>Grenzwert / Kriterium</th><th>Typisch für</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><span class="pill pill-blue">W – Wasser</span></td>
+          <td>0,5 m WS</td>
+          <td>30+30 min</td>
+          <td>Verlust ≤ 0,15 l/(m² · min)</td>
+          <td>Neubau DN ≥ 300, Schächte</td>
+        </tr>
+        <tr>
+          <td><span class="pill pill-green">LA – Luft</span></td>
+          <td>10 mbar</td>
+          <td>5 min</td>
+          <td>Druck ≥ 9 mbar</td>
+          <td>Kunststoff DN 100–200</td>
+        </tr>
+        <tr>
+          <td><span class="pill pill-green">LB – Luft</span></td>
+          <td>50 mbar</td>
+          <td>5 min</td>
+          <td>Druck ≥ 45 mbar</td>
+          <td>Standard-Hausanschluss</td>
+        </tr>
+        <tr>
+          <td><span class="pill pill-amber">LC – Luft</span></td>
+          <td>100 mbar</td>
+          <td>5 min</td>
+          <td>Druck ≥ 90 mbar</td>
+          <td>Druckleitungen, Sonderfälle</td>
+        </tr>
+        <tr>
+          <td><span class="pill pill-red">LD – Luft</span></td>
+          <td>200 mbar</td>
+          <td>5 min</td>
+          <td>Druck ≥ 180 mbar</td>
+          <td>Druckleitungen &gt; 1 bar Betriebsdruck</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section-divider"><span>Pflichtangaben Prüfprotokoll</span></div>
+  <div class="card">
+    <div class="card-title"><div class="dot"></div>Protokoll-Mindestinhalt nach DIN EN 1610 § 10.5</div>
+    <ul class="checklist" id="protokoll">
+      <li onclick="tick(this)"><div class="check-box"><svg width="12" height="10" viewBox="0 0 12 10" fill="none"><polyline points="1,5 4.5,9 11,1" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div><div><div class="check-label">Bezeichnung der Haltung / Leitung (von–bis Schacht)</div></div></li>
+      <li onclick="tick(this)"><div class="check-box"><svg width="12" height="10" viewBox="0 0 12 10" fill="none"><polyline points="1,5 4.5,9 11,1" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div><div><div class="check-label">Nennweite DN, Werkstoff, Länge der Prüfstrecke</div></div></li>
+      <li onclick="tick(this)"><div class="check-box"><svg width="12" height="10" viewBox="0 0 12 10" fill="none"><polyline points="1,5 4.5,9 11,1" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div><div><div class="check-label">Prüfverfahren (W / LA / LB / LC)</div></div></li>
+      <li onclick="tick(this)"><div class="check-box"><svg width="12" height="10" viewBox="0 0 12 10" fill="none"><polyline points="1,5 4.5,9 11,1" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div><div><div class="check-label">Anfangsdruck / Enddruck oder Wasserverlust</div></div></li>
+      <li onclick="tick(this)"><div class="check-box"><svg width="12" height="10" viewBox="0 0 12 10" fill="none"><polyline points="1,5 4.5,9 11,1" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div><div><div class="check-label">Datum und Uhrzeit der Prüfung</div></div></li>
+      <li onclick="tick(this)"><div class="check-box"><svg width="12" height="10" viewBox="0 0 12 10" fill="none"><polyline points="1,5 4.5,9 11,1" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div><div><div class="check-label">Name und Unterschrift des Prüfers</div></div></li>
+      <li onclick="tick(this)"><div class="check-box"><svg width="12" height="10" viewBox="0 0 12 10" fill="none"><polyline points="1,5 4.5,9 11,1" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></div><div><div class="check-label">Ergebnis: Bestanden / Nicht bestanden</div></div></li>
+    </ul>
+  </div>
+
+  <div class="section-divider"><span>Prüfzeitpunkte</span></div>
+  <div class="card">
+    <div class="card-title"><div class="dot"></div>Wann muss geprüft werden?</div>
+    <table>
+      <thead><tr><th>Zeitpunkt</th><th>Pflicht?</th><th>Anmerkung</th></tr></thead>
+      <tbody>
+        <tr><td>Vor Verfüllung des Rohrgrabens</td><td><span class="pill pill-red">Pflicht</span></td><td>Voraussetzung für VOB-Abnahme</td></tr>
+        <tr><td>Nach Fertigstellung aller Anschlüsse</td><td><span class="pill pill-amber">Empfohlen</span></td><td>Systemprüfung gesamt</td></tr>
+        <tr><td>Bei Bauabnahme (Übergabe an AG)</td><td><span class="pill pill-red">Pflicht</span></td><td>Protokoll ist Abnahmeunterlage</td></tr>
+        <tr><td>TV-Befahrung nach Rohbau</td><td><span class="pill pill-amber">Empfohlen</span></td><td>Schäden durch Baubetrieb erkennen</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+</main>
+</div>
+
+<!-- Toast -->
+<div id="toast">✓ In Zwischenablage kopiert</div>
+
+<script>
+// ── Navigation ──
+function show(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  event.currentTarget.classList.add('active');
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+// ── Accordion ──
+function toggleAcc(head) {
+  head.parentElement.classList.toggle('open');
+}
+
+// ── Checkliste ──
+const TOTAL = 28;
+
+function tick(li) {
+  li.classList.toggle('done');
+  updateProgress();
+}
+
+function updateProgress() {
+  const done = document.querySelectorAll('.checklist li.done').length;
+  const pct = Math.round(done / TOTAL * 100);
+  document.getElementById('prog-fill').style.width = pct + '%';
+  document.getElementById('prog-text').textContent = done + ' / ' + TOTAL;
+  // badge in sidebar
+  const remaining = TOTAL - done;
+  document.getElementById('badge').textContent = remaining > 0 ? remaining : '✓';
+}
+
+function checkAll() {
+  document.querySelectorAll('.checklist li').forEach(li => li.classList.add('done'));
+  updateProgress();
+}
+
+function resetAll() {
+  document.querySelectorAll('.checklist li').forEach(li => li.classList.remove('done'));
+  updateProgress();
+}
+
+// ── Copy ──
+function copyText(btn) {
+  const pre = btn.previousElementSibling;
+  navigator.clipboard.writeText(pre.textContent.trim()).then(() => {
+    const t = document.getElementById('toast');
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2200);
+  });
+}
+
+// Init badge
+updateProgress();
+</script>
+</body>
+</html>

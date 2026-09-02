@@ -1,0 +1,3000 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LV-Manager v2 | Riedel Bau AG</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#1e3a5f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="LV-Manager">
+<script>
+// ── Service Worker registrieren (echte Datei auf GitHub Pages) ───────────
+if('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => console.log('SW registered:', reg.scope))
+      .catch(err => console.log('SW registration failed:', err));
+  });
+}
+</script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --dark:#1e3a5f;--mid:#2e5fa3;--light:#d6e4f7;--red:#c0392b;
+  --green:#16a34a;--gbg:#dcfce7;--warn:#d97706;--wbg:#fef3c7;
+  --rbg:#fee2e2;--sbg:#fef0d5;--abg:#e8f4fd;
+  --gray:#f0f2f5;--muted:#6b7280;--border:#d1d5db;--yin:#fffde7;
+  --sidebar:220px;
+}
+body{font-family:'IBM Plex Sans',sans-serif;background:var(--gray);color:#111827;font-size:13px;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+*{box-sizing:border-box}
+input,textarea,select,button{font-family:inherit}
+button{cursor:pointer;border:none;border-radius:5px;font-weight:600;transition:filter .12s,transform .1s}
+button:hover{filter:brightness(1.08)}
+button:active{transform:scale(.98)}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-thumb{background:#c0ccd8;border-radius:3px}
+
+/* ── LAYOUT ── */
+#app{display:flex;flex-direction:column;height:100vh;overflow:hidden}
+#topbar{background:var(--dark);color:#fff;padding:0 16px;border-bottom:3px solid var(--red);flex-shrink:0;z-index:100}
+.topbar-inner{display:flex;align-items:center;gap:12px;height:48px}
+.tb-logo{font-size:16px;font-weight:700;white-space:nowrap}
+.tb-sub{font-size:9px;color:#7ec8e3;letter-spacing:1.5px;text-transform:uppercase}
+.tb-sep{width:1px;height:28px;background:rgba(255,255,255,.15);margin:0 4px}
+.tb-btn{padding:5px 12px;font-size:11px;font-weight:700;border-radius:4px}
+.tb-btn.green{background:var(--green);color:#fff}
+.tb-btn.red{background:var(--red);color:#fff}
+.tb-btn.ghost{background:rgba(255,255,255,.12);color:#fff}
+.tb-btn.purple{background:#7c3aed;color:#fff}
+.tb-spacer{flex:1}
+.tb-status{font-size:10px;color:#7ec8e3;font-family:'IBM Plex Mono',monospace}
+
+#body{display:flex;flex:1;overflow:hidden}
+
+/* ── SIDEBAR ── */
+#sidebar{width:var(--sidebar);background:#fff;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
+.sb-section{padding:10px 10px 4px;font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #f3f4f6}
+.sb-item{display:flex;align-items:center;gap:8px;padding:7px 12px;cursor:pointer;border-left:3px solid transparent;transition:background .12s;font-size:12px;color:#374151}
+.sb-item:hover{background:#f9fafb}
+.sb-item.active{background:var(--light);border-color:var(--dark);color:var(--dark);font-weight:600}
+.sb-item.archived{color:var(--muted);font-style:italic}
+.sb-icon{font-size:13px;width:16px;text-align:center;flex-shrink:0}
+.sb-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sb-badge{font-size:9px;padding:1px 5px;border-radius:3px;font-weight:700;flex-shrink:0}
+.sb-badge.crit{background:var(--rbg);color:#dc2626}
+.sb-badge.sum{background:var(--gbg);color:var(--green);font-family:'IBM Plex Mono',monospace}
+.sb-new{margin:8px;padding:7px;background:var(--dark);color:#fff;font-size:12px;border-radius:5px;width:calc(100% - 16px);text-align:center}
+.sb-search{margin:8px;padding:5px 8px;border:1.5px solid var(--border);border-radius:5px;font-size:11px;width:calc(100% - 16px)}
+.sb-search:focus{outline:none;border-color:var(--mid)}
+
+/* ── MAIN ── */
+#main{flex:1;overflow:hidden;display:flex;flex-direction:column}
+.tabs-bar{display:flex;background:#fff;border-bottom:1px solid var(--border);padding:0 16px;flex-shrink:0}
+.tab{padding:10px 16px;font-size:12px;font-weight:600;background:none;border:none;border-bottom:3px solid transparent;color:var(--muted);border-radius:0}
+.tab.active{border-color:var(--dark);color:var(--dark)}
+.tab-spacer{flex:1}
+.tab-pills{display:flex;align-items:center;gap:6px;padding:0 8px}
+.tpill{padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700}
+.tpill.green{background:var(--gbg);color:var(--green);font-family:'IBM Plex Mono',monospace}
+.tpill.red{background:var(--rbg);color:#dc2626}
+
+.tab-body{flex:1;overflow-y:auto;padding:16px}
+
+/* ── WELCOME ── */
+.welcome{max-width:600px;margin:40px auto;text-align:center}
+.welcome-icon{font-size:56px;margin-bottom:16px}
+.welcome h1{font-size:22px;font-weight:700;color:var(--dark);margin-bottom:8px}
+.welcome p{font-size:13px;color:var(--muted);margin-bottom:24px;line-height:1.7}
+.welcome-btns{display:flex;gap:10px;justify-content:center}
+
+/* ── LV TAB ── */
+.sec-card{border:1px solid var(--border);border-radius:7px;overflow:hidden;margin-bottom:14px;background:#fff}
+.sec-hdr{background:var(--dark);padding:8px 12px;display:flex;align-items:center;gap:8px}
+.sec-num{font-family:'IBM Plex Mono',monospace;font-size:10px;color:#7ec8e3;font-weight:700;min-width:24px}
+.sec-inp{flex:1;background:transparent;border:none;color:#fff;font-size:12px;font-weight:700;outline:none;font-family:inherit}
+.sec-btn{padding:3px 8px;font-size:10px;border-radius:3px}
+.sec-collapse{background:rgba(255,255,255,.12);color:#fff}
+.sec-del{background:var(--red);color:#fff}
+
+.col-hdr{display:grid;grid-template-columns:28px 80px 1fr 66px 82px 82px 90px 140px 60px;gap:0;background:#f9fafb;padding:5px 10px;border-bottom:1px solid var(--border)}
+.col-hdr span{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+
+.pos-row{display:grid;grid-template-columns:28px 80px 1fr 66px 82px 82px 90px 140px 60px;border-bottom:1px solid #f3f4f6;align-items:start;padding:4px 10px}
+.pos-row:hover{background:#fafbfc}
+.pos-row.pos-added{background:#f0f7ff}
+.pos-row input,.pos-row textarea,.pos-row select{border:1.5px solid var(--border);border-radius:4px;padding:3px 5px;width:100%;background:#fff;font-size:11px}
+.pos-row input:focus,.pos-row textarea:focus,.pos-row select:focus{outline:none;border-color:#3b82f6;background:#eff6ff}
+.gp-val{padding:5px 4px;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;text-align:right;color:#16a34a}
+.gp-empty{color:#d1d5db}
+.pos-acts{display:flex;flex-direction:column;gap:2px;padding-top:2px}
+.act-btn{padding:3px 6px;font-size:10px}
+.act-dup{background:#eef2f7;color:#374151}
+.act-del{background:var(--rbg);color:#dc2626}
+.stat-sel{width:26px;border:none;border-radius:3px;font-size:12px;cursor:pointer;text-align:center;background:transparent;padding:2px 0}
+.added-tag{font-size:9px;background:#e8f4fd;color:#1a5f8a;padding:1px 5px;border-radius:2px;font-weight:700;display:inline-block;margin-top:2px}
+
+.add-pos-btn{background:var(--dark);color:#fff;padding:5px 12px;font-size:11px}
+.sec-footer{padding:7px 10px;background:#f9fafb}
+.add-sec-btn{width:100%;padding:8px;font-size:12px;background:#f3f4f6;color:var(--dark);border:2px dashed var(--border);border-radius:6px;margin-bottom:14px}
+
+.totals-box{background:var(--dark);border-radius:7px;overflow:hidden}
+.tot-row{display:flex;justify-content:space-between;align-items:center;padding:9px 18px;border-bottom:1px solid rgba(255,255,255,.06)}
+.tot-row.big{padding:13px 18px;background:rgba(255,255,255,.04);border:none}
+.tot-lbl{color:#9bb0c0;font-size:12px}
+.tot-val{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700;color:#fff}
+.tot-val.gold{color:#fbbf24;font-size:16px}
+
+/* ── STAMM TAB ── */
+.stamm-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:900px}
+.sf{display:flex;flex-direction:column;gap:4px}
+.sf.full{grid-column:1/-1}
+.sf label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.7px}
+.sf input,.sf select,.sf textarea{border:1.5px solid var(--border);border-radius:5px;padding:7px 9px;background:#fff;font-size:12px}
+.sf input:focus,.sf select:focus,.sf textarea:focus{outline:none;border-color:var(--mid)}
+
+/* ── ANALYSE TAB ── */
+.vob-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
+.vob-card{border-radius:7px;padding:12px 14px;border-left:4px solid}
+.vc-icon{font-size:18px}
+.vc-n{font-size:22px;font-weight:800;font-family:'IBM Plex Mono',monospace}
+.vc-lbl{font-size:10px;font-weight:700;margin-top:1px}
+.vob-tbl{width:100%;border-collapse:collapse;font-size:11px}
+.vob-tbl th{background:#f9fafb;font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;padding:7px 10px;text-align:left;border-bottom:2px solid var(--border)}
+.vob-tbl td{padding:7px 10px;border-bottom:1px solid #f3f4f6;vertical-align:top}
+.note-inp{flex:1;border:1.5px solid #fbbf24;border-radius:4px;padding:4px 7px;font-size:11px;background:var(--yin);min-width:200px}
+
+/* ── CLAUDE TAB ── */
+.claude-chat{display:flex;flex-direction:column;height:100%;max-width:900px;gap:12px}
+.chat-messages{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:4px 0}
+.msg{padding:10px 14px;border-radius:8px;font-size:12px;line-height:1.6;max-width:85%}
+.msg.user{background:var(--dark);color:#fff;align-self:flex-end;border-radius:8px 8px 2px 8px}
+.msg.assistant{background:#fff;color:#111827;align-self:flex-start;border:1px solid var(--border);border-radius:8px 8px 8px 2px;white-space:pre-wrap}
+.msg.thinking{background:#f9fafb;color:var(--muted);font-style:italic;border:1px dashed var(--border)}
+.chat-input-row{display:flex;gap:8px;align-items:flex-end;flex-shrink:0}
+.chat-inp{flex:1;border:1.5px solid var(--border);border-radius:7px;padding:9px 12px;font-size:12px;resize:none;min-height:48px;max-height:140px;line-height:1.5}
+.chat-inp:focus{outline:none;border-color:var(--mid)}
+.chat-send{padding:9px 18px;background:var(--dark);color:#fff;border-radius:7px;font-size:12px;align-self:flex-end}
+.chat-opts{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px}
+.chat-opt{background:#eef2f7;color:var(--dark);padding:4px 10px;font-size:11px;border-radius:4px}
+.apikey-banner{background:var(--wbg);border:1.5px solid var(--warn);border-radius:7px;padding:12px 14px;font-size:12px;color:#92400e;margin-bottom:12px;display:flex;align-items:center;gap:10px}
+.apikey-inp{border:1.5px solid var(--border);border-radius:5px;padding:5px 9px;font-size:12px;flex:1;font-family:'IBM Plex Mono',monospace}
+.apikey-save{background:var(--dark);color:#fff;padding:5px 12px;font-size:11px}
+
+/* ── ARCHIV TAB ── */
+.arch-tbl{width:100%;border-collapse:collapse;font-size:12px}
+.arch-tbl th{background:#f9fafb;font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;padding:8px 12px;text-align:left;border-bottom:2px solid var(--border)}
+.arch-tbl td{padding:8px 12px;border-bottom:1px solid #f3f4f6;vertical-align:middle}
+.arch-tbl tr:hover td{background:#fafbfc}
+.arch-act{display:flex;gap:5px}
+.arch-btn{padding:3px 8px;font-size:10px;border-radius:3px}
+
+/* ── TOAST ── */
+#toast{position:fixed;top:14px;right:14px;z-index:9999;padding:9px 16px;border-radius:6px;font-weight:700;font-size:12px;color:#fff;box-shadow:0 4px 16px rgba(0,0,0,.2);display:none}
+
+/* ── MODAL ── */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:8000;display:flex;align-items:center;justify-content:center}
+.modal{background:#fff;border-radius:10px;padding:24px 28px;max-width:480px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.modal h3{font-size:15px;font-weight:700;color:var(--dark);margin-bottom:8px}
+.modal p{font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:14px}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+
+/* ── PROJEKT ITEMS ── */
+.proj-item{display:flex;align-items:center;gap:6px;padding:5px 10px;cursor:pointer;font-size:11px;color:#374151;border-left:3px solid transparent;transition:background .1s}
+.proj-item:hover{background:#f9fafb}
+.proj-item.active{background:#eff6ff;border-color:#2563eb;color:#1d4ed8;font-weight:700}
+.proj-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.proj-count{font-size:9px;color:#9ca3af;margin-left:auto}
+.proj-edit-btn{font-size:10px;background:none;border:none;color:#9ca3af;cursor:pointer;padding:0 2px;opacity:0;transition:opacity .1s}
+.proj-item:hover .proj-edit-btn{opacity:1}
+/* ── NORMEN PICKER ── */
+.normen-picker{border:1.5px solid var(--border);border-radius:6px;background:#fff;overflow:hidden}
+.normen-search{width:100%;padding:7px 10px;border:none;border-bottom:1px solid var(--border);font-size:12px;font-family:inherit;outline:none}
+.normen-search:focus{border-color:var(--mid);background:#eff6ff}
+.normen-scroll{max-height:220px;overflow-y:auto}
+.normen-group{border-bottom:1px solid #f3f4f6}
+.normen-group-hdr{padding:5px 10px;font-size:9px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.8px;cursor:pointer;display:flex;align-items:center;gap:6px;user-select:none;position:sticky;top:0;z-index:1}
+.normen-group-hdr:hover{filter:brightness(1.1)}
+.normen-item{display:flex;align-items:flex-start;gap:8px;padding:5px 10px 5px 16px;font-size:11px;cursor:pointer;transition:background .1s;line-height:1.4}
+.normen-item:hover{background:#f9fafb}
+.normen-item.selected{background:#eff6ff}
+.normen-item input[type=checkbox]{margin-top:2px;flex-shrink:0;accent-color:var(--mid)}
+.normen-item .din{font-family:'IBM Plex Mono',monospace;font-weight:600;color:var(--mid);white-space:nowrap;min-width:90px;font-size:10px}
+.normen-item .txt{color:#374151}
+.normen-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;min-height:24px}
+.normen-tag{display:inline-flex;align-items:center;gap:4px;background:var(--light);color:var(--dark);border-radius:4px;padding:2px 8px;font-size:10px;font-weight:600}
+.normen-tag button{background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:0;line-height:1}
+.normen-tag button:hover{color:#dc2626}
+/* ── LV ASSISTENT ── */
+.wizard-bg{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;display:flex;align-items:center;justify-content:center}
+.wizard{background:#fff;border-radius:12px;width:640px;max-width:95vw;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(0,0,0,.3);overflow:hidden}
+.wizard-hdr{background:var(--dark);color:#fff;padding:16px 20px;display:flex;align-items:center;gap:10px;flex-shrink:0}
+.wizard-hdr h2{font-size:15px;font-weight:700;flex:1}
+.wizard-hdr .step-pills{display:flex;gap:5px}
+.step-pill{width:28px;height:6px;border-radius:3px;background:rgba(255,255,255,.2);transition:background .2s}
+.step-pill.active{background:#fff}
+.step-pill.done{background:#7ec8e3}
+.wizard-body{flex:1;overflow-y:auto;padding:20px}
+.wizard-step{display:none}
+.wizard-step.active{display:block}
+.wiz-q{font-size:14px;font-weight:700;color:var(--dark);margin-bottom:4px}
+.wiz-hint{font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.5}
+.wiz-input{width:100%;border:1.5px solid var(--border);border-radius:6px;padding:9px 11px;font-size:13px;font-family:inherit;background:#fff}
+.wiz-input:focus{outline:none;border-color:var(--mid);background:#eff6ff}
+.wiz-textarea{width:100%;border:1.5px solid var(--border);border-radius:6px;padding:9px 11px;font-size:12px;font-family:inherit;resize:vertical;min-height:80px;line-height:1.5}
+.wiz-textarea:focus{outline:none;border-color:var(--mid);background:#eff6ff}
+.wiz-chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:4px}
+.wiz-chip{padding:6px 12px;border:1.5px solid var(--border);border-radius:20px;font-size:12px;cursor:pointer;transition:all .15s;user-select:none;background:#fff}
+.wiz-chip:hover{border-color:var(--mid);background:#eff6ff}
+.wiz-chip.selected{background:var(--dark);color:#fff;border-color:var(--dark)}
+.wiz-select{width:100%;border:1.5px solid var(--border);border-radius:6px;padding:9px 11px;font-size:12px;font-family:inherit;background:#fff}
+.wiz-select:focus{outline:none;border-color:var(--mid)}
+.wiz-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.wiz-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px;display:block}
+.wizard-ftr{padding:14px 20px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-shrink:0;background:#f9fafb}
+.wiz-back{background:#eef2f7;color:var(--dark);padding:8px 16px;font-size:12px}
+.wiz-next{background:var(--dark);color:#fff;padding:8px 20px;font-size:12px}
+.wiz-next.green{background:var(--green)}
+.wiz-progress{font-size:11px;color:var(--muted)}
+.prompt-box{background:#1e2d3d;border-radius:8px;padding:14px 16px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#7ec8e3;line-height:1.6;white-space:pre-wrap;max-height:280px;overflow-y:auto;margin-bottom:10px}
+.prompt-actions{display:flex;gap:8px}
+/* ── ARCHIVE BADGE ── */
+.arch-ribbon{display:inline-block;background:#9ca3af;color:#fff;font-size:9px;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px}
+
+/* ── LANGTEXT / KOPIEREN ── */
+.desc-cell{display:flex;flex-direction:column;gap:3px;padding-right:6px}
+.desc-ta{width:100%;min-height:72px;resize:vertical;line-height:1.45;font-size:11px}
+.desc-tools{display:flex;gap:4px;align-items:center;flex-wrap:wrap}
+.mini-btn{padding:2px 7px;font-size:9px;border-radius:3px;font-weight:700;background:#eef2f7;color:#374151;border:none;cursor:pointer}
+.mini-btn:hover{background:#dbe3ed}
+.mini-btn.k{background:#e0e7ff;color:#3730a3}
+.mini-btn.l{background:#dcfce7;color:#15803d}
+.mini-btn.x{background:#fef3c7;color:#92400e}
+.desc-meta{font-size:9px;color:#9ca3af;margin-left:auto;font-family:'IBM Plex Mono',monospace}
+
+/* ── TEXT-EDITOR MODAL ── */
+.ted{background:#fff;border-radius:10px;width:820px;max-width:95vw;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(0,0,0,.3);overflow:hidden}
+.ted-hdr{background:var(--dark);color:#fff;padding:12px 18px;display:flex;align-items:center;gap:10px}
+.ted-hdr h3{font-size:14px;font-weight:700;flex:1;color:#fff}
+.ted-body{padding:16px 18px;overflow-y:auto;display:flex;flex-direction:column;gap:12px}
+.ted-lbl{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;display:flex;align-items:center;gap:8px}
+.ted-inp{width:100%;border:1.5px solid var(--border);border-radius:6px;padding:9px 11px;font-size:13px;font-family:inherit}
+.ted-inp:focus{outline:none;border-color:var(--mid);background:#eff6ff}
+.ted-ta{width:100%;border:1.5px solid var(--border);border-radius:6px;padding:10px 12px;font-size:12px;font-family:inherit;line-height:1.65;resize:vertical;min-height:300px}
+.ted-ta:focus{outline:none;border-color:var(--mid);background:#eff6ff}
+.ted-ftr{padding:12px 18px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;background:#f9fafb;gap:8px}
+
+/* ── VORBEMERKUNGEN ── */
+.vb-block{border:1px solid var(--border);border-radius:8px;margin-bottom:10px;background:#fff;overflow:hidden}
+.vb-hdr{background:#f9fafb;padding:7px 12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)}
+.vb-num{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);font-weight:700;min-width:20px}
+.vb-title{flex:1;border:none;background:transparent;font-size:12px;font-weight:700;color:var(--dark);outline:none;font-family:inherit}
+.vb-title:focus{background:#eff6ff;border-radius:4px;padding:2px 4px}
+.vb-ta{width:100%;border:none;padding:10px 12px;font-size:11.5px;font-family:inherit;line-height:1.7;resize:vertical;min-height:90px;outline:none}
+.vb-ta:focus{background:#fffdf5}
+
+/* ── SYNC ── */
+.sync-dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0}
+.sync-dot.on{background:#4ade80}
+.sync-dot.off{background:#6b7280}
+.sync-dot.err{background:#f87171}
+.sync-dot.busy{background:#fbbf24}
+.sync-row{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+.sync-row label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.7px}
+.sync-row input{border:1.5px solid var(--border);border-radius:5px;padding:7px 9px;font-size:12px;font-family:'IBM Plex Mono',monospace}
+.sync-row input:focus{outline:none;border-color:var(--mid)}
+.sql-box{background:#1e2d3d;border-radius:7px;padding:12px 14px;font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:#7ec8e3;line-height:1.55;white-space:pre;overflow-x:auto;max-height:200px;overflow-y:auto}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- TOPBAR -->
+<div id="topbar">
+  <div class="topbar-inner">
+    <div><div class="tb-sub">Riedel Bau AG · Rohbau</div><div class="tb-logo">📋 LV-Manager v2</div></div>
+    <div class="tb-sep"></div>
+    <button class="tb-btn red" onclick="openWizard()">+ Neues LV</button>
+    <button class="tb-btn ghost" onclick="importJSON()">⬆ JSON laden</button>
+    <button class="tb-btn" style="background:#2563eb;color:#fff;font-size:11px;padding:5px 12px" onclick="showGAEBImport()">⬆ GAEB Import</button>
+    <button class="tb-btn ghost" onclick="exportAllJSON()">⬇ Backup</button>
+    <div class="tb-spacer"></div>
+    <button class="tb-btn ghost" id="sync-btn" onclick="openSyncDialog()" title="Geräte-Sync"
+      style="display:flex;align-items:center;gap:6px">
+      <span class="sync-dot off" id="sync-dot"></span><span id="sync-label">Sync aus</span>
+    </button>
+    <span class="tb-status" id="tb-status"></span>
+    <button id="pwa-install-btn" class="tb-btn" onclick="installPWA()"
+      style="background:#7c3aed;color:#fff;display:none;font-size:11px;padding:5px 12px">
+      📲 Als App installieren
+    </button>
+  </div>
+</div>
+
+<div id="body">
+
+<!-- SIDEBAR -->
+<div id="sidebar">
+  <input class="sb-search" id="sb-search" placeholder="🔍 LV / Projekt suchen…" oninput="renderSidebar()">
+  <div style="flex:1;overflow-y:auto">
+    <!-- Projekte -->
+    <div class="sb-section" style="display:flex;align-items:center;justify-content:space-between;padding-right:6px">
+      <span>Projekte</span>
+      <button onclick="newProjekt()" style="background:var(--dark);color:#fff;border:none;border-radius:3px;padding:1px 7px;font-size:10px;cursor:pointer;font-weight:700">+</button>
+    </div>
+    <div id="sb-projects"></div>
+    <!-- LVs im gewählten Projekt -->
+    <div class="sb-section" style="margin-top:4px;display:flex;align-items:center;justify-content:space-between;padding-right:6px">
+      <span id="sb-lv-label">Alle LVs</span>
+      <button onclick="openWizard()" style="background:var(--red);color:#fff;border:none;border-radius:3px;padding:1px 7px;font-size:10px;cursor:pointer;font-weight:700">+ LV</button>
+    </div>
+    <div id="sb-active"></div>
+    <div class="sb-section" style="margin-top:4px">Archiv</div>
+    <div id="sb-archive"></div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+  <div class="tabs-bar" id="tabs-bar" style="display:none">
+    <button class="tab active" data-tab="lv" onclick="switchTab('lv')">📋 LV</button>
+    <button class="tab" data-tab="stamm" onclick="switchTab('stamm')">📁 Stammdaten</button>
+    <button class="tab" data-tab="vorbem" onclick="switchTab('vorbem')">📝 Vorbemerkungen</button>
+    <button class="tab" data-tab="analyse" onclick="switchTab('analyse')">🔍 VOB-Analyse</button>
+    <button class="tab" data-tab="claude" onclick="switchTab('claude')">🤖 Claude-Check</button>
+    <button class="tab" data-tab="archiv" onclick="switchTab('archiv')">🗄 Archiv</button>
+    <div class="tab-spacer"></div>
+    <div class="tab-pills">
+      <span id="tp-sum" class="tpill green" style="display:none"></span>
+      <span id="tp-crit" class="tpill red" style="display:none"></span>
+      <button class="tb-btn green" style="font-size:11px;padding:5px 12px" onclick="exportExcel()">⬇ Excel</button>
+      <button class="tb-btn ghost" style="font-size:11px;padding:5px 12px;background:#2563eb;color:#fff" onclick="exportGAEB()">⬇ GAEB</button>
+      <button class="tb-btn ghost" style="font-size:11px;padding:5px 12px" onclick="archiveProject()">🗄 Archivieren</button>
+    </div>
+  </div>
+  <div class="tab-body" id="tab-body" style="display:none"></div>
+  <div class="tab-body" id="welcome">
+    <!-- Welcome -->
+    <div class="welcome">
+      <div class="welcome-icon">📋</div>
+      <h1>LV-Manager v2</h1>
+      <p>Erstelle dein erstes Leistungsverzeichnis oder lade ein bestehendes Projekt.<br>
+      Die Claude-Schnittstelle prüft dein LV automatisch gegen VOB/B und VOB/C.</p>
+      <div class="welcome-btns">
+        <button class="tb-btn red" style="padding:10px 20px;font-size:13px" onclick="newProject()">+ Neues LV erstellen</button>
+        <button class="tb-btn ghost" style="padding:10px 20px;font-size:13px;background:var(--mid);color:#fff" onclick="importJSON()">⬆ LVs importieren</button>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+
+<div id="toast"></div>
+
+<!-- LV-ASSISTENT (Wizard) -->
+<div class="wizard-bg" id="wizard-modal" style="display:none">
+  <div class="wizard">
+    <div class="wizard-hdr">
+      <span style="font-size:22px">🧙</span>
+      <h2>LV-Assistent</h2>
+      <div class="step-pills" id="wiz-pills"></div>
+      <button onclick="closeWizard()" title="Schließen"
+        style="background:rgba(255,255,255,.14);color:#fff;padding:4px 10px;font-size:13px;border-radius:4px">✕</button>
+    </div>
+    <div class="wizard-body" id="wizard-body"></div>
+    <div class="wizard-ftr">
+      <button class="wiz-back" id="wiz-back" onclick="wizBack()">← Zurück</button>
+      <span class="wiz-progress" id="wiz-progress"></span>
+      <button class="wiz-next" id="wiz-next" onclick="wizNext()">Weiter →</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="json-file-in" accept=".json,.txt,.md,application/json,text/plain" style="display:none" onchange="handleJSONImport(this)">
+<input type="file" id="gaeb-file-in" accept=".x83,.X83,.xml,.XML,.p83,.P83,.d83,.D83" style="display:none" onchange="handleGAEBImport(this)">
+
+<script>
+// ════════════════════════════════════════════════════════════════════════
+// STATE & STORAGE
+// ════════════════════════════════════════════════════════════════════════
+const SK = 'lv-mgr-v2';
+let DB = { projects: [], apiKey: '' };
+let activeId = null;
+let currentTab = 'lv';
+let collapsed = {};
+let chatHistory = [];    // per-project chat
+let debounceTimer = null;
+
+function loadDB() {
+  try { const d = localStorage.getItem(SK); if(d) DB = {...DB, ...JSON.parse(d)}; } catch(e){}
+}
+function saveDB() {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(()=>{ try{ localStorage.setItem(SK, JSON.stringify(DB)); setStatus('💾 Gespeichert'); } catch(e){} if(typeof schedulePush==='function') schedulePush(); }, 400);
+}
+function uid() { return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function setStatus(s) { const el=document.getElementById('tb-status'); if(el) el.textContent=s; }
+
+// ════════════════════════════════════════════════════════════════════════
+// CALCULATIONS
+// ════════════════════════════════════════════════════════════════════════
+function calcGP(pos) {
+  const m=parseFloat(pos.menge), e=parseFloat(pos.ep);
+  return (!isNaN(m)&&!isNaN(e)) ? +(m*e).toFixed(2) : null;
+}
+function totalNetto(p) {
+  return p.sections.reduce((s,sec)=>s+sec.positions.reduce((ss,pos)=>{ const g=calcGP(pos); return ss+(g||0); },0),0);
+}
+function critCount(p) {
+  return p.sections.reduce((s,sec)=>s+sec.positions.filter(x=>x.status!=='ok').length,0);
+}
+function posCount(p) {
+  return p.sections.reduce((s,sec)=>s+sec.positions.length,0);
+}
+function fmtEuro(n) {
+  if(n===null||n===undefined||isNaN(n)) return '—';
+  return n.toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
+}
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// TOAST
+// ════════════════════════════════════════════════════════════════════════
+function toast(msg, type='ok') {
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.style.background=type==='ok'?'#16a34a':type==='warn'?'#d97706':'#dc2626';
+  t.style.display='block';
+  clearTimeout(t._timer);
+  t._timer=setTimeout(()=>t.style.display='none',2800);
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// DEFAULT DATA
+// ════════════════════════════════════════════════════════════════════════
+const STATUS_CFG = {
+  ok:   {icon:'✅',label:'Klar geregelt',bg:'#dcfce7',col:'#16a34a'},
+  warn: {icon:'⚠️',label:'Klärungsbedarf',bg:'#fef3c7',col:'#d97706'},
+  gap:  {icon:'🔴',label:'Lücke/Nebenleistung',bg:'#fee2e2',col:'#dc2626'},
+  star: {icon:'⭐',label:'Besondere Leistung',bg:'#fef0d5',col:'#92400e'},
+};
+const UNITS=['m','m²','m³','Stk','psch','Std','Wo','kg','t','psch/Mo'];
+const GEWERKE=[
+  // VOB/C Abschnitt A – Allgemeine Technische Vertragsbedingungen
+  'DIN 18299 – Allgemeine Regelungen',
+  // Erd- und Tiefbau
+  'DIN 18300 – Erdarbeiten',
+  'DIN 18301 – Bohrarbeiten',
+  'DIN 18302 – Brunnenbauarbeiten',
+  'DIN 18303 – Verbauarbeiten',
+  'DIN 18304 – Ramm-, Rüttel-, Pressarbeiten',
+  'DIN 18305 – Wasserhaltungsarbeiten',
+  'DIN 18306 – Entwässerungskanalarbeiten',
+  'DIN 18307 – Druckrohrleitungen Erdbereich',
+  'DIN 18308 – Drän- und Versickerarbeiten',
+  'DIN 18309 – Einpressarbeiten',
+  'DIN 18310 – Sicherungsarbeiten',
+  'DIN 18311 – Nassbaggerarbeiten',
+  'DIN 18312 – Untertagebauarbeiten',
+  'DIN 18313 – Schlitzwandarbeiten',
+  'DIN 18314 – Spritzbetonarbeiten',
+  'DIN 18315 – Verkehrswegebauarbeiten – Oberbau',
+  'DIN 18316 – Pflasterdecken und Plattenbeläge',
+  'DIN 18317 – Verkehrswegebauarbeiten – Markierungen',
+  'DIN 18318 – Pflasterdecken Naturstein',
+  'DIN 18319 – Rohrvorpress- und Rohrvortriebsarbeiten',
+  'DIN 18320 – Landschaftsbauarbeiten',
+  'DIN 18321 – Düsenstrahlarbeiten',
+  'DIN 18322 – Kabelleitungstiefbauarbeiten',
+  'DIN 18325 – Gleisbauarbeiten',
+  // Rohbau
+  'DIN 18330 – Mauerarbeiten',
+  'DIN 18331 – Beton- und Stahlbetonarbeiten',
+  'DIN 18332 – Naturwerksteinarbeiten',
+  'DIN 18333 – Betonwerksteinarbeiten',
+  'DIN 18334 – Zimmer- und Holzbauarbeiten',
+  'DIN 18335 – Stahlbauarbeiten',
+  'DIN 18336 – Abdichtungsarbeiten',
+  'DIN 18337 – Abbruch- und Rückbauarbeiten',
+  'DIN 18338 – Dachdeckungs- und Dachabdichtungsarbeiten',
+  'DIN 18339 – Klempnerarbeiten',
+  'DIN 18340 – Trockenbauarbeiten',
+  'DIN 18345 – Wärmedämm-Verbundsysteme',
+  'DIN 18349 – Betonerhaltungsarbeiten',
+  // Ausbau
+  'DIN 18350 – Putz- und Stuckarbeiten',
+  'DIN 18351 – Vorgehängte hinterlüftete Fassaden',
+  'DIN 18352 – Fliesen- und Plattenarbeiten',
+  'DIN 18353 – Estricharbeiten',
+  'DIN 18354 – Gussasphaltarbeiten',
+  'DIN 18355 – Tischlerarbeiten',
+  'DIN 18356 – Parkett- und Holzpflasterarbeiten',
+  'DIN 18357 – Beschlagarbeiten',
+  'DIN 18358 – Rollladen- und Sonnenschutzarbeiten',
+  'DIN 18360 – Metallbauarbeiten',
+  'DIN 18361 – Verglasungsarbeiten',
+  'DIN 18362 – Malerarbeiten – Beschichtungen',
+  'DIN 18363 – Malerarbeiten – Tapezierarbeiten',
+  'DIN 18364 – Korrosionsschutzarbeiten',
+  'DIN 18365 – Bodenbelagarbeiten',
+  'DIN 18366 – Tapezierarbeiten',
+  'DIN 18367 – Holzpflasterarbeiten',
+  'DIN 18368 – Gasleitungsarbeiten',
+  'DIN 18369 – Dämmarbeiten an technischen Anlagen',
+  'DIN 18379 – Raumlufttechnische Anlagen',
+  'DIN 18380 – Heizanlagen und Brauchwassererwärmungsanlagen',
+  'DIN 18381 – Gas-, Wasser- und Entwässerungsanlagen',
+  'DIN 18382 – Nieder- und Mittelspannungsanlagen',
+  'DIN 18383 – Blitzschutzanlagen',
+  'DIN 18384 – Fernmeldeanlagen',
+  'DIN 18385 – Förderanlagen, Aufzugsanlagen',
+  'DIN 18386 – Gebäudeautomation',
+  'DIN 18421 – Dämm- und Brandschutzarbeiten',
+  'DIN 18451 – Gerüstarbeiten',
+  'DIN 18459 – Abbruch- und Rückbauarbeiten (TGA)',
+  // Sonstiges
+  'Sonstiges / Gewerk nicht aufgeführt',
+];
+const VERGABEARTEN=['Öffentliche Ausschreibung (VOB/A § 3)','Beschränkte Ausschreibung (VOB/A § 3)','Freihändige Vergabe (VOB/A § 3)','Verhandlungsvergabe','Direktvergabe NU','EU-weite Ausschreibung (VgV)'];
+
+function mkPos(oz='',desc='',unit='m',menge='',ep='',status='ok',vob='',note='',added=false) {
+  return {id:uid(),oz,desc,unit,menge,ep,status,vob,note,added};
+}
+function defaultSections() {
+  return [
+    {id:uid(),title:'Baustelleneinrichtung & Allgemeines',positions:[
+      mkPos('01.01','Baustelleneinrichtung\nAuf- und Abbau, Absperrungen, Verkehrssicherung, Lagerflächen, Vorhaltung Gesamtbauzeit.','psch',1,'','ok','VOB/B § 2 | ATV DIN 18299'),
+      mkPos('01.02','Bestandsaufnahme & Ortung Altleitungen\nDokumentation, Fotodokumentation. Abweichungen sofort melden.','psch',1,'','warn','VOB/B § 4 Abs. 3','Schriftliche Klärung mit AG vor Ausführung'),
+    ]},
+    {id:uid(),title:'Erdarbeiten',positions:[
+      mkPos('02.01','Leitungsgraben ausheben\nBreite ≥ DN+0,40 m je Seite. Böschung/Verbau nach DIN 4124.','m³','','','ok','ATV DIN 18300 | DIN 4124'),
+      mkPos('02.02','Verfüllung Leitungsgraben\nLagenweise Verdichtung ≤ 30 cm, Proctordichte ≥ 97 %.','m³','','','ok','ATV DIN 18300 | ZTV A-StB'),
+    ]},
+  ];
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// PROJECT CRUD
+// ════════════════════════════════════════════════════════════════════════
+// Welcome-Screen liegt NEBEN #tab-body (nicht darin!), sonst löscht switchTab() ihn weg
+function showWelcome(show) {
+  const w=document.getElementById('welcome');
+  const b=document.getElementById('tab-body');
+  const t=document.getElementById('tabs-bar');
+  if(w) w.style.display = show ? '' : 'none';
+  if(b) b.style.display = show ? 'none' : '';
+  if(t) t.style.display = show ? 'none' : 'flex';
+}
+
+function getActive() { return DB.projects.find(p=>p.id===activeId)||null; }
+function getProject(id) { return DB.projects.find(p=>p.id===id)||null; }
+
+function newProject() {
+  const p = {
+    id:uid(), name:'Neues LV', gewerk:'DIN 18299 – Allgemeine Regelungen', ort:'',
+    ag:'Riedel Bau AG', an:'', bl:'', lvnr:'',
+    datum:new Date().toLocaleDateString('de-DE'), ausfzeit:'', leistgrenze:'', norm:'',
+    vergabeart:'Freihändige Vergabe (VOB/A § 3)', notes:'',
+    sections:defaultSections(), archived:false,
+    createdAt:Date.now(), updatedAt:Date.now(), chat:[], projektId:null
+  };
+  DB.projects.unshift(p);
+  saveDB();
+  openProject(p.id);
+  renderSidebar();
+}
+
+function openProject(id) {
+  activeId = id;
+  showWelcome(false);
+  const p=getActive();
+  // Archivierte LVs öffnen aber mit Hinweis
+  if(p&&p.archived){
+    toast('⚠ Dieses LV ist archiviert – du kannst es bearbeiten oder reaktivieren','warn');
+  }
+  updatePills();
+  renderSidebar();
+  switchTab('lv');
+}
+
+function updateProject(fn) {
+  const p=getActive(); if(!p) return;
+  fn(p);
+  p.updatedAt=Date.now();
+  saveDB();
+  updatePills();
+}
+
+function archiveProject() {
+  const p=getActive(); if(!p) return;
+  if(!confirm(`"${p.name}" archivieren?`)) return;
+  p.archived=!p.archived;
+  saveDB();
+  renderSidebar();
+  updatePills();
+  // Archiv-Tab sofort aktualisieren falls gerade sichtbar
+  if(currentTab==='archiv') { const b=document.getElementById('tab-body'); b.innerHTML=''; renderArchiv(b); }
+  toast(p.archived?'🗄 Archiviert – LV in Archiv-Tab sichtbar':'✅ Aus Archiv wiederhergestellt', 'warn');
+}
+
+function deleteProjectPermanent(id) {
+  if(!confirm('LV unwiderruflich löschen?')) return;
+  DB.projects=DB.projects.filter(p=>p.id!==id);
+  if(typeof tombstones==='function') tombstones()[id]=Date.now();  // Löschung auf andere Geräte übertragen
+  if(activeId===id){
+    activeId=null;
+    showWelcome(true);
+  }
+  saveDB();
+  renderSidebar();
+  if(currentTab==='archiv'){const b=document.getElementById('tab-body');b.innerHTML='';renderArchiv(b);}
+  toast('Gelöscht','warn');
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// SIDEBAR
+// ════════════════════════════════════════════════════════════════════════
+function renderSidebar() {
+  const q=(document.getElementById('sb-search').value||'').toLowerCase();
+  const projekte=getProjekte();
+
+  // ── Projekt-Liste ──────────────────────────────────────────────
+  const projEl=document.getElementById('sb-projects');
+  let projHTML=`<div class="proj-item${activeProjektId===null?' active':''}" onclick="selectProjekt(null)">
+    <span class="proj-dot" style="background:#6b7280"></span>
+    <span style="flex:1">Alle Projekte</span>
+    <span class="proj-count">${DB.projects.filter(p=>!p.archived).length}</span>
+  </div>`;
+  projekte.forEach(proj=>{
+    const cnt=DB.projects.filter(p=>p.projektId===proj.id&&!p.archived).length;
+    projHTML+=`<div class="proj-item${activeProjektId===proj.id?' active':''}" onclick="selectProjekt('${proj.id}')">
+      <span class="proj-dot" style="background:${proj.farbe}"></span>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(proj.name)}">${esc(proj.name)}</span>
+      <span class="proj-count">${cnt}</span>
+      <button class="proj-edit-btn" onclick="renameProjekt('${proj.id}',event)" title="Umbenennen">✏</button>
+      <button class="proj-edit-btn" onclick="deleteProjekt('${proj.id}',event)" title="Löschen" style="color:#dc2626">✕</button>
+    </div>`;
+  });
+  if(projEl) projEl.innerHTML=projHTML;
+
+  // Label aktualisieren
+  const lblEl=document.getElementById('sb-lv-label');
+  if(lblEl){
+    if(activeProjektId){
+      const proj=projekte.find(p=>p.id===activeProjektId);
+      lblEl.textContent=proj?proj.name:'LVs';
+    } else { lblEl.textContent='Alle LVs'; }
+  }
+
+  // ── LV-Liste gefiltert nach Projekt ───────────────────────────
+  let lvs=DB.projects.filter(p=>!p.archived);
+  if(activeProjektId) lvs=lvs.filter(p=>p.projektId===activeProjektId);
+  if(q) lvs=lvs.filter(p=>p.name.toLowerCase().includes(q)||p.gewerk.toLowerCase().includes(q));
+
+  let arch=DB.projects.filter(p=>p.archived);
+  if(q) arch=arch.filter(p=>p.name.toLowerCase().includes(q));
+
+  const projekte2=getProjekte();
+  function itemHTML(p) {
+    const isAct=p.id===activeId;
+    const c=critCount(p);
+    const proj=projekte2.find(pr=>pr.id===p.projektId);
+    return `<div class="sb-item${isAct?' active':''}${p.archived?' archived':''}" onclick="openProject('${p.id}')">
+      ${proj?`<span class="proj-dot" style="background:${proj.farbe};margin-right:2px"></span>`:'<span class="sb-icon">📋</span>'}
+      <span class="sb-name" title="${esc(p.name)}">${esc(p.name)}</span>
+      ${c>0?`<span class="sb-badge crit">${c}</span>`:''}
+    </div>`;
+  }
+
+  document.getElementById('sb-active').innerHTML = lvs.length
+    ? lvs.map(itemHTML).join('')
+    : `<div style="padding:10px 12px;font-size:11px;color:var(--muted)">
+        ${activeProjektId?'Keine LVs in diesem Projekt':'Keine LVs vorhanden'}
+      </div>`;
+  document.getElementById('sb-archive').innerHTML = arch.length
+    ? arch.map(itemHTML).join('')
+    : '<div style="padding:10px 12px;font-size:11px;color:var(--muted)">Archiv leer</div>';
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// PILLS
+// ════════════════════════════════════════════════════════════════════════
+function updatePills() {
+  const p=getActive(); if(!p) return;
+  const n=totalNetto(p), c=critCount(p);
+  const ts=document.getElementById('tp-sum');
+  const tc=document.getElementById('tp-crit');
+  if(n>0){ts.textContent=fmtEuro(n);ts.style.display='';}else ts.style.display='none';
+  if(c>0){tc.textContent='⚠ '+c+' krit.';tc.style.display='';}else tc.style.display='none';
+  setStatus('✓ '+new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}));
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// TAB SWITCHING
+// ════════════════════════════════════════════════════════════════════════
+function switchTab(tab) {
+  currentTab=tab;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
+  const body=document.getElementById('tab-body');
+  if(tab==='lv')      { body.innerHTML=''; renderLV(body); }
+  if(tab==='stamm')   { body.innerHTML=''; renderStamm(body); }
+  if(tab==='vorbem')  { body.innerHTML=''; renderVorbem(body); }
+  if(tab==='analyse') { body.innerHTML=''; renderAnalyse(body); }
+  if(tab==='claude')  { body.innerHTML=''; renderClaude(body); }
+  if(tab==='archiv')  { body.innerHTML=''; renderArchiv(body); }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// LV TAB — event-delegation, no re-render on input
+// ════════════════════════════════════════════════════════════════════════
+function renderLV(container) {
+  const p=getActive(); if(!p) return;
+  const el=document.createElement('div');
+  el.id='lv-root';
+
+  // Build HTML
+  let html='';
+  p.sections.forEach((sec,si)=>{
+    const isCol=collapsed[sec.id];
+    html+=`<div class="sec-card" data-sec="${sec.id}">
+      <div class="sec-hdr">
+        <span class="sec-num">0${si+1}</span>
+        <input class="sec-inp" value="${esc(sec.title)}" data-secfield="${sec.id}:title" placeholder="Abschnittstitel…">
+        <button class="sec-btn sec-collapse" onclick="toggleCollapse('${sec.id}')">
+          ${isCol?'▼ Aufklappen':'▲ Einklappen'}</button>
+        <button class="sec-btn sec-del" onclick="confirmDeleteSection('${sec.id}')">✕</button>
+      </div>`;
+    if(!isCol){
+      html+=`<div class="col-hdr"><span>E.</span><span>OZ</span><span>Beschreibung</span>
+        <span>ME</span><span>Menge</span><span>EP €</span><span>GP €</span>
+        <span>VOB-Ref.</span><span>Aktionen</span></div>`;
+      if(!sec.positions.length) html+=`<div style="padding:16px;text-align:center;color:var(--muted);font-size:11px">Noch keine Positionen – klicke "+ Position"</div>`;
+      sec.positions.forEach(pos=>{
+        const gp=calcGP(pos);
+        const st=STATUS_CFG[pos.status]||STATUS_CFG.ok;
+        html+=`<div class="pos-row${pos.added?' pos-added':''}" data-pos="${pos.id}" data-sec="${sec.id}">
+          <div><select class="stat-sel" style="background:${st.bg}" data-field="status" title="${st.label}">
+            ${Object.entries(STATUS_CFG).map(([k,v])=>`<option value="${k}"${pos.status===k?' selected':''}>${v.icon}</option>`).join('')}
+          </select></div>
+          <div><input value="${esc(pos.oz)}" data-field="oz" placeholder="01.01"
+            style="font-family:'IBM Plex Mono',monospace;font-size:10px"></div>
+          <div class="desc-cell">
+            <textarea class="desc-ta" rows="4" data-field="desc" placeholder="Kurztext (1. Zeile)&#10;Langtext ab Zeile 2…">${esc(pos.desc)}</textarea>
+            <div class="desc-tools">
+              <button class="mini-btn k" data-copyk="${pos.id}" title="Kurztext (1. Zeile) kopieren">📋 Kurztext</button>
+              <button class="mini-btn l" data-copyl="${pos.id}" title="Langtext (ab Zeile 2) kopieren">📋 Langtext</button>
+              <button class="mini-btn x" data-expand="${pos.id}" title="Im großen Editor öffnen">⤢ Editor</button>
+              ${pos.added?'<span class="added-tag">🔵 ERGÄNZT</span>':''}
+              <span class="desc-meta" data-meta="${pos.id}">${descMeta(pos)}</span>
+            </div>
+          </div>
+          <div><select data-field="unit">${UNITS.map(u=>`<option${pos.unit===u?' selected':''} value="${u}">${u}</option>`).join('')}</select></div>
+          <div><input type="number" value="${esc(String(pos.menge))}" data-field="menge" placeholder="—"
+            style="text-align:right;background:var(--yin)"></div>
+          <div><input type="number" value="${esc(String(pos.ep))}" data-field="ep" placeholder="—"
+            style="text-align:right;background:var(--yin)"></div>
+          <div class="gp-val${gp===null?' gp-empty':''}" data-gp="${pos.id}">${gp!==null?fmtEuro(gp):'—'}</div>
+          <div><input value="${esc(pos.vob)}" data-field="vob" placeholder="VOB-Referenz…"
+            style="font-size:10px;color:#6b7280"></div>
+          <div class="pos-acts">
+            <button class="act-btn act-dup" data-dup="${pos.id}">⧉</button>
+            <button class="act-btn act-del" data-delpos="${pos.id}">✕</button>
+          </div>
+        </div>`;
+      });
+      html+=`<div class="sec-footer">
+        <button class="add-pos-btn" data-addpos="${sec.id}">+ Position hinzufügen</button>
+      </div>`;
+    }
+    html+=`</div>`;
+  });
+
+  const n=totalNetto(p), mwst=n*0.19;
+  html+=`<button class="add-sec-btn" id="add-sec-btn">+ Neuen Abschnitt hinzufügen</button>
+  <div class="totals-box">
+    <div class="tot-row"><span class="tot-lbl">Netto gesamt:</span><span class="tot-val" id="tot-netto">${fmtEuro(n)}</span></div>
+    <div class="tot-row"><span class="tot-lbl">zzgl. 19 % MwSt.:</span><span class="tot-val" id="tot-mwst">${fmtEuro(mwst)}</span></div>
+    <div class="tot-row big"><span class="tot-lbl" style="font-weight:700;color:#fff;font-size:13px">Brutto gesamt:</span><span class="tot-val gold" id="tot-brutto">${fmtEuro(n+mwst)}</span></div>
+  </div>`;
+
+  el.innerHTML=html;
+  container.appendChild(el);
+
+  // ── Event delegation — ONE listener on root ──────────────────────────
+  el.addEventListener('change', e=>{
+    const t=e.target;
+    // Section title
+    const sf=t.dataset.secfield;
+    if(sf){ const [sid,field]=sf.split(':'); updateProject(p=>{ const s=p.sections.find(s=>s.id===sid); if(s)s[field]=t.value; }); return; }
+    // Position field
+    const posRow=t.closest('[data-pos]');
+    if(posRow&&t.dataset.field){
+      const pid=posRow.dataset.pos, sid=posRow.dataset.sec;
+      updateProject(p=>{
+        const sec=p.sections.find(s=>s.id===sid); if(!sec) return;
+        const pos=sec.positions.find(pos=>pos.id===pid); if(!pos) return;
+        pos[t.dataset.field]=t.value;
+        // Zeichenzähler Kurz/Lang aktualisieren
+        if(t.dataset.field==='desc'){
+          const mEl=el.querySelector(`[data-meta="${pid}"]`);
+          if(mEl) mEl.textContent=descMeta(pos);
+        }
+        // Live GP update
+        const gp=calcGP(pos);
+        const gpEl=el.querySelector(`[data-gp="${pid}"]`);
+        if(gpEl){ gpEl.textContent=gp!==null?fmtEuro(gp):'—'; gpEl.className='gp-val'+(gp===null?' gp-empty':''); }
+        // Update totals
+        const nn=totalNetto(p), mm=nn*0.19;
+        const tn=document.getElementById('tot-netto'); if(tn)tn.textContent=fmtEuro(nn);
+        const tm=document.getElementById('tot-mwst'); if(tm)tm.textContent=fmtEuro(mm);
+        const tb=document.getElementById('tot-brutto'); if(tb)tb.textContent=fmtEuro(nn+mm);
+      });
+    }
+  });
+
+  el.addEventListener('click', e=>{
+    const t=e.target;
+    // Kurz-/Langtext kopieren
+    if(t.dataset.copyk){ const h=findPos(t.dataset.copyk);
+      if(h){ const s=kurzText(h.pos); s?copyToClipboard(s,'Kurztext'):toast('Kein Kurztext vorhanden','warn'); } return; }
+    if(t.dataset.copyl){ const h=findPos(t.dataset.copyl);
+      if(h){ const s=langText(h.pos); s?copyToClipboard(s,'Langtext'):toast('Kein Langtext vorhanden – nur Zeile 1 belegt','warn'); } return; }
+    if(t.dataset.expand){ openTextEditor(t.dataset.expand); return; }
+    // Add position
+    if(t.dataset.addpos){ addPos(t.dataset.addpos); return; }
+    // Dup position
+    if(t.dataset.dup){ dupPos(t.dataset.dup); return; }
+    // Del position
+    if(t.dataset.delpos){ deletePos(t.dataset.delpos); return; }
+    // Add section
+    if(t.id==='add-sec-btn'){ addSection(); return; }
+  });
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// KURZ- / LANGTEXT
+// Konvention: Zeile 1 = Kurztext (GAEB OutlineText), ab Zeile 2 = Langtext
+// ════════════════════════════════════════════════════════════════════════
+function kurzText(pos){ return String(pos.desc||'').split('\n')[0].trim(); }
+function langText(pos){ return String(pos.desc||'').split('\n').slice(1).join('\n').trim(); }
+function joinText(kurz,lang){ return lang.trim() ? kurz.trim()+'\n'+lang.trim() : kurz.trim(); }
+function descMeta(pos){
+  const k=kurzText(pos).length, l=langText(pos).length;
+  return `K:${k}${k>60?'⚠':''} · L:${l}`;
+}
+function findPos(pid){
+  const p=getActive(); if(!p) return null;
+  for(const sec of p.sections){
+    const pos=sec.positions.find(x=>x.id===pid);
+    if(pos) return {sec,pos};
+  }
+  return null;
+}
+
+function openTextEditor(pid){
+  const hit=findPos(pid); if(!hit){ toast('Position nicht gefunden','err'); return; }
+  const {sec,pos}=hit;
+  const bg=document.createElement('div');
+  bg.className='modal-bg';
+  bg.innerHTML=`<div class="ted">
+    <div class="ted-hdr">
+      <span style="font-size:18px">📝</span>
+      <h3>Position ${esc(pos.oz)||'(ohne OZ)'} · ${esc(sec.title)}</h3>
+      <button onclick="this.closest('.modal-bg').remove()"
+        style="background:rgba(255,255,255,.14);color:#fff;padding:4px 10px;font-size:13px;border-radius:4px">✕</button>
+    </div>
+    <div class="ted-body">
+      <div>
+        <div class="ted-lbl">Kurztext <span id="ted-kcount" style="font-weight:400;text-transform:none;letter-spacing:0"></span>
+          <button class="mini-btn k" id="ted-copyk" style="margin-left:auto">📋 kopieren</button>
+        </div>
+        <input class="ted-inp" id="ted-kurz" value="${esc(kurzText(pos))}" placeholder="z.B. Leitungsgraben ausheben">
+      </div>
+      <div>
+        <div class="ted-lbl">Langtext
+          <button class="mini-btn l" id="ted-copyl" style="margin-left:auto">📋 kopieren</button>
+          <button class="mini-btn" id="ted-copyall">📋 Kurz + Lang</button>
+        </div>
+        <textarea class="ted-ta" id="ted-lang" placeholder="Detaillierte Leistungsbeschreibung nach VOB/C…">${esc(langText(pos))}</textarea>
+      </div>
+    </div>
+    <div class="ted-ftr">
+      <span style="font-size:10px;color:var(--muted)">Zeile 1 = Kurztext · Rest = Langtext · Strg+Enter speichert</span>
+      <div style="display:flex;gap:8px">
+        <button onclick="this.closest('.modal-bg').remove()"
+          style="background:#eef2f7;color:var(--muted);padding:8px 14px;font-size:12px">Abbrechen</button>
+        <button id="ted-save" style="background:var(--green);color:#fff;padding:8px 18px;font-size:12px">✓ Übernehmen</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(bg);
+  const kEl=bg.querySelector('#ted-kurz'), lEl=bg.querySelector('#ted-lang');
+  const cnt=()=>{ const n=kEl.value.trim().length;
+    bg.querySelector('#ted-kcount').innerHTML=`<span style="color:${n>60?'#d97706':'#9ca3af'}">${n}/60 Zeichen${n>60?' – für GAEB-Kurztext zu lang':''}</span>`; };
+  cnt(); kEl.addEventListener('input',cnt);
+  bg.querySelector('#ted-copyk').onclick=()=>copyToClipboard(kEl.value.trim(),'Kurztext');
+  bg.querySelector('#ted-copyl').onclick=()=>copyToClipboard(lEl.value.trim(),'Langtext');
+  bg.querySelector('#ted-copyall').onclick=()=>copyToClipboard(joinText(kEl.value,lEl.value),'Kurz- + Langtext');
+  const save=()=>{
+    updateProject(p=>{
+      const s=p.sections.find(s=>s.id===sec.id); if(!s) return;
+      const po=s.positions.find(x=>x.id===pid); if(po) po.desc=joinText(kEl.value,lEl.value);
+    });
+    bg.remove(); switchTab('lv'); toast('Text übernommen');
+  };
+  bg.querySelector('#ted-save').onclick=save;
+  bg.addEventListener('keydown',e=>{ if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)) save(); if(e.key==='Escape') bg.remove(); });
+  bg.addEventListener('click',e=>{ if(e.target===bg) bg.remove(); });
+  setTimeout(()=>kEl.focus(),0);
+}
+
+function toggleCollapse(sid){collapsed[sid]=!collapsed[sid];switchTab('lv');}
+function confirmDeleteSection(sid){if(confirm('Abschnitt löschen?'))deleteSection(sid);}
+function deleteSection(sid){updateProject(p=>{p.sections=p.sections.filter(s=>s.id!==sid)});switchTab('lv');}
+function addSection(){updateProject(p=>{p.sections.push({id:uid(),title:'Neuer Abschnitt',positions:[]})});switchTab('lv');}
+
+function addPos(sid){
+  updateProject(p=>{
+    const s=p.sections.find(s=>s.id===sid);
+    if(s)s.positions.push(mkPos());
+  }); switchTab('lv');
+}
+function dupPos(pid){
+  updateProject(p=>{
+    for(const sec of p.sections){
+      const i=sec.positions.findIndex(pos=>pos.id===pid);
+      if(i>=0){const c={...sec.positions[i],id:uid(),oz:sec.positions[i].oz+' (Kopie)'};sec.positions.splice(i+1,0,c);return;}
+    }
+  }); switchTab('lv');
+}
+function deletePos(pid){
+  updateProject(p=>{for(const sec of p.sections){const i=sec.positions.findIndex(pos=>pos.id===pid);if(i>=0){sec.positions.splice(i,1);return;}}});
+  switchTab('lv');
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// STAMM TAB
+// ════════════════════════════════════════════════════════════════════════
+function buildNormenPicker(p) {
+  const selected = getNormenArray(p);
+  const tags = selected.map(din=>`<span class="normen-tag">${din}
+    <button type="button" data-removenorm="${din}" title="Entfernen">×</button>
+  </span>`).join('');
+
+  let groups='';
+  NORMEN_GRUPPEN.forEach((g,gi)=>{
+    const items=g.normen.map((n,ni)=>{
+      const isSel=selected.includes(n.din);
+      return `<label class="normen-item${isSel?' selected':''}" data-gi="${gi}" data-ni="${ni}">
+        <input type="checkbox" data-normen-check="${n.din}"${isSel?' checked':''}>
+        <span class="din">${n.din}</span>
+        <span class="txt">${n.txt}</span>
+      </label>`;
+    }).join('');
+    groups+=`<div class="normen-group" data-group="${gi}">
+      <div class="normen-group-hdr" style="background:${g.color}" onclick="toggleNormenGroup(${gi})">
+        <span id="ng-arrow-${gi}">▶</span> ${g.name}
+        <span style="margin-left:auto;font-size:9px;opacity:.8">${g.normen.filter(n=>selected.includes(n.din)).length} ausgewählt</span>
+      </div>
+      <div id="ng-body-${gi}" style="display:none">${items}</div>
+    </div>`;
+  });
+
+  return `<div class="sf full" style="grid-column:1/-1">
+    <label>Anzuwendende Normen / ATV</label>
+    <div class="normen-tags" id="normen-tags">${tags}</div>
+    <div class="normen-picker">
+      <input class="normen-search" id="normen-search" placeholder="🔍 Norm suchen… z.B. DIN 18306 oder Entwässerung"
+        oninput="filterNormen(this.value)">
+      <div class="normen-scroll" id="normen-scroll">${groups}</div>
+    </div>
+    <div style="font-size:10px;color:var(--muted);margin-top:4px">
+      ${selected.length} Norm${selected.length!==1?'en':''} ausgewählt – Gruppe anklicken zum Aufklappen
+    </div>
+  </div>`;
+}
+
+function toggleNormenGroup(gi) {
+  const body=document.getElementById('ng-body-'+gi);
+  const arrow=document.getElementById('ng-arrow-'+gi);
+  if(!body) return;
+  const isOpen=body.style.display!=='none';
+  body.style.display=isOpen?'none':'';
+  if(arrow) arrow.textContent=isOpen?'▶':'▼';
+}
+
+function filterNormen(q) {
+  const lq=q.toLowerCase();
+  NORMEN_GRUPPEN.forEach((g,gi)=>{
+    const body=document.getElementById('ng-body-'+gi);
+    const hdr=document.querySelector(`[data-group="${gi}"] .normen-group-hdr`);
+    if(!body) return;
+    let anyVisible=false;
+    body.querySelectorAll('.normen-item').forEach(item=>{
+      const din=item.querySelector('.din')?.textContent||'';
+      const txt=item.querySelector('.txt')?.textContent||'';
+      const vis=!lq||din.toLowerCase().includes(lq)||txt.toLowerCase().includes(lq);
+      item.style.display=vis?'':'none';
+      if(vis) anyVisible=true;
+    });
+    // Auto-expand group if search matches
+    if(lq && anyVisible) { body.style.display=''; const a=document.getElementById('ng-arrow-'+gi); if(a)a.textContent='▼'; }
+    if(hdr) hdr.style.display=(!lq||anyVisible)?'':'none';
+  });
+}
+
+function renderStamm(container) {
+  const p=getActive(); if(!p) return;
+  // Projekt-Zuordnung oben
+  const projekte=getProjekte();
+  const projSelect=projekte.length>0?`<div class="sf full" style="margin-bottom:4px">
+    <label>📁 Projekt-Zuordnung</label>
+    <div style="display:flex;gap:8px;align-items:center">
+      <select data-sfield="projektId" style="flex:1;border:1.5px solid var(--border);border-radius:5px;padding:7px 9px;background:#fff;font-size:12px">
+        <option value="">— Kein Projekt —</option>
+        ${projekte.map(pr=>`<option value="${pr.id}"${p.projektId===pr.id?' selected':''}>${pr.name}</option>`).join('')}
+      </select>
+      <button onclick="newProjekt()" style="background:var(--dark);color:#fff;padding:7px 12px;font-size:11px;border-radius:5px;border:none;cursor:pointer;white-space:nowrap">+ Neues Projekt</button>
+    </div>
+  </div>`:'<div class="sf full" style="margin-bottom:4px"><label>📁 Projekt-Zuordnung</label><div style="display:flex;gap:8px"><span style="font-size:12px;color:var(--muted);padding:7px 0">Noch keine Projekte –</span><button onclick="newProjekt()" style="background:var(--dark);color:#fff;padding:6px 12px;font-size:11px;border-radius:5px;border:none;cursor:pointer">+ Erstes Projekt erstellen</button></div></div>';
+
+  const fields=[
+    ['name','LV-Bezeichnung','text','z.B. Rohbauarbeiten EG'],
+    ['gewerk','Gewerk / Leistungsbereich','gewerk',''],
+    ['ort','Bauvorhaben / Adresse','text','z.B. Musterstraße 1, 80809 München'],
+    ['ag','Auftraggeber (AG)','text','z.B. Riedel Bau AG'],
+    ['an','Auftragnehmer (AN)','text','z.B. Musterfirma GmbH'],
+    ['bl','Bauleiter','text',''],
+    ['lvnr','LV-Nummer / VE','text','z.B. 25-0210'],
+    ['datum','Ausschreibungsdatum','text',''],
+    ['ausfzeit','Ausführungszeitraum','text','z.B. 01.03.2026 – 30.09.2026'],
+    ['leistgrenze','Leistungsgrenze / Schnittstellen','text','z.B. OK Bodenplatte bis ÜS / Übergabe an TGA'],
+    ['norm','Anzuwendende Normen / ATV','normen-picker',''],
+    ['vergabeart','Vergabeart','vergabeart',''],
+  ];
+  let html=`<div class="stamm-grid">${projSelect}`;
+  fields.forEach(([field,label,type,ph])=>{
+    if(type==='normen-picker'){
+      html+=buildNormenPicker(p);
+      return;
+    }
+    html+=`<div class="sf"><label>${label}</label>`;
+    if(type==='gewerk')
+      html+=`<select data-sfield="${field}" style="font-size:11px">${GEWERKE.map(g=>`<option${p[field]===g?' selected':''} value="${g}">${g}</option>`).join('')}</select>`;
+    else if(type==='vergabeart')
+      html+=`<select data-sfield="${field}">${VERGABEARTEN.map(g=>`<option${p[field]===g?' selected':''} value="${g}">${g}</option>`).join('')}</select>`;
+    else
+      html+=`<input value="${esc(p[field]||'')}" placeholder="${ph}" data-sfield="${field}">`;
+    html+=`</div>`;
+  });
+  html+=`<div class="sf full"><label>Notizen</label>
+    <textarea rows="4" data-sfield="notes" placeholder="Besonderheiten, Risiken…">${esc(p.notes||'')}</textarea>
+  </div></div>
+  <div style="margin-top:16px;padding:12px;background:#f9fafb;border-radius:7px;font-size:11px;color:var(--muted)">
+    Erstellt: ${new Date(p.createdAt).toLocaleString('de-DE')} &nbsp;|&nbsp; Geändert: ${new Date(p.updatedAt).toLocaleString('de-DE')} &nbsp;|&nbsp; Positionen: ${posCount(p)} &nbsp;|&nbsp; Status: ${p.archived?'🗄 Archiviert':'✅ Aktiv'} &nbsp;|&nbsp; Netto: ${fmtEuro(totalNetto(p))}
+  </div>`;
+  const el=document.createElement('div');
+  el.innerHTML=html;
+  container.appendChild(el);
+
+  // Event delegation for stamm
+  el.addEventListener('change',e=>{
+    const f=e.target.dataset.sfield;
+    if(f) updateProject(p=>{ p[f]=e.target.value; });
+    // Normen checkbox
+    const din=e.target.dataset.normenCheck;
+    if(din) {
+      updateProject(p=>{
+        const arr=getNormenArray(p);
+        if(e.target.checked){ if(!arr.includes(din)) arr.push(din); }
+        else { const i=arr.indexOf(din); if(i>=0) arr.splice(i,1); }
+        p.normArr=arr; p.norm=normenToString(arr);
+      });
+      // Update tags display
+      const pp=getActive();
+      const tagsEl=el.querySelector('#normen-tags');
+      if(tagsEl&&pp) tagsEl.innerHTML=getNormenArray(pp).map(d=>`<span class="normen-tag">${d}
+        <button type="button" data-removenorm="${d}" title="Entfernen">×</button>
+      </span>`).join('');
+      // Update selected class
+      const lbl=e.target.closest('.normen-item');
+      if(lbl) lbl.classList.toggle('selected', e.target.checked);
+      // Update group counter
+      const gi=lbl?.dataset.gi;
+      if(gi!==undefined){
+        const pp2=getActive();
+        const arr2=getNormenArray(pp2);
+        const g=NORMEN_GRUPPEN[gi];
+        const cnt=g?g.normen.filter(n=>arr2.includes(n.din)).length:0;
+        const hdr=document.querySelector(`[data-group="${gi}"] .normen-group-hdr span:last-child`);
+        if(hdr) hdr.textContent=cnt+' ausgewählt';
+      }
+    }
+  });
+  // Remove tag via click
+  el.addEventListener('click',e=>{
+    const din=e.target.dataset.removenorm;
+    if(din){
+      updateProject(p=>{
+        const arr=getNormenArray(p);
+        const i=arr.indexOf(din); if(i>=0) arr.splice(i,1);
+        p.normArr=arr; p.norm=normenToString(arr);
+      });
+      switchTab('stamm');
+    }
+  });
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// ANALYSE TAB
+// ════════════════════════════════════════════════════════════════════════
+function renderAnalyse(container) {
+  const p=getActive(); if(!p) return;
+  const allPos=p.sections.flatMap(s=>s.positions.map(pos=>({...pos,secTitle:s.title,secId:s.id})));
+  const counts={ok:0,warn:0,gap:0,star:0};
+  allPos.forEach(pos=>counts[pos.status]=(counts[pos.status]||0)+1);
+  const crit=allPos.filter(pos=>pos.status!=='ok');
+
+  let html=`<div class="vob-grid">`;
+  Object.entries(STATUS_CFG).forEach(([k,v])=>{
+    html+=`<div class="vob-card ${k}" style="border-color:${v.col};background:${v.bg}">
+      <div class="vc-icon">${v.icon}</div>
+      <div class="vc-n" style="color:${v.col}">${counts[k]||0}</div>
+      <div class="vc-lbl" style="color:${v.col}">${v.label}</div>
+    </div>`;
+  });
+  html+=`</div>`;
+
+  if(!crit.length){
+    html+=`<div style="text-align:center;padding:36px;background:var(--gbg);border-radius:8px;color:var(--green);font-weight:700;font-size:14px">✅ Alle Positionen klar geregelt!</div>`;
+  } else {
+    html+=`<table class="vob-tbl"><thead><tr>
+      <th>E.</th><th>OZ</th><th>Abschnitt</th><th>Beschreibung</th><th>Einordnung</th><th>VOB-Referenz</th>
+    </tr></thead><tbody>`;
+    crit.forEach(pos=>{
+      const st=STATUS_CFG[pos.status];
+      html+=`<tr>
+        <td><span style="background:${st.bg};border-radius:3px;padding:2px 4px">${st.icon}</span></td>
+        <td style="font-family:'IBM Plex Mono',monospace;color:#2563eb;font-weight:600">${esc(pos.oz)}</td>
+        <td style="color:var(--muted)">${esc(pos.secTitle)}</td>
+        <td><strong>${esc((pos.desc||'').split('\n')[0])}</strong></td>
+        <td><span style="background:${st.bg};color:${st.col};padding:2px 7px;border-radius:3px;font-size:10px;font-weight:700">${st.label}</span></td>
+        <td>${esc(pos.vob)}</td>
+      </tr>`;
+    });
+    html+=`</tbody></table>
+    <h3 style="margin:18px 0 10px;font-size:12px;font-weight:700;color:var(--dark)">Handlungsempfehlungen</h3>`;
+    crit.forEach(pos=>{
+      const st=STATUS_CFG[pos.status];
+      html+=`<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+        <span style="background:${st.bg};border-radius:3px;padding:2px 4px;font-size:12px;min-width:26px;text-align:center">${st.icon}</span>
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#2563eb;font-weight:600;min-width:72px">${esc(pos.oz)}</span>
+        <span style="font-size:11px;color:var(--muted);min-width:150px;overflow:hidden;white-space:nowrap">${esc((pos.desc||'').split('\n')[0]).substring(0,35)}…</span>
+        <input class="note-inp" value="${esc(pos.note||'')}" placeholder="Empfehlung eintragen…"
+          data-notsec="${pos.secId}" data-notpos="${pos.id}">
+      </div>`;
+    });
+  }
+  const el=document.createElement('div');
+  el.innerHTML=html;
+  container.appendChild(el);
+  el.addEventListener('change',e=>{
+    const sid=e.target.dataset.notsec, pid=e.target.dataset.notpos;
+    if(sid&&pid) updateProject(p=>{
+      const s=p.sections.find(s=>s.id===sid); if(!s)return;
+      const pos=s.positions.find(pos=>pos.id===pid); if(pos)pos.note=e.target.value;
+    });
+  });
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// CLAUDE TAB — Zwischenablage-Schnittstelle (kostenlos)
+// ════════════════════════════════════════════════════════════════════════
+function renderClaude(container) {
+  const p = getActive(); if(!p) return;
+
+  // ctx ZUERST definieren – wird in allen Prompts benötigt
+  const ctx = buildLVContext(p);
+  const lineCount = ctx.split('\n').length;
+
+  const el = document.createElement('div');
+  el.style.cssText = 'display:flex;flex-direction:column;gap:14px;max-width:900px';
+
+  // ── 1. VORENTWURF – prominent ganz oben ─────────────────────────────
+  const vorentwurfPrompt = `Du bist VOB-Experte und Bauleiter bei Riedel Bau AG.
+
+Erstelle einen vollständigen LV-Vorentwurf für folgendes Projekt.
+Nutze die vorhandenen Stammdaten und ergänze alle fehlenden Positionen nach VOB/C.
+
+PROJEKTDATEN:
+${ctx}
+
+ANFORDERUNGEN:
+1. Vollständige Gliederung nach VOB/C (passende ATV-Norm zum Gewerk)
+2. Alle branchenüblichen Positionen inkl. Eventualpositionen
+3. Mengen und Einheitspreise LEER lassen
+4. VOB-Status je Position: ok / warn / gap / star
+   ok=klar geregelt | warn=Klärungsbedarf | gap=Lücke/Nebenleistung | star=Besondere Leistung
+5. VOB-Referenz und Handlungsempfehlung bei kritischen Positionen (status!=ok)
+6. Eventualpositionen am Ende: Grundwasser, Mehrtiefe, Stundenlohn
+
+AUSGABE: NUR reines JSON – kein Text davor oder danach, keine Backticks, kein Markdown.
+
+{
+  "name": "${p.name}",
+  "gewerk": "${p.gewerk}",
+  "ort": "${p.ort||''}",
+  "ag": "${p.ag||'Riedel Bau AG'}",
+  "bl": "${p.bl||''}",
+  "lvnr": "${p.lvnr||''}",
+  "datum": "${p.datum||''}",
+  "ausfzeit": "${p.ausfzeit||''}",
+  "vergabeart": "${p.vergabeart||''}",
+  "leistgrenze": "${p.leistgrenze||''}",
+  "norm": "${p.norm||''}",
+  "notes": "Wichtige Hinweise",
+  "sections": [
+    {
+      "id": "s1",
+      "title": "Abschnittsname",
+      "positions": [
+        {
+          "id": "p1",
+          "oz": "01.01",
+          "desc": "Kurztitel\\nDetaillierte Beschreibung nach VOB/C",
+          "unit": "m",
+          "menge": "",
+          "ep": "",
+          "status": "ok",
+          "vob": "ATV DIN … Abschn. …",
+          "note": "",
+          "added": false
+        }
+      ]
+    }
+  ]
+}`;
+
+  // ── 2. ANALYSE-PROMPTS ────────────────────────────────────────────────
+  const ANALYSE = {
+    vob: {
+      label: '🔍 Vollständige VOB-Analyse', color: '#1e3a5f',
+      desc: 'Analysiert jede Position nach VOB/B & VOB/C mit Einordnung und Handlungsempfehlung.',
+      prompt: `Du bist VOB-Experte bei Riedel Bau AG. Analysiere das folgende LV vollständig.\n\nFür jede Position:\n- Einordnung: ✅ Klar geregelt | ⚠️ Klärungsbedarf | 🔴 Lücke/Nebenleistung | ⭐ Besondere Leistung\n- Konkrete VOB-Referenz (Paragraph + ATV-Norm)\n- Handlungsempfehlung\n\nMarkiere kritische Positionen: „Empfehlung: Schriftliche Klärung mit AG vor Ausführung"\n\n${ctx}`
+    },
+    luecken: {
+      label: '🔴 Lücken & fehlende Positionen', color: '#dc2626',
+      desc: 'Welche Leistungen fehlen, müssen aber trotzdem erbracht werden?',
+      prompt: `Du bist VOB-Experte bei Riedel Bau AG. Identifiziere alle fehlenden Positionen.\n\nA) Fehlende Nebenleistungen (kein Nachtrag möglich nach VOB/C)\nB) Fehlende Besondere Leistungen (Nachtrag möglich → sofort aufnehmen!)\nC) Unklare Positionen (Klärungsbedarf)\n\n${ctx}`
+    },
+    nachtrag: {
+      label: '⭐ Nachtragsrisiken', color: '#d97706',
+      desc: 'Wo drohen Nachträge? Priorisiert nach Eintrittswahrscheinlichkeit.',
+      prompt: `Du bist Bauleiter bei Riedel Bau AG. Bewerte das Nachtragsrisiko.\n\n🔴 HOHES RISIKO | 🟡 MITTLERES RISIKO | 🟢 GERINGES RISIKO\n\nFür jedes Risiko: Beschreibung, Ursache, Absicherung (VOB-Referenz).\n\n${ctx}`
+    },
+    summary: {
+      label: '📋 Management-Zusammenfassung', color: '#16a34a',
+      desc: 'Kurze Zusammenfassung für Projektleitung / Geschäftsführung.',
+      prompt: `Erstelle eine kompakte Management-Zusammenfassung:\n1. Leistungsumfang (2-3 Sätze)\n2. Finanzieller Überblick\n3. Kritische Punkte (max. 5)\n4. Empfohlene nächste Schritte\n\n${ctx}`
+    },
+    gaeb: {
+      label: '📄 GAEB / iTWO-Prüfung', color: '#7c3aed',
+      desc: 'Ist das LV für GAEB DA83 / iTWO-Import geeignet? Was fehlt?',
+      prompt: `Prüfe dieses LV auf GAEB DA83-Konformität für iTWO.\n\n1. OZ-Struktur vollständig?\n2. Leistungsbeschreibungen eindeutig?\n3. GAEB-konforme Mengeneinheiten?\n4. Fehlende Pflichtfelder?\n5. Empfehlungen für sauberen iTWO-Import?\n\n${ctx}`
+    },
+  };
+
+  // ── HTML AUFBAUEN ─────────────────────────────────────────────────────
+  let html = '';
+
+  // Vorentwurf-Karte
+  html += `<div style="border:2px solid #c0392b;border-radius:10px;padding:16px 18px;background:#fff9f9;display:flex;gap:16px;align-items:center">
+    <div style="font-size:40px;flex-shrink:0">🧙</div>
+    <div style="flex:1">
+      <div style="font-size:14px;font-weight:700;color:#c0392b;margin-bottom:4px">🧙 LV-Vorentwurf erstellen</div>
+      <div style="font-size:11px;color:#6b7280;line-height:1.5;margin-bottom:10px">
+        Claude erstellt einen vollständigen LV-Vorentwurf als JSON – direkt importierbar in den Manager.
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button id="btn-vorentwurf" style="background:#c0392b;color:#fff;padding:9px 20px;font-size:12px;border-radius:6px;border:none;cursor:pointer;font-weight:700">
+          📋 Vorentwurf-Prompt kopieren
+        </button>
+        <button onclick="openWizard()" style="background:#fff;color:#c0392b;padding:9px 16px;font-size:12px;border-radius:6px;border:2px solid #c0392b;cursor:pointer;font-weight:700">
+          🧙 Assistent öffnen
+        </button>
+        <span style="font-size:10px;color:#9ca3af">Stammdaten noch leer? Erst Assistent nutzen</span>
+      </div>
+    </div>
+  </div>`;
+
+  // Import-Anleitung
+  html += `<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:7px;padding:10px 14px;font-size:11px;color:#166534;line-height:1.7">
+    <strong>📥 Ablauf nach dem Kopieren:</strong>
+    claude.ai öffnen → Prompt einfügen (Strg+V) → JSON aus Antwort kopieren →
+    oben im Manager auf <strong>⬆ JSON laden</strong> klicken → LV erscheint sofort in der Sidebar und ist direkt bearbeitbar
+  </div>`;
+
+  // Info-Banner
+  html += `<div style="background:#e8f4fd;border:1.5px solid #2980b9;border-radius:8px;padding:12px 14px;display:flex;gap:10px;align-items:flex-start">
+    <span style="font-size:18px">🤖</span>
+    <div>
+      <strong style="color:#1e3a5f;font-size:12px">Weitere Analyse-Prompts – kostenlos über claude.ai</strong><br>
+      <span style="font-size:10px;color:#1a5f8a">Prompt kopieren → <a href="https://claude.ai" target="_blank" style="color:#1e3a5f;font-weight:700">claude.ai</a> öffnen → einfügen. Kein API-Key, keine Kosten.</span>
+    </div>
+  </div>`;
+
+  // Analyse-Karten
+  html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">`;
+  Object.entries(ANALYSE).forEach(([key, cfg]) => {
+    html += `<div style="border:1.5px solid #e5e7eb;border-radius:8px;padding:14px 16px;background:#fff;display:flex;flex-direction:column;gap:8px">
+      <div style="font-size:13px;font-weight:700;color:${cfg.color}">${cfg.label}</div>
+      <div style="font-size:11px;color:#6b7280;line-height:1.5;flex:1">${cfg.desc}</div>
+      <button data-akey="${key}" style="background:${cfg.color};color:#fff;padding:7px 14px;font-size:11px;border-radius:5px;border:none;cursor:pointer;font-weight:700">
+        📋 Prompt kopieren
+      </button>
+    </div>`;
+  });
+  html += `</div>`;
+
+  // LV-Vorschau
+  html += `<div style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden">
+    <div style="background:#f9fafb;padding:8px 12px;display:flex;justify-content:space-between;border-bottom:1px solid #e5e7eb">
+      <span style="font-size:11px;font-weight:700;color:#374151">📄 LV-Inhalt (wird dem Prompt angehängt)</span>
+      <span style="font-size:10px;color:#9ca3af">${lineCount} Zeilen | ${ctx.length} Zeichen</span>
+    </div>
+    <pre style="padding:10px 12px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#374151;background:#fff;overflow:auto;max-height:200px;white-space:pre-wrap;line-height:1.5;margin:0">${esc(ctx.substring(0,2000))}${ctx.length>2000?'\n… ('+Math.round(ctx.length/1000)+'k Zeichen gesamt)':''}</pre>
+  </div>`;
+
+  // Eigene Frage
+  html += `<div style="border:1px solid #e5e7eb;border-radius:8px;padding:14px 16px;background:#fff">
+    <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:8px">✏️ Eigene Frage formulieren</div>
+    <div style="display:flex;gap:8px">
+      <textarea id="custom-prompt" rows="3" placeholder="z.B. 'Welche Positionen fehlen nach ATV DIN 18306? Gibt es Nachtragsrisiken durch Altleitungen?'"
+        style="flex:1;border:1.5px solid #d1d5db;border-radius:6px;padding:8px 10px;font-size:12px;resize:vertical;font-family:inherit;line-height:1.5"></textarea>
+      <button id="copy-custom" style="background:#1e3a5f;color:#fff;padding:8px 14px;font-size:11px;border-radius:6px;border:none;cursor:pointer;font-weight:700;align-self:flex-end;white-space:nowrap">
+        📋 Kopieren
+      </button>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:8px;align-items:center">
+    <a href="https://claude.ai" target="_blank"
+      style="background:#1e3a5f;color:#fff;padding:9px 18px;border-radius:6px;font-size:12px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:6px">
+      🔗 claude.ai öffnen
+    </a>
+    <span style="font-size:11px;color:#9ca3af">→ Prompt einfügen (Strg+V) → Analyse starten</span>
+  </div>`;
+
+  el.innerHTML = html;
+  container.appendChild(el);
+
+  // Events
+  document.getElementById('btn-vorentwurf')?.addEventListener('click', () => {
+    copyToClipboard(vorentwurfPrompt, 'LV-Vorentwurf');
+  });
+
+  el.querySelectorAll('[data-akey]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const cfg = ANALYSE[btn.dataset.akey];
+      if(cfg) copyToClipboard(cfg.prompt, cfg.label);
+    });
+  });
+
+  document.getElementById('copy-custom')?.addEventListener('click', () => {
+    const custom = document.getElementById('custom-prompt')?.value?.trim();
+    if(!custom){ toast('Bitte erst eine Frage eingeben','warn'); return; }
+    copyToClipboard(custom + '\n\n' + ctx, 'Eigener Prompt');
+  });
+}
+
+
+function copyToClipboard(text, label) {
+  navigator.clipboard.writeText(text).then(()=>{
+    toast(`✓ "${label}" kopiert → claude.ai öffnen und einfügen`);
+  }).catch(()=>{
+    // Fallback für ältere Browser
+    const ta=document.createElement('textarea');
+    ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); toast(`✓ "${label}" kopiert`); }
+    catch(e){ toast('Kopieren fehlgeschlagen – bitte manuell','warn'); }
+    document.body.removeChild(ta);
+  });
+}
+
+// Stub – nicht mehr benötigt aber referenziert
+function saveApiKey(){}
+function renderChatMessages(){}
+async function sendChat(){}
+
+function buildLVContext(p){
+  let ctx=`LV: ${p.name} | Gewerk: ${p.gewerk}\n`;
+  ctx+=`Bauvorhaben: ${p.ort}\n`;
+  ctx+=`AG: ${p.ag} | AN: ${p.an||'—'} | BL: ${p.bl} | LV-Nr: ${p.lvnr}\n`;
+  ctx+=`Ausführung: ${p.ausfzeit||'—'} | Vergabeart: ${p.vergabeart||'—'}\n`;
+  ctx+=`Leistungsgrenze: ${p.leistgrenze||'—'} | Normen: ${p.norm||'—'}\n`;
+  if(p.notes && p.notes.trim()) ctx+=`\nNOTIZEN / BESONDERHEITEN:\n${p.notes.trim()}\n`;
+  ctx+=`\n`;
+  p.sections.forEach((sec,si)=>{
+    ctx+=`--- Abschnitt ${si+1}: ${sec.title} ---\n`;
+    sec.positions.forEach(pos=>{
+      const st=STATUS_CFG[pos.status];
+      ctx+=`[${st.icon}] ${pos.oz} | ${pos.desc.replace(/\n/g,' ')} | ${pos.unit} | Menge:${pos.menge||'?'} | EP:${pos.ep||'?'} | VOB:${pos.vob}\n`;
+    });
+  });
+  ctx+=`\nNetto gesamt: ${fmtEuro(totalNetto(p))}\n`;
+  return ctx;
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// ARCHIV TAB
+// ════════════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════════════
+// VORBEMERKUNGEN
+// ════════════════════════════════════════════════════════════════════════
+function vorbemTemplate(p){
+  const d=x=>x&&String(x).trim()?String(x).trim():'[noch offen]';
+  const normen=(getNormenArray(p).length?getNormenArray(p).join(', '):d(p.norm));
+  return [
+    {title:'1. Allgemeine Angaben zum Bauvorhaben', text:
+`Bauvorhaben:        ${d(p.name)}
+Bauort:             ${d(p.ort)}
+Auftraggeber:       ${d(p.ag)}
+Bauleitung AG:      ${d(p.bl)}
+LV-Nummer / VE:     ${d(p.lvnr)}
+Gewerk:             ${d(p.gewerk)}
+
+Die nachstehenden Vorbemerkungen sind Bestandteil des Leistungsverzeichnisses und
+gelten für sämtliche Positionen dieses Gewerks. Sie sind bei der Preisbildung zu
+berücksichtigen. Die in den Vorbemerkungen beschriebenen Leistungen werden nicht
+gesondert vergütet, soweit sie nicht ausdrücklich als eigene Position ausgewiesen sind.`},
+
+    {title:'2. Vertragsgrundlagen', text:
+`Es gelten in nachstehender Reihenfolge:
+1. Das Verhandlungsprotokoll / der Bauvertrag
+2. Dieses Leistungsverzeichnis einschließlich dieser Vorbemerkungen
+3. Die VOB Teil B (Allgemeine Vertragsbedingungen) in der bei Vertragsschluss geltenden Fassung
+4. Die VOB Teil C (Allgemeine Technische Vertragsbedingungen), insbesondere
+   ATV DIN 18299 sowie ${normen}
+5. Die anerkannten Regeln der Technik sowie die einschlägigen DIN-, EN- und DIN-EN-Normen
+   in der bei Angebotsabgabe geltenden Fassung
+6. Die berufsgenossenschaftlichen Vorschriften und die Baustellenverordnung (BaustellV)
+
+Vergabeart:   ${d(p.vergabeart)}
+Vertragsform: Einheitspreisvertrag, soweit im Verhandlungsprotokoll nicht abweichend geregelt.`},
+
+    {title:'3. Ausführungszeitraum und Termine', text:
+`Ausführungszeitraum: ${d(p.ausfzeit)}
+
+Die Einzeltermine werden im Rahmen der Bauablaufplanung durch die Bauleitung des AG
+festgelegt. Der AN hat sich in den Gesamtbauablauf einzufügen und seine Leistungen mit
+den übrigen am Bau Beteiligten zu koordinieren.
+
+Behinderungen sind dem AG unverzüglich schriftlich nach VOB/B § 6 Abs. 1 anzuzeigen.
+Eine mündliche Anzeige genügt nicht. Verspätet angezeigte Behinderungen begründen
+keinen Anspruch auf Bauzeitverlängerung.`},
+
+    {title:'4. Baustellenverhältnisse und Leistungsgrenze', text:
+`Leistungsgrenze / Schnittstellen: ${d(p.leistgrenze)}
+
+Der AN hat sich vor Angebotsabgabe durch eine Ortsbesichtigung über die örtlichen
+Verhältnisse, die Zufahrtsmöglichkeiten, die Lagerflächen sowie den Zustand des
+Baugeländes zu unterrichten (VOB/B § 3, VOB/C ATV DIN 18299 Abschn. 0.1.2).
+Spätere Mehrforderungen aus mangelnder Kenntnis der Baustellenverhältnisse werden
+nicht anerkannt.
+
+Strom- und Wasserentnahmestellen werden vom AG bereitgestellt; der Verbrauch wird dem
+AN nach den Regelungen des Verhandlungsprotokolls angerechnet. Die Feinverteilung ab
+den Übergabepunkten ist Nebenleistung des AN.`},
+
+    {title:'5. Nebenleistungen und Besondere Leistungen', text:
+`Nebenleistungen nach VOB/C ATV DIN 18299 Abschn. 4.1 sowie nach den Abschnitten 4.1
+der jeweils einschlägigen ATV gehören auch dann zur vertraglichen Leistung, wenn sie
+im Leistungsverzeichnis nicht gesondert erwähnt sind, und werden nicht gesondert
+vergütet.
+
+Besondere Leistungen nach Abschn. 4.2 der jeweiligen ATV sind nur dann Vertrags-
+bestandteil, wenn sie im Leistungsverzeichnis als eigene Position ausgewiesen oder in
+diesen Vorbemerkungen ausdrücklich gefordert sind.
+
+Erkennt der AN Widersprüche, Lücken oder Unklarheiten im Leistungsverzeichnis, hat er
+diese vor Angebotsabgabe schriftlich beim AG anzuzeigen (VOB/B § 4 Abs. 3).`},
+
+    {title:'6. Aufmaß und Abrechnung', text:
+`Die Abrechnung erfolgt nach den Abrechnungsregeln des Abschnitts 5 der jeweils
+einschlägigen ATV der VOB/C.
+
+Das Aufmaß ist gemeinsam mit der Bauleitung des AG zu nehmen (VOB/B § 14 Abs. 2).
+Einseitig erstellte Aufmaße werden nicht anerkannt. Leistungen, die durch den weiteren
+Baufortschritt der Prüfung entzogen werden, sind rechtzeitig vor dem Verdecken
+gemeinsam aufzumessen und zu dokumentieren.
+
+Rechnungen sind prüfbar und nach Positionen des LV gegliedert einzureichen
+(VOB/B § 14 Abs. 1).`},
+
+    {title:'7. Sicherheit und Gesundheitsschutz', text:
+`Der AN hat die Baustellenverordnung (BaustellV), die DGUV-Vorschriften sowie den
+Sicherheits- und Gesundheitsschutzplan (SiGe-Plan) des AG zu beachten und den
+Anweisungen des SiGeKo Folge zu leisten.
+
+Der AN stellt die erforderlichen persönlichen Schutzausrüstungen, Absturzsicherungen
+und Absperrungen für seinen Leistungsbereich auf eigene Kosten. Diese Leistungen sind
+Nebenleistung und werden nicht gesondert vergütet.
+
+Der AN benennt vor Arbeitsbeginn einen verantwortlichen, deutschsprachigen
+Aufsichtführenden für die Baustelle.`},
+
+    {title:'8. Gewährleistung und Abnahme', text:
+`Die Abnahme erfolgt förmlich nach VOB/B § 12 Abs. 4.
+
+Die Verjährungsfrist für Mängelansprüche beträgt 4 Jahre ab Abnahme, soweit im
+Verhandlungsprotokoll nicht abweichend vereinbart (VOB/B § 13 Abs. 4).
+
+Der AN übergibt spätestens zur Abnahme sämtliche Bestandsunterlagen, Prüfprotokolle,
+Nachweise der verwendeten Baustoffe sowie ggf. Revisionspläne in digitaler Form.
+Ohne diese Unterlagen ist die Abnahme nicht fällig.`},
+
+    {title:'9. Hinweise zur Angebotsabgabe', text:
+`Sämtliche Positionen sind auszupreisen. Nicht ausgepreiste Positionen gelten als in
+anderen Positionen einkalkuliert.
+
+Änderungen am Wortlaut des Leistungsverzeichnisses sind unzulässig und führen zum
+Ausschluss des Angebots.
+
+Nebenangebote sind nur zulässig, wenn sie im Verhandlungsprotokoll ausdrücklich
+zugelassen wurden, und sind auf gesondertem Blatt vollständig zu beschreiben.
+
+Eventualpositionen werden nur nach gesonderter schriftlicher Beauftragung ausgeführt.
+Ein Anspruch auf Beauftragung besteht nicht.`},
+  ].map(b=>({id:uid(), title:b.title, text:b.text}));
+}
+
+function getVorbem(p){
+  if(!Array.isArray(p.vorbem)) p.vorbem=[];
+  return p.vorbem;
+}
+function vorbemToText(p){
+  const blocks=getVorbem(p);
+  if(!blocks.length) return '';
+  return `VORBEMERKUNGEN\n${p.name||''}${p.ort?' · '+p.ort:''}${p.lvnr?' · LV-Nr. '+p.lvnr:''}\n`
+    + '='.repeat(78) + '\n\n'
+    + blocks.map(b=>`${b.title}\n${'-'.repeat(78)}\n${b.text}`).join('\n\n\n')
+    + `\n\n${'='.repeat(78)}\nStand: ${new Date().toLocaleDateString('de-DE')} · Riedel Bau AG · LV-Manager v2\n`;
+}
+
+function renderVorbem(container){
+  const p=getActive(); if(!p) return;
+  const blocks=getVorbem(p);
+  const el=document.createElement('div');
+  el.style.cssText='max-width:900px';
+
+  let html=`<div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
+    <h2 style="font-size:16px;font-weight:700;color:var(--dark);flex:1">📝 Vorbemerkungen</h2>
+    <button id="vb-gen" style="background:${blocks.length?'#eef2f7':'var(--dark)'};color:${blocks.length?'var(--dark)':'#fff'};padding:7px 14px;font-size:11px;border-radius:5px">
+      ${blocks.length?'↻ Aus Stammdaten neu erzeugen':'✨ Aus Stammdaten erzeugen'}
+    </button>
+    <button id="vb-add" style="background:#eef2f7;color:var(--dark);padding:7px 14px;font-size:11px;border-radius:5px">+ Block</button>
+    <button id="vb-prompt" style="background:#7c3aed;color:#fff;padding:7px 14px;font-size:11px;border-radius:5px">🤖 Claude-Prompt</button>
+    <button id="vb-copy" style="background:var(--green);color:#fff;padding:7px 16px;font-size:11px;border-radius:5px">📋 Alles kopieren</button>
+  </div>`;
+
+  if(!blocks.length){
+    html+=`<div style="text-align:center;padding:40px 24px;background:#fff;border:2px dashed var(--border);border-radius:10px">
+      <div style="font-size:38px;margin-bottom:10px">📝</div>
+      <div style="font-size:14px;font-weight:700;color:var(--dark);margin-bottom:6px">Noch keine Vorbemerkungen</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.7;max-width:460px;margin:0 auto">
+        „Aus Stammdaten erzeugen" legt neun Standardblöcke an (Vertragsgrundlagen, Termine,
+        Nebenleistungen, Aufmaß, Gewährleistung …) und füllt sie mit den Daten dieses LV.
+        Danach frei bearbeitbar.
+      </div>
+    </div>`;
+  } else {
+    html+=`<div style="background:var(--abg);border:1px solid #93c5fd;border-radius:7px;padding:9px 13px;font-size:11px;color:#1a5f8a;margin-bottom:12px;line-height:1.6">
+      Änderungen werden sofort gespeichert. <strong>📋 Alles kopieren</strong> liefert reinen Text —
+      direkt einfügbar in iTWO, Word oder die Ausschreibungsunterlagen.
+      Platzhalter <strong>[noch offen]</strong> markieren fehlende Stammdaten.
+    </div>`;
+    blocks.forEach((b,i)=>{
+      html+=`<div class="vb-block" data-vb="${b.id}">
+        <div class="vb-hdr">
+          <span class="vb-num">${String(i+1).padStart(2,'0')}</span>
+          <input class="vb-title" value="${esc(b.title)}" data-vbtitle="${b.id}" placeholder="Überschrift…">
+          <button class="mini-btn" data-vbcopy="${b.id}" title="Diesen Block kopieren">📋</button>
+          <button class="mini-btn" data-vbup="${b.id}" title="Nach oben"${i===0?' disabled style="opacity:.3"':''}>▲</button>
+          <button class="mini-btn" data-vbdown="${b.id}" title="Nach unten"${i===blocks.length-1?' disabled style="opacity:.3"':''}>▼</button>
+          <button class="mini-btn" style="background:var(--rbg);color:#dc2626" data-vbdel="${b.id}" title="Löschen">✕</button>
+        </div>
+        <textarea class="vb-ta" data-vbtext="${b.id}" rows="${Math.min(22,Math.max(4,(b.text||'').split('\n').length+1))}">${esc(b.text)}</textarea>
+      </div>`;
+    });
+    const chars=vorbemToText(p).length;
+    html+=`<div style="padding:10px 12px;background:#f9fafb;border-radius:7px;font-size:11px;color:var(--muted);margin-top:4px">
+      ${blocks.length} Blöcke · ${chars.toLocaleString('de-DE')} Zeichen gesamt
+    </div>`;
+  }
+
+  el.innerHTML=html;
+  container.appendChild(el);
+
+  el.querySelector('#vb-gen').onclick=()=>{
+    if(blocks.length && !confirm('Vorbemerkungen neu erzeugen? Alle eigenen Änderungen gehen verloren.')) return;
+    updateProject(p=>{ p.vorbem=vorbemTemplate(p); });
+    switchTab('vorbem'); toast('✓ Vorbemerkungen aus Stammdaten erzeugt');
+  };
+  el.querySelector('#vb-add').onclick=()=>{
+    updateProject(p=>{ getVorbem(p).push({id:uid(),title:'Neuer Block',text:''}); });
+    switchTab('vorbem');
+  };
+  el.querySelector('#vb-copy').onclick=()=>{
+    const t=vorbemToText(getActive());
+    t?copyToClipboard(t,'Vorbemerkungen'):toast('Noch keine Vorbemerkungen','warn');
+  };
+  el.querySelector('#vb-prompt').onclick=()=>{
+    const pp=getActive();
+    copyToClipboard(`Du bist VOB-Experte und Bauleiter bei Riedel Bau AG.
+
+Formuliere vollständige Vorbemerkungen für das folgende Leistungsverzeichnis.
+
+${buildLVContext(pp)}
+
+ANFORDERUNGEN:
+- Gliederung in nummerierte Blöcke mit Überschrift
+- Vertragsgrundlagen mit Rangfolge (VOB/B, VOB/C, ATV-Normen des Gewerks)
+- Abgrenzung Nebenleistungen (ATV Abschn. 4.1) / Besondere Leistungen (Abschn. 4.2)
+- Regelungen zu Aufmaß und Abrechnung (VOB/B § 14, ATV Abschn. 5)
+- Behinderungsanzeige nach VOB/B § 6, Abnahme nach § 12, Gewährleistung nach § 13
+- Baustellenverhältnisse, SiGe, Termine
+- Konkrete Paragraphen und ATV-Abschnitte zitieren, keine Floskeln
+- Sprache: sachlich, juristisch präzise, ausschreibungstauglich
+
+AUSGABE: reiner Text, keine Backticks, keine Markdown-Formatierung.
+Je Block: Überschrift in einer eigenen Zeile, darunter der Fließtext.`,'Vorbemerkungen-Prompt');
+  };
+
+  el.addEventListener('click',e=>{
+    const t=e.target;
+    if(t.dataset.vbcopy){ const b=getVorbem(getActive()).find(x=>x.id===t.dataset.vbcopy);
+      if(b) copyToClipboard(b.title+'\n'+'-'.repeat(78)+'\n'+b.text, b.title); return; }
+    if(t.dataset.vbdel){ if(!confirm('Block löschen?')) return;
+      updateProject(p=>{ p.vorbem=getVorbem(p).filter(x=>x.id!==t.dataset.vbdel); });
+      switchTab('vorbem'); return; }
+    if(t.dataset.vbup||t.dataset.vbdown){
+      const id=t.dataset.vbup||t.dataset.vbdown, dir=t.dataset.vbup?-1:1;
+      updateProject(p=>{ const a=getVorbem(p); const i=a.findIndex(x=>x.id===id);
+        if(i<0) return; const j=i+dir; if(j<0||j>=a.length) return;
+        [a[i],a[j]]=[a[j],a[i]]; });
+      switchTab('vorbem'); return; }
+  });
+
+  el.addEventListener('input',e=>{
+    const idT=e.target.dataset.vbtitle, idX=e.target.dataset.vbtext;
+    if(idT||idX) updateProject(p=>{
+      const b=getVorbem(p).find(x=>x.id===(idT||idX)); if(!b) return;
+      if(idT) b.title=e.target.value; else b.text=e.target.value;
+    });
+  });
+}
+
+function renderArchiv(container) {
+  const all=DB.projects;
+  let html=`<div style="margin-bottom:14px;display:flex;justify-content:space-between;align-items:center">
+    <h2 style="font-size:16px;font-weight:700;color:var(--dark)">🗄 Alle LVs – Gesamtarchiv</h2>
+    <span style="font-size:11px;color:var(--muted)">${all.length} LV${all.length!==1?'s':''} gesamt</span>
+  </div>
+  <table class="arch-tbl"><thead><tr>
+    <th>Status</th><th>Projektname</th><th>Projekt</th><th>Gewerk</th><th>Ort</th><th>LV-Nr.</th>
+    <th>Pos.</th><th>Netto</th><th>Erstellt</th><th>Geändert</th><th>Aktionen</th>
+  </tr></thead><tbody>`;
+
+  if(!all.length) html+=`<tr><td colspan="10" style="text-align:center;padding:32px;color:var(--muted)">Keine LVs vorhanden</td></tr>`;
+
+  all.forEach(p=>{
+    const n=totalNetto(p), c=critCount(p), cnt=posCount(p);
+    html+=`<tr>
+      <td>${p.archived?'<span class="arch-ribbon">ARCHIV</span>':'<span style="color:var(--green);font-weight:700">Aktiv</span>'}</td>
+      <td style="font-weight:600;color:var(--dark)">${esc(p.name)}</td>
+      <td>${(()=>{const pr=DB.projekte?.find(pr=>pr.id===p.projektId);return pr?`<span style="display:inline-flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:${pr.farbe};display:inline-block"></span>${esc(pr.name)}</span>`:'<span style="color:#9ca3af">—</span>';})()}</td>
+      <td style="color:var(--muted)">${esc(p.gewerk)}</td>
+      <td>${esc(p.ort||'—')}</td>
+      <td style="font-family:'IBM Plex Mono',monospace;font-size:11px">${esc(p.lvnr||'—')}</td>
+      <td>${cnt}${c>0?` <span style="color:#dc2626;font-size:10px">(⚠${c})</span>`:''}</td>
+      <td style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--green)">${n>0?fmtEuro(n):'—'}</td>
+      <td style="font-size:11px;color:var(--muted)">${new Date(p.createdAt).toLocaleDateString('de-DE')}</td>
+      <td style="font-size:11px;color:var(--muted)">${new Date(p.updatedAt).toLocaleDateString('de-DE')}</td>
+      <td><div class="arch-act">
+        <button class="arch-btn" style="background:var(--light);color:var(--dark)" data-open="${p.id}">✏ Öffnen</button>
+        <button class="arch-btn" style="background:var(--gbg);color:var(--green)" data-xls="${p.id}">⬇ XLS</button>
+        <button class="arch-btn" style="background:#e0e7ff;color:#3730a3" data-gaeb="${p.id}">⬇ GAEB</button>
+        <button class="arch-btn" style="background:var(--rbg);color:#dc2626" data-del="${p.id}">🗑</button>
+      </div></td>
+    </tr>`;
+  });
+  html+=`</tbody></table>`;
+  const el=document.createElement('div');
+  el.innerHTML=html;
+  container.appendChild(el);
+
+  // Event delegation – löst Archiv-Button-Problem
+  el.addEventListener('click', e => {
+    const btn = e.target.closest('button');
+    if(!btn) return;
+    if(btn.dataset.open)  { openProject(btn.dataset.open); switchTab('lv'); }
+    if(btn.dataset.xls)   { activeId=btn.dataset.xls; exportExcel(); }
+    if(btn.dataset.gaeb)  { activeId=btn.dataset.gaeb; exportGAEB(); }
+    if(btn.dataset.del)   { deleteProjectPermanent(btn.dataset.del); }
+  });
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// EXCEL EXPORT
+// ════════════════════════════════════════════════════════════════════════
+function exportExcel(){
+  const p=getActive()||getProject(activeId); if(!p){toast('Kein Projekt ausgewählt','warn');return;}
+  const wb=XLSX.utils.book_new();
+  // Sheet 1
+  const rows=[];
+  rows.push([p.name||'LV','','','','','','','']);
+  rows.push(['Gewerk: '+p.gewerk,'','Ort: '+p.ort,'','Datum: '+p.datum,'','LV-Nr: '+p.lvnr,'']);
+  rows.push(['AG: '+p.ag,'','BL: '+p.bl,'','','','','']);
+  rows.push([]);
+  rows.push(['Status','OZ','Beschreibung','ME','Menge','EP (€)','GP (€)','VOB-Referenz']);
+  let netto=0;
+  p.sections.forEach(sec=>{
+    rows.push(['► '+sec.title,'','','','','','','']);
+    sec.positions.forEach(pos=>{
+      const gp=calcGP(pos); if(gp!==null)netto+=gp;
+      const st=STATUS_CFG[pos.status]||STATUS_CFG.ok;
+      rows.push([st.icon,pos.oz,(pos.desc||'').replace(/\n/g,' | '),pos.unit,
+        pos.menge!==''?parseFloat(pos.menge)||'':'',
+        pos.ep!==''?parseFloat(pos.ep)||'':'',
+        gp!==null?gp:'',
+        pos.vob+(pos.note?' | '+pos.note:'')]);
+    });
+    rows.push([]);
+  });
+  rows.push(['','','','','','Netto:',netto,'']);
+  rows.push(['','','','','','MwSt 19%:',+(netto*0.19).toFixed(2),'']);
+  rows.push(['','','','','','Brutto:',+(netto*1.19).toFixed(2),'']);
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:6},{wch:12},{wch:55},{wch:8},{wch:10},{wch:12},{wch:14},{wch:40}];
+  XLSX.utils.book_append_sheet(wb,ws,'Leistungsverzeichnis');
+  // Sheet 2: VOB
+  const vr=[['Status','OZ','Abschnitt','Beschreibung','Einordnung','VOB-Referenz','Empfehlung']];
+  p.sections.forEach(sec=>sec.positions.filter(pos=>pos.status!=='ok').forEach(pos=>{
+    const st=STATUS_CFG[pos.status]||STATUS_CFG.ok;
+    vr.push([st.icon,pos.oz,sec.title,(pos.desc||'').split('\n')[0],st.label,pos.vob,pos.note||'']);
+  }));
+  const ws2=XLSX.utils.aoa_to_sheet(vr);
+  ws2['!cols']=[{wch:6},{wch:12},{wch:28},{wch:45},{wch:28},{wch:35},{wch:40}];
+  XLSX.utils.book_append_sheet(wb,ws2,'VOB-Analyse');
+  // Sheet 3: Stamm
+  const sr=[['Feld','Wert'],...Object.entries({'LV-Bezeichnung':p.name,'Gewerk':p.gewerk,'Bauvorhaben':p.ort,'AG':p.ag,'AN':p.an||'','BL':p.bl,'LV-Nr':p.lvnr,'Datum':p.datum,'Ausführungszeitraum':p.ausfzeit||'','Leistungsgrenze':p.leistgrenze||'','Normen':p.norm||'','Vergabeart':p.vergabeart||'','Notizen':p.notes||''}).map(([k,v])=>[k,v||''])];
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(sr),'Stammdaten');
+  // Sheet 4: Vorbemerkungen
+  const vb=(p.vorbem||[]);
+  if(vb.length){
+    const vbr=[['Vorbemerkungen – '+(p.name||'')],[]];
+    vb.forEach(b=>{ vbr.push([b.title]); vbr.push([b.text]); vbr.push([]); });
+    const ws4=XLSX.utils.aoa_to_sheet(vbr);
+    ws4['!cols']=[{wch:110}];
+    XLSX.utils.book_append_sheet(wb,ws4,'Vorbemerkungen');
+  }
+  const fname=(p.name||'LV').replace(/[^\w\-äöüÄÖÜß ]/g,'').trim();
+  XLSX.writeFile(wb,fname+'.xlsx');
+  toast('Excel exportiert ✓');
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// GAEB EXPORT (DA83 / X83 — Angebotsaufforderung)
+// ════════════════════════════════════════════════════════════════════════
+function exportGAEB(){
+  const p=getActive()||getProject(activeId); if(!p){toast('Kein Projekt ausgewählt','warn');return;}
+  const now=new Date();
+  const fmt4=n=>String(n).padStart(4,'0');
+  const lines=[];
+  lines.push('<?xml version="1.0" encoding="UTF-8"?>');
+  lines.push('<GAEB xmlns="http://www.gaeb.de/GAEB_DA_XML/200407" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">');
+  lines.push('  <GAEBInfo>');
+  lines.push('    <Handshake>DA83</Handshake>');
+  lines.push(`    <CreatedAt>${now.toISOString()}</CreatedAt>`);
+  lines.push(`    <GeneratedBy>Riedel Bau AG LV-Manager v2</GeneratedBy>`);
+  lines.push('  </GAEBInfo>');
+  lines.push('  <Award>');
+  lines.push(`    <DP>11</DP>`);
+  lines.push(`    <PrjInfo>`);
+  lines.push(`      <LblPrj>${xmlEsc(p.lvnr||p.name)}</LblPrj>`);
+  lines.push(`      <NamePrj>${xmlEsc(p.name)}</NamePrj>`);
+  lines.push(`      <OrtPrj>${xmlEsc(p.ort)}</OrtPrj>`);
+  lines.push(`      <AG>${xmlEsc(p.ag)}</AG>`);
+  lines.push(`    </PrjInfo>`);
+  lines.push('    <BO>');
+  // Sections → LV Items
+  let posNum=0;
+  p.sections.forEach((sec,si)=>{
+    lines.push(`      <Pos>`);
+    lines.push(`        <PosID>${fmt4(si+1)}00</PosID>`);
+    lines.push(`        <RNoPart>${fmt4(si+1)}</RNoPart>`);
+    lines.push(`        <PosTyp>1</PosTyp>`);
+    lines.push(`        <LongText>${xmlEsc(sec.title)}</LongText>`);
+    lines.push(`      </Pos>`);
+    sec.positions.forEach((pos,pi)=>{
+      posNum++;
+      const gp=calcGP(pos);
+      lines.push(`      <Pos>`);
+      lines.push(`        <PosID>${fmt4(si+1)}${fmt4(pi+1).slice(1)}</PosID>`);
+      lines.push(`        <RNoPart>${fmt4(si+1)}</RNoPart>`);
+      lines.push(`        <RNoPos>${fmt4(pi+1)}</RNoPos>`);
+      lines.push(`        <PosTyp>0</PosTyp>`);
+      lines.push(`        <Description>`);
+      lines.push(`          <CompleteText>`);
+      lines.push(`            <DetailTxt>`);
+      lines.push(`              <Text>${xmlEsc(pos.desc)}</Text>`);
+      lines.push(`            </DetailTxt>`);
+      lines.push(`          </CompleteText>`);
+      lines.push(`        </Description>`);
+      lines.push(`        <Qty>${pos.menge||0}</Qty>`);
+      lines.push(`        <QU>${xmlEsc(pos.unit)}</QU>`);
+      if(pos.ep) lines.push(`        <UP>${parseFloat(pos.ep)||0}</UP>`);
+      if(gp!==null) lines.push(`        <TP>${gp}</TP>`);
+      lines.push(`      </Pos>`);
+    });
+  });
+  const n=totalNetto(p);
+  lines.push(`      <Pos><PosID>9999</PosID><PosTyp>2</PosTyp><LongText>Summe Netto</LongText><TP>${n.toFixed(2)}</TP></Pos>`);
+  lines.push('    </BO>');
+  lines.push('  </Award>');
+  lines.push('</GAEB>');
+
+  const xml=lines.join('\n');
+  const blob=new Blob([xml],{type:'application/xml'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  const fname=(p.name||'LV').replace(/[^\w\-äöüÄÖÜß ]/g,'').trim();
+  a.download=fname+'_DA83.X83';
+  a.click();
+  toast('GAEB DA83 exportiert ✓ (für iTWO)');
+}
+
+function xmlEsc(s){
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// GAEB IMPORT (DA81/DA83/X83 → LV)
+// ════════════════════════════════════════════════════════════════════════
+function showGAEBImport() {
+  document.getElementById('gaeb-file-in').click();
+}
+
+function handleGAEBImport(input) {
+  const f = input.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = e => {
+    try {
+      const xml = e.target.result;
+      const lv = parseGAEB(xml, f.name);
+      if(!lv) { toast('GAEB konnte nicht gelesen werden – Datei prüfen','err'); return; }
+      // Projekt-Zuordnung
+      lv.projektId = activeProjektId || null;
+      DB.projects.unshift(lv);
+      saveDB();
+      renderSidebar();
+      openProject(lv.id);
+      toast(`✓ GAEB importiert: "${lv.name}" – ${lv.sections.reduce((s,sec)=>s+sec.positions.length,0)} Positionen`);
+    } catch(err) {
+      console.error(err);
+      toast('Fehler beim GAEB-Import: ' + err.message, 'err');
+    }
+  };
+  r.readAsText(f, 'UTF-8');
+  input.value = '';
+}
+
+function parseGAEB(xmlStr, filename) {
+  // XML parsen
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(xmlStr, 'application/xml');
+  const parseError = doc.querySelector('parsererror');
+  if(parseError) throw new Error('Ungültiges XML');
+
+  // Namespace-agnostisch: alle Tags per localName suchen
+  function getEls(parent, tag) {
+    return Array.from(parent.querySelectorAll('*')).filter(el => el.localName === tag);
+  }
+  function getText(parent, tag) {
+    const els = getEls(parent, tag);
+    return els.length ? (els[0].textContent||'').trim() : '';
+  }
+
+  // Projektinfos
+  const projName  = getText(doc, 'LblPrj') || getText(doc, 'NamePrj') || filename.replace(/\.\w+$/,'');
+  const ort       = getText(doc, 'OrtPrj') || getText(doc, 'NamePrj') || '';
+  const ag        = getText(doc, 'AG') || 'Riedel Bau AG';
+  const lvnr      = getText(doc, 'LblPrj') || '';
+  const datum     = getText(doc, 'Date') || new Date().toLocaleDateString('de-DE');
+
+  // Positionen parsen – DA83 / X83 Struktur
+  // Positionen sind <Pos> oder <BoQItem> oder <Item> je nach Version
+  const posEls = getEls(doc, 'Pos').length > 0
+    ? getEls(doc, 'Pos')
+    : getEls(doc, 'BoQItem').length > 0
+      ? getEls(doc, 'BoQItem')
+      : getEls(doc, 'Item');
+
+  // Sections aus den Positionen ableiten
+  const sectionsMap = {};
+  const sectionOrder = [];
+  let posCount = 0;
+
+  posEls.forEach(pos => {
+    const posTyp  = getText(pos, 'PosTyp') || pos.getAttribute('RNoPart') || '0';
+    const posId   = getText(pos, 'PosID') || getText(pos, 'RNoPos') || uid();
+    const oz      = getText(pos, 'RNoPos') || getText(pos, 'PosID') || '';
+    const qty     = getText(pos, 'Qty') || getText(pos, 'Menge') || '';
+    const unit    = getText(pos, 'QU') || getText(pos, 'ME') || getText(pos, 'Unit') || 'psch';
+    const ep      = getText(pos, 'UP') || getText(pos, 'EP') || '';
+    const secId   = getText(pos, 'RNoPart') || 's1';
+
+    // Beschreibung: DetailTxt > ShortText > Text > LongText
+    const detailEl   = getEls(pos, 'DetailTxt');
+    const shortEl    = getEls(pos, 'ShortText');
+    const longEl     = getEls(pos, 'LongText');
+    let desc = '';
+    if(detailEl.length) {
+      // Kurztitel aus erstem Satz, dann Rest
+      const textEls = getEls(detailEl[0], 'Text');
+      desc = textEls.map(t=>(t.textContent||'').trim()).filter(Boolean).join('\n');
+    }
+    if(!desc && shortEl.length) desc = (shortEl[0].textContent||'').trim();
+    if(!desc && longEl.length) desc = (longEl[0].textContent||'').trim();
+    if(!desc) desc = getText(pos, 'Text') || '(Keine Beschreibung)';
+
+    // Abschnittsheader (PosTyp 1 = Titel/Abschnitt)
+    if(posTyp === '1' || posTyp === 'title' || (!oz && desc)) {
+      if(!sectionsMap[secId]) {
+        sectionsMap[secId] = { id: uid(), title: desc || 'Abschnitt', positions: [] };
+        sectionOrder.push(secId);
+      } else {
+        sectionsMap[secId].title = desc;
+      }
+      return;
+    }
+
+    // Sicherstellen dass Section existiert
+    if(!sectionsMap[secId]) {
+      sectionsMap[secId] = { id: uid(), title: 'Abschnitt ' + secId, positions: [] };
+      sectionOrder.push(secId);
+    }
+
+    posCount++;
+    sectionsMap[secId].positions.push({
+      id: uid(),
+      oz: oz || String(posCount).padStart(4,'0'),
+      desc: desc,
+      unit: normalizeUnit(unit),
+      menge: qty,
+      ep: ep,
+      status: 'ok',
+      vob: '',
+      note: '',
+      added: false,
+    });
+  });
+
+  // Falls keine Sections erkannt: alle Positionen in eine Section
+  if(sectionOrder.length === 0) {
+    return null;
+  }
+
+  // Leere Sections entfernen, aber mind. eine behalten
+  const sections = sectionOrder
+    .map(id => sectionsMap[id])
+    .filter(s => s.positions.length > 0 || sectionOrder.length === 1);
+
+  if(sections.length === 0) {
+    // Fallback: alle Pos in eine Section
+    const allPos = posEls.map(pos => {
+      const oz   = getText(pos,'RNoPos')||getText(pos,'PosID')||'';
+      const qty  = getText(pos,'Qty')||'';
+      const unit = getText(pos,'QU')||getText(pos,'ME')||'psch';
+      const ep   = getText(pos,'UP')||'';
+      const desc = getText(pos,'Text')||getText(pos,'LongText')||getText(pos,'ShortText')||'(keine Beschreibung)';
+      return { id:uid(), oz, desc, unit:normalizeUnit(unit), menge:qty, ep, status:'ok', vob:'', note:'', added:false };
+    }).filter(p => p.desc !== '(keine Beschreibung)' || p.oz);
+
+    if(allPos.length === 0) return null;
+    sections.push({ id:uid(), title:'Importierte Positionen', positions:allPos });
+  }
+
+  return {
+    id: uid(),
+    name: projName,
+    gewerk: 'DIN 18299 – Allgemeine Regelungen',
+    ort, ag, an:'', bl:'', lvnr,
+    datum, ausfzeit:'', vergabeart:'', leistgrenze:'', norm:'',
+    notes: `Importiert aus GAEB-Datei: ${filename}`,
+    normArr: [],
+    sections,
+    archived: false,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    chat: [],
+    projektId: null,
+  };
+}
+
+function normalizeUnit(u) {
+  const map = {'M':'m','M2':'m²','M3':'m³','STK':'Stk','STCK':'Stk','PSC':'psch','PSCH':'psch',
+    'STD':'Std','KG':'kg','T':'t','L':'l','M2':'m²','M3':'m³'};
+  return map[u.toUpperCase()] || u || 'psch';
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// JSON BACKUP
+// ════════════════════════════════════════════════════════════════════════
+function exportAllJSON(){
+  const blob=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='LV-Manager-Backup-'+new Date().toISOString().slice(0,10)+'.json';
+  a.click(); toast('Backup exportiert');
+}
+// ── JSON robust herausschneiden: Claude liefert oft ```json-Fences oder Fließtext ──
+function extractJSON(text){
+  let t=String(text||'').replace(/^\uFEFF/,'').trim();
+  if(!t) throw new Error('Datei/Feld ist leer');
+  const fence=t.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if(fence) t=fence[1].trim();
+  try{ return JSON.parse(t); }catch(e){}
+  // Fallback: von der ersten Klammer bis zur letzten
+  const starts=[t.indexOf('{'),t.indexOf('[')].filter(i=>i>=0);
+  if(!starts.length) throw new Error('Kein JSON erkennbar');
+  const s=Math.min(...starts);
+  const e=Math.max(t.lastIndexOf('}'),t.lastIndexOf(']'));
+  if(e<=s) throw new Error('JSON unvollständig (Klammer fehlt)');
+  return JSON.parse(t.slice(s,e+1));
+}
+
+// ── Fremdes LV-Objekt auf das interne Schema bringen ──
+function normalizeLV(o, keepIds){
+  if(!o||typeof o!=='object'||Array.isArray(o)) throw new Error('Kein LV-Objekt');
+  const str=v=>(v===null||v===undefined)?'':String(v);
+  const secs=Array.isArray(o.sections)?o.sections:[];
+  return {
+    id: (keepIds&&o.id)?o.id:uid(),
+    name: str(o.name)||'Importiertes LV',
+    gewerk: str(o.gewerk)||'DIN 18299 – Allgemeine Regelungen',
+    ort:str(o.ort), ag:str(o.ag)||'Riedel Bau AG', an:str(o.an), bl:str(o.bl), lvnr:str(o.lvnr),
+    datum: str(o.datum)||new Date().toLocaleDateString('de-DE'),
+    ausfzeit:str(o.ausfzeit), leistgrenze:str(o.leistgrenze),
+    norm:str(o.norm),
+    normArr: Array.isArray(o.normArr)?o.normArr
+           : (o.norm?String(o.norm).split(',').map(s=>s.trim()).filter(Boolean):[]),
+    vergabeart:str(o.vergabeart), notes:str(o.notes),
+    vorbem: Array.isArray(o.vorbem)
+      ? o.vorbem.filter(v=>v&&(v.title||v.text)).map(v=>({id:uid(),title:str(v.title)||'Block',text:str(v.text)}))
+      : [],
+    sections: secs.map(sec=>({
+      id: (keepIds&&sec.id)?sec.id:uid(),
+      title: str(sec&&sec.title)||'Abschnitt',
+      positions: (Array.isArray(sec&&sec.positions)?sec.positions:[]).map(p=>({
+        id: (keepIds&&p.id)?p.id:uid(),
+        oz: str(p.oz),
+        desc: str(p.desc),
+        unit: str(p.unit)||'psch',
+        menge: str(p.menge),
+        ep: str(p.ep),
+        status: STATUS_CFG[p.status]?p.status:'ok',
+        vob: str(p.vob),
+        note: str(p.note),
+        added: !!p.added,
+      })),
+    })),
+    archived: !!o.archived,
+    createdAt: Number(o.createdAt)||Date.now(),
+    updatedAt: Date.now(),
+    chat: [],
+    projektId: (o.projektId!==undefined&&o.projektId!==null)?o.projektId:activeProjektId,
+  };
+}
+
+function mergeProjekte(arr){
+  if(!Array.isArray(arr)) return;
+  if(!DB.projekte) DB.projekte=[];
+  arr.forEach(p=>{ if(p&&p.id&&!DB.projekte.some(x=>x.id===p.id)) DB.projekte.push(p); });
+}
+
+// ── Kernstück: akzeptiert Backup, Array UND einzelnes LV ──
+function importLVData(raw){
+  const d=extractJSON(raw);
+  let list, keepIds=false;
+  if(d&&Array.isArray(d.projects)){                       // Backup-Datei
+    list=d.projects; keepIds=true;
+    if(d.apiKey&&!DB.apiKey) DB.apiKey=d.apiKey;
+    mergeProjekte(d.projekte);
+  }
+  else if(Array.isArray(d)) list=d;                        // Array von LVs
+  else if(d&&(Array.isArray(d.sections)||d.name)) list=[d];// einzelnes LV (Claude-Vorentwurf)
+  else throw new Error('Kein LV erkannt – erwartet wird ein Objekt mit "sections"');
+
+  const lvs=list.map(o=>normalizeLV(o,keepIds));
+  if(!lvs.length) throw new Error('Datei enthält keine LVs');
+
+  DB.projects=[...lvs,...DB.projects];
+  saveDB(); renderSidebar(); openProject(lvs[0].id);
+  const posN=lvs.reduce((s,lv)=>s+posCount(lv),0);
+  toast(`✓ ${lvs.length} LV${lvs.length!==1?'s':''} importiert – ${posN} Positionen`);
+  return lvs;
+}
+
+// ── Import-Dialog: Einfügen ODER Datei ──
+function importJSON(){
+  const bg=document.createElement('div');
+  bg.className='modal-bg';
+  bg.innerHTML=`<div class="modal" style="max-width:620px">
+    <h3>⬆ LV importieren</h3>
+    <p>JSON aus der Claude-Antwort hier einfügen (Strg+V). Markdown-Backticks und Text
+    drumherum werden automatisch entfernt. Alternativ eine Backup- oder JSON-Datei laden.</p>
+    <textarea id="imp-ta" rows="10" placeholder='{ "name": "...", "sections": [ ... ] }'
+      style="width:100%;border:1.5px solid var(--border);border-radius:6px;padding:9px 11px;
+      font-family:'IBM Plex Mono',monospace;font-size:11px;resize:vertical;line-height:1.5"></textarea>
+    <div class="modal-btns">
+      <button id="imp-file" style="background:#eef2f7;color:var(--dark);padding:8px 14px;font-size:12px">📁 Datei wählen…</button>
+      <button id="imp-cancel" style="background:#eef2f7;color:var(--muted);padding:8px 14px;font-size:12px">Abbrechen</button>
+      <button id="imp-ok" style="background:var(--dark);color:#fff;padding:8px 18px;font-size:12px">Importieren</button>
+    </div>
+  </div>`;
+  document.body.appendChild(bg);
+  const close=()=>bg.remove();
+  bg.addEventListener('click',e=>{ if(e.target===bg) close(); });
+  bg.querySelector('#imp-cancel').onclick=close;
+  bg.querySelector('#imp-file').onclick=()=>{ close(); document.getElementById('json-file-in').click(); };
+  bg.querySelector('#imp-ok').onclick=()=>{
+    const txt=bg.querySelector('#imp-ta').value;
+    try{ importLVData(txt); close(); }
+    catch(err){ toast('Import fehlgeschlagen: '+err.message,'err'); }
+  };
+  setTimeout(()=>bg.querySelector('#imp-ta').focus(),0);
+}
+
+function handleJSONImport(input){
+  const f=input.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=e=>{
+    try{ importLVData(e.target.result); }
+    catch(err){ console.error(err); toast('Import fehlgeschlagen: '+err.message,'err'); }
+  };
+  r.onerror=()=>toast('Datei konnte nicht gelesen werden','err');
+  r.readAsText(f,'UTF-8'); input.value='';
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// PROJEKT-STRUKTUR
+// ════════════════════════════════════════════════════════════════════════
+let activeProjektId = null; // null = alle LVs
+
+const PROJ_COLORS = ['#2563eb','#16a34a','#d97706','#dc2626','#7c3aed','#0891b2','#be185d','#065f46'];
+
+function getProjekte() { return DB.projekte || []; }
+
+function newProjekt() {
+  const name = prompt('Projektname:','Projekt München 2026');
+  if(!name || !name.trim()) return;
+  if(!DB.projekte) DB.projekte=[];
+  const farbe = PROJ_COLORS[DB.projekte.length % PROJ_COLORS.length];
+  const proj = {id:uid(), name:name.trim(), farbe, createdAt:Date.now()};
+  DB.projekte.push(proj);
+  saveDB();
+  activeProjektId = proj.id;
+  renderSidebar();
+  toast('Projekt "'+proj.name+'" erstellt');
+}
+
+function renameProjekt(id, e) {
+  e.stopPropagation();
+  const proj = DB.projekte.find(p=>p.id===id); if(!proj) return;
+  const name = prompt('Projekt umbenennen:', proj.name);
+  if(name && name.trim()) { proj.name=name.trim(); saveDB(); renderSidebar(); }
+}
+
+function deleteProjekt(id, e) {
+  e.stopPropagation();
+  const proj = DB.projekte.find(p=>p.id===id); if(!proj) return;
+  const lvCount = DB.projects.filter(p=>p.projektId===id).length;
+  if(!confirm(`Projekt "${proj.name}" löschen?${lvCount>0?' Die '+lvCount+' enthaltenen LVs werden keinem Projekt zugeordnet.':''}`)) return;
+  DB.projekte = DB.projekte.filter(p=>p.id!==id);
+  DB.projects.forEach(p=>{ if(p.projektId===id) p.projektId=null; });
+  if(activeProjektId===id) activeProjektId=null;
+  saveDB(); renderSidebar();
+  toast('Projekt gelöscht','warn');
+}
+
+function selectProjekt(id) {
+  activeProjektId = id;
+  renderSidebar();
+}
+
+function moveLVtoProjekt(lvId, projektId) {
+  const lv = DB.projects.find(p=>p.id===lvId); if(!lv) return;
+  lv.projektId = projektId;
+  saveDB(); renderSidebar();
+  const proj = projektId ? DB.projekte.find(p=>p.id===projektId) : null;
+  toast('LV verschoben'+(proj?' → '+proj.name:'→ Kein Projekt'));
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// NORMEN-DATENBANK (nach Gewerken sortiert)
+// ════════════════════════════════════════════════════════════════════════
+const NORMEN_GRUPPEN = [
+  { name:'Allgemein', color:'#4b5563', normen:[
+    {din:'DIN 18299',    txt:'Allgemeine Regelungen für Bauarbeiten jeder Art'},
+    {din:'VOB/B',        txt:'Allgemeine Vertragsbedingungen für die Ausführung von Bauleistungen'},
+    {din:'VOB/C',        txt:'Allgemeine Technische Vertragsbedingungen'},
+    {din:'HOAI',         txt:'Honorarordnung für Architekten und Ingenieure'},
+    {din:'BGB § 631ff',  txt:'Werkvertragsrecht'},
+  ]},
+  { name:'Erd- & Tiefbau', color:'#92400e', normen:[
+    {din:'DIN 18300',  txt:'Erdarbeiten'},
+    {din:'DIN 18301',  txt:'Bohrarbeiten'},
+    {din:'DIN 18302',  txt:'Brunnenbauarbeiten'},
+    {din:'DIN 18303',  txt:'Verbauarbeiten'},
+    {din:'DIN 18304',  txt:'Ramm-, Rüttel- und Pressarbeiten'},
+    {din:'DIN 18305',  txt:'Wasserhaltungsarbeiten'},
+    {din:'DIN 18306',  txt:'Entwässerungskanalarbeiten'},
+    {din:'DIN 18307',  txt:'Druckrohrleitungsarbeiten im Erdbereich'},
+    {din:'DIN 18308',  txt:'Drän- und Versickerarbeiten'},
+    {din:'DIN 18309',  txt:'Einpressarbeiten'},
+    {din:'DIN 18310',  txt:'Sicherungsarbeiten an Gewässern'},
+    {din:'DIN 18311',  txt:'Nassbaggerarbeiten'},
+    {din:'DIN 18312',  txt:'Untertagebauarbeiten'},
+    {din:'DIN 18313',  txt:'Schlitzwandarbeiten'},
+    {din:'DIN 18314',  txt:'Spritzbetonarbeiten'},
+    {din:'DIN 18319',  txt:'Rohrvorpress- und Rohrvortriebsarbeiten'},
+    {din:'DIN 18320',  txt:'Landschaftsbauarbeiten'},
+    {din:'DIN 18321',  txt:'Düsenstrahlarbeiten'},
+    {din:'DIN 18322',  txt:'Kabelleitungstiefbauarbeiten'},
+    {din:'DIN 18325',  txt:'Gleisbauarbeiten'},
+    {din:'DIN EN 1610',txt:'Verlegung und Prüfung von Abwasserleitungen'},
+    {din:'DIN EN 1401',txt:'Rohrsysteme aus PVC-U für Abwasserleitungen'},
+    {din:'DIN EN 752', txt:'Entwässerungssysteme außerhalb von Gebäuden'},
+    {din:'DIN 4124',   txt:'Baugruben und Gräben – Böschungen, Verbau'},
+    {din:'ZTV A-StB',  txt:'Zusätzliche Technische Vertragsbedingungen Aufgrabungen'},
+    {din:'DIN EN 13508',txt:'Untersuchung und Beurteilung von Entwässerungssystemen'},
+    {din:'BBodSchV',   txt:'Bundes-Bodenschutz- und Altlastenverordnung'},
+    {din:'DepV',       txt:'Deponieverordnung'},
+  ]},
+  { name:'Verkehrswegebau', color:'#1d4ed8', normen:[
+    {din:'DIN 18315',  txt:'Verkehrswegebauarbeiten – Oberbauschichten ohne Bindemittel'},
+    {din:'DIN 18316',  txt:'Pflasterdecken und Plattenbeläge aus Pflastersteinen'},
+    {din:'DIN 18317',  txt:'Verkehrswegebauarbeiten – Markierungsarbeiten'},
+    {din:'DIN 18318',  txt:'Pflasterdecken und Plattenbeläge aus Naturstein'},
+    {din:'ZTV Asphalt-StB',txt:'Zusätzliche Technische Vertragsbedingungen Asphalt'},
+    {din:'ZTV BEA-StB',txt:'Besondere Entwässerungsanlagen Straßenbau'},
+    {din:'RStO',       txt:'Richtlinien für die Standardisierung des Oberbaus'},
+  ]},
+  { name:'Rohbau / Beton', color:'#374151', normen:[
+    {din:'DIN 18330',  txt:'Mauerarbeiten'},
+    {din:'DIN 18331',  txt:'Beton- und Stahlbetonarbeiten'},
+    {din:'DIN 18332',  txt:'Naturwerksteinarbeiten'},
+    {din:'DIN 18333',  txt:'Betonwerksteinarbeiten'},
+    {din:'DIN 18334',  txt:'Zimmer- und Holzbauarbeiten'},
+    {din:'DIN 18335',  txt:'Stahlbauarbeiten'},
+    {din:'DIN 18336',  txt:'Abdichtungsarbeiten'},
+    {din:'DIN 18337',  txt:'Abbruch- und Rückbauarbeiten'},
+    {din:'DIN 18349',  txt:'Betonerhaltungsarbeiten'},
+    {din:'DIN EN 206', txt:'Beton – Festlegung, Eigenschaften, Herstellung'},
+    {din:'DIN 1045',   txt:'Tragwerke aus Beton – Bemessung und Konstruktion'},
+    {din:'DIN 4102',   txt:'Brandverhalten von Baustoffen und Bauteilen'},
+    {din:'DIN 18800',  txt:'Stahlbauten – Bemessung und Konstruktion'},
+    {din:'EC 2',       txt:'Eurocode 2 – Bemessung von Stahlbetontragwerken'},
+    {din:'EC 3',       txt:'Eurocode 3 – Bemessung von Stahlbauten'},
+  ]},
+  { name:'Dach & Fassade', color:'#0f766e', normen:[
+    {din:'DIN 18338',  txt:'Dachdeckungs- und Dachabdichtungsarbeiten'},
+    {din:'DIN 18339',  txt:'Klempnerarbeiten'},
+    {din:'DIN 18345',  txt:'Wärmedämm-Verbundsysteme (WDVS)'},
+    {din:'DIN 18351',  txt:'Vorgehängte hinterlüftete Fassaden'},
+    {din:'DIN 68121',  txt:'Holzprofile für Fenster und Außentüren'},
+    {din:'DIN EN 14351',txt:'Fenster und Außentüren – Leistungseigenschaften'},
+    {din:'EnEV / GEG', txt:'Gebäudeenergiegesetz'},
+    {din:'DIN 4108',   txt:'Wärmeschutz und Energie-Einsparung in Gebäuden'},
+  ]},
+  { name:'Innenausbau', color:'#7c3aed', normen:[
+    {din:'DIN 18340',  txt:'Trockenbauarbeiten'},
+    {din:'DIN 18350',  txt:'Putz- und Stuckarbeiten'},
+    {din:'DIN 18352',  txt:'Fliesen- und Plattenarbeiten'},
+    {din:'DIN 18353',  txt:'Estricharbeiten'},
+    {din:'DIN 18354',  txt:'Gussasphaltarbeiten'},
+    {din:'DIN 18355',  txt:'Tischlerarbeiten'},
+    {din:'DIN 18356',  txt:'Parkett- und Holzpflasterarbeiten'},
+    {din:'DIN 18357',  txt:'Beschlagarbeiten'},
+    {din:'DIN 18358',  txt:'Rollladen- und Sonnenschutzarbeiten'},
+    {din:'DIN 18360',  txt:'Metallbauarbeiten'},
+    {din:'DIN 18361',  txt:'Verglasungsarbeiten'},
+    {din:'DIN 18362',  txt:'Malerarbeiten – Beschichtungen innen/außen'},
+    {din:'DIN 18363',  txt:'Malerarbeiten – Tapezierarbeiten'},
+    {din:'DIN 18364',  txt:'Korrosionsschutzarbeiten an Stahl'},
+    {din:'DIN 18365',  txt:'Bodenbelagarbeiten'},
+    {din:'DIN 18421',  txt:'Dämm- und Brandschutzarbeiten an technischen Anlagen'},
+    {din:'DIN 18451',  txt:'Gerüstarbeiten'},
+    {din:'DIN 4109',   txt:'Schallschutz im Hochbau'},
+    {din:'DIN 18032',  txt:'Sporthallen – Bau und Ausstattung'},
+  ]},
+  { name:'Technische Gebäudeausrüstung (TGA)', color:'#0369a1', normen:[
+    {din:'DIN 18368',  txt:'Gasleitungsarbeiten'},
+    {din:'DIN 18369',  txt:'Dämmarbeiten an technischen Anlagen'},
+    {din:'DIN 18379',  txt:'Raumlufttechnische Anlagen'},
+    {din:'DIN 18380',  txt:'Heizanlagen und Brauchwassererwärmungsanlagen'},
+    {din:'DIN 18381',  txt:'Gas-, Wasser- und Entwässerungsanlagen in Gebäuden'},
+    {din:'DIN 18382',  txt:'Nieder- und Mittelspannungsanlagen'},
+    {din:'DIN 18383',  txt:'Blitzschutzanlagen'},
+    {din:'DIN 18384',  txt:'Fernmeldeanlagen'},
+    {din:'DIN 18385',  txt:'Förderanlagen, Aufzugsanlagen'},
+    {din:'DIN 18386',  txt:'Gebäudeautomation'},
+    {din:'DIN 18459',  txt:'Abbruch- und Rückbauarbeiten TGA'},
+    {din:'VDI 2050',   txt:'Anforderungen an Technikzentralen'},
+    {din:'VDI 3805',   txt:'Produktdatenaustausch in der TGA'},
+    {din:'TRGI',       txt:'Technische Regeln für Gasinstallationen'},
+    {din:'TRWI',       txt:'Technische Regeln für Trinkwasser-Installationen'},
+    {din:'DIN EN 12831',txt:'Heizungsanlagen in Gebäuden – Norm-Heizlast'},
+    {din:'DIN VDE 0100',txt:'Errichten von Niederspannungsanlagen'},
+  ]},
+  { name:'Prüfung & Abnahme', color:'#15803d', normen:[
+    {din:'DIN EN 1610', txt:'Prüfung von Abwasserleitungen und -kanälen'},
+    {din:'DIN EN 13508',txt:'Zustandserfassung von Entwässerungssystemen'},
+    {din:'DIN 4102-2',  txt:'Brandverhalten – Brandwiderstandsklassen'},
+    {din:'DIN 1164',    txt:'Zement – Zusammensetzung und Güteüberwachung'},
+    {din:'ZTV-Ing',     txt:'Zusätzliche Technische Vertragsbedingungen Ingenieurbau'},
+    {din:'DIN 18202',   txt:'Toleranzen im Hochbau – Bauwerke'},
+    {din:'DIN 18195',   txt:'Bauwerksabdichtungen'},
+    {din:'DIN 18533',   txt:'Abdichtung erdberührender Bauteile'},
+    {din:'DIN ISO 9001',txt:'Qualitätsmanagementsysteme'},
+  ]},
+];
+
+// Normen-State: Array von DIN-Strings
+function getNormenArray(p) {
+  if(!p.normArr) {
+    // Migration: alten norm-String in Array umwandeln
+    p.normArr = p.norm ? p.norm.split(',').map(s=>s.trim()).filter(Boolean) : [];
+  }
+  return p.normArr;
+}
+function normenToString(arr) { return arr.join(', '); }
+
+// ════════════════════════════════════════════════════════════════════════
+// LV ASSISTENT
+// ════════════════════════════════════════════════════════════════════════
+const WIZ_STEPS = [
+  {
+    id: 'gewerk',
+    q: 'Welches Gewerk wird ausgeschrieben?',
+    hint: 'Wähle das passende VOB/C-Gewerk oder gib es frei ein.',
+    type: 'chips-plus-select',
+    chips: ['Erdarbeiten (DIN 18300)','Entwässerung (DIN 18306)','Beton/Stahlbeton (DIN 18331)','Mauerarbeiten (DIN 18330)','Zimmerarbeiten (DIN 18334)','Abdichtung (DIN 18336)','Trockenbau (DIN 18340)','Putzarbeiten (DIN 18350)','Estrich (DIN 18353)','Fliesen (DIN 18352)','Maler (DIN 18362)','Heizung (DIN 18380)','Sanitär (DIN 18381)','Elektro (DIN 18382)','Gerüst (DIN 18451)'],
+    field: 'gewerk',
+  },
+  {
+    id: 'basis',
+    q: 'Projekteckdaten',
+    hint: 'Grundlegende Informationen zum Bauvorhaben.',
+    type: 'fields',
+    fields: [
+      {key:'name',    label:'LV-Bezeichnung',        ph:'z.B. Erdarbeiten Neubau EFH',   half:false},
+      {key:'ort',     label:'Bauvorhaben / Adresse', ph:'z.B. Musterstraße 1, München',  half:false},
+      {key:'ag',      label:'Auftraggeber',           ph:'z.B. Riedel Bau AG',            half:true},
+      {key:'lvnr',    label:'LV-Nummer',              ph:'z.B. 25-0210',                  half:true},
+      {key:'ausfzeit',label:'Ausführungszeitraum',    ph:'z.B. 01.09.2026 – 31.03.2027',  half:true},
+      {key:'bl',      label:'Bauleiter',              ph:'z.B. Simon Berger',             half:true},
+    ],
+  },
+  {
+    id: 'randbedingungen',
+    q: 'Besondere Randbedingungen',
+    hint: 'Was sollte Claude beim Erstellen des LV besonders berücksichtigen?',
+    type: 'multichips',
+    chips: [
+      'Abrissgrundstück (Altleitungen vorhanden)',
+      'Grundwasser zu erwarten',
+      'Bestandsgebäude / laufender Betrieb',
+      'Holzhybridbau / Sonderkonstruktion',
+      'Enge Platzverhältnisse auf Baustelle',
+      'Öffentlicher Verkehrsraum betroffen',
+      'Schadstoffverdacht / Altlasten',
+      'Denkmalschutz',
+      'Trennsystem Entwässerung',
+      'Mischsystem Entwässerung',
+      'Tiefgarage / Untergeschoss',
+      'Erschütterungsempfindliche Nachbarbebauung',
+    ],
+    field: 'randbedingungen',
+    extra: {key:'randbedingungen_extra', label:'Weitere Besonderheiten (Freitext)', ph:'z.B. Baugrundgutachten liegt vor, MHGW = 503,6 NHN …'},
+  },
+  {
+    id: 'leistungsumfang',
+    q: 'Gewünschter Leistungsumfang',
+    hint: 'Was soll das LV abdecken? Mehrfachauswahl möglich.',
+    type: 'multichips',
+    chips: [
+      'Baustelleneinrichtung & Räumung',
+      'Erdarbeiten / Aushub',
+      'Verbau / Wasserhaltung',
+      'Leitungsarbeiten außerhalb Gebäude',
+      'Leitungsarbeiten innerhalb Gebäude',
+      'Schächte & Revisionsbauwerke',
+      'Anschluss öffentliche Kanalisation',
+      'Dichtheitsprüfung & Abnahme',
+      'Bestandsdokumentation / Revisionspläne',
+      'Abbruch & Entsorgung Altleitungen',
+      'Wiederherstellung Oberflächen',
+      'Grundwasserhaltung (Eventualposition)',
+      'Stundenlohnarbeiten (Eventualposition)',
+    ],
+    field: 'leistungsumfang',
+    extra: {key:'leistungsumfang_extra', label:'Weitere Leistungen (Freitext)', ph:'z.B. Koordination Netzbetreiber, Vermessung …'},
+  },
+  {
+    id: 'vergabe',
+    q: 'Vergabe & Vertragsrahmen',
+    hint: 'Wie wird vergeben und welche Vertragsbedingungen gelten?',
+    type: 'fields',
+    fields: [
+      {key:'vergabeart',  label:'Vergabeart',          ph:'', half:true,  select: ['Freihändige Vergabe (VOB/A § 3)','Beschränkte Ausschreibung','Öffentliche Ausschreibung','Direktvergabe NU','EU-weite Ausschreibung']},
+      {key:'vertragstyp', label:'Vertragstyp',         ph:'', half:true,  select: ['Einheitspreisvertrag','Pauschalvertrag (Global)','Stundenlohnvertrag','GMP-Vertrag','Open-Book']},
+      {key:'abgabedatum', label:'Angebotsabgabe bis',  ph:'z.B. 18.09.2026', half:true},
+      {key:'zuschlag',    label:'Zuschlagsfrist bis',  ph:'z.B. 16.10.2026', half:true},
+    ],
+  },
+  {
+    id: 'prompt',
+    q: 'Fertig – Prompt für Claude bereit',
+    hint: 'Kopiere den Prompt, öffne claude.ai, füge ein und schicke ab. Claude erstellt dann einen vollständigen LV-Vorentwurf als JSON den du direkt importieren kannst.',
+    type: 'prompt-preview',
+  },
+];
+
+let wizData = {};
+let wizStep = 0;
+
+function openWizard() {
+  wizData = {};
+  wizStep = 0;
+  document.getElementById('wizard-modal').style.display = 'flex';
+  renderWizStep();
+}
+function closeWizard() {
+  document.getElementById('wizard-modal').style.display = 'none';
+}
+
+function renderWizStep() {
+  const step = WIZ_STEPS[wizStep];
+  const total = WIZ_STEPS.length;
+  const body  = document.getElementById('wizard-body');
+  const pills = document.getElementById('wiz-pills');
+  const prog  = document.getElementById('wiz-progress');
+  const back  = document.getElementById('wiz-back');
+  const next  = document.getElementById('wiz-next');
+
+  // Pills
+  pills.innerHTML = WIZ_STEPS.map((_,i)=>
+    `<div class="step-pill ${i<wizStep?'done':i===wizStep?'active':''}"></div>`
+  ).join('');
+
+  prog.textContent = `Schritt ${wizStep+1} von ${total}`;
+  back.style.display = wizStep===0 ? 'none' : '';
+  next.textContent = wizStep===total-1 ? '' : (wizStep===total-2 ? 'Prompt erstellen ✓' : 'Weiter →');
+  next.className = 'wiz-next' + (wizStep===total-2?' green':'');
+  if(wizStep===total-1) next.style.display='none'; else next.style.display='';
+
+  let html = `<div class="wizard-step active">
+    <div class="wiz-q">${step.q}</div>
+    <div class="wiz-hint">${step.hint}</div>`;
+
+  if(step.type === 'chips-plus-select') {
+    const cur = wizData[step.field]||'';
+    html += `<div class="wiz-chips" id="wiz-chips">
+      ${step.chips.map(ch=>`<div class="wiz-chip${cur===ch?' selected':''}" onclick="wizSelectChip('${step.field}','${ch.replace(/'/g,"\\'")}',this)">${ch}</div>`).join('')}
+    </div>
+    <div style="margin-top:12px">
+      <span class="wiz-label">Oder aus allen VOB-Gewerken wählen:</span>
+      <select class="wiz-select" onchange="wizData['${step.field}']=this.value;document.querySelectorAll('.wiz-chip').forEach(c=>c.classList.remove('selected'))">
+        <option value="">— Gewerk auswählen —</option>
+        ${GEWERKE.map(g=>`<option value="${g}"${wizData[step.field]===g?' selected':''}>${g}</option>`).join('')}
+      </select>
+    </div>`;
+  }
+
+  else if(step.type === 'fields') {
+    html += `<div class="wiz-row">`;
+    step.fields.forEach(f=>{
+      html += `<div${f.half?'':' style="grid-column:1/-1"'}>
+        <span class="wiz-label">${f.label}</span>`;
+      if(f.select) {
+        html += `<select class="wiz-select" data-wfield="${f.key}">
+          ${(f.select||[]).map(o=>`<option value="${o}"${wizData[f.key]===o?' selected':''}>${o}</option>`).join('')}
+        </select>`;
+      } else {
+        html += `<input class="wiz-input" data-wfield="${f.key}" value="${esc(wizData[f.key]||'')}" placeholder="${f.ph}">`;
+      }
+      html += `</div>`;
+    });
+    html += `</div>`;
+  }
+
+  else if(step.type === 'multichips') {
+    const cur = wizData[step.field] || [];
+    html += `<div class="wiz-chips">
+      ${step.chips.map(ch=>`<div class="wiz-chip${cur.includes(ch)?' selected':''}"
+        onclick="wizToggleChip('${step.field}','${ch.replace(/'/g,"\\'")}',this)">${ch}</div>`).join('')}
+    </div>`;
+    if(step.extra) {
+      html += `<div style="margin-top:12px">
+        <span class="wiz-label">${step.extra.label}</span>
+        <textarea class="wiz-textarea" data-wfield="${step.extra.key}" placeholder="${step.extra.ph}">${esc(wizData[step.extra.key]||'')}</textarea>
+      </div>`;
+    }
+  }
+
+  else if(step.type === 'prompt-preview') {
+    const prompt = buildWizardPrompt();
+    html += `<div class="prompt-box">${esc(prompt)}</div>
+    <div class="prompt-actions">
+      <button onclick="copyWizardPrompt()" style="background:var(--dark);color:#fff;padding:9px 18px;font-size:12px;border-radius:6px;border:none;cursor:pointer;font-weight:700;flex:1">
+        📋 Prompt kopieren (${prompt.length} Zeichen)
+      </button>
+      <a href="https://claude.ai" target="_blank"
+        style="background:#2563eb;color:#fff;padding:9px 16px;border-radius:6px;font-size:12px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:5px">
+        🔗 claude.ai öffnen
+      </a>
+    </div>
+    <div style="margin-top:14px;background:#f0f7ff;border-radius:7px;padding:12px 14px;font-size:11px;color:#1e40af;line-height:1.7">
+      <strong>Ablauf nach dem Kopieren:</strong><br>
+      1. claude.ai öffnen → Prompt einfügen (Strg+V) → Senden<br>
+      2. Claude erstellt einen <strong>vollständigen LV-Vorentwurf als JSON</strong><br>
+      3. JSON aus der Antwort kopieren<br>
+      4. Im LV-Manager: <strong>⬆ JSON laden</strong> → LV erscheint sofort in der Sidebar<br>
+      5. Positionen direkt bearbeiten, Mengen & EPs eintragen
+    </div>
+    <div style="margin-top:10px">
+      <button onclick="createBlankFromWizard()" style="background:#eef2f7;color:var(--dark);padding:8px 16px;font-size:11px;border-radius:6px;border:none;cursor:pointer;font-weight:600">
+        Ohne Claude fortfahren → Leeres LV mit Stammdaten erstellen
+      </button>
+    </div>`;
+  }
+
+  html += `</div>`;
+  body.innerHTML = html;
+}
+
+function wizSelectChip(field, val, el) {
+  wizData[field] = val;
+  document.querySelectorAll('.wiz-chip').forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected');
+  document.querySelector('.wiz-select') && (document.querySelector('.wiz-select').value = '');
+}
+
+function wizToggleChip(field, val, el) {
+  if(!wizData[field]) wizData[field]=[];
+  const i = wizData[field].indexOf(val);
+  if(i>=0) wizData[field].splice(i,1); else wizData[field].push(val);
+  el.classList.toggle('selected', wizData[field].includes(val));
+}
+
+function wizCollectFields() {
+  document.querySelectorAll('[data-wfield]').forEach(el=>{
+    wizData[el.dataset.wfield] = el.value;
+  });
+}
+
+function wizNext() {
+  wizCollectFields();
+  if(wizStep < WIZ_STEPS.length-1) {
+    wizStep++;
+    renderWizStep();
+  }
+}
+function wizBack() {
+  wizCollectFields();
+  if(wizStep > 0) { wizStep--; renderWizStep(); }
+}
+
+function buildWizardPrompt() {
+  const d = wizData;
+  const randb = [
+    ...(d.randbedingungen||[]),
+    d.randbedingungen_extra ? d.randbedingungen_extra : null
+  ].filter(Boolean);
+  const leist = [
+    ...(d.leistungsumfang||[]),
+    d.leistungsumfang_extra ? d.leistungsumfang_extra : null
+  ].filter(Boolean);
+
+  return `Du bist VOB-Experte und Bauleiter bei Riedel Bau AG in Schweinfurt/München.
+
+Erstelle einen vollständigen LV-Vorentwurf für folgendes Bauvorhaben.
+
+═══════════════════════════════════════════
+PROJEKTDATEN
+═══════════════════════════════════════════
+LV-Bezeichnung:    ${d.name||'(nicht angegeben)'}
+Gewerk:            ${d.gewerk||'(nicht angegeben)'}
+Bauvorhaben/Ort:   ${d.ort||'(nicht angegeben)'}
+Auftraggeber:      ${d.ag||'Riedel Bau AG'}
+LV-Nummer:         ${d.lvnr||'(nicht angegeben)'}
+Ausführungszeitraum: ${d.ausfzeit||'(nicht angegeben)'}
+Bauleiter:         ${d.bl||'(nicht angegeben)'}
+Vergabeart:        ${d.vergabeart||'Freihändige Vergabe'}
+Vertragstyp:       ${d.vertragstyp||'Einheitspreisvertrag'}
+Angebotsabgabe:    ${d.abgabedatum||'(nicht angegeben)'}
+Zuschlagsfrist:    ${d.zuschlag||'(nicht angegeben)'}
+
+═══════════════════════════════════════════
+RANDBEDINGUNGEN & BESONDERHEITEN
+═══════════════════════════════════════════
+${randb.length ? randb.map((r,i)=>`${i+1}. ${r}`).join('\n') : 'Keine besonderen Randbedingungen angegeben'}
+
+═══════════════════════════════════════════
+GEWÜNSCHTER LEISTUNGSUMFANG
+═══════════════════════════════════════════
+${leist.length ? leist.map((l,i)=>`${i+1}. ${l}`).join('\n') : 'Vollständiger branchenüblicher Leistungsumfang'}
+
+═══════════════════════════════════════════
+ANFORDERUNGEN AN DAS LV
+═══════════════════════════════════════════
+1. Vollständige Gliederung nach VOB/C (ATV-Norm für das Gewerk)
+2. Alle Positionen mit: OZ-Nummer, Beschreibung, Mengeneinheit
+3. Mengen LEER lassen (werden später eingetragen)
+4. Einheitspreise LEER lassen
+5. VOB-Status je Position: ok/warn/gap/star
+   - ok   = klar geregelt
+   - warn = Klärungsbedarf mit AG
+   - gap  = Lücke/Nebenleistung nach VOB/C
+   - star = Besondere Leistung / Nachtragsrelevanz
+6. VOB-Referenz je Position (Paragraph + ATV-Norm)
+7. Kritische Positionen mit Handlungsempfehlung kennzeichnen
+8. Eventualpositionen (Grundwasser, Mehrtiefe, Stundenlohn) am Ende
+
+═══════════════════════════════════════════
+AUSGABE-FORMAT (ZWINGEND EINHALTEN)
+═══════════════════════════════════════════
+Gib das Ergebnis NUR als JSON aus – kein Text davor oder danach.
+Kein Markdown, keine Backticks, nur reines JSON.
+
+{
+  "name": "LV-Bezeichnung",
+  "gewerk": "Gewerk",
+  "ort": "Ort",
+  "ag": "Auftraggeber",
+  "bl": "Bauleiter",
+  "lvnr": "LV-Nummer",
+  "datum": "heutiges Datum TT.MM.JJJJ",
+  "ausfzeit": "Ausführungszeitraum",
+  "vergabeart": "Vergabeart",
+  "leistgrenze": "Leistungsgrenze",
+  "norm": "anzuwendende Normen kommagetrennt",
+  "notes": "wichtige Hinweise",
+  "sections": [
+    {
+      "id": "s1",
+      "title": "Abschnittsname",
+      "positions": [
+        {
+          "id": "p1",
+          "oz": "01.01",
+          "desc": "Kurztitel\\nDetaillierte Beschreibung nach VOB/C",
+          "unit": "m³",
+          "menge": "",
+          "ep": "",
+          "status": "ok",
+          "vob": "ATV DIN 18300 Abschn. 3",
+          "note": "Handlungsempfehlung falls status != ok",
+          "added": false
+        }
+      ]
+    }
+  ]
+}`;
+}
+
+function copyWizardPrompt() {
+  const prompt = buildWizardPrompt();
+  navigator.clipboard.writeText(prompt).then(()=>{
+    toast('✓ Prompt kopiert – claude.ai öffnen und einfügen!');
+  }).catch(()=>{
+    const ta=document.createElement('textarea');
+    ta.value=prompt; ta.style.cssText='position:fixed;opacity:0';
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); toast('✓ Prompt kopiert!'); }
+    catch(e){ toast('Kopieren fehlgeschlagen','err'); }
+    document.body.removeChild(ta);
+  });
+}
+
+function createBlankFromWizard() {
+  closeWizard();
+  // Neues LV mit Wizard-Daten befüllen
+  const d = wizData;
+  const p = {
+    id:uid(), name:d.name||'Neues LV', gewerk:d.gewerk||'DIN 18299 – Allgemeine Regelungen',
+    ort:d.ort||'', ag:d.ag||'Riedel Bau AG', an:'', bl:d.bl||'', lvnr:d.lvnr||'',
+    datum:new Date().toLocaleDateString('de-DE'), ausfzeit:d.ausfzeit||'',
+    vergabeart:d.vergabeart||'', leistgrenze:'', norm:'', notes:'',
+    sections:defaultSections(), archived:false,
+    createdAt:Date.now(), updatedAt:Date.now(), chat:[], projektId:activeProjektId
+  };
+  DB.projects.unshift(p); saveDB(); openProject(p.id); renderSidebar();
+  toast('Leeres LV erstellt – Stammdaten bitte ergänzen');
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// GERÄTE-SYNC (Supabase + Auth + RLS)
+// Merge pro LV über updatedAt (Last-Write-Wins je Datensatz, nicht global)
+// ════════════════════════════════════════════════════════════════════════
+const SYNC_CFG_KEY='lv-sync-cfg';
+let sb=null, syncCfg=null, syncUser=null, syncTimer=null, syncPoll=null, syncing=false;
+
+const SYNC_SQL=`-- Einmalig im Supabase SQL Editor ausführen:
+create table if not exists lv_items (
+  user_id    uuid   not null default auth.uid() references auth.users on delete cascade,
+  id         text   not null,
+  kind       text   not null default 'lv',
+  data       jsonb  not null,
+  updated_at bigint not null,
+  deleted    boolean not null default false,
+  primary key (user_id, id)
+);
+
+alter table lv_items enable row level security;
+
+drop policy if exists "own rows" on lv_items;
+create policy "own rows" on lv_items
+  for all
+  using      (auth.uid() = user_id)
+  with check (auth.uid() = user_id);`;
+
+function loadSyncCfg(){
+  try{ syncCfg=JSON.parse(localStorage.getItem(SYNC_CFG_KEY)||'null'); }catch(e){ syncCfg=null; }
+  return syncCfg;
+}
+function saveSyncCfg(){ try{ localStorage.setItem(SYNC_CFG_KEY,JSON.stringify(syncCfg||{})); }catch(e){} }
+
+function setSyncState(state,label){
+  const dot=document.getElementById('sync-dot'), lbl=document.getElementById('sync-label');
+  if(dot) dot.className='sync-dot '+state;
+  if(lbl) lbl.textContent=label;
+}
+
+async function initSync(){
+  loadSyncCfg();
+  if(!syncCfg||!syncCfg.url||!syncCfg.key) { setSyncState('off','Sync aus'); return; }
+  if(!window.supabase){ setSyncState('err','Sync-Lib fehlt'); return; }
+  try{
+    sb=window.supabase.createClient(syncCfg.url,syncCfg.key);
+    const {data}=await sb.auth.getSession();
+    if(data&&data.session){ syncUser=data.session.user; onSyncReady(); }
+    else setSyncState('off','Nicht angemeldet');
+    sb.auth.onAuthStateChange((_e,s)=>{
+      syncUser=s?s.user:null;
+      if(syncUser) onSyncReady(); else { setSyncState('off','Nicht angemeldet'); stopPoll(); }
+    });
+  }catch(err){ console.error(err); setSyncState('err','Sync-Fehler'); }
+}
+
+function onSyncReady(){
+  setSyncState('on', syncUser.email ? syncUser.email.split('@')[0] : 'Sync an');
+  syncNow(true);
+  stopPoll();
+  syncPoll=setInterval(()=>syncNow(false),30000);
+  window.addEventListener('focus',onFocusSync);
+}
+function stopPoll(){ if(syncPoll){clearInterval(syncPoll);syncPoll=null;} window.removeEventListener('focus',onFocusSync); }
+function onFocusSync(){ syncNow(false); }
+
+function tombstones(){ if(!DB.tombstones) DB.tombstones={}; return DB.tombstones; }
+
+// Lokale Änderungen hochschieben (debounced) – von saveDB() aufgerufen
+function schedulePush(){
+  if(!sb||!syncUser) return;
+  clearTimeout(syncTimer);
+  syncTimer=setTimeout(()=>syncNow(false),2500);
+}
+
+async function syncNow(initial){
+  if(!sb||!syncUser||syncing) return;
+  syncing=true;
+  const prevLabel=document.getElementById('sync-label')?.textContent;
+  setSyncState('busy','Sync…');
+  try{
+    // 1. PULL
+    const {data:rows,error}=await sb.from('lv_items').select('id,kind,data,updated_at,deleted');
+    if(error) throw error;
+    let changed=false;
+    const remoteIds=new Set();
+    (rows||[]).forEach(r=>{
+      remoteIds.add(r.id);
+      if(r.kind==='projekt'){
+        if(!DB.projekte) DB.projekte=[];
+        const i=DB.projekte.findIndex(x=>x.id===r.id);
+        if(r.deleted){ if(i>=0){ DB.projekte.splice(i,1); changed=true; } return; }
+        if(i<0){ DB.projekte.push(r.data); changed=true; }
+        return;
+      }
+      const i=DB.projects.findIndex(x=>x.id===r.id);
+      if(r.deleted){
+        if(i>=0){ DB.projects.splice(i,1); changed=true; }
+        tombstones()[r.id]=r.updated_at;
+        return;
+      }
+      if(i<0){ DB.projects.push(r.data); changed=true; }
+      else if(Number(r.updated_at) > Number(DB.projects[i].updatedAt||0)){ DB.projects[i]=r.data; changed=true; }
+    });
+
+    // 2. PUSH – alles was remote fehlt oder lokal neuer ist
+    const remoteMap={}; (rows||[]).forEach(r=>remoteMap[r.id]=Number(r.updated_at));
+    const up=[];
+    DB.projects.forEach(p=>{
+      const rt=remoteMap[p.id];
+      if(rt===undefined || Number(p.updatedAt||0) > rt)
+        up.push({id:p.id,kind:'lv',data:p,updated_at:Number(p.updatedAt||Date.now()),deleted:false});
+    });
+    (DB.projekte||[]).forEach(pr=>{
+      if(remoteMap[pr.id]===undefined)
+        up.push({id:pr.id,kind:'projekt',data:pr,updated_at:Number(pr.createdAt||Date.now()),deleted:false});
+    });
+    Object.entries(tombstones()).forEach(([id,ts])=>{
+      if(remoteMap[id]!==undefined && !(rows||[]).find(r=>r.id===id&&r.deleted))
+        up.push({id,kind:'lv',data:{},updated_at:Number(ts),deleted:true});
+    });
+    if(up.length){
+      const {error:e2}=await sb.from('lv_items').upsert(up.map(u=>({...u,user_id:syncUser.id})));
+      if(e2) throw e2;
+    }
+
+    if(changed){ try{ localStorage.setItem(SK,JSON.stringify(DB)); }catch(e){} renderSidebar();
+      if(activeId&&getActive()) switchTab(currentTab); }
+    syncCfg.lastSync=Date.now(); saveSyncCfg();
+    setSyncState('on', syncUser.email?syncUser.email.split('@')[0]:'Sync an');
+    if(initial) toast(`✓ Sync aktiv – ${DB.projects.length} LVs abgeglichen`);
+  }catch(err){
+    console.error('Sync:',err);
+    setSyncState('err','Sync-Fehler');
+    toast('Sync fehlgeschlagen: '+(err.message||err),'err');
+  }finally{ syncing=false; }
+}
+
+function openSyncDialog(){
+  loadSyncCfg();
+  const c=syncCfg||{};
+  const bg=document.createElement('div');
+  bg.className='modal-bg';
+  bg.innerHTML=`<div class="modal" style="max-width:660px;max-height:92vh;overflow-y:auto">
+    <h3>🔄 Geräte-Sync einrichten</h3>
+    <p>LVs auf Handy, Tablet und Rechner gleichzeitig nutzen. Die Daten liegen in deinem
+    eigenen Supabase-Projekt und sind durch Login + Row Level Security geschützt —
+    der öffentliche Key allein gibt niemandem Zugriff.</p>
+
+    <div id="sync-status" style="padding:9px 12px;border-radius:6px;font-size:11px;margin-bottom:12px"></div>
+
+    <div class="sync-row"><label>1. Supabase Project URL</label>
+      <input id="sy-url" value="${esc(c.url||'')}" placeholder="https://xxxxxxxx.supabase.co"></div>
+    <div class="sync-row"><label>2. Publishable Key (oder Legacy Anon Key)</label>
+      <input id="sy-key" value="${esc(c.key||'')}" placeholder="sb_publishable_…  oder  eyJhbGciOi…"></div>
+    <div style="font-size:10px;color:var(--muted);margin:-6px 0 12px;line-height:1.6">
+      Supabase → Settings → API Keys. Neue Projekte haben nur den <strong>Publishable Key</strong>
+      (<code>sb_publishable_…</code>); ältere zeigen unter „Legacy API Keys" den <code>anon</code>-Key.
+      Beide funktionieren. Niemals den <strong>Secret</strong>-/<code>service_role</code>-Key eintragen —
+      der umgeht RLS und wäre im Quelltext dieser Seite öffentlich.
+    </div>
+
+    <details style="margin:10px 0 14px">
+      <summary style="cursor:pointer;font-size:11px;font-weight:700;color:var(--dark)">3. Tabelle anlegen – SQL anzeigen</summary>
+      <div style="margin-top:8px">
+        <div class="sql-box" id="sy-sql">${esc(SYNC_SQL)}</div>
+        <button id="sy-copysql" style="background:#eef2f7;color:var(--dark);padding:6px 12px;font-size:11px;margin-top:6px;border-radius:5px">📋 SQL kopieren</button>
+        <div style="font-size:10px;color:var(--muted);margin-top:6px;line-height:1.6">
+          Supabase → SQL Editor → einfügen → Run. Danach unter Authentication → Providers
+          „Email" aktivieren (Confirm email kannst du für den Eigengebrauch ausschalten).
+        </div>
+      </div>
+    </details>
+
+    <div class="sync-row"><label>4. E-Mail</label>
+      <input id="sy-mail" type="email" value="${esc(c.mail||'')}" placeholder="simon@…"></div>
+    <div class="sync-row"><label>Passwort</label>
+      <input id="sy-pw" type="password" placeholder="mind. 6 Zeichen"></div>
+
+    <div class="modal-btns" style="flex-wrap:wrap">
+      <button id="sy-logout" style="background:#eef2f7;color:var(--muted);padding:8px 14px;font-size:12px">Abmelden</button>
+      <button id="sy-close" style="background:#eef2f7;color:var(--muted);padding:8px 14px;font-size:12px">Schließen</button>
+      <button id="sy-signup" style="background:#eef2f7;color:var(--dark);padding:8px 14px;font-size:12px">Konto anlegen</button>
+      <button id="sy-login" style="background:var(--dark);color:#fff;padding:8px 18px;font-size:12px">Anmelden & synchronisieren</button>
+    </div>
+  </div>`;
+  document.body.appendChild(bg);
+  const $=s=>bg.querySelector(s);
+  const stat=(msg,ok)=>{ const e=$('#sync-status');
+    e.style.background=ok===true?'var(--gbg)':ok===false?'var(--rbg)':'var(--wbg)';
+    e.style.color=ok===true?'#166534':ok===false?'#991b1b':'#92400e';
+    e.textContent=msg; };
+  stat(syncUser?`✓ Angemeldet als ${syncUser.email} – Sync läuft`:'Noch nicht angemeldet', syncUser?true:null);
+
+  const close=()=>bg.remove();
+  $('#sy-close').onclick=close;
+  bg.addEventListener('click',e=>{ if(e.target===bg) close(); });
+  $('#sy-copysql').onclick=()=>copyToClipboard(SYNC_SQL,'SQL');
+
+  const connect=async(mode)=>{
+    const url=$('#sy-url').value.trim().replace(/\/+$/,''), key=$('#sy-key').value.trim();
+    const mail=$('#sy-mail').value.trim(), pw=$('#sy-pw').value;
+    if(!url||!key){ stat('Bitte URL und Key eintragen',false); return; }
+    if(!/^https:\/\/[^\s\/]+\.[^\s\/]+$/.test(url)){ stat('URL sieht falsch aus – erwartet: https://xxxxxxxx.supabase.co',false); return; }
+    if(/^sb_secret_/.test(key)||/service_role/.test(key)){
+      stat('Das ist ein Secret-/service_role-Key! Der umgeht RLS und darf nie in den Browser. Bitte den Publishable- bzw. Anon-Key verwenden.',false); return; }
+    if(!mail||!pw){ stat('Bitte E-Mail und Passwort eintragen',false); return; }
+    if(!window.supabase){ stat('Supabase-Bibliothek nicht geladen – Internetverbindung prüfen',false); return; }
+    stat('Verbinde…',null);
+    try{
+      syncCfg={url,key,mail}; saveSyncCfg();
+      sb=window.supabase.createClient(url,key);
+      const fn = mode==='signup' ? sb.auth.signUp({email:mail,password:pw})
+                                 : sb.auth.signInWithPassword({email:mail,password:pw});
+      const {data,error}=await fn;
+      if(error) throw error;
+      if(!data.session){ stat('Konto angelegt – bitte E-Mail bestätigen, dann anmelden.',null); return; }
+      syncUser=data.session.user;
+      stat('✓ Angemeldet – synchronisiere…',true);
+      onSyncReady();
+      setTimeout(close,900);
+    }catch(err){ console.error(err); stat('Fehler: '+(err.message||err),false); setSyncState('err','Sync-Fehler'); }
+  };
+  $('#sy-login').onclick=()=>connect('login');
+  $('#sy-signup').onclick=()=>connect('signup');
+  $('#sy-logout').onclick=async()=>{
+    try{ if(sb) await sb.auth.signOut(); }catch(e){}
+    syncUser=null; stopPoll(); setSyncState('off','Sync aus'); stat('Abgemeldet – lokale Daten bleiben erhalten',null);
+  };
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// PWA INSTALL
+// ════════════════════════════════════════════════════════════════════════
+let deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  const btn = document.getElementById('pwa-install-btn');
+  if(btn) btn.style.display = '';
+});
+window.addEventListener('appinstalled', () => {
+  const btn = document.getElementById('pwa-install-btn');
+  if(btn) btn.style.display = 'none';
+  toast('App erfolgreich installiert! ✓');
+});
+function installPWA() {
+  if(!deferredInstallPrompt) {
+    toast('Installation: Klicke in der Browser-Adressleiste auf das ⊕ Symbol rechts', 'warn');
+    return;
+  }
+  deferredInstallPrompt.prompt();
+  deferredInstallPrompt.userChoice.then(r => {
+    if(r.outcome === 'accepted') toast('App wird installiert…');
+    deferredInstallPrompt = null;
+  });
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════════════════════════
+loadDB();
+renderSidebar();
+initSync();
+</script>
+</body>
+</html>
