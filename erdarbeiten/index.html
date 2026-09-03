@@ -1873,12 +1873,19 @@ ______________________
             <button type="button" class="kub-tool-btn" data-tool="height" onclick="kubSetTool('height')">📏 Höhe setzen</button>
             <button type="button" class="kub-tool-btn" data-tool="slope" onclick="kubSetTool('slope')">⛰ Böschung an/aus</button>
             <button type="button" class="kub-tool-btn" data-tool="delete" onclick="kubSetTool('delete')">🗑 Punkt löschen</button>
+            <button type="button" class="kub-tool-btn" data-tool="pan" onclick="kubSetTool('pan')">🖐 Verschieben</button>
           </div>
           <button class="ctrl-btn" onclick="kubUndoLastPoint()">↩ Letzten Punkt entfernen</button>
+          <div class="kub-tool-group">
+            <button type="button" class="ctrl-btn" onclick="kubZoomButton(0.8)" title="Verkleinern">➖</button>
+            <button type="button" class="ctrl-btn" onclick="kubZoomButton(1.25)" title="Vergrößern">➕</button>
+            <button type="button" class="ctrl-btn" onclick="kubZoomReset()" title="Zoom &amp; Position zurücksetzen">⤢ Ansicht anpassen</button>
+          </div>
         </div>
         <div class="kub-legend" style="margin-top:-6px;margin-bottom:10px">
           <span><i style="background:#c8922a"></i> Kante = Böschung (geneigt)</span>
           <span><i style="background:#c85a5a"></i> Kante = senkrechte Wand / Verbau</span>
+          <span>🔍 Mausrad zoomt jederzeit · mittlere Maustaste oder Werkzeug „Verschieben" verschiebt den Plan</span>
         </div>
 
         <div class="kub-canvas-wrap" id="kub-wrap-2d">
@@ -1891,7 +1898,11 @@ ______________________
               <button type="button" class="kub-tool-btn" data-tool="height" onclick="kubSetTool('height')">📏 Höhe</button>
               <button type="button" class="kub-tool-btn" data-tool="slope" onclick="kubSetTool('slope')">⛰ Böschung</button>
               <button type="button" class="kub-tool-btn" data-tool="delete" onclick="kubSetTool('delete')">🗑 Löschen</button>
+              <button type="button" class="kub-tool-btn" data-tool="pan" onclick="kubSetTool('pan')">🖐 Verschieben</button>
             </div>
+            <button class="ctrl-btn" onclick="kubZoomButton(0.8)" title="Verkleinern">➖</button>
+            <button class="ctrl-btn" onclick="kubZoomButton(1.25)" title="Vergrößern">➕</button>
+            <button class="ctrl-btn" onclick="kubZoomReset()" title="Zoom &amp; Position zurücksetzen">⤢</button>
             <button class="ctrl-btn" onclick="kubUndoLastPoint()">↩ Rückgängig</button>
           </div>
           <button class="kub-fs-exit" id="kub-fs-exit-2d" onclick="kubToggleFullscreen('2d')">✕ Vollbild verlassen</button>
@@ -2105,6 +2116,7 @@ ______________________
     seq: 1,
     zoneSeq: 1,
     tool: 'draw',
+    view: { zoom: 1, panX: 0, panY: 0 },
     bg: { img: null, imgPos: null, ppm: null, originPx: null, calibrating: false, calibPts: [] },
     pdf: null,
     dxf: null,
@@ -2113,18 +2125,26 @@ ______________________
   };
 
   const KUB_TOOL_HINTS = {
-    draw: 'Klick auf freie Fläche = Eckpunkt hinzufügen · vorhandenen Punkt ziehen = verschieben.',
+    draw: 'Klick auf freie Fläche = Eckpunkt hinzufügen · vorhandenen Punkt ziehen = verschieben. Mausrad zoomt jederzeit.',
     height: 'Punkt anklicken und Geländehöhe (Z) direkt eingeben – mit Enter bestätigen.',
     slope: 'Kante anklicken, um Böschung ein-/auszuschalten (aus = senkrechte Wand/Verbau, rot gestrichelt).',
-    delete: 'Punkt anklicken, um ihn zu löschen.'
+    delete: 'Punkt anklicken, um ihn zu löschen.',
+    pan: 'Ziehen = Plan verschieben. Mausrad zoomt, mittlere Maustaste verschiebt auch in jedem anderen Werkzeug.'
   };
+
+  function kubToolCursor(tool) {
+    if (tool === 'draw') return 'crosshair';
+    if (tool === 'delete') return 'not-allowed';
+    if (tool === 'pan') return 'grab';
+    return 'pointer';
+  }
 
   function kubSetTool(tool) {
     kub.tool = tool;
     kubHideHeightEditor(true);
     document.querySelectorAll('.kub-tool-btn').forEach(b => b.classList.toggle('active', b.dataset.tool === tool));
     const canvas = kubCanvas2D();
-    if (canvas) canvas.style.cursor = tool === 'draw' ? 'crosshair' : (tool === 'delete' ? 'not-allowed' : 'pointer');
+    if (canvas) canvas.style.cursor = kubToolCursor(tool);
     const hintEl = document.getElementById('kub-2d-hint');
     if (hintEl) hintEl.textContent = KUB_TOOL_HINTS[tool] || '';
   }
@@ -2468,17 +2488,35 @@ ______________________
   }
 
   // ── 2D-Zeichenfläche ──
+  // Canvas-Puffer wird in Geräte-Pixeln angelegt (scharfe Darstellung auf hochauflösenden Bildschirmen),
+  // die gesamte übrige Logik rechnet aber weiterhin in „logischen" (CSS-)Pixeln – siehe kubCanvasLogicalSize().
   function kubEnsureCanvasSize(canvas, cssHeight) {
     if (canvas.dataset.sized === '1') return;
     const wrap = canvas.parentElement;
     const isFs = wrap && document.fullscreenElement === wrap;
-    const w = Math.max(300, Math.round((wrap && wrap.clientWidth) || 600));
-    const h = isFs ? Math.max(300, Math.round(wrap.clientHeight)) : cssHeight;
-    canvas.width = w; canvas.height = h;
+    const cssW = Math.max(300, Math.round((wrap && wrap.clientWidth) || 600));
+    const cssH = isFs ? Math.max(300, Math.round(wrap.clientHeight)) : cssHeight;
+    const dpr = Math.min(window.devicePixelRatio || 1, 3);
+    canvas.width = Math.max(1, Math.round(cssW * dpr));
+    canvas.height = Math.max(1, Math.round(cssH * dpr));
+    canvas.style.width = cssW + 'px';
+    canvas.style.height = cssH + 'px';
     canvas.dataset.sized = '1';
+    canvas.dataset.cssW = String(cssW);
+    canvas.dataset.cssH = String(cssH);
+    canvas.dataset.dpr = String(dpr);
+  }
+
+  function kubCanvasLogicalSize(canvas) {
+    return {
+      w: parseFloat(canvas.dataset.cssW) || canvas.clientWidth || canvas.width,
+      h: parseFloat(canvas.dataset.cssH) || canvas.clientHeight || canvas.height,
+      dpr: parseFloat(canvas.dataset.dpr) || 1
+    };
   }
 
   function kubGetTransform(canvas) {
+    const { w: LW, h: LH } = kubCanvasLogicalSize(canvas);
     if (kub.bg.ppm) return { ppm: kub.bg.ppm, originPx: kub.bg.originPx };
     const pad = 40;
     const xs = [], ys = [];
@@ -2486,41 +2524,97 @@ ______________________
     if (kub.dxf) {
       kub.dxf.entities.forEach(ent => ent.pts.forEach(p => { xs.push(p.x); ys.push(p.y); }));
     }
-    if (xs.length === 0) return { ppm: 20, originPx: { x: canvas.width / 2, y: canvas.height / 2 } };
+    if (xs.length === 0) return { ppm: 20, originPx: { x: LW / 2, y: LH / 2 } };
     const [minX, maxX] = kubMinMax(xs), [minY, maxY] = kubMinMax(ys);
     const w = Math.max(maxX - minX, 1), h = Math.max(maxY - minY, 1);
-    const ppm = Math.min((canvas.width - 2 * pad) / w, (canvas.height - 2 * pad) / h, 200);
+    const ppm = Math.min((LW - 2 * pad) / w, (LH - 2 * pad) / h, 200);
     const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
-    return { ppm, originPx: { x: canvas.width / 2 - cx * ppm, y: canvas.height / 2 + cy * ppm } };
+    return { ppm, originPx: { x: LW / 2 - cx * ppm, y: LH / 2 + cy * ppm } };
+  }
+
+  // Basis-Transformation (Kalibrierung/Auto-Einpassung): Weltkoordinaten (Meter) ↔ Basis-Pixel (Zoom 1, kein Pan)
+  function kubWorldToBase(x, y, t) {
+    return { x: t.originPx.x + x * t.ppm, y: t.originPx.y - y * t.ppm };
+  }
+  function kubBaseToWorld(bx, by, t) {
+    return { x: (bx - t.originPx.x) / t.ppm, y: -(by - t.originPx.y) / t.ppm };
+  }
+
+  // Ansicht (Zoom/Pan): Basis-Pixel ↔ Bildschirm-Pixel der aktuellen Ansicht
+  function kubBaseToScreen(bx, by, canvas) {
+    const { w, h } = kubCanvasLogicalSize(canvas);
+    const cx = w / 2, cy = h / 2;
+    return { x: cx + (bx - cx) * kub.view.zoom + kub.view.panX, y: cy + (by - cy) * kub.view.zoom + kub.view.panY };
+  }
+  function kubScreenToBase(sx, sy, canvas) {
+    const { w, h } = kubCanvasLogicalSize(canvas);
+    const cx = w / 2, cy = h / 2;
+    return { x: cx + (sx - cx - kub.view.panX) / kub.view.zoom, y: cy + (sy - cy - kub.view.panY) / kub.view.zoom };
   }
 
   function kubW2C(x, y, canvas, t) {
     t = t || kubGetTransform(canvas);
-    return { x: t.originPx.x + x * t.ppm, y: t.originPx.y - y * t.ppm };
+    const b = kubWorldToBase(x, y, t);
+    return kubBaseToScreen(b.x, b.y, canvas);
   }
 
   function kubC2W(px, py, canvas, t) {
     t = t || kubGetTransform(canvas);
-    return { x: (px - t.originPx.x) / t.ppm, y: -(py - t.originPx.y) / t.ppm };
+    const b = kubScreenToBase(px, py, canvas);
+    return kubBaseToWorld(b.x, b.y, t);
+  }
+
+  function kubZoomAt(screenPos, factor, canvas) {
+    const { w, h } = kubCanvasLogicalSize(canvas);
+    const cx = w / 2, cy = h / 2;
+    const newZoom = Math.min(25, Math.max(0.15, kub.view.zoom * factor));
+    const actual = newZoom / kub.view.zoom;
+    kub.view.panX = screenPos.x - cx - (screenPos.x - cx - kub.view.panX) * actual;
+    kub.view.panY = screenPos.y - cy - (screenPos.y - cy - kub.view.panY) * actual;
+    kub.view.zoom = newZoom;
+    kubDraw2D();
+  }
+
+  function kubZoomButton(factor) {
+    const canvas = kubCanvas2D();
+    const { w, h } = kubCanvasLogicalSize(canvas);
+    kubZoomAt({ x: w / 2, y: h / 2 }, factor, canvas);
+  }
+
+  function kubZoomReset() {
+    kub.view = { zoom: 1, panX: 0, panY: 0 };
+    kubDraw2D();
+  }
+
+  function kub2DWheel(e) {
+    e.preventDefault();
+    const canvas = kubCanvas2D();
+    const pos = kub2DEventPos(e, canvas);
+    kubZoomAt(pos, Math.pow(1.0015, -e.deltaY), canvas);
   }
 
   function kubDraw2D() {
     const canvas = kubCanvas2D();
     kubEnsureCanvasSize(canvas, 420);
     const ctx = canvas.getContext('2d');
+    const { w: LW, h: LH, dpr } = kubCanvasLogicalSize(canvas);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
     ctx.fillStyle = '#2c3036';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, LW, LH);
 
     if (kub.bg.img && kub.bg.imgPos) {
+      const topLeft = kubBaseToScreen(kub.bg.imgPos.x, kub.bg.imgPos.y, canvas);
       ctx.globalAlpha = 0.85;
-      ctx.drawImage(kub.bg.img, kub.bg.imgPos.x, kub.bg.imgPos.y, kub.bg.imgPos.w, kub.bg.imgPos.h);
+      ctx.drawImage(kub.bg.img, topLeft.x, topLeft.y, kub.bg.imgPos.w * kub.view.zoom, kub.bg.imgPos.h * kub.view.zoom);
       ctx.globalAlpha = 1;
     }
 
     ctx.strokeStyle = 'rgba(255,255,255,0.05)';
     ctx.lineWidth = 1;
-    for (let gx = 0; gx <= canvas.width; gx += 40) { ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, canvas.height); ctx.stroke(); }
-    for (let gy = 0; gy <= canvas.height; gy += 40) { ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(canvas.width, gy); ctx.stroke(); }
+    for (let gx = 0; gx <= LW; gx += 40) { ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, LH); ctx.stroke(); }
+    for (let gy = 0; gy <= LH; gy += 40) { ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(LW, gy); ctx.stroke(); }
 
     if (kub.dxf) {
       ctx.strokeStyle = 'rgba(120,170,220,0.6)';
@@ -2611,9 +2705,10 @@ ______________________
 
   function kub2DEventPos(e, canvas) {
     const rect = canvas.getBoundingClientRect();
+    const { w, h } = kubCanvasLogicalSize(canvas);
     return {
-      x: (e.clientX - rect.left) * (canvas.width / rect.width),
-      y: (e.clientY - rect.top) * (canvas.height / rect.height)
+      x: (e.clientX - rect.left) * (w / rect.width),
+      y: (e.clientY - rect.top) * (h / rect.height)
     };
   }
 
@@ -2663,7 +2758,8 @@ ______________________
     const c = kubW2C(point.x, point.y, canvas);
     const canvasRect = canvas.getBoundingClientRect();
     const wrapRect = wrap.getBoundingClientRect();
-    const scaleX = canvasRect.width / canvas.width, scaleY = canvasRect.height / canvas.height;
+    const { w: LW, h: LH } = kubCanvasLogicalSize(canvas);
+    const scaleX = canvasRect.width / LW, scaleY = canvasRect.height / LH;
     const left = (canvasRect.left - wrapRect.left) + c.x * scaleX + 12;
     const top = (canvasRect.top - wrapRect.top) + c.y * scaleY - 14;
     input.style.left = Math.round(left) + 'px';
@@ -2692,11 +2788,20 @@ ______________________
   }
 
   let kub2DDragPoint = null;
+  let kub2DPanStart = null;
 
   function kub2DPointerDown(e) {
     if (e.cancelable) e.preventDefault();
     const canvas = kubCanvas2D();
     const pos = kub2DEventPos(e, canvas);
+
+    // Mittlere Maustaste verschiebt immer, unabhängig vom aktiven Werkzeug; das Werkzeug „Verschieben" tut dies mit der Haupttaste.
+    if (e.button === 1 || kub.tool === 'pan') {
+      kub2DPanStart = { x: e.clientX, y: e.clientY, panX: kub.view.panX, panY: kub.view.panY };
+      try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+      canvas.style.cursor = 'grabbing';
+      return;
+    }
 
     if (kub.bg.calibrating) {
       kub.bg.calibPts.push(pos);
@@ -2704,9 +2809,11 @@ ______________________
         const distStr = window.prompt('Realer Abstand zwischen den beiden angeklickten Punkten in Metern?', '10');
         const distM = parseFloat(distStr);
         if (distM > 0) {
-          const pxDist = Math.hypot(kub.bg.calibPts[1].x - kub.bg.calibPts[0].x, kub.bg.calibPts[1].y - kub.bg.calibPts[0].y);
+          const b0 = kubScreenToBase(kub.bg.calibPts[0].x, kub.bg.calibPts[0].y, canvas);
+          const b1 = kubScreenToBase(kub.bg.calibPts[1].x, kub.bg.calibPts[1].y, canvas);
+          const pxDist = Math.hypot(b1.x - b0.x, b1.y - b0.y);
           kub.bg.ppm = pxDist / distM;
-          kub.bg.originPx = { x: kub.bg.calibPts[0].x, y: kub.bg.calibPts[0].y };
+          kub.bg.originPx = { x: b0.x, y: b0.y };
           document.getElementById('kub-2d-hint').textContent = 'Maßstab kalibriert. Jetzt die Eckpunkte im Plan anklicken.';
         } else {
           document.getElementById('kub-2d-hint').textContent = 'Kalibrierung abgebrochen – ungültiger Wert.';
@@ -2769,6 +2876,12 @@ ______________________
   }
 
   function kub2DPointerMove(e) {
+    if (kub2DPanStart) {
+      kub.view.panX = kub2DPanStart.panX + (e.clientX - kub2DPanStart.x);
+      kub.view.panY = kub2DPanStart.panY + (e.clientY - kub2DPanStart.y);
+      kubDraw2D();
+      return;
+    }
     if (!kub2DDragPoint) return;
     const canvas = kubCanvas2D();
     const pos = kub2DEventPos(e, canvas);
@@ -2780,8 +2893,14 @@ ______________________
   }
 
   function kub2DPointerUp() {
+    const wasPanning = !!kub2DPanStart;
+    kub2DPanStart = null;
     kub2DDragPoint = null;
     kub.dragTransform = null;
+    if (wasPanning) {
+      const canvas = kubCanvas2D();
+      if (canvas) canvas.style.cursor = kubToolCursor(kub.tool);
+    }
   }
 
   function kubClearBgSources() {
@@ -2801,12 +2920,14 @@ ______________________
       img.onload = function () {
         kubClearBgSources();
         kub.bg.img = img;
+        kub.view = { zoom: 1, panX: 0, panY: 0 };
         const canvas = kubCanvas2D();
         kubEnsureCanvasSize(canvas, 420);
-        const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
+        const { w: LW, h: LH } = kubCanvasLogicalSize(canvas);
+        const scale = Math.min(LW / img.width, LH / img.height);
         const w = img.width * scale, h = img.height * scale;
-        kub.bg.imgPos = { x: (canvas.width - w) / 2, y: (canvas.height - h) / 2, w, h };
-        document.getElementById('kub-2d-hint').textContent = 'Plan geladen. Jetzt Maßstab kalibrieren (📏), dann Eckpunkte anklicken.';
+        kub.bg.imgPos = { x: (LW - w) / 2, y: (LH - h) / 2, w, h };
+        document.getElementById('kub-2d-hint').textContent = 'Plan geladen. Mit dem Mausrad heranzoomen, dann Maßstab kalibrieren (📏) und Eckpunkte anklicken.';
         kubDraw2D();
       };
       img.src = ev.target.result;
@@ -2829,6 +2950,7 @@ ______________________
     zone.points = [];
     zone.edgeSloped = [];
     kubClearBgSources();
+    kub.view = { zoom: 1, panX: 0, panY: 0 };
     kub.cam.dist = null;
     document.getElementById('kub-2d-hint').textContent = 'Plan laden oder direkt in die Zeichenfläche klicken, um Eckpunkte der Baugrube/des Damms hinzuzufügen. Vorhandene Punkte lassen sich per Ziehen verschieben.';
     kubRenderTable();
@@ -2839,6 +2961,7 @@ ______________________
     kub.zones = [];
     kub.activeZoneId = null;
     kubClearBgSources();
+    kub.view = { zoom: 1, panX: 0, panY: 0 };
     const z = kubMakeZone('Baugrube 1');
     z.mode = 'aushub'; z.targetZ = 97.0; z.workspace = 0; z.bulk = 1.15; z.slopeN = 1.5;
     kub.zones.push(z);
@@ -2897,8 +3020,8 @@ ______________________
     document.getElementById('kub-2d-hint').textContent = 'Seite wird gerendert …';
     const page = await kub.pdf.doc.getPage(pageNum);
     const natural = page.getViewport({ scale: 1 });
-    const maxDim = 2200;
-    const renderScale = Math.min(maxDim / natural.width, maxDim / natural.height, 4);
+    const maxDim = 3200;
+    const renderScale = Math.min(maxDim / natural.width, maxDim / natural.height, 6);
     const viewport = page.getViewport({ scale: renderScale });
     const off = document.createElement('canvas');
     off.width = Math.max(1, Math.round(viewport.width));
@@ -2906,13 +3029,15 @@ ______________________
     await page.render({ canvasContext: off.getContext('2d'), viewport }).promise;
 
     const canvas = kubCanvas2D();
+    kub.view = { zoom: 1, panX: 0, panY: 0 };
     kubEnsureCanvasSize(canvas, 420);
-    const scale = Math.min(canvas.width / off.width, canvas.height / off.height);
+    const { w: LW, h: LH } = kubCanvasLogicalSize(canvas);
+    const scale = Math.min(LW / off.width, LH / off.height);
     const w = off.width * scale, h = off.height * scale;
     kub.bg.img = off;
-    kub.bg.imgPos = { x: (canvas.width - w) / 2, y: (canvas.height - h) / 2, w, h };
+    kub.bg.imgPos = { x: (LW - w) / 2, y: (LH - h) / 2, w, h };
     kub.pdf.renderScale = renderScale;
-    document.getElementById('kub-2d-hint').textContent = 'PDF-Seite geladen. Planmaßstab eintragen (Auto-Kalibrierung) oder manuell kalibrieren (📏), dann Eckpunkte anklicken.';
+    document.getElementById('kub-2d-hint').textContent = 'PDF-Seite geladen. Mit dem Mausrad heranzoomen. Planmaßstab eintragen (Auto-Kalibrierung) oder manuell kalibrieren (📏), dann Eckpunkte anklicken.';
     kubApplyPdfScale();
     kubDraw2D();
   }
@@ -3077,6 +3202,7 @@ ______________________
         }
         const capped = kubCapDxfEntities(parsed.entities, 20000);
         kubClearBgSources();
+        kub.view = { zoom: 1, panX: 0, panY: 0 };
         kub.dxf = { raw: capped.list, insunits: parsed.insunits, entities: capped.list };
         document.getElementById('kub-dxf-options').style.display = 'block';
         const factorInput = document.getElementById('kub-dxf-factor');
@@ -3160,7 +3286,8 @@ ______________________
     const cx = kubVDot(rel, cam.right);
     const cy = kubVDot(rel, cam.up);
     const s = focal / cz;
-    return { x: canvas.width / 2 + cx * s, y: canvas.height / 2 - cy * s };
+    const { w, h } = kubCanvasLogicalSize(canvas);
+    return { x: w / 2 + cx * s, y: h / 2 - cy * s };
   }
 
   function kubShadeColor(hex, factor) {
@@ -3176,19 +3303,21 @@ ______________________
     const canvas = kubCanvas3D();
     kubEnsureCanvasSize(canvas, 440);
     const ctx = canvas.getContext('2d');
+    const { w: LW, h: LH, dpr } = kubCanvasLogicalSize(canvas);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = '#23262b';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, LW, LH);
 
     const validZones = kub.zones.filter(z => z.result);
     if (validZones.length === 0) {
       ctx.fillStyle = '#8d9099'; ctx.font = '13px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText('Mindestens 3 Punkte in einem Bereich für eine 3D-Ansicht eingeben.', canvas.width / 2, canvas.height / 2);
+      ctx.fillText('Mindestens 3 Punkte in einem Bereich für eine 3D-Ansicht eingeben.', LW / 2, LH / 2);
       ctx.textAlign = 'left';
       return;
     }
     if (!kub.cam.dist) kubFitCamera();
     const cam = kubGetCam();
-    const focal = Math.min(canvas.width, canvas.height) * 0.9;
+    const focal = Math.min(LW, LH) * 0.9;
 
     const faces = [];
     const contours = [];
@@ -3346,6 +3475,8 @@ ______________________
     c2.addEventListener('pointerdown', kub2DPointerDown);
     c2.addEventListener('pointermove', kub2DPointerMove);
     window.addEventListener('pointerup', kub2DPointerUp);
+    c2.addEventListener('wheel', kub2DWheel, { passive: false });
+    c2.addEventListener('contextmenu', (e) => e.preventDefault());
 
     const c3 = kubCanvas3D();
     c3.addEventListener('pointerdown', kub3DPointerDown);
