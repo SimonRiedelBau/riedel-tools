@@ -6,7 +6,7 @@ Sammlung praktischer Tools rund um Bauleitung und Kalkulation.
 
 ## Tools
 
-- [`geruest-mengenkalkulator/`](geruest-mengenkalkulator/) – Gerüstmengen-Kalkulator: ermittelt Fläche, Feldaufteilung, Lagenanzahl, Ankerzahl, Konsolen und eine geschätzte Bauteil-Stückliste für Fassadengerüste, inklusive automatischem 2D-Lageplan, schematischer 3D-Ansicht und Plan-Digitalisierung (Bild/PDF einlesen und abklicken).
+- [`geruest-mengenkalkulator/`](geruest-mengenkalkulator/) – Gerüstmengen-Kalkulator: ermittelt Fläche, Feldaufteilung, Lagenanzahl, Ankerzahl, Konsolen und eine geschätzte Bauteil-Stückliste für Fassadengerüste, mit Geschossebenen für Gebäude mit wechselndem Grundriss, grafischer Zeichenfläche (frei zeichnen, Bild/PDF/DXF einlesen), automatischem 2D-Lageplan und schematischer 3D-Ansicht.
 - [`erdarbeiten/`](erdarbeiten/) – Normenassistent für Erdarbeiten & Bodenmaterial, orientiert an BodenSchG und DIN 18300.
 - [`abdichtungsassistent/`](abdichtungsassistent/) – Entscheidungshilfe für Abdichtungsarbeiten nach DIN 18531–18535.
 - [`entwaesserung/`](entwaesserung/) – Entwässerungsassistent für die Planung und Prüfung von Entwässerungsarbeiten.

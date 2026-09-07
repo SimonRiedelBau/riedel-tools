@@ -6,15 +6,41 @@ const RASTER_PRESETS = {
   "30": [3.0],
 };
 
-const STORAGE_KEY = "geruest-kalkulator-state-v1";
+const STORAGE_KEY = "geruest-kalkulator-state-v2";
 
 let sectionRowId = 0;
-let lastResults = null;
+let lastCalcResult = null; // { storyResults, grandTotals }
 
 const sectionsBody = document.getElementById("sections-body");
 const rasterPresetEl = document.getElementById("raster-preset");
 const rasterCustomLabel = document.getElementById("custom-raster-label");
 const rasterCustomEl = document.getElementById("raster-custom");
+const cornersConnectedEl = document.getElementById("corners-connected");
+const cornersClosedEl = document.getElementById("corners-closed");
+
+// ---------------------------------------------------------------------
+// Geschossebenen (stories): each story is an independent floor plan
+// (its own Fassadenabschnitte + corner settings). Global settings
+// (Lagenhöhe, Gerüstbreite, Raster, ...) are shared across all stories.
+// ---------------------------------------------------------------------
+
+let stories = [];
+let activeStoryIndex = 0;
+
+function defaultSection(name) {
+  return { name: name || "Fassade 1", length: "", height: "", opening: 0, angle: 90, konsole: false, konsolenbreite: 0.3 };
+}
+
+function createStory(name) {
+  return {
+    id: `story-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    name: name || `Geschoss ${stories.length + 1}`,
+    sockelhoehe: 0,
+    sections: [defaultSection("Fassade 1")],
+    cornersConnected: false,
+    cornersClosed: false,
+  };
+}
 
 function addSectionRow(data) {
   sectionRowId += 1;
@@ -54,15 +80,127 @@ rasterPresetEl.addEventListener("change", () => {
   saveState();
 });
 
-const cornersConnectedEl = document.getElementById("corners-connected");
-const cornersClosedEl = document.getElementById("corners-closed");
-
 cornersConnectedEl.addEventListener("change", () => {
   cornersClosedEl.disabled = !cornersConnectedEl.checked;
   if (!cornersConnectedEl.checked) cornersClosedEl.checked = false;
   saveState();
 });
 cornersClosedEl.addEventListener("change", saveState);
+
+function readSectionsFromDom() {
+  const rows = [...sectionsBody.querySelectorAll("tr")];
+  return rows.map((tr) => ({
+    name: tr.querySelector(".s-name").value.trim() || "Abschnitt",
+    length: tr.querySelector(".s-length").value,
+    height: tr.querySelector(".s-height").value,
+    opening: tr.querySelector(".s-opening").value,
+    angle: tr.querySelector(".s-angle").value,
+    konsole: tr.querySelector(".s-konsole").checked,
+    konsolenbreite: tr.querySelector(".s-konsolenbreite").value,
+  }));
+}
+
+function serializeActiveStoryFromDom() {
+  const story = stories[activeStoryIndex];
+  if (!story) return;
+  story.sections = readSectionsFromDom();
+  story.cornersConnected = cornersConnectedEl.checked;
+  story.cornersClosed = cornersClosedEl.checked;
+}
+
+function loadStoryIntoDom(story) {
+  sectionsBody.innerHTML = "";
+  (story.sections.length ? story.sections : [defaultSection("Fassade 1")]).forEach((s) => addSectionRow(s));
+  cornersConnectedEl.checked = Boolean(story.cornersConnected);
+  cornersClosedEl.disabled = !cornersConnectedEl.checked;
+  cornersClosedEl.checked = cornersConnectedEl.checked && Boolean(story.cornersClosed);
+  document.getElementById("story-name").value = story.name;
+  document.getElementById("story-sockelhoehe").value = story.sockelhoehe ?? 0;
+  document.querySelectorAll(".active-story-badge").forEach((el) => (el.textContent = story.name));
+}
+
+function computeAutoSockelhoehe(index) {
+  let cumulative = 0;
+  for (let i = 0; i < index; i += 1) {
+    const heights = stories[i].sections.map((s) => parseFloat(s.height) || 0);
+    cumulative += heights.length ? Math.max(...heights) : 0;
+  }
+  return cumulative;
+}
+
+function renderStoryTabs() {
+  const tabs = document.getElementById("story-tabs");
+  tabs.innerHTML = stories
+    .map((s, i) => `<button type="button" class="story-tab${i === activeStoryIndex ? " active" : ""}" data-idx="${i}">${escapeHtml(s.name)}</button>`)
+    .join("");
+  tabs.querySelectorAll(".story-tab").forEach((btn) => {
+    btn.addEventListener("click", () => switchToStory(Number(btn.dataset.idx)));
+  });
+  document.getElementById("story-delete-btn").disabled = stories.length <= 1;
+}
+
+function switchToStory(index) {
+  if (index === activeStoryIndex) return;
+  serializeActiveStoryFromDom();
+  activeStoryIndex = index;
+  loadStoryIntoDom(stories[activeStoryIndex]);
+  renderStoryTabs();
+  saveState();
+}
+
+document.getElementById("story-add-btn").addEventListener("click", () => {
+  serializeActiveStoryFromDom();
+  stories.push(createStory());
+  activeStoryIndex = stories.length - 1;
+  stories[activeStoryIndex].sockelhoehe = computeAutoSockelhoehe(activeStoryIndex);
+  loadStoryIntoDom(stories[activeStoryIndex]);
+  renderStoryTabs();
+  saveState();
+});
+
+document.getElementById("story-duplicate-btn").addEventListener("click", () => {
+  serializeActiveStoryFromDom();
+  const src = stories[activeStoryIndex];
+  const copy = JSON.parse(JSON.stringify(src));
+  copy.id = `story-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  copy.name = `${src.name} (Kopie)`;
+  stories.splice(activeStoryIndex + 1, 0, copy);
+  activeStoryIndex += 1;
+  stories[activeStoryIndex].sockelhoehe = computeAutoSockelhoehe(activeStoryIndex);
+  loadStoryIntoDom(stories[activeStoryIndex]);
+  renderStoryTabs();
+  saveState();
+});
+
+document.getElementById("story-delete-btn").addEventListener("click", () => {
+  if (stories.length <= 1) return;
+  if (!confirm(`Geschoss "${stories[activeStoryIndex].name}" wirklich löschen?`)) return;
+  stories.splice(activeStoryIndex, 1);
+  activeStoryIndex = Math.max(0, activeStoryIndex - 1);
+  loadStoryIntoDom(stories[activeStoryIndex]);
+  renderStoryTabs();
+  saveState();
+});
+
+document.getElementById("story-name").addEventListener("input", (e) => {
+  stories[activeStoryIndex].name = e.target.value.trim() || `Geschoss ${activeStoryIndex + 1}`;
+  renderStoryTabs();
+  document.querySelectorAll(".active-story-badge").forEach((el) => (el.textContent = stories[activeStoryIndex].name));
+  saveState();
+});
+
+document.getElementById("story-sockelhoehe").addEventListener("input", (e) => {
+  stories[activeStoryIndex].sockelhoehe = parseFloat(e.target.value) || 0;
+  saveState();
+});
+
+document.getElementById("story-sockelhoehe-auto-btn").addEventListener("click", () => {
+  serializeActiveStoryFromDom();
+  const auto = computeAutoSockelhoehe(activeStoryIndex);
+  stories[activeStoryIndex].sockelhoehe = auto;
+  document.getElementById("story-sockelhoehe").value = auto;
+  saveState();
+});
 
 function getRasterLengths() {
   const preset = rasterPresetEl.value;
@@ -100,39 +238,41 @@ function fillFields(length, rasterLengths) {
   return { counts, covered, totalFields };
 }
 
-function readSections() {
-  const rows = [...sectionsBody.querySelectorAll("tr")];
-  return rows
-    .map((tr) => ({
-      name: tr.querySelector(".s-name").value.trim() || "Abschnitt",
-      length: parseFloat(tr.querySelector(".s-length").value) || 0,
-      height: parseFloat(tr.querySelector(".s-height").value) || 0,
-      opening: parseFloat(tr.querySelector(".s-opening").value) || 0,
-      angle: parseFloat(tr.querySelector(".s-angle").value),
-      konsole: tr.querySelector(".s-konsole").checked,
-      konsolenbreite: parseFloat(tr.querySelector(".s-konsolenbreite").value) || 0,
+function normalizeSections(rawSections) {
+  return rawSections
+    .map((s) => ({
+      name: (s.name || "Abschnitt").trim() || "Abschnitt",
+      length: parseFloat(s.length) || 0,
+      height: parseFloat(s.height) || 0,
+      opening: parseFloat(s.opening) || 0,
+      angle: parseFloat(s.angle),
+      konsole: Boolean(s.konsole),
+      konsolenbreite: parseFloat(s.konsolenbreite) || 0,
     }))
     .filter((s) => s.length > 0 && s.height > 0)
     .map((s) => ({ ...s, angle: isNaN(s.angle) ? 90 : s.angle }));
 }
 
-function calculate() {
-  const lagenhoehe = parseFloat(document.getElementById("lagenhoehe").value) || 2.0;
-  const geruestbreite = parseFloat(document.getElementById("geruestbreite").value) || 0.7;
-  const belagbreite = parseFloat(document.getElementById("belagbreite").value) || 0.32;
-  const ankerraster = parseFloat(document.getElementById("ankerraster").value) || 8;
-  const diagonalraster = parseFloat(document.getElementById("diagonalraster").value) || 5;
-  const wandabstand = parseFloat(document.getElementById("wandabstand").value) || 0;
-  const rasterLengths = getRasterLengths();
-  const bohlenProFeld = Math.max(1, Math.ceil(geruestbreite / belagbreite));
-  const cornersConnected = document.getElementById("corners-connected").checked;
-  const cornersClosed = document.getElementById("corners-closed").checked;
+function getGlobalSettings() {
+  return {
+    lagenhoehe: parseFloat(document.getElementById("lagenhoehe").value) || 2.0,
+    geruestbreite: parseFloat(document.getElementById("geruestbreite").value) || 0.7,
+    belagbreite: parseFloat(document.getElementById("belagbreite").value) || 0.32,
+    ankerraster: parseFloat(document.getElementById("ankerraster").value) || 8,
+    diagonalraster: parseFloat(document.getElementById("diagonalraster").value) || 5,
+    wandabstand: parseFloat(document.getElementById("wandabstand").value) || 0,
+    rasterLengths: getRasterLengths(),
+  };
+}
 
-  const sections = readSections();
-  if (!sections.length) {
-    alert("Bitte mindestens einen Fassadenabschnitt mit Länge und Höhe eintragen.");
-    return null;
-  }
+// Calculates one story's quantities from its own sections + corner settings.
+// Global settings (Lagenhöhe, Gerüstbreite, ...) are shared across stories.
+function calculateStory(rawSections, cornersConnected, cornersClosed, globalSettings) {
+  const { lagenhoehe, geruestbreite, belagbreite, ankerraster, diagonalraster, wandabstand, rasterLengths } = globalSettings;
+  const bohlenProFeld = Math.max(1, Math.ceil(geruestbreite / belagbreite));
+
+  const sections = normalizeSections(rawSections);
+  if (!sections.length) return null;
 
   const perSection = sections.map((s) => {
     const flaecheBrutto = s.length * s.height;
@@ -191,19 +331,7 @@ function calculate() {
       acc.maxLagen = Math.max(acc.maxLagen, s.lagen);
       return acc;
     },
-    {
-      flaeche: 0,
-      laenge: 0,
-      anker: 0,
-      staender: 0,
-      fussspindeln: 0,
-      belaege: 0,
-      gelaenderholme: 0,
-      bordbretter: 0,
-      diagonalen: 0,
-      konsolen: 0,
-      maxLagen: 0,
-    }
+    { flaeche: 0, laenge: 0, anker: 0, staender: 0, fussspindeln: 0, belaege: 0, gelaenderholme: 0, bordbretter: 0, diagonalen: 0, konsolen: 0, maxLagen: 0 }
   );
 
   let eckStaenderKorrektur = 0;
@@ -249,35 +377,76 @@ function calculate() {
   };
 }
 
+function calculateAllStories() {
+  serializeActiveStoryFromDom();
+  const globalSettings = getGlobalSettings();
+
+  const storyResults = [];
+  const missing = [];
+  for (const story of stories) {
+    const result = calculateStory(story.sections, story.cornersConnected, story.cornersClosed, globalSettings);
+    if (!result) {
+      missing.push(story.name);
+      continue;
+    }
+    storyResults.push({ story, result });
+  }
+
+  if (missing.length) {
+    alert(`Bitte in jedem Geschoss mindestens einen Fassadenabschnitt mit Länge und Höhe eintragen. Fehlt bei: ${missing.join(", ")}.`);
+    return null;
+  }
+  if (!storyResults.length) {
+    alert("Bitte mindestens einen Fassadenabschnitt mit Länge und Höhe eintragen.");
+    return null;
+  }
+
+  let cumulative = 0;
+  storyResults.forEach((sr) => {
+    const maxHeight = Math.max(...sr.result.perSection.map((s) => s.height));
+    sr.sockelhoehe = sr.story.sockelhoehe || 0;
+    cumulative = Math.max(cumulative, sr.sockelhoehe + maxHeight);
+  });
+
+  const grandTotals = storyResults.reduce(
+    (acc, sr) => {
+      const t = sr.result.totals;
+      acc.flaeche += t.flaeche;
+      acc.laenge += t.laenge;
+      acc.anker += t.anker;
+      acc.staender += t.staender;
+      acc.fussspindeln += t.fussspindeln;
+      acc.belaege += t.belaege;
+      acc.gelaenderholme += t.gelaenderholme;
+      acc.bordbretter += t.bordbretter;
+      acc.diagonalen += t.diagonalen;
+      acc.konsolen += t.konsolen;
+      acc.maxLagen = Math.max(acc.maxLagen, t.maxLagen);
+      return acc;
+    },
+    { flaeche: 0, laenge: 0, anker: 0, staender: 0, fussspindeln: 0, belaege: 0, gelaenderholme: 0, bordbretter: 0, diagonalen: 0, konsolen: 0, maxLagen: 0 }
+  );
+  grandTotals.gesamthoehe = cumulative;
+
+  return { storyResults, grandTotals, globalSettings };
+}
+
 function fmt(n, digits = 1) {
   return n.toLocaleString("de-DE", { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
 
-function renderResults(results) {
-  const { perSection, totals, corners } = results;
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+}
 
-  document.getElementById("results-panel").classList.remove("hidden");
-  document.getElementById("export-csv-btn").disabled = false;
-  document.getElementById("print-btn").disabled = false;
+// ---------------------------------------------------------------------
+// Rendering
+// ---------------------------------------------------------------------
 
-  const summaryCards = document.getElementById("summary-cards");
-  summaryCards.innerHTML = `
-    <div class="card"><div class="value">${fmt(totals.flaeche, 1)}</div><div class="label">Gerüstfläche gesamt (m²)</div></div>
-    <div class="card"><div class="value">${fmt(totals.laenge, 1)}</div><div class="label">Gerüstlänge gesamt (m)</div></div>
-    <div class="card"><div class="value">${totals.maxLagen}</div><div class="label">Max. Lagen (Abschnitt)</div></div>
-    <div class="card"><div class="value">${totals.anker}</div><div class="label">Anker gesamt</div></div>
-  `;
-
-  const cornerNote = document.getElementById("corner-note");
-  if (corners.connected && perSection.length > 1) {
-    cornerNote.textContent = `Ecken berücksichtigt: ${corners.count} gemeinsame Eckverbindung(en) (${corners.closed ? "geschlossener Umlauf" : "offener Rundgang"}) – dadurch ${corners.eckStaenderKorrektur} Ständer und ${corners.eckSpindelKorrektur} Fußspindel(n) weniger, da an jeder Ecke ein Ständer von beiden angrenzenden Seiten gemeinsam genutzt wird.`;
-    cornerNote.classList.remove("hidden");
-  } else {
-    cornerNote.classList.add("hidden");
-  }
-
-  const resultsBody = document.getElementById("results-body");
-  resultsBody.innerHTML = perSection
+function renderResultsBody(result, prefix) {
+  return result.perSection
     .map(
       (s) => `
       <tr>
@@ -293,59 +462,12 @@ function renderResults(results) {
       </tr>`
     )
     .join("");
+}
 
-  const materialBody = document.getElementById("material-body");
-  const konsolenAbschnitte = perSection.filter((s) => s.konsole).length;
-  const materialRows = [
-    [
-      "Gerüstböden/Beläge",
-      totals.belaege,
-      "Stk",
-      `Bohlen à ${fmt(results.settings.belagbreite, 2)} m Breite${konsolenAbschnitte ? `; Breite je Abschnitt inkl. Konsole berücksichtigt (${konsolenAbschnitte} Abschnitt(e) mit Konsole)` : `, ${results.settings.bohlenProFeld} je Feld`}`,
-    ],
-    [
-      "Ständer/Vertikalrahmen",
-      totals.staender,
-      "Stk",
-      `je Feldgrenze und Lage${results.corners.eckStaenderKorrektur ? ` (−${results.corners.eckStaenderKorrektur} durch ${results.corners.count} gemeinsame Eckständer)` : ""}`,
-    ],
-    [
-      "Fußspindeln",
-      totals.fussspindeln,
-      "Stk",
-      `nur Standfläche (unterste Lage)${results.corners.eckSpindelKorrektur ? ` (−${results.corners.eckSpindelKorrektur} durch gemeinsame Eckspindeln)` : ""}`,
-    ],
-    ["Geländerholme (Handlauf + Zwischenholm)", totals.gelaenderholme, "Stk", "2 je Feld und Lage"],
-    ["Bordbretter", totals.bordbretter, "Stk", "1 je Feld und Lage"],
-    ["Diagonalen", totals.diagonalen, "Stk", `1 je ${results.settings.diagonalraster} Felder und Lage`],
-    ["Wandanker", totals.anker, "Stk", `Raster ${fmt(results.settings.ankerraster, 1)} m² je Anker`],
-  ];
-  if (totals.konsolen > 0) {
-    materialRows.push([
-      "Konsolen",
-      totals.konsolen,
-      "Stk",
-      `je Ständerposition und Lage, an ${konsolenAbschnitte} Abschnitt(en); Außenkante rückt dort um die Konsolenbreite nach außen`,
-    ]);
-  }
-  materialBody.innerHTML = materialRows
-    .map(
-      ([name, qty, unit, note]) => `
-      <tr>
-        <td>${escapeHtml(name)}</td>
-        <td>${qty}</td>
-        <td>${unit}</td>
-        <td>${escapeHtml(note)}</td>
-      </tr>`
-    )
-    .join("");
-
-  const fieldsBody = document.getElementById("fields-body");
-  fieldsBody.innerHTML = perSection
+function renderFieldsBody(result) {
+  return result.perSection
     .map((s) => {
-      const dist = s.fieldFill.counts
-        .map((c) => `${c.n} × ${fmt(c.len, 2)} m`)
-        .join(", ");
+      const dist = s.fieldFill.counts.map((c) => `${c.n} × ${fmt(c.len, 2)} m`).join(", ");
       return `
       <tr>
         <td>${escapeHtml(s.name)}</td>
@@ -356,17 +478,90 @@ function renderResults(results) {
     .join("");
 }
 
+function renderPerStoryBlock(sr, idx) {
+  const { story, result, sockelhoehe } = sr;
+  const cornerNote =
+    result.corners.connected && result.perSection.length > 1
+      ? `<p class="hint">Ecken berücksichtigt: ${result.corners.count} gemeinsame Eckverbindung(en) (${
+          result.corners.closed ? "geschlossener Umlauf" : "offener Rundgang"
+        }) – dadurch ${result.corners.eckStaenderKorrektur} Ständer und ${result.corners.eckSpindelKorrektur} Fußspindel(n) weniger.</p>`
+      : "";
+  return `
+    <div class="per-story-block">
+      <h4>${escapeHtml(story.name)} — Sockelhöhe ${fmt(sockelhoehe, 2)} m, Fläche ${fmt(result.totals.flaeche, 1)} m², ${result.totals.maxLagen} Lagen</h4>
+      ${cornerNote}
+      <div class="table-wrap">
+        <table class="results-subtable">
+          <thead>
+            <tr>
+              <th>Abschnitt</th><th>Länge (m)</th><th>Höhe (m)</th><th>Fläche (m²)</th>
+              <th>Felder</th><th>Lagen</th><th>Anker</th><th>Konsole</th><th>Ausladung (m)</th>
+            </tr>
+          </thead>
+          <tbody>${renderResultsBody(result)}</tbody>
+        </table>
+      </div>
+      <div class="table-wrap">
+        <table class="results-subtable">
+          <thead><tr><th>Abschnitt</th><th>Feldlängen-Verteilung</th><th>Gedeckte Länge (m)</th></tr></thead>
+          <tbody>${renderFieldsBody(result)}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function renderResults(calcResult) {
+  const { storyResults, grandTotals } = calcResult;
+
+  document.getElementById("results-panel").classList.remove("hidden");
+  document.getElementById("export-csv-btn").disabled = false;
+  document.getElementById("print-btn").disabled = false;
+
+  const summaryCards = document.getElementById("summary-cards");
+  summaryCards.innerHTML = `
+    <div class="card"><div class="value">${fmt(grandTotals.flaeche, 1)}</div><div class="label">Gerüstfläche gesamt (m²)</div></div>
+    <div class="card"><div class="value">${fmt(grandTotals.laenge, 1)}</div><div class="label">Gerüstlänge gesamt (m, Summe Geschosse)</div></div>
+    <div class="card"><div class="value">${fmt(grandTotals.gesamthoehe, 2)}</div><div class="label">Gesamthöhe (m, oberste Lage)</div></div>
+    <div class="card"><div class="value">${grandTotals.anker}</div><div class="label">Anker gesamt</div></div>
+    <div class="card"><div class="value">${storyResults.length}</div><div class="label">Geschosse</div></div>
+  `;
+
+  document.getElementById("corner-note").classList.add("hidden");
+
+  const perStoryContainer = document.getElementById("per-story-results");
+  perStoryContainer.innerHTML = storyResults.map((sr, i) => renderPerStoryBlock(sr, i)).join("");
+
+  const materialBody = document.getElementById("material-body");
+  const konsolenAbschnitteGesamt = storyResults.reduce((n, sr) => n + sr.result.perSection.filter((s) => s.konsole).length, 0);
+  const settings = calcResult.globalSettings;
+  const materialRows = [
+    ["Gerüstböden/Beläge", grandTotals.belaege, "Stk", konsolenAbschnitteGesamt ? `Breite je Abschnitt inkl. Konsole berücksichtigt (${konsolenAbschnitteGesamt} Abschnitt(e) mit Konsole, über alle Geschosse)` : `Bohlen à ${fmt(settings.belagbreite, 2)} m Breite`],
+    ["Ständer/Vertikalrahmen", grandTotals.staender, "Stk", "je Feldgrenze und Lage, Eckkorrektur je Geschoss bereits berücksichtigt"],
+    ["Fußspindeln", grandTotals.fussspindeln, "Stk", "nur Standfläche der jeweils untersten Lage je Geschoss"],
+    ["Geländerholme (Handlauf + Zwischenholm)", grandTotals.gelaenderholme, "Stk", "2 je Feld und Lage"],
+    ["Bordbretter", grandTotals.bordbretter, "Stk", "1 je Feld und Lage"],
+    ["Diagonalen", grandTotals.diagonalen, "Stk", `1 je ${settings.diagonalraster} Felder und Lage`],
+    ["Wandanker", grandTotals.anker, "Stk", `Raster ${fmt(settings.ankerraster, 1)} m² je Anker`],
+  ];
+  if (grandTotals.konsolen > 0) {
+    materialRows.push(["Konsolen", grandTotals.konsolen, "Stk", `je Ständerposition und Lage, an ${konsolenAbschnitteGesamt} Abschnitt(en) über alle Geschosse`]);
+  }
+  materialBody.innerHTML = materialRows
+    .map(([name, qty, unit, note]) => `<tr><td>${escapeHtml(name)}</td><td>${qty}</td><td>${unit}</td><td>${escapeHtml(note)}</td></tr>`)
+    .join("");
+}
+
 const SVG_NS = "http://www.w3.org/2000/svg";
 
-function renderPlan2D(results) {
+function renderPlan2D(result) {
   const svg = document.getElementById("plan2d-svg");
   const note = document.getElementById("plan2d-note");
   while (svg.firstChild) svg.removeChild(svg.firstChild);
 
-  const geometry = results.geometry;
+  const geometry = result?.geometry;
   if (!geometry || geometry.ring.length < 2) {
     note.textContent =
-      'Aktiviere in den Einstellungen "Abschnitte bilden einen zusammenhängenden Rundgang", damit hieraus automatisch ein Lageplan erzeugt wird.';
+      'Für dieses Geschoss ist "Abschnitte bilden einen zusammenhängenden Rundgang" nicht aktiviert (oder keine Abschnitte) – daher kein automatischer Lageplan.';
     svg.setAttribute("viewBox", "0 0 100 100");
     return;
   }
@@ -404,7 +599,7 @@ function renderPlan2D(results) {
     "stroke-dasharray": `${sw * 3},${sw * 2}`,
   });
   addPath(ringToPath(geometry.baseOuterRing, geometry.closed), { fill: "none", stroke: "#1a73e8", "stroke-width": sw * 1.6 });
-  const hasKonsole = results.perSection.some((s) => s.konsole);
+  const hasKonsole = result.perSection.some((s) => s.konsole);
   if (hasKonsole) {
     addPath(ringToPath(geometry.outerRing, geometry.closed), {
       fill: "none",
@@ -441,7 +636,6 @@ function renderPlan2D(results) {
     svg.appendChild(c);
   });
 
-  // Scale bar
   const barLenM = width > 40 ? 10 : width > 15 ? 5 : 1;
   const barX = pad * 0.3;
   const barY = height - pad * 0.4;
@@ -458,25 +652,35 @@ function renderPlan2D(results) {
     geometry.closingError != null && geometry.closingError > 0.05
       ? ` Hinweis: Schlussfehler des Rundgangs ${fmt(geometry.closingError, 2)} m – Längen/Winkel prüfen.`
       : "";
-  note.textContent = `Schwarz = Gebäudelinie (eingegebene Längen/Winkel), grau gestrichelt = Ständerachse (Wandabstand ${fmt(
-    results.settings.wandabstand,
-    2
-  )} m), blau = Gerüst-Außenkante${hasKonsole ? ", orange gestrichelt = Außenkante inkl. Konsole" : ""}.${closingNote}`;
+  note.textContent = `Schwarz = Gebäudelinie, grau gestrichelt = Ständerachse, blau = Gerüst-Außenkante${
+    hasKonsole ? ", orange gestrichelt = Außenkante inkl. Konsole" : ""
+  }.${closingNote}`;
 }
 
-function escapeHtml(str) {
-  const div = document.createElement("div");
-  div.textContent = str;
-  return div.innerHTML;
+function renderPlan2DStorySelect(calcResult) {
+  const select = document.getElementById("plan2d-story-select");
+  select.innerHTML = calcResult.storyResults.map((sr, i) => `<option value="${i}">${escapeHtml(sr.story.name)}</option>`).join("");
+  select.value = String(Math.min(activeStoryIndex, calcResult.storyResults.length - 1));
+  renderPlan2D(calcResult.storyResults[Number(select.value)].result);
 }
+
+document.getElementById("plan2d-story-select").addEventListener("change", (e) => {
+  if (!lastCalcResult) return;
+  const idx = Number(e.target.value);
+  renderPlan2D(lastCalcResult.storyResults[idx]?.result);
+});
+
+// ---------------------------------------------------------------------
+// Actions
+// ---------------------------------------------------------------------
 
 document.getElementById("calc-btn").addEventListener("click", () => {
-  const results = calculate();
-  if (!results) return;
-  lastResults = results;
-  renderResults(results);
-  renderPlan2D(results);
-  if (typeof View3D !== "undefined") View3D.render(results);
+  const calcResult = calculateAllStories();
+  if (!calcResult) return;
+  lastCalcResult = calcResult;
+  renderResults(calcResult);
+  renderPlan2DStorySelect(calcResult);
+  if (typeof View3D !== "undefined") View3D.renderStories(calcResult.storyResults, calcResult.globalSettings);
   saveState();
 });
 
@@ -485,28 +689,36 @@ document.getElementById("print-btn").addEventListener("click", () => {
 });
 
 document.getElementById("export-csv-btn").addEventListener("click", () => {
-  if (!lastResults) return;
-  const { perSection, totals } = lastResults;
+  if (!lastCalcResult) return;
+  const { storyResults, grandTotals } = lastCalcResult;
   const lines = [];
-  lines.push("Gerüstmengen-Kalkulator - Ergebnis");
-  lines.push("");
-  lines.push("Abschnitt;Laenge (m);Hoehe (m);Flaeche (m2);Felder;Lagen;Anker;Konsole;Konsolenbreite (m);Ausladung (m)");
-  perSection.forEach((s) => {
-    lines.push(
-      `${s.name};${fmt(s.length, 2)};${fmt(s.height, 2)};${fmt(s.flaeche, 1)};${s.felder};${s.lagen};${s.anker};${s.konsole ? "ja" : "nein"};${fmt(s.konsolenbreite, 2)};${fmt(s.ausladung, 2)}`
-    );
+  lines.push("Geruestmengen-Kalkulator - Ergebnis (alle Geschosse)");
+
+  storyResults.forEach((sr) => {
+    lines.push("");
+    lines.push(`Geschoss;${sr.story.name};Sockelhoehe (m);${fmt(sr.sockelhoehe, 2)}`);
+    lines.push("Abschnitt;Laenge (m);Hoehe (m);Flaeche (m2);Felder;Lagen;Anker;Konsole;Konsolenbreite (m);Ausladung (m)");
+    sr.result.perSection.forEach((s) => {
+      lines.push(
+        `${s.name};${fmt(s.length, 2)};${fmt(s.height, 2)};${fmt(s.flaeche, 1)};${s.felder};${s.lagen};${s.anker};${s.konsole ? "ja" : "nein"};${fmt(s.konsolenbreite, 2)};${fmt(s.ausladung, 2)}`
+      );
+    });
+    lines.push(`Zwischensumme;${fmt(sr.result.totals.laenge, 2)};;${fmt(sr.result.totals.flaeche, 1)};;;${sr.result.totals.anker}`);
   });
-  lines.push(`Summe;${fmt(totals.laenge, 2)};;${fmt(totals.flaeche, 1)};;;${totals.anker}`);
+
+  lines.push("");
+  lines.push(`Gesamtsumme;${fmt(grandTotals.laenge, 2)};;${fmt(grandTotals.flaeche, 1)};;;${grandTotals.anker}`);
+  lines.push(`Gesamthoehe (m);${fmt(grandTotals.gesamthoehe, 2)}`);
   lines.push("");
   lines.push("Bauteil;Menge;Einheit");
-  lines.push(`Geruestboeden/Belaege;${totals.belaege};Stk`);
-  lines.push(`Staender/Vertikalrahmen;${totals.staender};Stk`);
-  lines.push(`Fussspindeln;${totals.fussspindeln};Stk`);
-  lines.push(`Gelaenderholme;${totals.gelaenderholme};Stk`);
-  lines.push(`Bordbretter;${totals.bordbretter};Stk`);
-  lines.push(`Diagonalen;${totals.diagonalen};Stk`);
-  lines.push(`Wandanker;${totals.anker};Stk`);
-  if (totals.konsolen > 0) lines.push(`Konsolen;${totals.konsolen};Stk`);
+  lines.push(`Geruestboeden/Belaege;${grandTotals.belaege};Stk`);
+  lines.push(`Staender/Vertikalrahmen;${grandTotals.staender};Stk`);
+  lines.push(`Fussspindeln;${grandTotals.fussspindeln};Stk`);
+  lines.push(`Gelaenderholme;${grandTotals.gelaenderholme};Stk`);
+  lines.push(`Bordbretter;${grandTotals.bordbretter};Stk`);
+  lines.push(`Diagonalen;${grandTotals.diagonalen};Stk`);
+  lines.push(`Wandanker;${grandTotals.anker};Stk`);
+  if (grandTotals.konsolen > 0) lines.push(`Konsolen;${grandTotals.konsolen};Stk`);
 
   const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
@@ -519,8 +731,13 @@ document.getElementById("export-csv-btn").addEventListener("click", () => {
   URL.revokeObjectURL(url);
 });
 
+// ---------------------------------------------------------------------
+// Persistence
+// ---------------------------------------------------------------------
+
 function saveState() {
   try {
+    serializeActiveStoryFromDom();
     const state = {
       settings: {
         lagenhoehe: document.getElementById("lagenhoehe").value,
@@ -531,14 +748,29 @@ function saveState() {
         wandabstand: document.getElementById("wandabstand").value,
         rasterPreset: rasterPresetEl.value,
         rasterCustom: rasterCustomEl.value,
-        cornersConnected: cornersConnectedEl.checked,
-        cornersClosed: cornersClosedEl.checked,
       },
-      sections: readSections(),
+      stories,
+      activeStoryIndex,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch (e) {
     /* localStorage nicht verfügbar - kein Problem, nur Komfortfunktion */
+  }
+}
+
+function migrateLegacyState() {
+  try {
+    const raw = localStorage.getItem("geruest-kalkulator-state-v1");
+    if (!raw) return null;
+    const legacy = JSON.parse(raw);
+    if (!legacy?.sections?.length) return null;
+    const story = createStory("Geschoss 1");
+    story.sections = legacy.sections;
+    story.cornersConnected = Boolean(legacy.settings?.cornersConnected);
+    story.cornersClosed = Boolean(legacy.settings?.cornersClosed);
+    return { settings: legacy.settings, stories: [story], activeStoryIndex: 0 };
+  } catch (e) {
+    return null;
   }
 }
 
@@ -550,6 +782,7 @@ function loadState() {
   } catch (e) {
     state = null;
   }
+  if (!state) state = migrateLegacyState();
 
   if (state?.settings) {
     document.getElementById("lagenhoehe").value = state.settings.lagenhoehe ?? "2.00";
@@ -561,16 +794,13 @@ function loadState() {
     rasterPresetEl.value = state.settings.rasterPreset ?? "fein";
     rasterCustomEl.value = state.settings.rasterCustom ?? "";
     rasterCustomLabel.classList.toggle("hidden", rasterPresetEl.value !== "custom");
-    cornersConnectedEl.checked = Boolean(state.settings.cornersConnected);
-    cornersClosedEl.disabled = !cornersConnectedEl.checked;
-    cornersClosedEl.checked = cornersConnectedEl.checked && Boolean(state.settings.cornersClosed);
   }
 
-  if (state?.sections?.length) {
-    state.sections.forEach((s) => addSectionRow(s));
-  } else {
-    addSectionRow({ name: "Fassade 1" });
-  }
+  stories = state?.stories?.length ? state.stories : [createStory("Geschoss 1")];
+  activeStoryIndex = Math.min(state?.activeStoryIndex ?? 0, stories.length - 1);
+
+  loadStoryIntoDom(stories[activeStoryIndex]);
+  renderStoryTabs();
 }
 
 window.addEventListener("plan-segments-apply", (evt) => {

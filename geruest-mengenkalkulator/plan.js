@@ -11,6 +11,7 @@ const PlanTrace = (() => {
   const ctx = canvas.getContext("2d");
   const fileInput = document.getElementById("plan-file");
   const fileStatus = document.getElementById("plan-file-status");
+  const freehandBtn = document.getElementById("plan-freehand-btn");
 
   const stepsRaster = document.getElementById("plan-steps-raster");
   const stepsDxf = document.getElementById("plan-steps-dxf");
@@ -84,6 +85,7 @@ const PlanTrace = (() => {
       const pad = Math.max(maxX - minX, maxY - minY, 1) * 0.15;
       return { minX: minX - pad, minY: minY - pad, maxX: maxX + pad, maxY: maxY + pad };
     }
+    if (source === "grid") return { minX: -15, minY: -15, maxX: 15, maxY: 15 };
     return { minX: 0, minY: 0, maxX: 100, maxY: 100 };
   }
 
@@ -140,10 +142,17 @@ const PlanTrace = (() => {
       ctx.setTransform(view.scale, 0, 0, view.scale, view.offsetX, view.offsetY);
       ctx.drawImage(image, 0, 0);
       ctx.setTransform(1, 0, 0, 1, 0, 0);
-    } else if (source === "dxf") {
+    } else if (source === "dxf" || source === "grid") {
       ctx.fillStyle = "#fafafa";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       drawGrid();
+      if (source === "grid") {
+        const origin = workingToScreen({ x: 0, y: 0 });
+        ctx.fillStyle = "#c7ccd3";
+        ctx.beginPath();
+        ctx.arc(origin.x, origin.y, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
 
     if (calibrationPoints.length) {
@@ -364,6 +373,24 @@ const PlanTrace = (() => {
     resizeCanvas();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
   }
+
+  freehandBtn.addEventListener("click", () => {
+    resetAll();
+    fileInput.value = "";
+    source = "grid";
+    unitsPerMeter = 1; // working space = meters directly, no calibration needed
+    stepsRaster.classList.add("hidden");
+    stepsDxf.classList.add("hidden");
+    resizeCanvas();
+    fitView();
+    panBtn.disabled = false;
+    zoomFitBtn.disabled = false;
+    traceBtn.disabled = false;
+    setStatus(
+      fileStatus,
+      "Leeres Zeichenraster (1 Karo-Gitterlinie = passt sich beim Zoomen an). Auf „Punkte anklicken“ klicken und den Grundriss direkt abklicken."
+    );
+  });
 
   fileInput.addEventListener("change", async () => {
     const file = fileInput.files?.[0];

@@ -6,33 +6,49 @@ Web-Tool zur überschlägigen Mengenermittlung für Fassadengerüste – inklusi
 
 `index.html` direkt im Browser öffnen, oder z. B. via GitHub Pages hosten.
 
-1. Einstellungen anpassen: Lagenhöhe, Gerüstbreite, Belagbreite, Ankerraster, Diagonalraster, Wandabstand, Feldlängen-Raster.
-2. Fassadenabschnitte (z. B. Nord-, Ost-, Süd-, Westfassade) eintragen – Reihenfolge = Rundgang um das Gebäude:
+1. Einstellungen anpassen: Lagenhöhe, Gerüstbreite, Belagbreite, Ankerraster, Diagonalraster, Wandabstand, Feldlängen-Raster. Diese gelten für **alle** Geschosse gemeinsam.
+2. Geschoss auswählen/anlegen (siehe unten), falls das Gebäude aus mehreren Abschnitten mit unterschiedlichem Grundriss besteht.
+3. Fassadenabschnitte des aktiven Geschosses eintragen (z. B. Nord-, Ost-, Süd-, Westfassade) – Reihenfolge = Rundgang um das Gebäude:
    - Länge, Höhe, optionale Aussparungsfläche
    - Winkel zur nächsten Seite (° – 90° = rechtwinklige Ecke), für Lageplan/3D
    - Konsole ja/nein + Konsolenbreite: verbreitert den Belag an dieser Seite und rückt die Außenkante des Gerüsts dort entsprechend nach außen
-3. Bei mehreren Abschnitten „Abschnitte bilden zusammenhängenden Rundgang“ aktivieren, damit gemeinsame Eckständer/-spindeln an den Gebäudeecken nicht doppelt gezählt werden (plus „Geschlossener Umlauf“, falls der letzte Abschnitt wieder an den ersten anschließt). Das aktiviert außerdem den automatischen Lageplan und die 3D-Ansicht.
-4. Optional: Plan digitalisieren (siehe unten), statt die Abschnittstabelle von Hand zu füllen.
-5. **Berechnen** klicken.
+4. Bei mehreren Abschnitten „Abschnitte bilden zusammenhängenden Rundgang“ aktivieren, damit gemeinsame Eckständer/-spindeln an den Gebäudeecken nicht doppelt gezählt werden (plus „Geschlossener Umlauf“, falls der letzte Abschnitt wieder an den ersten anschließt). Das aktiviert außerdem den automatischen Lageplan und die 3D-Ansicht für dieses Geschoss.
+5. Optional: Grundriss zeichnen/einlesen (siehe unten), statt die Abschnittstabelle von Hand zu füllen.
+6. **Berechnen** klicken.
+
+## Geschossebenen
+
+Für Gebäude, bei denen nicht jeder Bauabschnitt denselben Grundriss hat (Staffelgeschoss, Rücksprung, angebauter niedrigerer Trakt, …): jedes Geschoss hat seinen eigenen, unabhängigen Grundriss (eigene Fassadenabschnitte-Tabelle, eigene Rundgang-Einstellungen). Alle Geschosse teilen sich dieselben globalen Einstellungen (Lagenhöhe, Gerüstbreite, Raster, …).
+
+- **Geschoss-Reiter** oben wechseln zwischen den Geschossen; die Tabelle „Fassadenabschnitte“ und „Grundriss zeichnen/einlesen“ zeigen immer das gerade ausgewählte Geschoss (Badge neben der Überschrift).
+- **+ Geschoss hinzufügen** legt ein neues, leeres Geschoss an.
+- **Geschoss duplizieren** kopiert den aktuellen Grundriss als Ausgangspunkt für ein ähnliches Obergeschoss.
+- **Sockelhöhe**: Starthöhe des Geschosses über Gelände, für die Stapelung in der 3D-Ansicht. „Auto“ setzt sie auf die Höhe des größten Abschnitts im darunterliegenden Geschoss (üblicher Fall); bei Rücksprüngen/Sonderfällen von Hand überschreibbar.
+- Für ein normales, durchgehendes Gebäude reicht ein einziges Geschoss – dann verhält sich das Tool wie zuvor.
 
 ## Ergebnis
 
-- Gerüstfläche, -länge, Lagen, Anker, Konsole und Ausladung je Abschnitt und in Summe
-- Geschätzte Materialliste: Beläge, Ständer, Fußspindeln, Geländerholme, Bordbretter, Diagonalen, Wandanker, Konsolen
-- Feldlängen-Aufteilung je Abschnitt (Greedy-Verteilung auf das gewählte Feldlängen-Raster)
-- **2D-Lageplan** (SVG, automatisch aus Längen/Winkeln): Gebäudelinie, Ständerachse (Wandabstand), Gerüst-Außenkante, Außenkante inkl. Konsole, Bemaßung
-- **3D-Ansicht** (schematisch, Three.js): Ständer, Beläge je Lage, Geländer, Konsolen und Gebäudekörper als Kontext-Volumen; Maus ziehen = drehen, Mausrad = zoomen
-- CSV-Export und Druckansicht
+- Pro Geschoss: Gerüstfläche, -länge, Lagen, Anker, Konsole und Ausladung je Abschnitt sowie Feldlängen-Aufteilung
+- **Gesamtsumme über alle Geschosse**: Fläche, Länge, Gesamthöhe, Anker und komplette Materialliste (Beläge, Ständer, Fußspindeln, Geländerholme, Bordbretter, Diagonalen, Wandanker, Konsolen)
+- **2D-Lageplan** (SVG, automatisch aus Längen/Winkeln, mit Geschoss-Auswahl): Gebäudelinie, Ständerachse (Wandabstand), Gerüst-Außenkante, Außenkante inkl. Konsole, Bemaßung
+- **3D-Ansicht** (schematisch, Three.js): alle Geschosse an ihrer Sockelhöhe gestapelt – Ständer, Beläge je Lage, Geländer, Konsolen und Gebäudekörper als Kontext-Volumen; Maus ziehen = drehen, Mausrad = zoomen
+- CSV-Export (je Geschoss + Gesamtsumme) und Druckansicht
 
-Eingaben werden automatisch im Browser (localStorage) zwischengespeichert.
+Eingaben werden automatisch im Browser (localStorage) zwischengespeichert, inklusive aller Geschosse.
 
-## Plan digitalisieren
+## Grundriss zeichnen / einlesen
+
+Drei Wege, den Grundriss des **aktiven Geschosses** zu erfassen – alle münden in dieselbe interaktive Zeichenfläche:
+
+### Neu zeichnen (grafisch, ohne Datei)
+
+„✏️ Neu zeichnen (ohne Datei)“ öffnet ein leeres Raster (1 Karo = 1 Meter, kein Kalibrieren nötig) – Grundriss direkt mit Klicks abstecken, wie auf einem Blatt Karopapier. Praktisch für den Normalfall ohne vorhandenen Plan.
+
+### Bild/PDF (Nachzeichnen)
 
 Statt Längen/Winkel von Hand einzutragen, kann ein vorhandener Grundriss- oder Lageplan eingelesen werden – als Bild/PDF (Nachklicken) oder als **DXF** (exakte Koordinaten, kein Nachklicken nötig).
 
 **Warum DXF und nicht DWG?** DWG ist ein proprietäres Binärformat von Autodesk ohne offenen Standard – im Browser nicht zuverlässig lesbar. DXF ist das offene, textbasierte Austauschformat, das praktisch jedes CAD-Programm (AutoCAD, Revit, ArchiCAD, …) über „Speichern unter“ exportieren kann, und liefert die Koordinaten exakt.
-
-### Bild/PDF (Nachzeichnen)
 
 1. Plan-Datei hochladen (PDF wird über die mitgelieferte pdf.js-Bibliothek als Seite 1 gerendert).
 2. Maßstab kalibrieren: zwei Punkte einer bekannten Strecke im Plan anklicken (z. B. eine bemaßte Wandlänge) und die reale Länge in Metern eingeben.
@@ -44,7 +60,7 @@ Statt Längen/Winkel von Hand einzutragen, kann ein vorhandener Grundriss- oder 
 2. Ebene mit dem Gebäudeumriss wählen und die Zeichnungseinheit angeben (mm/cm/m/benutzerdefiniert).
 3. „Ebene übernehmen“ – die Eckpunkte werden direkt aus der Zeichnung übernommen (eine einzelne Polylinie wird direkt verwendet; mehrere Linienzüge werden anhand gemeinsamer Endpunkte automatisch zu einer durchgehenden Linie verkettet, mit Hinweis, falls das nicht eindeutig möglich war).
 
-### Interaktive Zeichenfläche (beide Wege)
+### Interaktive Zeichenfläche (alle Wege)
 
 - **Zoomen**: Mausrad (zoomt zum Mauszeiger).
 - **Verschieben**: Button „Verschieben (Pan)“ aktivieren und ziehen; „Einpassen“ setzt die Ansicht zurück.

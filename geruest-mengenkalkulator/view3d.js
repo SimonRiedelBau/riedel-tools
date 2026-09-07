@@ -27,7 +27,7 @@ const View3D = (() => {
       statusEl.textContent =
         "3D-Bibliothek (vendor/three.min.js) konnte nicht geladen werden – 3D-Ansicht nicht verfügbar. Der 2D-Lageplan und alle Mengenberechnungen funktionieren unabhängig davon.";
     }
-    return { render: () => {} };
+    return { renderStories: () => {} };
   }
 
   function initScene() {
@@ -154,36 +154,23 @@ const View3D = (() => {
     return mesh;
   }
 
-  function render(results) {
-    if (!available) return;
-    if (!renderer) initScene();
-    clearScene();
-    if (statusEl) statusEl.textContent = "";
-
-    const geometry = results.geometry;
-    if (!geometry || geometry.ring.length < 2) {
-      if (statusEl) {
-        statusEl.textContent =
-          'Aktiviere "Abschnitte bilden einen zusammenhängenden Rundgang" in den Einstellungen, um eine 3D-Ansicht zu erzeugen.';
-      }
-      return;
-    }
-
-    const perSection = results.perSection;
+  // Builds one story's scaffold as a THREE.Group at local y=0 (the caller
+  // translates it up by that story's Sockelhöhe). budget is a {count} object
+  // shared across stories so the overall scene stays within MAX_MESHES.
+  function buildStoryGroup(result, lagenhoehe, budget) {
+    const group = new THREE.Group();
+    const geometry = result.geometry;
+    const perSection = result.perSection;
     const closed = geometry.closed;
     const staenderFrames = Geometry.edgeFrames(geometry.staenderRing, closed);
     const baseOuterFrames = Geometry.edgeFrames(geometry.baseOuterRing, closed);
     const outerFrames = Geometry.edgeFrames(geometry.outerRing, closed);
-    const lagenhoehe = results.settings.lagenhoehe;
-
-    const group = new THREE.Group();
 
     const maxHeight = Math.max(...perSection.map((s) => s.height), 1);
     const vol = buildingVolume(geometry.ring, closed, maxHeight);
     if (vol) group.add(vol);
 
-    let meshCount = 0;
-    const overBudget = () => meshCount > MAX_MESHES;
+    const overBudget = () => budget.count > MAX_MESHES;
 
     perSection.forEach((s, i) => {
       if (overBudget()) return;
@@ -195,7 +182,7 @@ const View3D = (() => {
 
       addPostRow(group, innerFrame, s.felder, totalHeight, 0x4a5568);
       addPostRow(group, outerFrame, s.felder, totalHeight, 0x4a5568);
-      meshCount += 2 * (s.felder + 1);
+      budget.count += 2 * (s.felder + 1);
 
       for (let k = 1; k <= s.lagen; k += 1) {
         if (overBudget()) break;
@@ -212,13 +199,13 @@ const View3D = (() => {
         deck.rotation.y = angle;
         deck.position.copy(toWorld(deckCenter, y));
         group.add(deck);
-        meshCount += 1;
+        budget.count += 1;
 
         const rail = box(innerFrame.length, 0.05, 0.05, 0xc0392b);
         rail.rotation.y = angle;
         rail.position.copy(toWorld(midOuter, y + 1.0));
         group.add(rail);
-        meshCount += 1;
+        budget.count += 1;
 
         if (s.konsole && konsoleFrame) {
           const midKonsole = lerp(konsoleFrame.a, konsoleFrame.b, 0.5);
@@ -229,25 +216,58 @@ const View3D = (() => {
             shelf.rotation.y = angle;
             shelf.position.copy(toWorld(konsoleCenter, y));
             group.add(shelf);
-            meshCount += 1;
+            budget.count += 1;
           }
         }
       }
     });
 
-    scene.add(group);
+    return group;
+  }
 
-    const b = Geometry.bounds([geometry.outerRing, geometry.ring]);
+  // storyResults: [{ story, result, sockelhoehe }], as produced by
+  // calculateAllStories() in script.js. Stacks each story's scaffold group
+  // at its own Sockelhöhe and fits the camera around the combined bounds.
+  function renderStories(storyResults, globalSettings) {
+    if (!available) return;
+    if (!renderer) initScene();
+    clearScene();
+    if (statusEl) statusEl.textContent = "";
+
+    const valid = storyResults.filter((sr) => sr.result.geometry && sr.result.geometry.ring.length >= 2);
+    if (!valid.length) {
+      if (statusEl) {
+        statusEl.textContent =
+          'Aktiviere "Abschnitte bilden einen zusammenhängenden Rundgang" in mindestens einem Geschoss, um eine 3D-Ansicht zu erzeugen.';
+      }
+      return;
+    }
+
+    const budget = { count: 0 };
+    const allPoints = [];
+    let maxTop = 0;
+
+    valid.forEach((sr) => {
+      const sockel = sr.sockelhoehe || 0;
+      const group = buildStoryGroup(sr.result, globalSettings.lagenhoehe, budget);
+      group.position.y = sockel;
+      scene.add(group);
+      allPoints.push(...sr.result.geometry.outerRing, ...sr.result.geometry.ring);
+      const storyMaxHeight = Math.max(...sr.result.perSection.map((s) => s.height), 1);
+      maxTop = Math.max(maxTop, sockel + storyMaxHeight);
+    });
+
+    const b = Geometry.bounds([allPoints]);
     const cx = (b.minX + b.maxX) / 2;
     const cy = (b.minY + b.maxY) / 2;
-    target = { x: cx, y: maxHeight / 2, z: -cy };
+    target = { x: cx, y: maxTop / 2, z: -cy };
     const span = Math.max(b.maxX - b.minX, b.maxY - b.minY, 5);
-    radius = span * 1.4 + maxHeight;
+    radius = span * 1.4 + maxTop;
 
-    if (overBudget() && statusEl) {
+    if (budget.count > MAX_MESHES && statusEl) {
       statusEl.textContent = "Hinweis: Sehr viele Bauteile – 3D-Ansicht wurde zur Performance gekürzt dargestellt.";
     }
   }
 
-  return { render };
+  return { renderStories };
 })();

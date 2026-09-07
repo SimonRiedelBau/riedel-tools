@@ -16,6 +16,27 @@
 
   <main>
 
+    <section class="panel" id="stories-panel">
+      <h2>Geschossebenen</h2>
+      <p class="hint">Für Gebäude, bei denen nicht jeder Abschnitt den gleichen Grundriss hat (z. B. Rücksprünge, Staffelgeschoss, angebauter niedrigerer Trakt): jedes Geschoss bekommt seinen eigenen Grundriss (eigene Fassadenabschnitte weiter unten). Alle Geschosse teilen sich die Einstellungen oben. Für ein normales, durchgehendes Gebäude reicht ein einziges Geschoss.</p>
+      <div class="story-tabs" id="story-tabs"></div>
+      <div class="story-controls">
+        <label class="inline-label">
+          Name
+          <input type="text" id="story-name" value="Geschoss 1">
+        </label>
+        <label class="inline-label">
+          Sockelhöhe (m, Start über Gelände)
+          <input type="number" id="story-sockelhoehe" step="0.01" min="0" value="0">
+          <button type="button" id="story-sockelhoehe-auto-btn" class="btn-secondary" title="Automatisch aus Höhe des darunterliegenden Geschosses">Auto</button>
+        </label>
+        <button type="button" id="story-add-btn" class="btn-secondary">+ Geschoss hinzufügen</button>
+        <button type="button" id="story-duplicate-btn" class="btn-secondary">Geschoss duplizieren</button>
+        <button type="button" id="story-delete-btn" class="btn-danger-outline">Geschoss löschen</button>
+      </div>
+      <p class="hint">Die Tabelle „Fassadenabschnitte“ und „Plan digitalisieren“ unten beziehen sich immer auf das gerade ausgewählte Geschoss (siehe Reiter oben).</p>
+    </section>
+
     <section class="panel" id="settings-panel">
       <h2>Einstellungen</h2>
       <div class="grid settings-grid">
@@ -72,7 +93,7 @@
     </section>
 
     <section class="panel" id="sections-panel">
-      <h2>Fassadenabschnitte</h2>
+      <h2>Fassadenabschnitte <span class="active-story-badge" id="active-story-badge-sections"></span></h2>
       <p class="hint">Jede zusammenhängende Gerüstseite einzeln eintragen (z. B. Nord-, Ost-, Süd-, Westfassade), in der Reihenfolge des Rundgangs um das Gebäude. Aussparungsfläche ist optional und wird nur von der Fläche abgezogen (Felder/Lagen berücksichtigen sie nicht). Der Winkel ist der Richtungswechsel zur nächsten Seite (90° = rechtwinklige Ecke) und wird für den automatischen Lageplan/3D benötigt. Konsole verbreitert den Belag an dieser Seite und rückt die Außenkante des Gerüsts entsprechend nach außen.</p>
       <div class="table-wrap">
         <table id="sections-table">
@@ -95,19 +116,22 @@
     </section>
 
     <section class="panel" id="plan-panel">
-      <h2>Plan digitalisieren (optional)</h2>
+      <h2>Grundriss zeichnen / einlesen <span class="active-story-badge" id="active-story-badge-plan"></span></h2>
       <p class="hint">
-        Grundriss/Lageplan als Bild, PDF oder DXF einlesen. Bei Bild/PDF: Maßstab kalibrieren und die
-        Gerüstlinie im Plan abklicken. Bei DXF: Ebene mit dem Gebäudeumriss wählen – die Eckpunkte werden
-        exakt aus der Zeichnung übernommen, kein Kalibrieren nötig. In beiden Fällen lassen sich die Punkte
-        danach per Ziehen verschieben, per Rechtsklick löschen und die Strecken/Winkel in der Tabelle unten
-        von Hand korrigieren, bevor sie in die Abschnittstabelle übernommen werden.
+        Grundriss direkt grafisch zeichnen (kein Datei-Upload nötig), oder einen vorhandenen Lageplan als
+        Bild, PDF oder DXF einlesen. Bei Bild/PDF: Maßstab kalibrieren und die Gerüstlinie im Plan abklicken.
+        Bei DXF: Ebene mit dem Gebäudeumriss wählen – die Eckpunkte werden exakt aus der Zeichnung übernommen,
+        kein Kalibrieren nötig. In allen Fällen lassen sich die Punkte danach per Ziehen verschieben, per
+        Rechtsklick löschen und die Strecken/Winkel in der Tabelle unten von Hand korrigieren, bevor sie in
+        die Abschnittstabelle übernommen werden.
         <strong>Hinweis:</strong> Echte DWG-Dateien lassen sich im Browser nicht zuverlässig lesen (proprietäres
         Binärformat) – aus AutoCAD/Revit/ArchiCAD etc. bitte als <strong>DXF</strong> exportieren
         (Speichern unter → DXF), das ist das offene Austauschformat und liefert exakte Koordinaten.
       </p>
 
       <div class="plan-upload-row">
+        <button type="button" id="plan-freehand-btn" class="btn-primary">✏️ Neu zeichnen (ohne Datei)</button>
+        <span class="hint">oder Datei einlesen:</span>
         <label class="file-label">
           Plan-Datei (Bild, PDF oder DXF)
           <input type="file" id="plan-file" accept="image/*,.pdf,.dxf">
@@ -208,32 +232,14 @@
     </section>
 
     <section class="panel results-panel hidden" id="results-panel">
-      <h2>Ergebnis</h2>
+      <h2>Ergebnis – alle Geschosse gesamt</h2>
 
       <div class="summary-cards" id="summary-cards"></div>
       <p class="hint hidden" id="corner-note"></p>
 
-      <h3>Abschnitte im Detail</h3>
-      <div class="table-wrap">
-        <table id="results-table">
-          <thead>
-            <tr>
-              <th>Abschnitt</th>
-              <th>Länge (m)</th>
-              <th>Höhe (m)</th>
-              <th>Fläche (m²)</th>
-              <th>Felder</th>
-              <th>Lagen</th>
-              <th>Anker</th>
-              <th>Konsole</th>
-              <th>Ausladung (m)</th>
-            </tr>
-          </thead>
-          <tbody id="results-body"></tbody>
-        </table>
-      </div>
+      <div id="per-story-results"></div>
 
-      <h3>Materialliste (Stückliste, geschätzt)</h3>
+      <h3>Materialliste gesamt (Stückliste, geschätzt)</h3>
       <div class="table-wrap">
         <table id="material-table">
           <thead>
@@ -248,27 +254,17 @@
         </table>
       </div>
 
-      <h3>Feldlängen-Aufteilung je Abschnitt</h3>
-      <div class="table-wrap">
-        <table id="fields-table">
-          <thead>
-            <tr>
-              <th>Abschnitt</th>
-              <th>Feldlängen-Verteilung</th>
-              <th>Gedeckte Länge (m)</th>
-            </tr>
-          </thead>
-          <tbody id="fields-body"></tbody>
-        </table>
-      </div>
-
-      <h3>2D-Lageplan (automatisch aus Abschnitten)</h3>
+      <h3>2D-Lageplan</h3>
+      <label class="inline-label">
+        Geschoss anzeigen
+        <select id="plan2d-story-select"></select>
+      </label>
       <p class="hint" id="plan2d-note"></p>
       <div class="plan2d-wrap">
         <svg id="plan2d-svg" width="100%" height="480" viewBox="0 0 100 100"></svg>
       </div>
 
-      <h3>3D-Ansicht (schematisch)</h3>
+      <h3>3D-Ansicht (schematisch, alle Geschosse gestapelt)</h3>
       <p class="hint">Ziehen = drehen, Mausrad/Pinch = zoomen.</p>
       <div class="view3d-wrap">
         <canvas id="view3d-canvas"></canvas>
