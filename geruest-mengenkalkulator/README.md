@@ -1,6 +1,6 @@
 # Gerüstmengen-Kalkulator
 
-Web-Tool zur überschlägigen Mengenermittlung für Fassadengerüste – inklusive Konsolen, automatischem 2D-Lageplan, schematischer 3D-Ansicht und Plan-Digitalisierung. Läuft komplett im Browser, keine Build-Tools, keine Server-Abhängigkeit (alle Bibliotheken liegen unter `vendor/` bei, siehe unten).
+Web-Tool zur überschlägigen Mengenermittlung für Fassadengerüste – inklusive Konsolen, Geschossebenen, automatischem 2D-Lageplan, schematischer 3D-Ansicht und Grundriss-Erfassung per Zeichnen, Bild/PDF, DXF oder IFC (BIM-Modell). Läuft komplett im Browser, keine Build-Tools, keine Server-Abhängigkeit (alle Bibliotheken liegen unter `vendor/` bei, siehe unten).
 
 ## Nutzung
 
@@ -60,6 +60,18 @@ Statt Längen/Winkel von Hand einzutragen, kann ein vorhandener Grundriss- oder 
 2. Ebene mit dem Gebäudeumriss wählen und die Zeichnungseinheit angeben (mm/cm/m/benutzerdefiniert).
 3. „Ebene übernehmen“ – die Eckpunkte werden direkt aus der Zeichnung übernommen (eine einzelne Polylinie wird direkt verwendet; mehrere Linienzüge werden anhand gemeinsamer Endpunkte automatisch zu einer durchgehenden Linie verkettet, mit Hinweis, falls das nicht eindeutig möglich war).
 
+### IFC (BIM-Modell)
+
+Wird komplett lokal im Browser gelesen (via [web-ifc](https://github.com/ThatOpen/engine_web-ifc), WASM) – nichts wird hochgeladen, funktioniert also auch mit sehr großen Dateien, die sich nicht zum Hochladen eignen.
+
+1. IFC-Datei hochladen – das Tool listet alle `IfcBuildingStorey` (Geschosse) mit ihrer Höhe auf.
+2. Falls Dachgeometrie (`IfcRoof` oder `IfcSlab` mit `PredefinedType=ROOF`) gefunden wird: ein grober Dachüberstand wird vorgeschlagen (aus dem Größenunterschied zwischen Dach- und Wand-Bounding-Box, nicht pro Seite) – optional per Klick zum Wandabstand hinzufügen.
+3. Geschoss wählen, „Wandlinien vorschlagen“ – die Wand-Mittellinien werden aus der Bauteilgeometrie geschätzt (Achsrepräsentation, sonst minimale umschließende Rechteckfläche je Wand):
+   - Ergibt sich daraus automatisch ein sauberer, geschlossener Umriss, wird er direkt übernommen.
+   - **Der häufigere Fall bei echten Gebäuden:** Innenwände lassen sich nicht eindeutig von Außenwänden unterscheiden, daher bildet sich kein sauberer Umriss. Die Wandlinien werden dann als graue Hilfslinien angezeigt – den Gebäudeumriss einfach selbst mit „Punkte anklicken“ daran entlangklicken. Das ist immer noch deutlich schneller als freihändig zu messen, da die Wandpositionen als Vorlage sichtbar sind.
+
+**Warum kein DWG- oder verlässlicher automatischer IFC-Import?** Ein Gebäudeumriss lässt sich aus rohen Bauteil-Geometrien nicht immer zuverlässig automatisch rekonstruieren (Innenwände, komplexe Wandobjekte, unterschiedliche Exportqualität je CAD-Programm) – das Tool verspricht deshalb bewusst keine 100%ige Automatik, sondern liefert einen bestmöglichen Vorschlag plus eine schnelle, verlässliche manuelle Nachbearbeitung in derselben Zeichenfläche.
+
 ### Interaktive Zeichenfläche (alle Wege)
 
 - **Zoomen**: Mausrad (zoomt zum Mauszeiger).
@@ -76,8 +88,9 @@ Für Offline-Nutzung und Zuverlässigkeit hinter Firmen-Proxys sind folgende Bib
 - `vendor/three.min.js` – [three.js](https://threejs.org/) r128, MIT-Lizenz (3D-Ansicht)
 - `vendor/pdf.min.js` + `vendor/pdf.worker.min.js` – [pdf.js](https://mozilla.github.io/pdf.js/) 3.11.174, Apache-2.0-Lizenz (PDF-Digitalisierung)
 - `vendor/dxf-parser.js` – [dxf-parser](https://github.com/bjnortier/dxf-parser) 1.1.2, MIT-Lizenz (DXF-Import)
+- `vendor/web-ifc-api-iife.js` + `vendor/web-ifc.wasm` – [web-ifc](https://github.com/ThatOpen/engine_web-ifc) 0.0.77, MPL-2.0-Lizenz (IFC-Import)
 
-Fehlen diese Dateien oder können sie nicht geladen werden, funktionieren Mengenberechnung, 2D-Lageplan und Bild-Digitalisierung trotzdem uneingeschränkt weiter – nur die 3D-Ansicht bzw. der PDF-/DXF-Import stehen dann nicht zur Verfügung (entsprechender Hinweis erscheint im Tool).
+Fehlen diese Dateien oder können sie nicht geladen werden, funktionieren Mengenberechnung, 2D-Lageplan und Bild-Digitalisierung trotzdem uneingeschränkt weiter – nur die 3D-Ansicht bzw. der PDF-/DXF-/IFC-Import stehen dann nicht zur Verfügung (entsprechender Hinweis erscheint im Tool).
 
 ## Hinweis
 

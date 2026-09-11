@@ -15,6 +15,7 @@ const PlanTrace = (() => {
 
   const stepsRaster = document.getElementById("plan-steps-raster");
   const stepsDxf = document.getElementById("plan-steps-dxf");
+  const stepsIfc = document.getElementById("plan-steps-ifc");
   const stepsTrace = document.getElementById("plan-steps-trace");
 
   const calibrateBtn = document.getElementById("plan-calibrate-btn");
@@ -53,6 +54,7 @@ const PlanTrace = (() => {
   let unitsPerMeter = null; // working-space units per real meter
   let tracePoints = []; // working-space points
   let segments = []; // { length, angle } — editable, feeds the apply step
+  let referenceSegments = []; // { a, b } static guide lines (e.g. IFC wall centerlines) to trace over
 
   let view = { scale: 1, offsetX: 0, offsetY: 0 };
   let dragTarget = null; // { list: 'trace'|'calibration', index }
@@ -73,7 +75,11 @@ const PlanTrace = (() => {
     if (source === "raster" && imageSize) {
       return { minX: 0, minY: 0, maxX: imageSize.w, maxY: imageSize.h };
     }
-    const pts = tracePoints.length ? tracePoints : calibrationPoints;
+    const pts = tracePoints.length
+      ? tracePoints
+      : calibrationPoints.length
+      ? calibrationPoints
+      : referenceSegments.flatMap((s) => [s.a, s.b]);
     if (pts.length) {
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
       pts.forEach((p) => {
@@ -153,6 +159,21 @@ const PlanTrace = (() => {
         ctx.arc(origin.x, origin.y, 3, 0, Math.PI * 2);
         ctx.fill();
       }
+    }
+
+    if (referenceSegments.length) {
+      ctx.strokeStyle = "#8a8f98";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      referenceSegments.forEach((seg) => {
+        const a = workingToScreen(seg.a);
+        const b = workingToScreen(seg.b);
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+      });
+      ctx.setLineDash([]);
     }
 
     if (calibrationPoints.length) {
@@ -353,6 +374,7 @@ const PlanTrace = (() => {
     unitsPerMeter = null;
     tracePoints = [];
     segments = [];
+    referenceSegments = [];
     view = { scale: 1, offsetX: 0, offsetY: 0 };
 
     calibrateBtn.disabled = true;
@@ -370,6 +392,7 @@ const PlanTrace = (() => {
     setStatus(applyStatus, "");
     stepsRaster.classList.remove("hidden");
     stepsDxf.classList.add("hidden");
+    stepsIfc.classList.add("hidden");
     resizeCanvas();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
   }
@@ -381,6 +404,7 @@ const PlanTrace = (() => {
     unitsPerMeter = 1; // working space = meters directly, no calibration needed
     stepsRaster.classList.add("hidden");
     stepsDxf.classList.add("hidden");
+    stepsIfc.classList.add("hidden");
     resizeCanvas();
     fitView();
     panBtn.disabled = false;
@@ -402,6 +426,16 @@ const PlanTrace = (() => {
       stepsRaster.classList.add("hidden");
       stepsDxf.classList.remove("hidden");
       await loadDxf(file);
+    } else if (name.endsWith(".ifc")) {
+      stepsRaster.classList.add("hidden");
+      stepsIfc.classList.remove("hidden");
+      source = "grid"; // canvas shows a plain grid background while placing IFC-derived points
+      resizeCanvas();
+      if (typeof IfcImport === "undefined") {
+        setStatus(fileStatus, "IFC-Unterstützung nicht verfügbar (vendor/web-ifc-api-iife.js konnte nicht geladen werden).");
+      } else {
+        await IfcImport.handleFile(file);
+      }
     } else if (file.type === "application/pdf" || name.endsWith(".pdf")) {
       setStatus(fileStatus, "PDF wird geladen …");
       const buf = await file.arrayBuffer();
@@ -734,5 +768,43 @@ const PlanTrace = (() => {
 
   resizeCanvas();
 
-  return { resetAll };
+  // Public bridge for other import modules (ifc.js): hand over a set of
+  // working-space points (already in meters, unitsPerMeter=1) plus whether
+  // the outline is closed, so they land in the same editable trace/segment
+  // pipeline as click-traced or DXF-derived points.
+  function loadPoints(points, closed, statusText) {
+    source = "grid";
+    unitsPerMeter = 1;
+    tracePoints = points.map((p) => ({ x: p.x, y: p.y }));
+    traceClosedCheckbox.checked = Boolean(closed);
+    mode = "idle";
+    panBtn.disabled = false;
+    zoomFitBtn.disabled = false;
+    traceBtn.disabled = false;
+    updateTraceButtons();
+    resizeCanvas();
+    fitView();
+    recomputeSegmentsLive();
+    if (statusText) setStatus(fileStatus, statusText);
+  }
+
+  // Shows a set of static guide lines (e.g. IFC wall centerlines) to trace
+  // over manually with the normal click-to-add-point tool — used when an
+  // automatic outline couldn't be reconstructed reliably.
+  function setReferenceSegments(segs, statusText) {
+    source = "grid";
+    unitsPerMeter = 1;
+    referenceSegments = segs.map((s) => ({ a: { x: s.a.x, y: s.a.y }, b: { x: s.b.x, y: s.b.y } }));
+    tracePoints = [];
+    mode = "idle";
+    panBtn.disabled = false;
+    zoomFitBtn.disabled = false;
+    traceBtn.disabled = false;
+    updateTraceButtons();
+    resizeCanvas();
+    fitView();
+    if (statusText) setStatus(fileStatus, statusText);
+  }
+
+  return { resetAll, loadPoints, setReferenceSegments };
 })();

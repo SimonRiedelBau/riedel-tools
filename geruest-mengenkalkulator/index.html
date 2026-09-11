@@ -118,23 +118,28 @@
     <section class="panel" id="plan-panel">
       <h2>Grundriss zeichnen / einlesen <span class="active-story-badge" id="active-story-badge-plan"></span></h2>
       <p class="hint">
-        Grundriss direkt grafisch zeichnen (kein Datei-Upload nötig), oder einen vorhandenen Lageplan als
-        Bild, PDF oder DXF einlesen. Bei Bild/PDF: Maßstab kalibrieren und die Gerüstlinie im Plan abklicken.
-        Bei DXF: Ebene mit dem Gebäudeumriss wählen – die Eckpunkte werden exakt aus der Zeichnung übernommen,
-        kein Kalibrieren nötig. In allen Fällen lassen sich die Punkte danach per Ziehen verschieben, per
-        Rechtsklick löschen und die Strecken/Winkel in der Tabelle unten von Hand korrigieren, bevor sie in
-        die Abschnittstabelle übernommen werden.
+        Grundriss direkt grafisch zeichnen (kein Datei-Upload nötig), oder einen vorhandenen Plan als
+        Bild, PDF, DXF oder <strong>IFC</strong> (BIM-Modell) einlesen. Bei Bild/PDF: Maßstab kalibrieren und
+        die Gerüstlinie im Plan abklicken. Bei DXF: Ebene mit dem Gebäudeumriss wählen – die Eckpunkte werden
+        exakt übernommen. Bei IFC: Geschoss wählen – die Wandmittellinien werden geschätzt und als Hilfslinien
+        im Zeichenbereich angezeigt; bildet das automatisch einen sauberen, geschlossenen Umriss, wird er direkt
+        übernommen, ansonsten fährt man den Umriss selbst entlang der Hilfslinien nach (üblicher Fall bei
+        realen Gebäuden mit Innenwänden). In allen Fällen
+        lassen sich die Punkte danach per Ziehen verschieben, per Rechtsklick löschen und die Strecken/Winkel
+        in der Tabelle unten von Hand korrigieren, bevor sie in die Abschnittstabelle übernommen werden.
         <strong>Hinweis:</strong> Echte DWG-Dateien lassen sich im Browser nicht zuverlässig lesen (proprietäres
         Binärformat) – aus AutoCAD/Revit/ArchiCAD etc. bitte als <strong>DXF</strong> exportieren
         (Speichern unter → DXF), das ist das offene Austauschformat und liefert exakte Koordinaten.
+        IFC-Dateien werden komplett lokal im Browser gelesen – nichts wird hochgeladen, das funktioniert auch
+        mit sehr großen Dateien, die sich nicht zum Hochladen eignen.
       </p>
 
       <div class="plan-upload-row">
         <button type="button" id="plan-freehand-btn" class="btn-primary">✏️ Neu zeichnen (ohne Datei)</button>
         <span class="hint">oder Datei einlesen:</span>
         <label class="file-label">
-          Plan-Datei (Bild, PDF oder DXF)
-          <input type="file" id="plan-file" accept="image/*,.pdf,.dxf">
+          Plan-Datei (Bild, PDF, DXF oder IFC)
+          <input type="file" id="plan-file" accept="image/*,.pdf,.dxf,.ifc">
         </label>
         <span class="hint" id="plan-file-status"></span>
         <label class="inline-label">
@@ -182,6 +187,31 @@
             <button type="button" id="dxf-load-layer-btn" class="btn-secondary" disabled>Ebene übernehmen</button>
           </div>
           <p class="hint" id="dxf-layer-status"></p>
+        </div>
+      </div>
+
+      <div class="plan-steps hidden" id="plan-steps-ifc">
+        <div class="plan-step">
+          <strong>1. IFC-Geschoss wählen</strong>
+          <div class="plan-step-actions">
+            <label class="inline-label">
+              Geschoss (IfcBuildingStorey)
+              <select id="ifc-storey-select"></select>
+            </label>
+            <button type="button" id="ifc-load-storey-btn" class="btn-secondary" disabled>Wandlinien vorschlagen</button>
+          </div>
+          <p class="hint" id="ifc-storey-status"></p>
+          <p class="hint">
+            <strong>Wichtig:</strong> Die Wandmittellinien werden aus der Wandgeometrie geschätzt – kein exaktes
+            Aufmaß. Bildet sich daraus automatisch ein sauberer, geschlossener Umriss, wird er direkt übernommen
+            (im Zeichenbereich trotzdem prüfen). Klappt das nicht eindeutig (häufig bei Gebäuden mit vielen
+            Innenwänden), werden die Wandlinien stattdessen als graue Hilfslinien angezeigt – dann den
+            Gebäudeumriss einfach selbst mit „Punkte anklicken“ daran entlang abklicken.
+          </p>
+          <div id="ifc-roof-box" class="hidden">
+            <p class="hint" id="ifc-roof-status"></p>
+            <button type="button" id="ifc-roof-apply-btn" class="btn-secondary">Vorgeschlagenen Dachüberstand in Wandabstand übernehmen</button>
+          </div>
         </div>
       </div>
 
@@ -289,8 +319,10 @@
 <script src="vendor/pdf.min.js"></script>
 <script src="vendor/three.min.js"></script>
 <script src="vendor/dxf-parser.js"></script>
+<script src="vendor/web-ifc-api-iife.js"></script>
 <script src="geometry.js"></script>
 <script src="plan.js"></script>
+<script src="ifc.js"></script>
 <script src="view3d.js"></script>
 <script src="script.js"></script>
 </body>
