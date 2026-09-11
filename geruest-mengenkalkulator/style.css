@@ -29,6 +29,24 @@ body {
   padding: 24px 16px 64px;
 }
 
+.file-protocol-warning {
+  background: #fff4e5;
+  border: 1px solid #f0b429;
+  color: #6b4400;
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin: 0 0 20px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.file-protocol-warning code {
+  background: rgba(0, 0, 0, 0.08);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 0.85em;
+}
+
 .app-header h1 {
   margin: 0 0 4px;
   font-size: 1.6rem;

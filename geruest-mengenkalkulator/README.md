@@ -6,6 +6,17 @@ Web-Tool zur überschlägigen Mengenermittlung für Fassadengerüste – inklusi
 
 `index.html` direkt im Browser öffnen, oder z. B. via GitHub Pages hosten.
 
+> **Wichtig für IFC- und PDF-Import:** Diese beiden laden intern eine Zusatzbibliothek nach (IFC: WASM-Datei,
+> PDF: pdf.js-Worker). Browser blockieren das aus Sicherheitsgründen, wenn `index.html` per Doppelklick als
+> lokale Datei geöffnet wird (Adresse beginnt mit `file://`) – das Tool zeigt dann oben automatisch einen
+> Warnhinweis. Alle anderen Funktionen (Berechnung, Freihand-Zeichnen, DXF-Import, 2D/3D) funktionieren auch
+> per Doppelklick einwandfrei. Abhilfe, eine der beiden:
+> - **Lokaler Server** (einmalig pro Sitzung nötig): im Ordner `geruest-mengenkalkulator` ein Terminal öffnen
+>   und `python3 -m http.server 8000` ausführen (Python meist vorinstalliert; unter Windows ggf. `py -m http.server 8000`),
+>   dann `http://localhost:8000` im Browser öffnen.
+> - **Gehostete Version**: die Seite über GitHub Pages oder einen anderen Webserver aufrufen (`https://…`) –
+>   dann ist kein lokaler Server nötig, siehe [Herkunft/Website im Haupt-README](../README.md).
+
 1. Einstellungen anpassen: Lagenhöhe, Gerüstbreite, Belagbreite, Ankerraster, Diagonalraster, Wandabstand, Feldlängen-Raster. Diese gelten für **alle** Geschosse gemeinsam.
 2. Geschoss auswählen/anlegen (siehe unten), falls das Gebäude aus mehreren Abschnitten mit unterschiedlichem Grundriss besteht.
 3. Fassadenabschnitte des aktiven Geschosses eintragen (z. B. Nord-, Ost-, Süd-, Westfassade) – Reihenfolge = Rundgang um das Gebäude:

@@ -822,3 +822,7 @@ document.getElementById("settings-panel").addEventListener("input", saveState);
 sectionsBody.addEventListener("input", saveState);
 
 loadState();
+
+if (window.location.protocol === "file:") {
+  document.getElementById("file-protocol-warning").classList.remove("hidden");
+}

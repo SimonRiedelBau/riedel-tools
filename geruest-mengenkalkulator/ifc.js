@@ -232,7 +232,16 @@ const IfcImport = (() => {
 
       computeRoofOverhang(api);
     } catch (e) {
-      setStatus(fileStatus, "IFC-Datei konnte nicht gelesen werden: " + e.message);
+      if (window.location.protocol === "file:") {
+        setStatus(
+          fileStatus,
+          "IFC-Import kann hier nicht laufen: Die Seite wurde direkt als Datei geöffnet (file://), und Browser blockieren aus " +
+            "Sicherheitsgründen das Nachladen der IFC-Bibliothek (WASM) dabei. Abhilfe: die Seite über einen lokalen Server oder " +
+            "eine echte Web-Adresse (http/https) öffnen – siehe Hinweis oben und README."
+        );
+      } else {
+        setStatus(fileStatus, "IFC-Datei konnte nicht gelesen werden: " + e.message);
+      }
     }
   }
 
