@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Riedel-Tools</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#ECEDEB; --surface:#F8F8F6; --ink:#1D2124; --muted:#5F666B; --rule:#CDD0CF; --soft:#DFE1DF;
+  --red:#FF0000; --red-ink:#C4000B; --grey:#8A9095;
+  --sans:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  --cond:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#15181A; --surface:#1E2225; --ink:#E7E9E7; --muted:#9BA1A5; --rule:#343A3E; --soft:#262B2E;
+  --red:#FF2A1F; --red-ink:#FF6A5F; --grey:#7D848A; } }
+:root[data-theme="dark"]{ --bg:#15181A; --surface:#1E2225; --ink:#E7E9E7; --muted:#9BA1A5; --rule:#343A3E; --soft:#262B2E;
+  --red:#FF2A1F; --red-ink:#FF6A5F; --grey:#7D848A; }
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.5 var(--sans)}
+.wrap{max-width:1180px;margin:0 auto;padding:20px 20px 60px}
+header.top{display:flex;align-items:center;gap:14px;border-bottom:3px solid var(--ink);padding-bottom:14px}
+.mark{width:40px;height:40px;background:var(--red);flex:none;display:grid;place-items:center;color:#fff;font:700 13px/1 var(--cond);letter-spacing:.02em}
+.logo-riedel{height:44px;width:44px;flex:none;display:block}
+.top h1{font:700 30px/1.05 var(--cond);margin:0}
+.top p{margin:2px 0 0;color:var(--muted);font-size:14px;max-width:60ch}
+.tools{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;margin-top:28px}
+.tool{background:var(--surface);border:1px solid var(--rule);border-left:4px solid var(--red);padding:18px 20px;text-decoration:none;color:inherit;display:flex;flex-direction:column;gap:8px;transition:background .12s,border-color .12s}
+.tool:hover{background:var(--soft)}
+.tool:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+.tool h2{font:600 21px/1.15 var(--cond);margin:0;color:var(--ink)}
+.tool p{margin:0;color:var(--muted);font-size:13.5px;line-height:1.45;flex:1}
+.tool span{font:600 12.5px/1 var(--sans);color:var(--red-ink);letter-spacing:.02em}
+footer{margin-top:48px;color:var(--muted);font-size:13px;border-top:1px solid var(--rule);padding-top:14px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="top">
+  <img class="logo-riedel" id="logoRiedel" alt="Riedel Bau" data-src="assets/logo-riedel.svg|assets/logo-riedel.png|assets/logo-riedel.jpg" data-fallback="riedel">
+  <div><h1>Riedel-Tools</h1><p>Digitale Werkzeuge für Planung, Ausführung und Abrechnung auf der Baustelle.</p></div>
+</header>
+
+<div class="tools">
+  <a class="tool" href="doka-miete-bfs/">
+    <h2>Doka-Mietrechnungen</h2>
+    <p>Dashboard für die monatlichen Doka-Mietrechnungen (Baustelle BfS Oberschleißheim): Monatsentwicklung, Rechnungspositionen und Bestand der Sichtbetonelemente.</p>
+    <span>Öffnen →</span>
+  </a>
+  <a class="tool" href="geruest-mengenkalkulator/">
+    <h2>Gerüstmengen-Kalkulator</h2>
+    <p>Überschlägige Mengenermittlung für Fassadengerüste – inklusive Geschossebenen, 2D-Lageplan, 3D-Ansicht und Grundriss-Erfassung per Zeichnen, Bild/PDF, DXF oder IFC.</p>
+    <span>Öffnen →</span>
+  </a>
+  <a class="tool" href="lv-manager/">
+    <h2>LV-Manager</h2>
+    <p>Verwaltung und Bearbeitung von Leistungsverzeichnissen.</p>
+    <span>Öffnen →</span>
+  </a>
+  <a class="tool" href="bautagebuch/">
+    <h2>Bautagebuch</h2>
+    <p>Digitales Bautagebuch mit KI-Unterstützung und PDF-Export der Tagesberichte.</p>
+    <span>Öffnen →</span>
+  </a>
+  <a class="tool" href="abdichtungsassistent/">
+    <h2>Abdichtungsassistent</h2>
+    <p>Entscheidungshilfe für Abdichtungsarbeiten nach DIN 18531–18535.</p>
+    <span>Öffnen →</span>
+  </a>
+  <a class="tool" href="entwaesserung/">
+    <h2>Entwässerungsassistent</h2>
+    <p>Normenassistent für Entwässerung: DIN EN 752, DIN EN 1610, DIN 1986-100, DIN EN 12056, DIN EN 124.</p>
+    <span>Öffnen →</span>
+  </a>
+  <a class="tool" href="erdarbeiten/">
+    <h2>Erdarbeiten & Bodenmaterial</h2>
+    <p>Normenassistent für Erdarbeiten und Bodenmaterial, orientiert an BBodSchG und DIN 18300.</p>
+    <span>Öffnen →</span>
+  </a>
+  <a class="tool" href="statik-ferrari-muenchen/">
+    <h2>Statik-Assistent · Ferrari München</h2>
+    <p>Projektbezogener Statik-Assistent für das Bauvorhaben Autohaus Ferrari München.</p>
+    <span>Öffnen →</span>
+  </a>
+</div>
+
+<footer>Riedel Bau – interne Werkzeuge. Nicht für die öffentliche Suche bestimmt.</footer>
+</div>
+
+<script>
+document.querySelectorAll('img[data-src]').forEach(img=>{
+  const srcs=img.dataset.src.split('|'); let i=0;
+  const fallback=()=>{ const span=document.createElement('span');
+    span.className='mark'; span.textContent='RB'; span.setAttribute('aria-label','Riedel Bau');
+    img.replaceWith(span); };
+  img.onerror=()=>{ i++; if(i<srcs.length) img.src=srcs[i]; else fallback(); };
+  img.src=srcs[0];
+});
+</script>
+</body>
+</html>
