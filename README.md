@@ -1,31 +1,29 @@
-# riedel-tools
+# Doka-Mietrechnungen – Baustelle BfS Oberschleißheim
 
-Sammlung praktischer Tools rund um Bauleitung und Kalkulation.
+Dashboard für die monatlichen Doka-Mietrechnungen (Projekt 242022371, Kostenstelle 7421341):
+Monatsentwicklung, alle Rechnungspositionen und Bestand der Sichtbetonelemente (Art.-Nr. 999300105).
 
-**Website:** [`index.html`](index.html) – Übersichtsseite, über die alle Tools erreichbar sind. Läuft via GitHub Pages unter `https://simonriedelbau.github.io/riedel-tools/`, sobald Pages im Repo aktiviert ist (Settings → Pages → Source: GitHub Actions – der Workflow [`.github/workflows/pages.yml`](.github/workflows/pages.yml) deployt automatisch bei jedem Push auf `main`).
+## Neue Rechnung einlesen
+1. Seite öffnen, PDF in das Upload-Feld ziehen.
+2. Summenprüfung ansehen (Positionssumme = Bruttomiete Seite 1), dann „Rechnung übernehmen“.
+3. Gespeichert wird
+   - mit GitHub-Token (unter „Speicherort einstellen“): direkt als Commit in `doka-miete-bfs/data/rechnungen.json` (Repo riedel-tools), sichtbar auf allen Geräten,
+   - ohne Token: nur im aktuellen Browser. Über „rechnungen.json herunterladen“ lässt sich die Datei manuell ins Repo laden.
 
-## Tools
+Gescannte Rechnungen ohne Textebene: Werte von Seite 1 von Hand eintragen (werden rechnerisch geprüft).
 
-- [`geruest-mengenkalkulator/`](geruest-mengenkalkulator/) – Gerüstmengen-Kalkulator: ermittelt Fläche, Feldaufteilung, Lagenanzahl, Ankerzahl, Konsolen und eine geschätzte Bauteil-Stückliste für Fassadengerüste, mit Geschossebenen für Gebäude mit wechselndem Grundriss, grafischer Zeichenfläche (frei zeichnen, Bild/PDF/DXF/IFC einlesen), automatischem 2D-Lageplan und schematischer 3D-Ansicht.
-- [`erdarbeiten/`](erdarbeiten/) – Normenassistent für Erdarbeiten & Bodenmaterial, orientiert an BodenSchG und DIN 18300.
-- [`abdichtungsassistent/`](abdichtungsassistent/) – Entscheidungshilfe für Abdichtungsarbeiten nach DIN 18531–18535.
-- [`entwaesserung/`](entwaesserung/) – Entwässerungsassistent für die Planung und Prüfung von Entwässerungsarbeiten.
-- [`lv-manager/`](lv-manager/) – LV-Manager v2: Leistungsverzeichnisse erstellen, prüfen und exportieren (VOB/A & VOB/C), installierbar als PWA.
-- [`bautagebuch/`](bautagebuch/) – Digitales Bautagebuch mit Telegram-Bot (`bautagebuch_bot.py`, Deployment z.B. auf Railway/Heroku) zur Erfassung per Chat inkl. Tagesabschluss-Erinnerung.
-- [`statik-ferrari-muenchen/`](statik-ferrari-muenchen/) – Projektspezifischer Statik-Assistent für den Neubau Autohaus Ferrari München. Die vollständigen Statik-PDFs (~900 MB) verbleiben aus Platzgründen im [Ursprungsrepo](https://github.com/SimonRiedelBau/StatikFerrari).
+## Token
+Fine-grained Personal Access Token, nur dieses Repository, Berechtigung *Contents: Read and write*, mit Ablaufdatum.
+Der Token wird ausschließlich im localStorage des Browsers gespeichert.
 
-Jedes Tool ist eigenständig lauffähig (eigene `index.html`) und über die [Übersichtsseite](index.html) verlinkt.
+## Logos
+Offizielle Logodateien in den Ordner `assets/` legen (SVG bevorzugt, PNG geht auch):
+- `assets/logo-riedel.svg` bzw. `.png` – erscheint links im Kopf
+- `assets/logo-doka.svg`, `.png` oder `.jpg` – erscheint rechts als Lieferant
 
-## Herkunft
+Fehlt eine Datei, zeigt die Seite einen neutralen Platzhalter.
 
-Die Tools wurden ursprünglich in separaten Repos entwickelt und hier in eine gemeinsame Ordnerstruktur überführt:
-
-| Ordner | Ursprungsrepo |
-|---|---|
-| `geruest-mengenkalkulator/` | dieses Repo |
-| `erdarbeiten/` | [SimonRiedelBau/Erdarbeiten](https://github.com/SimonRiedelBau/Erdarbeiten) |
-| `abdichtungsassistent/` | [SimonRiedelBau/Abdichtung](https://github.com/SimonRiedelBau/Abdichtung) |
-| `entwaesserung/` | [SimonRiedelBau/Entwaesserung](https://github.com/SimonRiedelBau/Entwaesserung) |
-| `lv-manager/` | [SimonRiedelBau/LV](https://github.com/SimonRiedelBau/LV) |
-| `bautagebuch/` | [SimonRiedelBau/bautagebuch](https://github.com/SimonRiedelBau/bautagebuch) |
-| `statik-ferrari-muenchen/` | [SimonRiedelBau/StatikFerrari](https://github.com/SimonRiedelBau/StatikFerrari) |
+## Dateien
+- `index.html` – Dashboard und Upload
+- `doka-parser.js` – liest Doka-Mietrechnungen (pdf.js) aus
+- `data/rechnungen.json` – alle eingelesenen Rechnungen
