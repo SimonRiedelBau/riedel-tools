@@ -152,6 +152,11 @@ footer{margin-top:48px;color:var(--muted);font-size:13px;border-top:1px solid va
 pre.sql{max-height:340px;overflow:auto;background:var(--surface);border:1px solid var(--rule);padding:10px;font-size:12px;white-space:pre-wrap}
 .banner{background:var(--surface);border:1px solid var(--rule);border-left:6px solid var(--warn);padding:14px 16px;margin-top:18px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
 .banner p{margin:0;max-width:70ch}
+.report{background:var(--surface);border:1px solid var(--rule);border-left:6px solid var(--ok);padding:12px 16px;margin-bottom:14px}
+.report-h{display:flex;justify-content:space-between;gap:10px;margin-bottom:6px}
+.report ul{margin:0;padding-left:18px;font-size:14px}
+.report li{margin:2px 0}.report li.warn{color:var(--warn)}.report li.info{color:var(--muted)}
+.drop code{font-size:12px;background:var(--soft);padding:0 4px}
 @media (max-width:860px){
   .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
   .kpi:nth-child(2){border-right:0}
@@ -233,6 +238,7 @@ header.top > .logo-riedel, header.top > .mark, #whoMail, #btnLogout{display:none
     <div id="lParse"></div>
     <div class="grid" style="margin-top:14px">
       <label>Listen-Nr.<input id="lNr" required></label>
+      <label>Index<input id="lIdx" placeholder="z. B. 01"></label>
       <label>Zugehöriger Plan<select id="lPlan"></select></label>
       <label>Datum<input id="lDate" type="date"></label>
       <label class="wide">Bauteil / Bezeichnung<input id="lTitle" placeholder="z. B. Wände UG Achse A–D"></label>
@@ -510,7 +516,7 @@ function notes(p,c,kalk){
 
 function tabPlans(p,c,plans){
   plans=plans.slice().sort((a,b)=>String(a.nr).localeCompare(String(b.nr),'de',{numeric:true}));
-  let h=`<section style="margin-top:18px"><div class="drop" id="planDrop"><p><b>Pläne hochladen:</b> Eine oder mehrere Plan-PDFs hierher ziehen. Plan-Nr. und Index werden aus dem Dateinamen vorgeschlagen.</p>
+  let h=`<section style="margin-top:18px">${reportBox('plaene')}<div class="drop" id="planDrop"><p><b>Pläne hochladen:</b> Eine oder mehrere Plan-PDFs hierher ziehen. Plan-Nr. und Index kommen aus dem Dateinamen (z. B. <code>BFS_88160_B_T_5_BP_U1_2233_01</code>: Index 01). Ein höherer Index ersetzt den alten Plan; Stahllisten mit derselben Nummer werden automatisch zugeordnet.</p>
     <div style="display:flex;gap:8px"><label class="btn" style="flex-direction:row" tabindex="0">Dateien wählen<input type="file" id="planFiles" multiple accept="application/pdf,image/*,.dwg,.dxf" hidden></label><button class="btn sec" id="planNew" type="button">Ohne Datei anlegen</button></div></div>`;
   if(plans.length){
     h+=`<div class="tbl scroll" style="margin-top:16px"><table><thead><tr><th>Plan-Nr.</th><th>Index</th><th>Bauteil / Inhalt</th><th>Eingang</th><th>Stahllisten</th><th class="n">Bedarf t</th><th>Datei</th><th></th></tr></thead><tbody>`;
@@ -523,9 +529,20 @@ function tabPlans(p,c,plans){
     h+=`</tbody></table></div>`;
   } else h+=`<p class="sub" style="margin-top:14px">Noch keine Pläne erfasst.</p>`;
   $('tabBody').innerHTML=h+'</section>';
-  const add=async files=>{ for(const f of files){ const rec=await putFile(f); const g=guessPlan(f.name);
-      S.plans.push({id:uid(),projectId:p.id,nr:g.nr,idx:g.idx,title:'',date:today(),fileId:rec.id,fileName:f.name}); }
-    await save(); toast(files.length+' Plan'+(files.length>1?'e':'')+' hinzugefügt'); renderProject(p.id); };
+  const add=async files=>{ const lines=[];
+    for(const f of files){ const c=parseCode(f.name);
+      if(!c){ const rec=await putFile(f); const g=guessPlan(f.name);
+        S.plans.push({id:uid(),projectId:p.id,nr:g.nr,idx:g.idx,title:'',date:today(),fileId:rec.id,fileName:f.name});
+        lines.push(['info',`${esc(f.name)}: angelegt (Dateiname nicht nach Plancodierung – Plan-Nr. bitte prüfen)`]); continue; }
+      const old=S.plans.find(x=>x.projectId===p.id&&(x.nr===c.nr||planCode(x)?.nr===c.nr));
+      if(old&&idxNum(old.idx)>=idxNum(c.idx)){ lines.push(['info',`${esc(c.nr)}: Index ${esc(c.idx)} übersprungen – vorhanden ist bereits Index ${esc(old.idx)}`]); continue; }
+      const rec=await putFile(f);
+      if(old){ const was=old.idx; await delFile(old.fileId); Object.assign(old,{nr:c.nr,idx:c.idx,date:today(),fileId:rec.id,fileName:f.name,code:c});
+        lines.push(['ok',`${esc(c.nr)}: Index ${esc(was||'–')} durch ${esc(c.idx)} ersetzt`]); }
+      else { S.plans.push({id:uid(),projectId:p.id,nr:c.nr,idx:c.idx,title:'',date:today(),fileId:rec.id,fileName:f.name,code:c});
+        lines.push(['ok',`${esc(c.nr)}: Index ${esc(c.idx)} angelegt`]); } }
+    const linked=linkLists(p.id); linked.forEach(([l,pl])=>lines.push(['ok',`Stahlliste ${esc(l.nr)} dem Plan ${esc(pl.nr)} zugeordnet`]));
+    await save(); setReport('plaene',lines); renderProject(p.id); };
   $('planFiles').onchange=e=>{ if(e.target.files.length) add([...e.target.files]); };
   dropZone($('planDrop'),add);
   $('planNew').onclick=()=>editPlan(null);
@@ -533,6 +550,37 @@ function tabPlans(p,c,plans){
   document.querySelectorAll('[data-newlist]').forEach(b=>b.onclick=()=>editList(null,b.dataset.newlist));
   document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openFile(b.dataset.open));
 }
+// ---------- Plancodierung BFS ----------
+// Projekt_Gebäude_Bauteil_Gewerk_Leistungsphase_Zeichnungsart_Ebene_Nummer_Index, z. B.
+// Plan BFS_88160_B_T_5_BP_U1_2233_01, Stahlliste BFS_88160_B_T_5_SL_U1_2233_01 (Index 01, Nummer 2233)
+function parseCode(name){
+  const base=String(name||'').replace(/\.[A-Za-z0-9]{1,5}$/,'').trim();
+  const m=base.match(/^([A-Za-z0-9]+)_(\d{3,6})_([A-Za-zÜü]{1,2})_([A-Za-z]{1,2})_(\d)_([A-Za-z]{2})_([A-Za-z0-9ÄÖÜäöüß]{1,5})_(\d{3,4})_(\d{2})$/);
+  if(!m) return null;
+  const up=x=>x.toUpperCase(), [,proj,geb,bt,gew,lph,art,ebene,num,idx]=m;
+  return {proj:up(proj),geb,bt:up(bt),gew:up(gew),lph,art:up(art),ebene:up(ebene),num,idx,nr:[up(proj),geb,up(bt),up(gew),lph,up(art),up(ebene),num].join('_')};
+}
+const idxNum=v=>{ const n=parseInt(v,10); return isNaN(n)?-1:n; };
+const listCode=l=>l.code||parseCode(l.fileName);
+const planCode=pl=>pl.code||parseCode(pl.fileName)||parseCode(pl.nr+'_'+(pl.idx||'00'));
+// Plan zur Stahlliste über die 4-stellige Nummer; bei mehreren Treffern entscheiden Bauteil, Ebene, Gebäude
+function matchPlan(pid,c){
+  if(!c) return {plan:null,why:'Dateiname nicht nach Plancodierung – Plan bitte zuordnen'};
+  let cand=S.plans.filter(x=>x.projectId===pid).map(x=>[x,planCode(x)]).filter(([,pc])=>pc&&pc.num===c.num&&pc.art!=='SL');
+  for(const f of ['bt','ebene','geb','proj']){ if(cand.length<=1) break; const n=cand.filter(([,pc])=>pc[f]===c[f]); if(n.length) cand=n; }
+  if(cand.length===1) return {plan:cand[0][0]};
+  return {plan:null,why:cand.length?`mehrere Pläne mit Nummer ${c.num} – bitte zuordnen`:`noch kein Plan mit Nummer ${c.num}`};
+}
+// Stahllisten ohne Plan nachträglich zuordnen (z. B. wenn der Plan nach der Liste kommt)
+function linkLists(pid){ const out=[];
+  S.lists.filter(l=>l.projectId===pid&&!l.planId).forEach(l=>{ const m=matchPlan(pid,listCode(l)); if(m.plan){ l.planId=m.plan.id; if(!l.title) l.title=m.plan.title||''; out.push([l,m.plan]); } });
+  return out; }
+// Ergebnis des letzten Uploads einmal oben im Reiter anzeigen
+let report=null;
+function setReport(tab,lines){ report=lines.length?{tab,lines}:null; }
+function reportBox(tabName){ if(!report||report.tab!==tabName) return ''; const r=report; report=null;
+  return `<div class="report"><div class="report-h"><b>Upload-Ergebnis</b><button class="linkbtn" type="button" onclick="this.closest('.report').remove()">schließen</button></div><ul>${r.lines.map(([c,t])=>`<li class="${c}">${t}</li>`).join('')}</ul></div>`; }
+
 function guessPlan(name){ const base=name.replace(/\.[^.]+$/,'');
   const m=base.match(/^(.*?)[\s_-]*(?:Index|Ind\.?|Idx|Rev\.?)[\s_-]*([A-Za-z0-9]{1,3})$/i)||base.match(/^(.*?\d)[\s_-]+([a-z])$/);
   return m?{nr:m[1].trim(),idx:m[2]}:{nr:base,idx:''}; }
@@ -543,7 +591,7 @@ function listTable(lists){
   const cats=[...new Set(lists.flatMap(l=>(l.items||[]).map(i=>catGroup(i.cat))))].sort(catSort);
   let h=`<div class="tbl scroll"><table><thead><tr><th>Liste</th><th>Plan</th><th>Bauteil</th><th>Status</th>${cats.map(k=>`<th class="n">${esc(catLabel(k))}</th>`).join('')}<th class="n">Summe kg</th><th>Datei</th><th></th></tr></thead><tbody>`;
   lists.forEach(l=>{ const pl=S.plans.find(x=>x.id===l.planId), g=addItems({},l.items);
-    h+=`<tr class="${l.ersetzt?'dim':''}"><td><b>${esc(l.nr)}</b><br><small style="color:var(--muted)">${dDE(l.date)}</small></td><td>${pl?esc(pl.nr+(pl.idx?' / '+pl.idx:'')):'–'}</td><td class="wrap">${esc(l.title||'')}</td><td class="nostrike">${statusTag(l)}</td>
+    h+=`<tr class="${l.ersetzt?'dim':''}"><td><b>${esc(l.nr)}</b>${l.idx?` <span class="tag">Index ${esc(l.idx)}</span>`:''}<br><small style="color:var(--muted)">${dDE(l.date)}</small></td><td>${pl?esc(pl.nr+(pl.idx?' / '+pl.idx:'')):'–'}</td><td class="wrap">${esc(l.title||'')}</td><td class="nostrike">${statusTag(l)}</td>
       ${cats.map(k=>`<td class="n">${g[k]?fmt(g[k]):''}</td>`).join('')}<td class="n"><b>${fmt(listKg(l))}</b></td>
       <td class="nostrike">${l.fileId?`<button class="linkbtn" data-open="${l.fileId}" type="button">öffnen</button>`:'–'}</td><td class="nostrike"><button class="linkbtn" data-editlist="${l.id}" type="button">Bearbeiten</button></td></tr>`; });
   const tot={}; lists.filter(l=>!l.ersetzt).forEach(l=>addItems(tot,l.items));
@@ -560,11 +608,35 @@ function tabLists(p,c){
   const f=listFilter; if(f) lists=lists.filter(l=>f==='ersetzt'?l.ersetzt:!l.ersetzt&&listStatus(l)===f);
   let h=`<section style="margin-top:0"><div class="toolbar"><label>Status<select id="lFilter"><option value="">Alle</option><option value="offen">Offen</option><option value="bestellt">Bestellt</option><option value="geliefert">Geliefert</option><option value="ersetzt">Ersetzt</option></select></label><div class="grow"></div>
     <button class="btn red" type="button" id="listNew">+ Stahlliste hinzufügen</button></div>`;
+  h+=reportBox('listen')+`<div class="drop" id="listDrop" style="margin-bottom:16px"><p><b>Stahllisten hochladen:</b> Eine oder mehrere Dateien (PDF, Excel, CSV) hierher ziehen. Die Gewichte werden ausgelesen, die Liste über die Plannummer im Dateinamen dem Plan zugeordnet (z. B. <code>…_SL_U1_2233_01</code> → Plan <code>…_BP_U1_2233</code>), ein höherer Index ersetzt den alten.</p>
+    <label class="btn" style="flex-direction:row" tabindex="0">Dateien wählen<input type="file" id="listFiles" multiple accept=".pdf,.xlsx,.xls,.csv,.txt,application/pdf" hidden></label></div>`;
   h+=c.lists.length?listTable(lists):`<div class="empty"><h3>Noch keine Stahllisten</h3><p>Biegeliste als Excel/CSV oder PDF hochladen – die Gewichte je Durchmesser werden ausgelesen. Alternativ die Summen aus der Gewichtsübersicht von Hand eintragen.</p></div>`;
   $('tabBody').innerHTML=h+'</section>';
   $('lFilter').value=f; $('lFilter').onchange=e=>{ listFilter=e.target.value; renderProject(p.id); };
   $('listNew').onclick=()=>editList(null); bindListTable();
+  const add=async files=>{ const lines=[];
+    for(const f of files){ const c=parseCode(f.name);
+      const nr=c?c.nr:f.name.replace(/\.[^.]+$/,'');
+      const olds=S.lists.filter(l=>l.projectId===p.id&&!l.ersetzt&&(l.nr===nr||listCode(l)?.nr===nr));
+      if(c&&olds.some(l=>idxNum(l.idx)>=idxNum(c.idx))){ lines.push(['info',`${esc(nr)}: Index ${esc(c.idx)} übersprungen – ein gleicher oder höherer Index ist schon vorhanden`]); continue; }
+      let r={items:[]}; try{ r=await parseSteel(f); }catch(e){ r={items:[],err:e.message}; }
+      const rec=await putFile(f), pl=matchPlan(p.id,c);
+      const l={id:uid(),projectId:p.id,nr,idx:c?c.idx:'',planId:pl.plan?pl.plan.id:'',date:today(),title:pl.plan?.title||'',ersetzt:false,items:cleanItems(r.items||[]),fileId:rec.id,fileName:f.name};
+      if(c) l.code=c;
+      const repl=c?await replaceOld(olds):'';
+      S.lists.push(l);
+      const kg=listKg(l);
+      lines.push([kg&&pl.plan?'ok':'warn',`${esc(nr)}${l.idx?' Index '+esc(l.idx):''}: ${kg?fmt(kg,1)+' kg':'<b>keine Gewichte erkannt</b> – bitte unter „Bearbeiten“ ergänzen'}, ${pl.plan?'Plan '+esc(pl.plan.nr)+(pl.plan.idx?' / '+esc(pl.plan.idx):''):'<b>'+esc(pl.why)+'</b>'}${repl}`]); }
+    await save(); setReport('listen',lines); renderProject(p.id); };
+  $('listFiles').onchange=e=>{ if(e.target.files.length) add([...e.target.files]); e.target.value=''; };
+  dropZone($('listDrop'),add);
 }
+// Alten Index einer Stahlliste ersetzen: ohne Bestellung löschen, sonst als ersetzt markieren (Bestellung bleibt nachvollziehbar)
+async function replaceOld(olds){ const out=[];
+  for(const o of olds){ const inOrder=S.orders.some(x=>(x.listIds||[]).includes(o.id));
+    if(inOrder){ o.ersetzt=true; out.push(`Index ${esc(o.idx||'–')} als ersetzt markiert (war bestellt)`); }
+    else { await delFile(o.fileId); S.lists=S.lists.filter(x=>x.id!==o.id); out.push(`Index ${esc(o.idx||'–')} überschrieben`); } }
+  return out.length?' · '+out.join(', '):''; }
 function tabOrders(p,c){
   const os=c.orders.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
   let h=`<section style="margin-top:0"><div class="toolbar"><div class="grow"></div><button class="btn red" type="button" id="orderNew">+ Bestellung erfassen</button></div>`;
@@ -636,11 +708,11 @@ function editList(l,presetPlan){
   const plans=S.plans.filter(x=>x.projectId===curPid).sort((a,b)=>String(a.nr).localeCompare(String(b.nr),'de',{numeric:true}));
   $('lPlan').innerHTML=`<option value="">– kein Plan –</option>`+plans.map(pl=>`<option value="${pl.id}">${esc(pl.nr+(pl.idx?' / Index '+pl.idx:'')+(pl.title?' – '+pl.title:''))}</option>`).join('');
   $('lPlan').value=l?.planId||presetPlan||'';
-  $('lNr').value=l?.nr||''; $('lDate').value=l?.date||today(); $('lTitle').value=l?.title||''; $('lOld').checked=!!l?.ersetzt;
+  $('lNr').value=l?.nr||''; $('lIdx').value=l?.idx||''; $('lDate').value=l?.date||today(); $('lTitle').value=l?.title||''; $('lOld').checked=!!l?.ersetzt;
   $('lParse').innerHTML=''; $('lFile').value='';
   $('lFileInfo').textContent=l?.fileId?`Gespeicherte Datei: ${l.fileName||''}`:'';
   const rows=itemRows($('lItems'),$('lSum'),(l?.items||[]).map(i=>({...i})));
-  let newFile=null;
+  let newFile=null, newCode=null;
   $('lAdd').onclick=()=>{ rows.items.push({cat:'d12',kg:''}); rows.render(); };
   const planSel=()=>{ const pl=S.plans.find(x=>x.id===$('lPlan').value); $('lFromPlan').hidden=!(pl&&pl.fileId&&/pdf$/i.test(pl.fileName||''));
     if(pl&&!$('lTitle').value) $('lTitle').value=pl.title||''; };
@@ -649,7 +721,10 @@ function editList(l,presetPlan){
     $('lParse').innerHTML=`<p class="hint">Lese ${esc(file.name)} …</p>`;
     try{ const r=await parseSteel(file);
       if(r.items.length){ rows.set(r.items); }
-      if(!$('lNr').value) $('lNr').value=r.nr||file.name.replace(/\.[^.]+$/,'');
+      const code=isPlan?null:parseCode(file.name);
+      if(code){ $('lNr').value=code.nr; $('lIdx').value=code.idx; newCode=code;
+        if(!$('lPlan').value){ const mp=matchPlan(curPid,code); if(mp.plan){ $('lPlan').value=mp.plan.id; planSel(); } } }
+      else if(!$('lNr').value) $('lNr').value=r.nr||file.name.replace(/\.[^.]+$/,'');
       const tot=sum(r.items,i=>i.kg);
       let cls=r.items.length?'ok':'bad', msg=r.items.length?`${r.items.length} Sorten erkannt, zusammen ${fmt(tot,1)} kg (${r.how}).`:'Keine Gewichte erkannt. Bitte die Gewichtsübersicht der Liste von Hand eintragen.';
       if(r.total&&r.items.length){ const d=tot-r.total; if(Math.abs(d)>Math.max(1,r.total*.005)){ cls='warn'; msg+=` Achtung: Gesamtgewicht laut Datei ${fmt(r.total,1)} kg weicht um ${fmt(d,1)} kg ab – bitte prüfen.`; } else msg+=` Stimmt mit dem Gesamtgewicht der Datei überein.`; }
@@ -667,7 +742,11 @@ function editList(l,presetPlan){
     if(!confirm(`Stahlliste ${l.nr} löschen?${os.length?' Sie ist in '+os.length+' Bestellung(en) enthalten; die bestellten Mengen bleiben dort erhalten.':''}`)) return;
     os.forEach(o=>o.listIds=o.listIds.filter(id=>id!==l.id)); await delFile(l.fileId); S.lists=S.lists.filter(x=>x.id!==l.id); await save(); $('dlgList').close(); renderProject(curPid); };
   dlg('dlgList',async()=>{
-    const v={nr:$('lNr').value.trim(),planId:$('lPlan').value,date:$('lDate').value,title:$('lTitle').value.trim(),ersetzt:$('lOld').checked,items:cleanItems(rows.items)};
+    const v={nr:$('lNr').value.trim(),idx:$('lIdx').value.trim(),planId:$('lPlan').value,date:$('lDate').value,title:$('lTitle').value.trim(),ersetzt:$('lOld').checked,items:cleanItems(rows.items)};
+    if(newCode) v.code=newCode;
+    // Neuer Index derselben Liste: ältere Indizes überschreiben bzw. als ersetzt markieren
+    if(!v.ersetzt&&v.idx){ const olds=S.lists.filter(x=>x.projectId===curPid&&(x.nr===v.nr||listCode(x)?.nr===v.nr)&&x.id!==l?.id&&!x.ersetzt&&idxNum(x.idx??listCode(x)?.idx)<idxNum(v.idx));
+      const msg=await replaceOld(olds); if(msg) toast(v.nr+msg.replace(/<[^>]+>/g,'')); }
     if(!l){ l={id:uid(),projectId:curPid,...v}; S.lists.push(l); } else Object.assign(l,v);
     if(newFile){ if(l.fileId) await delFile(l.fileId); const rec=await putFile(newFile); l.fileId=rec.id; l.fileName=newFile.name; }
     await save(); renderProject(curPid); });
