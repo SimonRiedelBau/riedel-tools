@@ -13,6 +13,20 @@ Bewehrungsbedarf für laufende Projekte: Pläne und Stahllisten hochladen, Beste
    - Neuer Plan-Index: alte Liste als *ersetzt* markieren, sie zählt dann nicht mehr zum Bedarf.
 4. **Bestellungen erfassen** (Reiter *Bestellungen*) – Stahllisten ankreuzen, Mengen werden übernommen; zusätzliche Mengen (Lagerstahl, Matten) als eigene Zeile. Status *bestellt* / *geliefert*, Liefertermin (überfällige werden gemeldet).
 
+## Plancodierung (BFS) – Index und Zuordnung automatisch
+Dateinamen nach der Plancodierung werden zerlegt:
+`Projekt_Gebäude_Bauteil_Gewerk_Leistungsphase_Zeichnungsart_Ebene_Nummer_Index`,
+z. B. Bewehrungsplan `BFS_88160_B_T_5_BP_U1_2233_01`, Stahlliste `BFS_88160_B_T_5_SL_U1_2233_01`.
+- **Index** = die letzten zwei Ziffern. Ein Plan mit höherem Index ersetzt den vorhandenen (Datei wird überschrieben,
+  zugeordnete Stahllisten bleiben verknüpft). Gleicher oder älterer Index wird übersprungen.
+- Stahlliste mit höherem Index: die alte Liste wird überschrieben; war sie schon bestellt, bleibt sie als *ersetzt*
+  erhalten (zählt nicht mehr zum Bedarf), damit die Bestellung nachvollziehbar bleibt.
+- **Zuordnung** Stahlliste → Plan über die 4-stellige **Nummer**. Gibt es mehrere Pläne mit derselben Nummer, entscheiden
+  Bauteil, Ebene und Gebäude. Kommt der Plan erst nach der Liste, wird die Liste beim Plan-Upload nachträglich zugeordnet.
+- Nach jedem Upload zeigt ein Kasten, was angelegt, ersetzt, übersprungen oder nicht zugeordnet wurde.
+- Stahllisten lassen sich im Reiter *Stahllisten* auch mehrere auf einmal hochladen.
+- Dateinamen, die nicht der Codierung folgen, funktionieren wie bisher (Plan-Nr. aus dem Dateinamen, Zuordnung von Hand).
+
 ## Dashboard
 - Bedarf lt. gültigen Stahllisten, bestellt, geliefert, **noch zu bestellen** (je Sorte: Bedarf − bestellt)
 - Balken je Durchmesser, Tabelle „Noch zu bestellen“ (CSV-Export, Drucken), Liste der noch nicht bestellten Stahllisten mit Knopf „Offene Listen bestellen“
