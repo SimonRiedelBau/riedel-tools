@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Stahllisten</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="vendor/pdf.min.js"></script>
+<script src="vendor/xlsx.full.min.js"></script>
+<script src="vendor/supabase.js"></script>
+<style>
+:root{
+  --bg:#ECEDEB; --surface:#F8F8F6; --ink:#1D2124; --muted:#5F666B; --rule:#CDD0CF; --soft:#DFE1DF;
+  --red:#FF0000; --red-ink:#C4000B; --grey:#8A9095; --light:#BCC0C1; --ok:#2E7D4F; --warn:#B25E00;
+  --sans:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  --cond:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#15181A; --surface:#1E2225; --ink:#E7E9E7; --muted:#9BA1A5; --rule:#343A3E; --soft:#262B2E;
+  --red:#FF2A1F; --red-ink:#FF6A5F; --grey:#7D848A; --light:#4A5055; --ok:#5FC58A; --warn:#F0A04B; } }
+:root[data-theme="dark"]{ --bg:#15181A; --surface:#1E2225; --ink:#E7E9E7; --muted:#9BA1A5; --rule:#343A3E; --soft:#262B2E;
+  --red:#FF2A1F; --red-ink:#FF6A5F; --grey:#7D848A; --light:#4A5055; --ok:#5FC58A; --warn:#F0A04B; }
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.5 var(--sans);font-variant-numeric:tabular-nums}
+.wrap{max-width:1180px;margin:0 auto;padding:20px 16px 60px}
+header.top{display:flex;align-items:center;gap:14px;border-bottom:3px solid var(--ink);padding-bottom:14px;flex-wrap:wrap}
+.mark{width:40px;height:40px;background:var(--red);flex:none;display:grid;place-items:center;color:#fff;font:700 13px/1 var(--cond);letter-spacing:.02em}
+.logo-riedel{height:44px;width:44px;flex:none;display:block}
+.top h1{font:700 30px/1.05 var(--cond);margin:0}
+.top p{margin:2px 0 0;color:var(--muted);font-size:14px}
+.top .right{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.crumb{font-size:14px;margin:14px 0 0}
+.crumb a{color:var(--red-ink)}
+h2{font:700 24px/1.1 var(--cond);margin:0 0 4px}
+h3{font:700 19px/1.15 var(--cond);margin:0 0 8px}
+.sub{color:var(--muted);margin:0 0 14px;max-width:80ch}
+section{margin-top:36px}
+.panel{background:var(--surface);border:1px solid var(--rule);padding:18px}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;margin-top:22px;background:var(--surface);border:1px solid var(--rule)}
+.kpi{padding:16px 18px;border-right:1px solid var(--rule)}
+.kpi:last-child{border-right:0}
+.kpi small{color:var(--muted);font-size:13px;display:block}
+.kpi b{display:block;font:600 36px/1.05 var(--cond);margin-top:4px}
+.kpi span{font-size:13px;color:var(--muted)}
+.kpi.todo{border-top:4px solid var(--red)}
+.kpi.todo b{color:var(--red-ink)}
+.meter{height:14px;background:var(--soft);display:flex;margin-top:18px;border:1px solid var(--rule)}
+.meter i{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--muted);margin:8px 0 0}
+.legend i{display:inline-block;width:12px;height:12px;margin-right:6px;vertical-align:-1px}
+.c-lief{background:var(--ok)}.c-best{background:var(--grey)}.c-open{background:var(--red)}.c-kalk{background:var(--light)}
+.bars{display:flex;flex-direction:column;gap:9px}
+.bar{display:grid;grid-template-columns:80px minmax(0,1fr) 215px;gap:12px;align-items:center;font-size:14px}
+.bar .lbl{font:600 15px/1 var(--cond)}
+.bar .trk{height:20px;background:var(--soft);display:flex;position:relative}
+.bar .trk i{display:block;height:100%}
+.bar .val{text-align:right;color:var(--muted);font-size:13px;white-space:nowrap}
+.bar .val b{color:var(--ink);font-weight:600}
+.bar .val em{font-style:normal;color:var(--red-ink);font-weight:600}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:7px 10px;text-align:left;border-bottom:1px solid var(--rule);white-space:nowrap;vertical-align:top}
+th{font:600 13px/1.2 var(--sans);color:var(--muted);background:var(--soft)}
+td.n,th.n{text-align:right}
+td.wrap{white-space:normal;min-width:180px}
+tr.sum td{font-weight:600;border-top:2px solid var(--ink);border-bottom:0}
+tbody tr:hover td{background:var(--soft)}
+tr.dim td{color:var(--muted);text-decoration:line-through}
+tr.dim td.nostrike{text-decoration:none}
+.tbl{border:1px solid var(--rule);background:var(--surface)}
+.tag{display:inline-block;font-size:12px;padding:1px 7px;border:1px solid var(--rule);color:var(--muted);white-space:nowrap}
+.tag.open{border-color:var(--red-ink);color:var(--red-ink)}
+.tag.best{border-color:var(--grey);color:var(--ink)}
+.tag.lief{border-color:var(--ok);color:var(--ok)}
+.tag.old{border-color:var(--warn);color:var(--warn)}
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--rule);margin-top:26px;overflow-x:auto}
+.tabs button{font:600 17px/1 var(--cond);background:none;border:0;border-bottom:3px solid transparent;padding:10px 16px;color:var(--muted);cursor:pointer;white-space:nowrap}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--red)}
+.tabs button span{font:500 13px/1 var(--sans);color:var(--muted);margin-left:4px}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin:18px 0 12px}
+.toolbar .grow{flex:1}
+label{font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+label.inline{flex-direction:row;align-items:center;gap:8px;color:var(--ink);font-size:14px}
+select,input,textarea{font:inherit;font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--rule);padding:6px 8px;min-width:0}
+input[type=checkbox]{width:16px;height:16px;accent-color:var(--red)}
+select:focus-visible,input:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid var(--red);outline-offset:1px}
+.btn{font:600 15px/1 var(--sans);padding:10px 16px;border:2px solid var(--ink);background:var(--ink);color:var(--bg);cursor:pointer;white-space:nowrap}
+.btn.sec{background:transparent;color:var(--ink)}
+.btn.red{background:var(--red);border-color:var(--red);color:#fff}
+.btn.sm{padding:6px 10px;font-size:13px;border-width:1px}
+.btn:disabled{opacity:.45;cursor:default}
+.linkbtn{background:none;border:0;color:var(--red-ink);cursor:pointer;font:inherit;text-decoration:underline;padding:0}
+.linkbtn.del{color:var(--muted)}
+.projects{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin-top:22px}
+.proj{background:var(--surface);border:1px solid var(--rule);border-left:4px solid var(--red);padding:16px 18px;text-decoration:none;color:inherit;display:flex;flex-direction:column;gap:8px}
+.proj:hover{background:var(--soft)}
+.proj h2{font-size:22px}
+.proj .nr{color:var(--muted);font-size:13px}
+.proj .row3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:6px}
+.proj .row3 b{display:block;font:600 22px/1 var(--cond)}
+.proj .row3 small{color:var(--muted);font-size:12px}
+.proj .row3 .todo b{color:var(--red-ink)}
+.empty{background:var(--surface);border:2px dashed var(--grey);padding:28px;margin-top:22px;max-width:70ch}
+.empty p{margin:0 0 14px}
+.drop{border:2px dashed var(--grey);background:var(--surface);padding:18px;display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between}
+.drop.over{border-color:var(--red);background:var(--soft)}
+.drop p{margin:0;max-width:62ch}
+dialog{border:1px solid var(--rule);background:var(--bg);color:var(--ink);padding:0;width:min(860px,calc(100vw - 24px));max-height:calc(100vh - 24px)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+dialog form{display:flex;flex-direction:column;max-height:calc(100vh - 26px)}
+.dh{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:3px solid var(--ink)}
+.dh h2{margin:0}
+.db{padding:16px 18px;overflow:auto}
+.df{display:flex;gap:10px;justify-content:flex-end;padding:12px 18px;border-top:1px solid var(--rule);flex-wrap:wrap}
+.df .left{margin-right:auto}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.grid input,.grid select,.grid textarea{width:100%}
+.grid .wide{grid-column:1/-1}
+.items{margin-top:14px}
+.items table td{padding:4px 6px}
+.items input{width:110px;text-align:right}
+.items select{width:130px}
+.hint{font-size:13px;color:var(--muted);margin:8px 0 0}
+.hint.ok{color:var(--ok)}.hint.bad{color:var(--red-ink)}.hint.warn{color:var(--warn)}
+.listpick{max-height:240px;overflow:auto;border:1px solid var(--rule);background:var(--surface)}
+.listpick label{flex-direction:row;align-items:center;gap:10px;padding:6px 10px;border-bottom:1px solid var(--rule);color:var(--ink);font-size:14px}
+.listpick label small{color:var(--muted);margin-left:auto;white-space:nowrap}
+details.raw summary{cursor:pointer;color:var(--muted);font-size:13px;margin-top:10px}
+details.raw pre{max-height:220px;overflow:auto;background:var(--surface);border:1px solid var(--rule);padding:8px;font-size:12px;white-space:pre-wrap}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;font-size:14px;z-index:99;max-width:calc(100vw - 32px)}
+.two{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:24px}
+.notes{list-style:none;padding:0;margin:0;border-top:1px solid var(--rule)}
+.notes li{padding:12px 0 12px 18px;border-bottom:1px solid var(--rule);position:relative}
+.notes li::before{content:"";position:absolute;left:0;top:19px;width:8px;height:8px;background:var(--red)}
+.notes li.info::before{background:var(--grey)}
+footer{margin-top:48px;color:var(--muted);font-size:13px;border-top:1px solid var(--rule);padding-top:14px;max-width:90ch}
+.who{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);margin-right:4px}
+.sync{width:9px;height:9px;border-radius:50%;background:var(--ok);display:inline-block}
+.sync.busy{background:var(--warn)}.sync.err{background:var(--red)}
+.auth{max-width:440px;margin-top:30px}
+.auth .panel{display:flex;flex-direction:column;gap:12px}
+.auth input{width:100%}
+.auth .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.msg{font-size:14px;margin:0}
+.msg.ok{color:var(--ok)}.msg.bad{color:var(--red-ink)}
+pre.sql{max-height:340px;overflow:auto;background:var(--surface);border:1px solid var(--rule);padding:10px;font-size:12px;white-space:pre-wrap}
+.banner{background:var(--surface);border:1px solid var(--rule);border-left:6px solid var(--warn);padding:14px 16px;margin-top:18px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+.banner p{margin:0;max-width:70ch}
+@media (max-width:860px){
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .kpi:nth-child(2){border-right:0}
+  .kpi:nth-child(-n+2){border-bottom:1px solid var(--rule)}
+  .two{grid-template-columns:minmax(0,1fr)}
+  .bar{grid-template-columns:62px minmax(0,1fr);}
+  .bar .val{grid-column:2;text-align:left}
+  .top .right{margin-left:0;width:100%}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media print{.tabs,.toolbar,.top .right,.drop,footer,.noprint{display:none!important}body{background:#fff}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="top">
+  <img class="logo-riedel" alt="Riedel Bau" data-src="../assets/logo-riedel.svg|../assets/logo-riedel.png">
+  <div><h1>Stahllisten</h1><p>Bewehrungsbedarf je Projekt: Pläne, Stahllisten und Bestellungen im Überblick.</p></div>
+  <div class="right" id="hdrRight" hidden>
+    <span class="who"><span id="syncState" class="sync ok" title="Speicherstatus"></span><span id="whoMail"></span></span>
+    <button class="btn sec sm" id="btnTeam" type="button" hidden>Zugänge</button>
+    <button class="btn sec sm" id="btnExport" type="button">Sicherung speichern</button>
+    <label class="btn sec sm" style="flex-direction:row" tabindex="0">Sicherung laden<input type="file" id="importFile" accept="application/json,.json" hidden></label>
+    <button class="btn sec sm" id="btnLogout" type="button">Abmelden</button>
+  </div>
+</header>
+<main id="app"><p class="sub" style="margin-top:26px">Verbindung zur Datenbank wird hergestellt …</p></main>
+<footer>
+  Die Daten liegen im Supabase-Projekt „riedel-stahllisten“. Zugriff haben nur angemeldete Personen, die ein Admin unter „Zugänge“ freigeschaltet hat; das prüft die Datenbank selbst.
+  Pläne und Listen liegen in einem privaten Dateispeicher und werden nur über kurz gültige Links geöffnet.
+  „Sicherung speichern“ lädt zusätzlich eine Datei mit allen Projekten und Dateien herunter.
+  Gewichte ohne Angabe in der Liste werden mit den Nenngewichten nach DIN 488 berechnet.
+</footer>
+</div>
+
+<!-- Projekt -->
+<dialog id="dlgProject"><form method="dialog">
+  <div class="dh"><h2 id="dpTitle">Projekt</h2><button class="linkbtn" value="cancel">Schließen</button></div>
+  <div class="db"><div class="grid">
+    <label class="wide">Projektname<input id="pName" required placeholder="z. B. BfS Oberschleißheim"></label>
+    <label>Projekt-Nr.<input id="pNr"></label>
+    <label>Kostenstelle<input id="pKst"></label>
+    <label>Kalkulierter Stahlbedarf gesamt (t)<input id="pKalk" inputmode="decimal" placeholder="optional"></label>
+    <label>Biegebetrieb / Lieferant<input id="pLief" placeholder="optional"></label>
+    <label class="wide">Notiz<textarea id="pNote" rows="2"></textarea></label>
+  </div>
+  <p class="hint">Die kalkulierte Menge (aus Kalkulation oder LV) dient als Vergleich, solange noch nicht alle Bewehrungspläne vorliegen.</p></div>
+  <div class="df"><button class="btn sec left" id="pDel" type="button" hidden>Projekt löschen</button><button class="btn sec" value="cancel">Abbrechen</button><button class="btn" id="pSave" value="ok">Speichern</button></div>
+</form></dialog>
+
+<!-- Plan -->
+<dialog id="dlgPlan"><form method="dialog">
+  <div class="dh"><h2 id="dplTitle">Plan</h2><button class="linkbtn" value="cancel">Schließen</button></div>
+  <div class="db"><div class="grid">
+    <label>Plan-Nr.<input id="plNr" required></label>
+    <label>Index<input id="plIdx" placeholder="z. B. a"></label>
+    <label>Planeingang<input id="plDate" type="date"></label>
+    <label class="wide">Bauteil / Inhalt<input id="plTitle" placeholder="z. B. Bodenplatte Achse 1–6, obere Lage"></label>
+    <label class="wide">Plan-Datei<input id="plFile" type="file" accept="application/pdf,image/*,.dwg,.dxf"></label>
+  </div>
+  <p class="hint" id="plFileInfo"></p></div>
+  <div class="df"><button class="btn sec left" id="plDel" type="button" hidden>Plan löschen</button><button class="btn sec" value="cancel">Abbrechen</button><button class="btn" value="ok">Speichern</button></div>
+</form></dialog>
+
+<!-- Stahlliste -->
+<dialog id="dlgList"><form method="dialog">
+  <div class="dh"><h2 id="dlTitle">Stahlliste</h2><button class="linkbtn" value="cancel">Schließen</button></div>
+  <div class="db">
+    <div class="drop" id="lDrop">
+      <p><b>Datei auslesen:</b> Biegeliste als Excel/CSV (am zuverlässigsten) oder PDF. Die erkannten Gewichte je Durchmesser erscheinen unten und lassen sich vor dem Speichern prüfen und korrigieren.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <label class="btn sm" style="flex-direction:row" tabindex="0">Datei wählen<input id="lFile" type="file" accept=".pdf,.xlsx,.xls,.csv,.txt,application/pdf" hidden></label>
+        <button class="btn sec sm" type="button" id="lFromPlan" hidden>Aus Plan-PDF auslesen</button>
+      </div>
+    </div>
+    <div id="lParse"></div>
+    <div class="grid" style="margin-top:14px">
+      <label>Listen-Nr.<input id="lNr" required></label>
+      <label>Zugehöriger Plan<select id="lPlan"></select></label>
+      <label>Datum<input id="lDate" type="date"></label>
+      <label class="wide">Bauteil / Bezeichnung<input id="lTitle" placeholder="z. B. Wände UG Achse A–D"></label>
+      <label class="inline wide"><input type="checkbox" id="lOld"> Ersetzt / ungültig (alter Index) – zählt nicht mehr zum Bedarf</label>
+    </div>
+    <div class="items">
+      <h3>Gewichte</h3>
+      <div class="scroll"><table><thead><tr><th>Sorte</th><th class="n">Gewicht kg</th><th></th></tr></thead><tbody id="lItems"></tbody>
+      <tfoot><tr class="sum"><td>Summe</td><td class="n" id="lSum">0 kg</td><td></td></tr></tfoot></table></div>
+      <button class="btn sec sm" type="button" id="lAdd" style="margin-top:8px">+ Zeile</button>
+    </div>
+    <p class="hint" id="lFileInfo"></p>
+  </div>
+  <div class="df"><button class="btn sec left" id="lDel" type="button" hidden>Liste löschen</button><button class="btn sec" value="cancel">Abbrechen</button><button class="btn" value="ok">Speichern</button></div>
+</form></dialog>
+
+<!-- Bestellung -->
+<dialog id="dlgOrder"><form method="dialog">
+  <div class="dh"><h2 id="doTitle">Bestellung</h2><button class="linkbtn" value="cancel">Schließen</button></div>
+  <div class="db">
+    <div class="grid">
+      <label>Bestelldatum<input id="oDate" type="date" required></label>
+      <label>Bestell-Nr. / Abruf<input id="oNr"></label>
+      <label>Lieferant<input id="oLief"></label>
+      <label>Liefertermin<input id="oDue" type="date"></label>
+      <label>Status<select id="oStatus"><option value="bestellt">Bestellt</option><option value="geliefert">Geliefert</option></select></label>
+      <label>Lieferschein-Nr.<input id="oLs"></label>
+    </div>
+    <h3 style="margin-top:16px">Enthaltene Stahllisten</h3>
+    <p class="hint" style="margin:0 0 6px">Ausgewählte Listen gelten als bestellt; ihre Gewichte werden unten übernommen. Zusätzliche Mengen (z. B. Lagerstahl, Matten) als eigene Zeile ergänzen.</p>
+    <div class="listpick" id="oLists"></div>
+    <div class="items">
+      <h3>Bestellte Mengen</h3>
+      <div class="scroll"><table><thead><tr><th>Sorte</th><th class="n">Gewicht kg</th><th></th></tr></thead><tbody id="oItems"></tbody>
+      <tfoot><tr class="sum"><td>Summe</td><td class="n" id="oSum">0 kg</td><td></td></tr></tfoot></table></div>
+      <button class="btn sec sm" type="button" id="oAdd" style="margin-top:8px">+ Zeile</button>
+    </div>
+    <label class="wide" style="margin-top:12px">Notiz<textarea id="oNote" rows="2"></textarea></label>
+  </div>
+  <div class="df"><button class="btn sec left" id="oDel" type="button" hidden>Bestellung löschen</button><button class="btn sec" value="cancel">Abbrechen</button><button class="btn" value="ok">Speichern</button></div>
+</form></dialog>
+
+<!-- Zugänge -->
+<dialog id="dlgTeam"><form method="dialog">
+  <div class="dh"><h2>Zugänge</h2><button class="linkbtn" value="cancel">Schließen</button></div>
+  <div class="db">
+    <p class="sub">Nur freigeschaltete Personen sehen die Stahllisten-Daten. Die Person muss sich vorher im Tool ein Konto angelegt und die E-Mail bestätigt haben.</p>
+    <div class="grid">
+      <label>E-Mail<input id="tMail" type="email" autocomplete="off"></label>
+      <label>Name<input id="tName" autocomplete="off"></label>
+      <label>Rolle<select id="tRole"><option value="mitglied">Mitglied</option><option value="admin">Admin (darf Zugänge verwalten)</option></select></label>
+      <div style="display:flex;align-items:end"><button class="btn" type="button" id="tAdd">Freischalten</button></div>
+    </div>
+    <p class="msg" id="tMsg" style="margin-top:8px"></p>
+    <div class="tbl scroll" style="margin-top:12px"><table><thead><tr><th>E-Mail</th><th>Name</th><th>Rolle</th><th>seit</th><th></th></tr></thead><tbody id="tRows"></tbody></table></div>
+  </div>
+  <div class="df"><button class="btn sec" value="cancel">Schließen</button></div>
+</form></dialog>
+
+<script>
+(function(){
+'use strict';
+if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc='vendor/pdf.worker.min.js';
+
+// ---------- Helfer ----------
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=(v,d=0)=>v==null||isNaN(v)?'–':v.toLocaleString('de-DE',{minimumFractionDigits:d,maximumFractionDigits:d});
+const t=kg=>fmt(kg/1000,2);
+const num=s=>{ if(s==null) return NaN; if(typeof s==='number') return s;
+  s=String(s).trim().replace(/\s/g,''); if(!s) return NaN;
+  if(/,\d+$/.test(s)) s=s.replace(/\./g,'').replace(',','.'); else if(/^\d{1,3}(\.\d{3})+$/.test(s)) s=s.replace(/\./g,'');
+  return parseFloat(s); };
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+const today=()=>new Date().toISOString().slice(0,10);
+const dDE=s=>s?s.split('-').reverse().join('.'):'';
+const sum=(a,f)=>a.reduce((s,x)=>s+(f(x)||0),0);
+function toast(msg){ const d=document.createElement('div'); d.className='toast'; d.textContent=msg; document.body.appendChild(d); setTimeout(()=>d.remove(),3200); }
+
+// Nenngewichte kg/m nach DIN 488
+const KGM={6:.222,8:.395,10:.617,12:.888,14:1.21,16:1.58,20:2.47,25:3.85,28:4.83,32:6.31,40:9.86};
+const DIAS=Object.keys(KGM).map(Number);
+const catLabel=k=>k.startsWith('d')?'Ø '+k.slice(1):k==='M'?'Matten':k.startsWith('M:')?'Matte '+k.slice(2):k==='S'?'Sonstiges':k;
+const catOrder=k=>k.startsWith('d')?+k.slice(1):k.startsWith('M')?(k==='M'?500:501):900;
+const catSort=(a,b)=>catOrder(a)-catOrder(b)||a.localeCompare(b);
+const catGroup=k=>k.startsWith('M')?'M':k; // Matten im Dashboard zusammenfassen
+const CAT_OPTS=[...DIAS.map(d=>'d'+d),'M','S'];
+
+// ---------- Datenbank (Supabase) ----------
+const SB_DEFAULT={url:'https://sazhfayopozqcluvmqqu.supabase.co',key:'sb_publishable_ZXiMVG3_xnblRTtMfJuJtA_kDgPuFLU'}; // Supabase-Projekt riedel-stahllisten
+const TABLE='stahl_objekte', BUCKET='stahllisten', LS_CFG='stahl-sb-cfg';
+const KIND={projects:'projekt',plans:'plan',lists:'liste',orders:'bestellung'};
+const EMPTY=()=>({version:1,projects:[],plans:[],lists:[],orders:[]});
+let S=EMPTY(), sb=null, me=null, rolle=null, ready=false;
+let synced=new Map(); // id -> JSON des zuletzt gespeicherten Stands
+const lsGet=(k,d)=>{ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):d; }catch(e){ return d; } };
+const lsSet=(k,v)=>{ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} };
+const cfg=()=>({...SB_DEFAULT,...lsGet(LS_CFG,{})});
+const errMsg=e=>(e&&(e.message||e.error_description||e.msg))||String(e);
+function setSync(st,title){ const el=$('syncState'); if(!el) return; el.className='sync '+st; el.title=title||({ok:'Alles gespeichert',busy:'Speichert …',err:'Nicht gespeichert – wird erneut versucht'}[st]); }
+
+function rowsFromState(){ const m=new Map();
+  for(const [k,art] of Object.entries(KIND)) for(const o of S[k]) m.set(o.id,{id:o.id,art,projekt_id:art==='projekt'?o.id:o.projectId,data:o});
+  return m; }
+function pending(){ const cur=rowsFromState(), up=[];
+  for(const [id,r] of cur) if(synced.get(id)!==JSON.stringify(r.data)) up.push(r);
+  return {up,del:[...synced.keys()].filter(id=>!cur.has(id))}; }
+async function fetchAll(){ const rows=[]; for(let from=0;;from+=1000){
+    const {data,error}=await sb.from(TABLE).select('id,art,data').order('id').range(from,from+999); if(error) throw error;
+    rows.push(...data); if(data.length<1000) break; }
+  return rows; }
+function applyRows(rows){ const n=EMPTY(), inv=Object.fromEntries(Object.entries(KIND).map(([k,a])=>[a,k]));
+  synced=new Map(); rows.forEach(r=>{ const k=inv[r.art]; if(k){ n[k].push(r.data); synced.set(r.id,JSON.stringify(r.data)); } }); S=n; }
+async function load(){ applyRows(await fetchAll()); }
+let saveChain=Promise.resolve();
+function save(){ saveChain=saveChain.then(doSave,doSave); return saveChain; }
+async function doSave(){
+  const {up,del}=pending(); if(!up.length&&!del.length) return;
+  setSync('busy');
+  try{
+    for(let i=0;i<up.length;i+=200){ const chunk=up.slice(i,i+200); const {error}=await sb.from(TABLE).upsert(chunk); if(error) throw error;
+      chunk.forEach(r=>synced.set(r.id,JSON.stringify(r.data))); }
+    if(del.length){ const {error}=await sb.from(TABLE).delete().in('id',del); if(error) throw error; del.forEach(id=>synced.delete(id)); }
+    setSync('ok');
+  }catch(e){ console.error(e); setSync('err'); toast('Speichern fehlgeschlagen: '+errMsg(e)+'. Die Änderung bleibt vorgemerkt und wird beim nächsten Speichern erneut gesendet.'); }
+}
+// Änderungen anderer Nutzer holen (bei Fokus und jede Minute), nicht während ein Dialog offen ist
+async function refresh(){
+  if(!ready||document.hidden||document.querySelector('dialog[open]')) return;
+  const p=pending(); if(p.up.length||p.del.length){ save(); return; }
+  try{ const rows=await fetchAll(); const same=rows.length===synced.size&&rows.every(r=>synced.get(r.id)===JSON.stringify(r.data));
+    if(!same&&!document.querySelector('dialog[open]')){ applyRows(rows); route(false); } setSync('ok'); }
+  catch(e){ setSync('err','Keine Verbindung zur Datenbank'); }
+}
+window.addEventListener('focus',refresh); setInterval(refresh,60000);
+window.addEventListener('beforeunload',e=>{ if(!ready) return; const p=pending(); if(p.up.length||p.del.length){ e.preventDefault(); e.returnValue=''; } });
+
+// Dateien im privaten Bucket; fileId = Pfad im Bucket
+async function putFile(file){
+  const ext=(file.name.match(/\.([A-Za-z0-9]{1,8})$/)||[])[1]||'bin';
+  const path=`${new Date().getFullYear()}/${uid()}.${ext.toLowerCase()}`;
+  const big=file.size>2e6; if(big) toast(`Lade ${file.name} hoch …`);
+  const {error}=await sb.storage.from(BUCKET).upload(path,file,{contentType:file.type||'application/octet-stream',upsert:false});
+  if(error) throw new Error('Upload fehlgeschlagen ('+file.name+'): '+errMsg(error));
+  return {id:path,name:file.name};
+}
+async function getFile(id){ if(!id) return null; const {data,error}=await sb.storage.from(BUCKET).download(id);
+  if(error){ console.warn(error); return null; } return {id,name:id.split('/').pop(),type:data.type,blob:data}; }
+async function delFile(id){ if(!id) return; try{ await sb.storage.from(BUCKET).remove([id]); }catch(e){ console.warn(e); } }
+async function openFile(id){ const w=window.open('about:blank','_blank');
+  const {data,error}=await sb.storage.from(BUCKET).createSignedUrl(id,300);
+  if(error){ if(w) w.close(); toast('Datei nicht gefunden: '+errMsg(error)); return; }
+  if(w) w.location.href=data.signedUrl; else location.href=data.signedUrl; }
+
+// ---------- Berechnungen ----------
+function listStatus(l){
+  const os=S.orders.filter(o=>(o.listIds||[]).includes(l.id));
+  if(!os.length) return 'offen';
+  return os.some(o=>o.status==='geliefert')?'geliefert':'bestellt';
+}
+function addItems(map,items,f=1){ (items||[]).forEach(i=>{ const k=catGroup(i.cat); map[k]=(map[k]||0)+(+i.kg||0)*f; }); return map; }
+function calc(pid){
+  const lists=S.lists.filter(l=>l.projectId===pid), orders=S.orders.filter(o=>o.projectId===pid);
+  const valid=lists.filter(l=>!l.ersetzt);
+  const bedarf=addItems({},valid.flatMap(l=>l.items));
+  const bestellt={}, geliefert={};
+  orders.forEach(o=>{ addItems(bestellt,o.items); if(o.status==='geliefert') addItems(geliefert,o.items); });
+  const cats=[...new Set([...Object.keys(bedarf),...Object.keys(bestellt)])].sort(catSort);
+  const rows=cats.map(k=>{ const b=bedarf[k]||0,o=bestellt[k]||0,g=geliefert[k]||0; return {k,b,o,g,rest:Math.max(0,b-o),mehr:Math.max(0,o-b)}; });
+  const tot={b:sum(rows,r=>r.b),o:sum(rows,r=>r.o),g:sum(rows,r=>r.g),rest:sum(rows,r=>r.rest),mehr:sum(rows,r=>r.mehr)};
+  const openLists=valid.filter(l=>listStatus(l)==='offen');
+  return {lists,orders,valid,rows,tot,openLists,openKg:sum(openLists,l=>listKg(l))};
+}
+const listKg=l=>sum(l.items||[],i=>+i.kg);
+const orderKg=o=>sum(o.items||[],i=>+i.kg);
+
+// ---------- Routing ----------
+let tab='uebersicht';
+function route(ev){ if(!ready) return; const h=location.hash.replace(/^#\/?/,''); const m=h.match(/^p\/([^/]+)(?:\/(\w+))?/);
+  if(m&&S.projects.find(p=>p.id===m[1])){ if(m[2]) tab=m[2]; renderProject(m[1]); } else renderHome(); if(ev!==false) window.scrollTo(0,0); }
+window.addEventListener('hashchange',route);
+
+// ---------- Startseite ----------
+function renderHome(){
+  document.title='Stahllisten';
+  const ps=S.projects.slice().sort((a,b)=>a.name.localeCompare(b.name,'de'));
+  let h=`<p class="crumb"><a href="../">← Riedel-Tools</a></p>`;
+  h+=`<div class="toolbar"><div class="grow"><h2>Laufende Projekte</h2></div><button class="btn red" id="newProj" type="button">+ Neues Projekt</button></div>`;
+  if(!ps.length){
+    h+=`<div class="empty"><h3>Noch kein Projekt angelegt</h3><p>Lege für jede Baustelle ein Projekt an. Danach lädst du die erhaltenen Bewehrungspläne und die dazugehörigen Stahllisten hoch und erfasst die Bestellungen beim Biegebetrieb. Das Dashboard zeigt dann Bedarf, bestellte Menge und was noch zu bestellen ist.</p><button class="btn red" type="button" onclick="document.getElementById('newProj').click()">Erstes Projekt anlegen</button></div>`;
+  } else {
+    const all=ps.map(p=>({p,c:calc(p.id)}));
+    const T={b:sum(all,x=>x.c.tot.b),o:sum(all,x=>x.c.tot.o),r:sum(all,x=>x.c.tot.rest)};
+    h+=`<div class="kpis" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div class="kpi"><small>Bedarf lt. Stahllisten, alle Projekte</small><b>${t(T.b)} t</b></div><div class="kpi"><small>Bestellt</small><b>${t(T.o)} t</b></div><div class="kpi todo"><small>Noch zu bestellen</small><b>${t(T.r)} t</b></div></div>`;
+    h+=`<div class="projects">`+all.map(({p,c})=>`<a class="proj" href="#/p/${p.id}"><div class="nr">${esc([p.nr,p.kst&&'KSt '+p.kst].filter(Boolean).join(' · '))||'&nbsp;'}</div><h2>${esc(p.name)}</h2>
+      <div class="row3"><div><b>${t(c.tot.b)}</b><small>t Bedarf</small></div><div><b>${t(c.tot.o)}</b><small>t bestellt</small></div><div class="todo"><b>${t(c.tot.rest)}</b><small>t offen</small></div></div>
+      <div class="meter" style="margin-top:6px">${meterSegs(c.tot)}</div>
+      <small style="color:var(--muted)">${S.plans.filter(x=>x.projectId===p.id).length} Pläne · ${c.lists.length} Stahllisten · ${c.openLists.length} noch nicht bestellt</small></a>`).join('')+`</div>`;
+  }
+  $('app').innerHTML=h;
+  $('newProj').onclick=()=>editProject(null);
+}
+function meterSegs(tot){ const base=Math.max(tot.b,tot.o,1);
+  return `<i class="c-lief" style="width:${Math.min(tot.g,tot.b)/base*100}%" title="Geliefert"></i><i class="c-best" style="width:${Math.max(0,Math.min(tot.o,tot.b)-Math.min(tot.g,tot.b))/base*100}%" title="Bestellt"></i><i class="c-open" style="width:${tot.rest/base*100}%" title="Noch zu bestellen"></i>`; }
+
+// ---------- Projektansicht ----------
+let curPid=null;
+function renderProject(pid){
+  curPid=pid;
+  const p=S.projects.find(x=>x.id===pid), c=calc(pid), plans=S.plans.filter(x=>x.projectId===pid);
+  document.title=p.name+' · Stahllisten';
+  const kalk=p.kalkT?p.kalkT*1000:null;
+  let h=`<p class="crumb"><a href="#/">← Alle Projekte</a></p>
+  <div class="toolbar" style="margin-top:8px"><div class="grow"><h2 style="font-size:30px">${esc(p.name)}</h2><div class="sub" style="margin:0">${esc([p.nr&&'Projekt '+p.nr,p.kst&&'Kostenstelle '+p.kst,p.lief&&'Biegebetrieb '+p.lief].filter(Boolean).join(' · '))}</div></div>
+  <button class="btn sec sm noprint" id="editProj" type="button">Projekt bearbeiten</button></div>
+  <div class="kpis">
+    <div class="kpi"><small>Bedarf lt. Stahllisten</small><b>${t(c.tot.b)} t</b><span>${c.valid.length} gültige Listen${kalk?` · Kalkulation ${t(kalk)} t`:''}</span></div>
+    <div class="kpi"><small>Bestellt</small><b>${t(c.tot.o)} t</b><span>${c.orders.length} Bestellungen${c.tot.b?` · ${fmt(Math.min(c.tot.o,c.tot.b)/c.tot.b*100)} % des Bedarfs`:''}</span></div>
+    <div class="kpi"><small>Davon geliefert</small><b>${t(c.tot.g)} t</b><span>${fmt(c.orders.filter(o=>o.status!=='geliefert').length)} Bestellungen offen</span></div>
+    <div class="kpi todo"><small>Noch zu bestellen</small><b>${t(c.tot.rest)} t</b><span>${c.openLists.length} Listen noch nicht bestellt</span></div>
+  </div>
+  <div class="meter">${meterSegs(c.tot)}</div>
+  <div class="legend"><span><i class="c-lief"></i>Geliefert</span><span><i class="c-best"></i>Bestellt, nicht geliefert</span><span><i class="c-open"></i>Noch zu bestellen</span></div>
+  <div class="tabs" role="tablist">
+    ${[['uebersicht','Übersicht',''],['plaene','Pläne',plans.length],['listen','Stahllisten',c.lists.length],['bestellungen','Bestellungen',c.orders.length]].map(([k,l,n])=>`<button type="button" role="tab" aria-selected="${tab===k}" data-tab="${k}">${l}${n!==''?`<span>${n}</span>`:''}</button>`).join('')}
+  </div><div id="tabBody"></div>`;
+  $('app').innerHTML=h;
+  $('editProj').onclick=()=>editProject(p);
+  document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{ tab=b.dataset.tab; history.replaceState(null,'','#/p/'+pid+'/'+tab); renderProject(pid); });
+  ({uebersicht:tabOverview,plaene:tabPlans,listen:tabLists,bestellungen:tabOrders}[tab]||tabOverview)(p,c,plans);
+}
+
+function tabOverview(p,c){
+  const kalk=p.kalkT?p.kalkT*1000:null;
+  let h=`<section><div class="two"><div>
+    <h2>Bedarf je Durchmesser</h2><p class="sub">Balken = Bedarf aus gültigen Stahllisten, Anteil geliefert, bestellt und offen.</p>`;
+  if(!c.rows.length) h+=`<p class="sub">Noch keine Stahllisten erfasst. Unter <b>Stahllisten</b> eine Liste hochladen oder Gewichte eintragen.</p>`;
+  else{
+    const max=Math.max(...c.rows.map(r=>Math.max(r.b,r.o)));
+    h+=`<div class="bars">`+c.rows.map(r=>{ const g=Math.min(r.g,r.b), o=Math.max(0,Math.min(r.o,r.b)-g), w=v=>v/max*100;
+      return `<div class="bar"><div class="lbl">${esc(catLabel(r.k))}</div><div class="trk" title="Bedarf ${t(r.b)} t, bestellt ${t(r.o)} t"><i class="c-lief" style="width:${w(g)}%"></i><i class="c-best" style="width:${w(o)}%"></i><i class="c-open" style="width:${w(r.rest)}%"></i>${r.mehr>0?`<i style="width:${w(r.mehr)}%;background:repeating-linear-gradient(45deg,var(--grey) 0 3px,transparent 3px 6px)" title="Mehr bestellt als in Listen"></i>`:''}</div>
+        <div class="val"><b>${t(r.b)} t</b> Bedarf · ${r.rest>0?`<em>${t(r.rest)} t offen</em>`:r.mehr>0?`+${t(r.mehr)} t mehr bestellt`:'vollständig bestellt'}</div></div>`; }).join('')+`</div>`;
+  }
+  h+=`</div><div><h2>Hinweise</h2><ul class="notes">${notes(p,c,kalk).map(([cl,x])=>`<li class="${cl}">${x}</li>`).join('')}</ul></div></div></section>`;
+
+  h+=`<section><div class="toolbar"><div class="grow"><h2>Noch zu bestellen</h2><p class="sub" style="margin:0">Menge je Sorte = Bedarf aus Listen minus bereits bestellt.</p></div>
+    <button class="btn sec sm" type="button" id="csvRest">Als CSV exportieren</button><button class="btn sec sm" type="button" onclick="window.print()">Drucken</button>
+    <button class="btn red sm" type="button" id="orderOpen" ${c.openLists.length?'':'disabled'}>Offene Listen bestellen</button></div>
+    <div class="tbl scroll"><table><thead><tr><th>Sorte</th><th class="n">Bedarf t</th><th class="n">Bestellt t</th><th class="n">Geliefert t</th><th class="n">Noch zu bestellen t</th></tr></thead><tbody>
+    ${c.rows.map(r=>`<tr><td>${esc(catLabel(r.k))}</td><td class="n">${t(r.b)}</td><td class="n">${t(r.o)}</td><td class="n">${t(r.g)}</td><td class="n"><b style="color:${r.rest>0?'var(--red-ink)':'inherit'}">${t(r.rest)}</b>${r.mehr>0?` <span class="tag">+${t(r.mehr)} mehr bestellt</span>`:''}</td></tr>`).join('')}
+    <tr class="sum"><td>Summe</td><td class="n">${t(c.tot.b)}</td><td class="n">${t(c.tot.o)}</td><td class="n">${t(c.tot.g)}</td><td class="n">${t(c.tot.rest)}</td></tr></tbody></table></div></section>`;
+
+  if(c.openLists.length) h+=`<section><h2>Stahllisten, die noch nicht bestellt sind</h2><p class="sub">${c.openLists.length} Listen mit zusammen ${t(c.openKg)} t.</p>${listTable(c.openLists)}</section>`;
+  $('tabBody').innerHTML=h;
+  bindListTable();
+  $('csvRest').onclick=()=>csv(`${p.name}_noch-zu-bestellen.csv`,[['Sorte','Bedarf kg','Bestellt kg','Geliefert kg','Noch zu bestellen kg'],...c.rows.map(r=>[catLabel(r.k),r.b,r.o,r.g,r.rest].map(v=>typeof v==='number'?fmt(v,1):v))]);
+  const oo=$('orderOpen'); if(oo) oo.onclick=()=>editOrder(null,c.openLists.map(l=>l.id));
+}
+function notes(p,c,kalk){
+  const n=[];
+  if(c.tot.rest>0) n.push(['',`<b>${t(c.tot.rest)} t noch zu bestellen.</b> Davon sind ${t(c.openKg)} t in ${c.openLists.length} Stahllisten, die noch keiner Bestellung zugeordnet sind.`]);
+  else if(c.tot.b>0) n.push(['info',`<b>Alle vorliegenden Stahllisten sind bestellt.</b>`]);
+  if(kalk){ const pct=c.tot.b/kalk*100;
+    n.push([pct<100?'info':'',`<b>Kalkulation ${t(kalk)} t:</b> Die vorliegenden Listen decken ${fmt(pct)} % ab. ${pct<100?`Noch ${t(kalk-c.tot.b)} t ohne Stahlliste (Pläne ausstehend).`:`Bedarf liegt ${t(c.tot.b-kalk)} t über der Kalkulation – Mehrmenge prüfen.`}`]); }
+  const due=c.orders.filter(o=>o.status!=='geliefert'&&o.due&&o.due<today());
+  if(due.length) n.push(['',`<b>${due.length} Bestellung${due.length>1?'en':''} überfällig:</b> ${due.map(o=>esc(o.nr||dDE(o.date))+' (Termin '+dDE(o.due)+')').join(', ')}.`]);
+  const noList=S.plans.filter(pl=>pl.projectId===p.id&&!S.lists.some(l=>l.planId===pl.id));
+  if(noList.length) n.push(['info',`<b>${noList.length} Plan${noList.length>1?'e':''} ohne Stahlliste:</b> ${noList.slice(0,6).map(pl=>esc(pl.nr+(pl.idx?' '+pl.idx:''))).join(', ')}${noList.length>6?' …':''}.`]);
+  const oldBest=c.lists.filter(l=>l.ersetzt&&listStatus(l)!=='offen');
+  if(oldBest.length) n.push(['',`<b>Ersetzte Listen bereits bestellt:</b> ${oldBest.map(l=>esc(l.nr)).join(', ')}. Mengen zählen weiter als bestellt – Abweichung zum neuen Index mit dem Biegebetrieb klären.`]);
+  if(c.tot.mehr>0) n.push(['info',`<b>${t(c.tot.mehr)} t mehr bestellt als in Listen enthalten</b> (z. B. Lagerstahl oder ersetzte Listen).`]);
+  if(!n.length) n.push(['info','Noch keine Daten. Pläne und Stahllisten hochladen, dann Bestellungen erfassen.']);
+  return n;
+}
+
+function tabPlans(p,c,plans){
+  plans=plans.slice().sort((a,b)=>String(a.nr).localeCompare(String(b.nr),'de',{numeric:true}));
+  let h=`<section style="margin-top:18px"><div class="drop" id="planDrop"><p><b>Pläne hochladen:</b> Eine oder mehrere Plan-PDFs hierher ziehen. Plan-Nr. und Index werden aus dem Dateinamen vorgeschlagen.</p>
+    <div style="display:flex;gap:8px"><label class="btn" style="flex-direction:row" tabindex="0">Dateien wählen<input type="file" id="planFiles" multiple accept="application/pdf,image/*,.dwg,.dxf" hidden></label><button class="btn sec" id="planNew" type="button">Ohne Datei anlegen</button></div></div>`;
+  if(plans.length){
+    h+=`<div class="tbl scroll" style="margin-top:16px"><table><thead><tr><th>Plan-Nr.</th><th>Index</th><th>Bauteil / Inhalt</th><th>Eingang</th><th>Stahllisten</th><th class="n">Bedarf t</th><th>Datei</th><th></th></tr></thead><tbody>`;
+    plans.forEach(pl=>{ const ls=S.lists.filter(l=>l.planId===pl.id);
+      h+=`<tr><td><b>${esc(pl.nr)}</b></td><td>${esc(pl.idx||'')}</td><td class="wrap">${esc(pl.title||'')}</td><td>${dDE(pl.date)}</td>
+      <td>${ls.length?ls.map(l=>`${esc(l.nr)} ${statusTag(l)}`).join('<br>'):`<button class="linkbtn" data-newlist="${pl.id}" type="button">+ Stahlliste</button>`}</td>
+      <td class="n">${t(sum(ls.filter(l=>!l.ersetzt),listKg))}</td>
+      <td>${pl.fileId?`<button class="linkbtn" data-open="${pl.fileId}" type="button">${esc(pl.fileName||'öffnen')}</button>`:'–'}</td>
+      <td><button class="linkbtn" data-editplan="${pl.id}" type="button">Bearbeiten</button></td></tr>`; });
+    h+=`</tbody></table></div>`;
+  } else h+=`<p class="sub" style="margin-top:14px">Noch keine Pläne erfasst.</p>`;
+  $('tabBody').innerHTML=h+'</section>';
+  const add=async files=>{ for(const f of files){ const rec=await putFile(f); const g=guessPlan(f.name);
+      S.plans.push({id:uid(),projectId:p.id,nr:g.nr,idx:g.idx,title:'',date:today(),fileId:rec.id,fileName:f.name}); }
+    await save(); toast(files.length+' Plan'+(files.length>1?'e':'')+' hinzugefügt'); renderProject(p.id); };
+  $('planFiles').onchange=e=>{ if(e.target.files.length) add([...e.target.files]); };
+  dropZone($('planDrop'),add);
+  $('planNew').onclick=()=>editPlan(null);
+  document.querySelectorAll('[data-editplan]').forEach(b=>b.onclick=()=>editPlan(S.plans.find(x=>x.id===b.dataset.editplan)));
+  document.querySelectorAll('[data-newlist]').forEach(b=>b.onclick=()=>editList(null,b.dataset.newlist));
+  document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openFile(b.dataset.open));
+}
+function guessPlan(name){ const base=name.replace(/\.[^.]+$/,'');
+  const m=base.match(/^(.*?)[\s_-]*(?:Index|Ind\.?|Idx|Rev\.?)[\s_-]*([A-Za-z0-9]{1,3})$/i)||base.match(/^(.*?\d)[\s_-]+([a-z])$/);
+  return m?{nr:m[1].trim(),idx:m[2]}:{nr:base,idx:''}; }
+
+function statusTag(l){ if(l.ersetzt) return '<span class="tag old">ersetzt</span>'; const s=listStatus(l);
+  return s==='offen'?'<span class="tag open">offen</span>':s==='bestellt'?'<span class="tag best">bestellt</span>':'<span class="tag lief">geliefert</span>'; }
+function listTable(lists){
+  const cats=[...new Set(lists.flatMap(l=>(l.items||[]).map(i=>catGroup(i.cat))))].sort(catSort);
+  let h=`<div class="tbl scroll"><table><thead><tr><th>Liste</th><th>Plan</th><th>Bauteil</th><th>Status</th>${cats.map(k=>`<th class="n">${esc(catLabel(k))}</th>`).join('')}<th class="n">Summe kg</th><th>Datei</th><th></th></tr></thead><tbody>`;
+  lists.forEach(l=>{ const pl=S.plans.find(x=>x.id===l.planId), g=addItems({},l.items);
+    h+=`<tr class="${l.ersetzt?'dim':''}"><td><b>${esc(l.nr)}</b><br><small style="color:var(--muted)">${dDE(l.date)}</small></td><td>${pl?esc(pl.nr+(pl.idx?' / '+pl.idx:'')):'–'}</td><td class="wrap">${esc(l.title||'')}</td><td class="nostrike">${statusTag(l)}</td>
+      ${cats.map(k=>`<td class="n">${g[k]?fmt(g[k]):''}</td>`).join('')}<td class="n"><b>${fmt(listKg(l))}</b></td>
+      <td class="nostrike">${l.fileId?`<button class="linkbtn" data-open="${l.fileId}" type="button">öffnen</button>`:'–'}</td><td class="nostrike"><button class="linkbtn" data-editlist="${l.id}" type="button">Bearbeiten</button></td></tr>`; });
+  const tot={}; lists.filter(l=>!l.ersetzt).forEach(l=>addItems(tot,l.items));
+  h+=`<tr class="sum"><td colspan="4">${lists.length} Listen${lists.some(l=>l.ersetzt)?' (Summe ohne ersetzte)':''}</td>${cats.map(k=>`<td class="n">${fmt(tot[k]||0)}</td>`).join('')}<td class="n">${fmt(sum(Object.values(tot),v=>v))}</td><td colspan="2"></td></tr></tbody></table></div>`;
+  return h;
+}
+function bindListTable(){
+  document.querySelectorAll('[data-editlist]').forEach(b=>b.onclick=()=>editList(S.lists.find(x=>x.id===b.dataset.editlist)));
+  document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openFile(b.dataset.open));
+}
+let listFilter='';
+function tabLists(p,c){
+  let lists=c.lists.slice().sort((a,b)=>String(a.nr).localeCompare(String(b.nr),'de',{numeric:true}));
+  const f=listFilter; if(f) lists=lists.filter(l=>f==='ersetzt'?l.ersetzt:!l.ersetzt&&listStatus(l)===f);
+  let h=`<section style="margin-top:0"><div class="toolbar"><label>Status<select id="lFilter"><option value="">Alle</option><option value="offen">Offen</option><option value="bestellt">Bestellt</option><option value="geliefert">Geliefert</option><option value="ersetzt">Ersetzt</option></select></label><div class="grow"></div>
+    <button class="btn red" type="button" id="listNew">+ Stahlliste hinzufügen</button></div>`;
+  h+=c.lists.length?listTable(lists):`<div class="empty"><h3>Noch keine Stahllisten</h3><p>Biegeliste als Excel/CSV oder PDF hochladen – die Gewichte je Durchmesser werden ausgelesen. Alternativ die Summen aus der Gewichtsübersicht von Hand eintragen.</p></div>`;
+  $('tabBody').innerHTML=h+'</section>';
+  $('lFilter').value=f; $('lFilter').onchange=e=>{ listFilter=e.target.value; renderProject(p.id); };
+  $('listNew').onclick=()=>editList(null); bindListTable();
+}
+function tabOrders(p,c){
+  const os=c.orders.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  let h=`<section style="margin-top:0"><div class="toolbar"><div class="grow"></div><button class="btn red" type="button" id="orderNew">+ Bestellung erfassen</button></div>`;
+  if(os.length){
+    h+=`<div class="tbl scroll"><table><thead><tr><th>Datum</th><th>Bestell-Nr.</th><th>Lieferant</th><th>Stahllisten</th><th>Liefertermin</th><th>Status</th><th class="n">Gewicht t</th><th></th></tr></thead><tbody>`;
+    os.forEach(o=>{ const late=o.status!=='geliefert'&&o.due&&o.due<today();
+      h+=`<tr><td>${dDE(o.date)}</td><td>${esc(o.nr||'')}</td><td>${esc(o.lief||'')}</td><td class="wrap">${(o.listIds||[]).map(id=>esc((S.lists.find(l=>l.id===id)||{}).nr||'?')).join(', ')||'–'}</td>
+      <td>${dDE(o.due)}${late?' <span class="tag open">überfällig</span>':''}</td><td>${o.status==='geliefert'?`<span class="tag lief">geliefert</span>${o.ls?`<br><small style="color:var(--muted)">LS ${esc(o.ls)}</small>`:''}`:'<span class="tag best">bestellt</span>'}</td>
+      <td class="n"><b>${t(orderKg(o))}</b></td><td><button class="linkbtn" data-editorder="${o.id}" type="button">Bearbeiten</button>${o.status!=='geliefert'?` · <button class="linkbtn" data-deliver="${o.id}" type="button">Geliefert</button>`:''}</td></tr>`; });
+    h+=`<tr class="sum"><td colspan="6">${os.length} Bestellungen</td><td class="n">${t(sum(os,orderKg))}</td><td></td></tr></tbody></table></div>`;
+  } else h+=`<div class="empty"><h3>Noch keine Bestellungen</h3><p>Erfasse jede Bestellung beim Biegebetrieb und ordne die Stahllisten zu. Damit weiß das Dashboard, welche Listen bereits bestellt sind.</p></div>`;
+  $('tabBody').innerHTML=h+'</section>';
+  $('orderNew').onclick=()=>editOrder(null);
+  document.querySelectorAll('[data-editorder]').forEach(b=>b.onclick=()=>editOrder(S.orders.find(x=>x.id===b.dataset.editorder)));
+  document.querySelectorAll('[data-deliver]').forEach(b=>b.onclick=async()=>{ const o=S.orders.find(x=>x.id===b.dataset.deliver); o.status='geliefert'; await save(); renderProject(p.id); });
+}
+
+// ---------- Dialoge ----------
+function dlg(id,onOk){ const d=$(id); d.returnValue=''; d.onclose=()=>{ if(d.returnValue==='ok') onOk(); }; d.showModal(); }
+function requireValid(d){ const f=d.querySelector('form'); f.onsubmit=e=>{ if(e.submitter&&e.submitter.value==='ok'&&!f.checkValidity()){ e.preventDefault(); f.reportValidity(); } }; }
+['dlgProject','dlgPlan','dlgList','dlgOrder'].forEach(id=>requireValid($(id)));
+
+function editProject(p){
+  $('dpTitle').textContent=p?'Projekt bearbeiten':'Neues Projekt';
+  $('pName').value=p?.name||''; $('pNr').value=p?.nr||''; $('pKst').value=p?.kst||''; $('pKalk').value=p?.kalkT!=null?String(p.kalkT).replace('.',','):''; $('pLief').value=p?.lief||''; $('pNote').value=p?.note||'';
+  $('pDel').hidden=!p;
+  $('pDel').onclick=async()=>{ if(!confirm(`Projekt „${p.name}“ mit allen Plänen, Stahllisten und Bestellungen löschen?`)) return;
+    const fids=[...S.plans,...S.lists].filter(x=>x.projectId===p.id).map(x=>x.fileId).filter(Boolean);
+    for(const id of fids) await delFile(id);
+    ['plans','lists','orders'].forEach(k=>S[k]=S[k].filter(x=>x.projectId!==p.id)); S.projects=S.projects.filter(x=>x.id!==p.id);
+    await save(); $('dlgProject').close(); location.hash='#/'; };
+  dlg('dlgProject',async()=>{ const k=num($('pKalk').value);
+    const v={name:$('pName').value.trim(),nr:$('pNr').value.trim(),kst:$('pKst').value.trim(),kalkT:isNaN(k)?null:k,lief:$('pLief').value.trim(),note:$('pNote').value.trim()};
+    if(p) Object.assign(p,v); else { p={id:uid(),created:today(),...v}; S.projects.push(p); tab='uebersicht'; }
+    await save(); location.hash='#/p/'+p.id; route(); });
+}
+
+function editPlan(pl){
+  $('dplTitle').textContent=pl?'Plan bearbeiten':'Neuer Plan';
+  $('plNr').value=pl?.nr||''; $('plIdx').value=pl?.idx||''; $('plDate').value=pl?.date||today(); $('plTitle').value=pl?.title||''; $('plFile').value='';
+  $('plFileInfo').textContent=pl?.fileId?`Aktuelle Datei: ${pl.fileName||''} – neue Datei wählen, um sie zu ersetzen.`:'';
+  $('plDel').hidden=!pl;
+  $('plDel').onclick=async()=>{ const ls=S.lists.filter(l=>l.planId===pl.id);
+    if(!confirm(`Plan ${pl.nr} löschen?${ls.length?` Die ${ls.length} zugehörigen Stahllisten bleiben erhalten, verlieren aber die Plan-Zuordnung.`:''}`)) return;
+    ls.forEach(l=>l.planId=''); await delFile(pl.fileId); S.plans=S.plans.filter(x=>x.id!==pl.id); await save(); $('dlgPlan').close(); renderProject(curPid); };
+  dlg('dlgPlan',async()=>{ const f=$('plFile').files[0];
+    const v={nr:$('plNr').value.trim(),idx:$('plIdx').value.trim(),date:$('plDate').value,title:$('plTitle').value.trim()};
+    if(!pl){ pl={id:uid(),projectId:curPid,...v}; S.plans.push(pl); } else Object.assign(pl,v);
+    if(f){ if(pl.fileId) await delFile(pl.fileId); const rec=await putFile(f); pl.fileId=rec.id; pl.fileName=f.name; }
+    await save(); renderProject(curPid); });
+}
+
+// ----- Gewichtszeilen (Liste und Bestellung) -----
+function itemRows(tbody,sumEl,items){
+  const opts=k=>{ const all=[...new Set([...CAT_OPTS,k])].sort(catSort); return all.map(o=>`<option value="${esc(o)}" ${o===k?'selected':''}>${esc(catLabel(o))}</option>`).join(''); };
+  const render=()=>{ tbody.innerHTML=items.map((it,i)=>`<tr><td><select data-i="${i}" data-f="cat" aria-label="Sorte">${opts(it.cat)}</select></td><td class="n"><input data-i="${i}" data-f="kg" inputmode="decimal" aria-label="Gewicht kg" value="${it.kg===''||it.kg==null?'':fmt(+it.kg,1).replace(/\./g,'')}"></td><td><button class="linkbtn del" type="button" data-rm="${i}">entfernen</button></td></tr>`).join('')
+      ||`<tr><td colspan="3" style="color:var(--muted)">Noch keine Gewichte – Datei auslesen oder Zeile hinzufügen.</td></tr>`; upd(); };
+  const upd=()=>{ sumEl.textContent=fmt(sum(items,i=>+i.kg),1)+' kg · '+t(sum(items,i=>+i.kg))+' t'; };
+  tbody.oninput=e=>{ const el=e.target; if(!el.dataset.f) return; const it=items[+el.dataset.i];
+    if(el.dataset.f==='kg'){ const v=num(el.value); it.kg=isNaN(v)?'':v; } else it.cat=el.value; upd(); };
+  tbody.onclick=e=>{ const b=e.target.closest('[data-rm]'); if(b){ items.splice(+b.dataset.rm,1); render(); } };
+  render();
+  return {render,items,set(n){ items.splice(0,items.length,...n); render(); }};
+}
+const cleanItems=items=>{ const m={}; items.forEach(i=>{ const v=+i.kg; if(i.cat&&v>0) m[i.cat]=(m[i.cat]||0)+v; }); return Object.entries(m).sort((a,b)=>catSort(a[0],b[0])).map(([cat,kg])=>({cat,kg:Math.round(kg*10)/10})); };
+
+function editList(l,presetPlan){
+  $('dlTitle').textContent=l?'Stahlliste bearbeiten':'Neue Stahlliste';
+  const plans=S.plans.filter(x=>x.projectId===curPid).sort((a,b)=>String(a.nr).localeCompare(String(b.nr),'de',{numeric:true}));
+  $('lPlan').innerHTML=`<option value="">– kein Plan –</option>`+plans.map(pl=>`<option value="${pl.id}">${esc(pl.nr+(pl.idx?' / Index '+pl.idx:'')+(pl.title?' – '+pl.title:''))}</option>`).join('');
+  $('lPlan').value=l?.planId||presetPlan||'';
+  $('lNr').value=l?.nr||''; $('lDate').value=l?.date||today(); $('lTitle').value=l?.title||''; $('lOld').checked=!!l?.ersetzt;
+  $('lParse').innerHTML=''; $('lFile').value='';
+  $('lFileInfo').textContent=l?.fileId?`Gespeicherte Datei: ${l.fileName||''}`:'';
+  const rows=itemRows($('lItems'),$('lSum'),(l?.items||[]).map(i=>({...i})));
+  let newFile=null;
+  $('lAdd').onclick=()=>{ rows.items.push({cat:'d12',kg:''}); rows.render(); };
+  const planSel=()=>{ const pl=S.plans.find(x=>x.id===$('lPlan').value); $('lFromPlan').hidden=!(pl&&pl.fileId&&/pdf$/i.test(pl.fileName||''));
+    if(pl&&!$('lTitle').value) $('lTitle').value=pl.title||''; };
+  $('lPlan').onchange=planSel; planSel();
+  const handle=async(file,isPlan)=>{
+    $('lParse').innerHTML=`<p class="hint">Lese ${esc(file.name)} …</p>`;
+    try{ const r=await parseSteel(file);
+      if(r.items.length){ rows.set(r.items); }
+      if(!$('lNr').value) $('lNr').value=r.nr||file.name.replace(/\.[^.]+$/,'');
+      const tot=sum(r.items,i=>i.kg);
+      let cls=r.items.length?'ok':'bad', msg=r.items.length?`${r.items.length} Sorten erkannt, zusammen ${fmt(tot,1)} kg (${r.how}).`:'Keine Gewichte erkannt. Bitte die Gewichtsübersicht der Liste von Hand eintragen.';
+      if(r.total&&r.items.length){ const d=tot-r.total; if(Math.abs(d)>Math.max(1,r.total*.005)){ cls='warn'; msg+=` Achtung: Gesamtgewicht laut Datei ${fmt(r.total,1)} kg weicht um ${fmt(d,1)} kg ab – bitte prüfen.`; } else msg+=` Stimmt mit dem Gesamtgewicht der Datei überein.`; }
+      else if(r.total&&!r.items.length){ cls='warn'; msg=`Nur Gesamtgewicht ${fmt(r.total,1)} kg erkannt. Aufteilung nach Durchmesser bitte ergänzen.`; }
+      $('lParse').innerHTML=`<p class="hint ${cls}">${msg}</p>${r.mapUI||''}${r.raw?`<details class="raw"><summary>Ausgelesener Text</summary><pre>${esc(r.raw.slice(0,20000))}</pre></details>`:''}`;
+      if(r.bindMap) r.bindMap(items=>{ rows.set(items); });
+      if(!isPlan) newFile=file;
+    }catch(e){ console.error(e); $('lParse').innerHTML=`<p class="hint bad">Datei konnte nicht gelesen werden: ${esc(e.message)}. Gewichte bitte von Hand eintragen.</p>`; if(!isPlan) newFile=file; }
+  };
+  $('lFile').onchange=e=>{ if(e.target.files[0]) handle(e.target.files[0],false); };
+  dropZone($('lDrop'),fs=>handle(fs[0],false));
+  $('lFromPlan').onclick=async()=>{ const pl=S.plans.find(x=>x.id===$('lPlan').value); const f=await getFile(pl.fileId); if(f) handle(new File([f.blob],f.name,{type:f.type}),true); };
+  $('lDel').hidden=!l;
+  $('lDel').onclick=async()=>{ const os=S.orders.filter(o=>(o.listIds||[]).includes(l.id));
+    if(!confirm(`Stahlliste ${l.nr} löschen?${os.length?' Sie ist in '+os.length+' Bestellung(en) enthalten; die bestellten Mengen bleiben dort erhalten.':''}`)) return;
+    os.forEach(o=>o.listIds=o.listIds.filter(id=>id!==l.id)); await delFile(l.fileId); S.lists=S.lists.filter(x=>x.id!==l.id); await save(); $('dlgList').close(); renderProject(curPid); };
+  dlg('dlgList',async()=>{
+    const v={nr:$('lNr').value.trim(),planId:$('lPlan').value,date:$('lDate').value,title:$('lTitle').value.trim(),ersetzt:$('lOld').checked,items:cleanItems(rows.items)};
+    if(!l){ l={id:uid(),projectId:curPid,...v}; S.lists.push(l); } else Object.assign(l,v);
+    if(newFile){ if(l.fileId) await delFile(l.fileId); const rec=await putFile(newFile); l.fileId=rec.id; l.fileName=newFile.name; }
+    await save(); renderProject(curPid); });
+}
+
+function editOrder(o,preselect){
+  const p=S.projects.find(x=>x.id===curPid);
+  $('doTitle').textContent=o?'Bestellung bearbeiten':'Neue Bestellung';
+  $('oDate').value=o?.date||today(); $('oNr').value=o?.nr||''; $('oLief').value=o?.lief??p.lief??''; $('oDue').value=o?.due||''; $('oStatus').value=o?.status||'bestellt'; $('oLs').value=o?.ls||''; $('oNote').value=o?.note||'';
+  const sel=new Set(o?.listIds||preselect||[]);
+  const lists=S.lists.filter(l=>l.projectId===curPid).sort((a,b)=>{ const sa=listStatus(a)==='offen'&&!a.ersetzt?0:1, sb=listStatus(b)==='offen'&&!b.ersetzt?0:1; return sa-sb||String(a.nr).localeCompare(String(b.nr),'de',{numeric:true}); });
+  $('oLists').innerHTML=lists.length?lists.map(l=>{ const inOther=S.orders.some(x=>x!==o&&(x.listIds||[]).includes(l.id));
+    return `<label><input type="checkbox" value="${l.id}" ${sel.has(l.id)?'checked':''}> <span><b>${esc(l.nr)}</b> ${esc(l.title||'')} ${l.ersetzt?'<span class="tag old">ersetzt</span>':inOther?'<span class="tag best">schon bestellt</span>':''}</span><small>${fmt(listKg(l))} kg</small></label>`; }).join('')
+    :`<p class="hint" style="padding:8px 10px;margin:0">Keine Stahllisten im Projekt. Mengen unten direkt eintragen.</p>`;
+  const fromLists=()=>{ const m={}; [...sel].forEach(id=>{ const l=S.lists.find(x=>x.id===id); (l?.items||[]).forEach(i=>m[i.cat]=(m[i.cat]||0)+ +i.kg); });
+    return Object.entries(m).sort((a,b)=>catSort(a[0],b[0])).map(([cat,kg])=>({cat,kg:Math.round(kg*10)/10})); };
+  const rows=itemRows($('oItems'),$('oSum'),o?o.items.map(i=>({...i})):fromLists());
+  $('oLists').onchange=e=>{ const cb=e.target; if(cb.type!=='checkbox') return; cb.checked?sel.add(cb.value):sel.delete(cb.value); rows.set(fromLists()); };
+  $('oAdd').onclick=()=>{ rows.items.push({cat:'d12',kg:''}); rows.render(); };
+  $('oDel').hidden=!o;
+  $('oDel').onclick=async()=>{ if(!confirm('Bestellung löschen? Die enthaltenen Stahllisten gelten danach wieder als offen.')) return; S.orders=S.orders.filter(x=>x!==o); await save(); $('dlgOrder').close(); renderProject(curPid); };
+  dlg('dlgOrder',async()=>{
+    const v={date:$('oDate').value,nr:$('oNr').value.trim(),lief:$('oLief').value.trim(),due:$('oDue').value,status:$('oStatus').value,ls:$('oLs').value.trim(),note:$('oNote').value.trim(),listIds:[...sel],items:cleanItems(rows.items)};
+    if(!o){ o={id:uid(),projectId:curPid,...v}; S.orders.push(o); } else Object.assign(o,v);
+    await save(); tab='bestellungen'; history.replaceState(null,'','#/p/'+curPid+'/'+tab); renderProject(curPid); });
+}
+
+function dropZone(el,cb){
+  el.addEventListener('dragover',e=>{ e.preventDefault(); el.classList.add('over'); });
+  el.addEventListener('dragleave',()=>el.classList.remove('over'));
+  el.addEventListener('drop',e=>{ e.preventDefault(); el.classList.remove('over'); const fs=[...e.dataTransfer.files]; if(fs.length) cb(fs); });
+}
+
+// ---------- Stahllisten auslesen ----------
+function normDia(v){ const d=Math.round(num(String(v).replace(/[^\d,.]/g,''))); return KGM[d]?d:null; }
+function matKey(s){ const m=String(s).toUpperCase().match(/(?:^|[^A-Z0-9])([QRNK])\s?(\d{3})\s?([AE])?(?![A-Z0-9])/); return m?m[1]+m[2]+(m[3]||''):null; }
+
+async function parseSteel(file){
+  const n=file.name.toLowerCase();
+  if(/\.(xlsx|xls|csv|txt)$/.test(n)) return parseTable(file);
+  if(/\.pdf$/.test(n)||file.type==='application/pdf') return parsePdf(file);
+  throw new Error('Dateityp nicht unterstützt (PDF, XLSX, XLS oder CSV)');
+}
+
+// Excel/CSV: Kopfzeile suchen, Spalten zuordnen, Zeilen summieren
+const ROLES=[['dia','Durchmesser'],['mat','Mattentyp'],['n','Anzahl'],['len','Länge'],['kg','Gewicht']];
+async function parseTable(file){
+  if(!window.XLSX) throw new Error('Excel-Bibliothek nicht geladen (vendor-Ordner fehlt?)');
+  const buf=await file.arrayBuffer();
+  let wb; if(/\.(csv|txt)$/i.test(file.name)){ let txt=new TextDecoder('utf-8').decode(buf); if(txt.includes('�')) txt=new TextDecoder('windows-1252').decode(buf); wb=XLSX.read(txt,{type:'string',raw:true,FS:txt.split('\n')[0].includes(';')?';':undefined}); }
+  else wb=XLSX.read(buf,{type:'array'});
+  const aoa=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:true,defval:''});
+  // Kopfzeile: Zeile mit den meisten Schlüsselwörtern
+  const kw=[/(^|\b)(ø|⌀|dm|durchm|durchmesser|dia)\b|^d(\s*\[?mm\]?)?$|^ø/i,/matte|mattentyp/i,/anz|stk|stück|menge/i,/läng|laeng|^l(\s*\[.*\])?$|einzell/i,/gew|kg/i];
+  let hr=-1,best=0;
+  aoa.slice(0,40).forEach((r,i)=>{ const sc=kw.filter(re=>r.some(c=>re.test(String(c).trim()))).length; if(sc>best){best=sc;hr=i;} });
+  if(hr<0||best<2) throw new Error('Keine Kopfzeile mit Spalten wie Ø, Anzahl, Länge, Gewicht gefunden');
+  const head=aoa[hr].map(c=>String(c).trim());
+  const map={};
+  ROLES.forEach(([role],ri)=>{ let cand=head.map((h,i)=>[h,i]).filter(([h])=>h&&kw[ri].test(h));
+    if(role==='kg'){ const g=cand.filter(([h])=>/ges|summe|total/i.test(h)); if(g.length) cand=g; else cand=cand.filter(([h])=>!/kg\s*\/\s*m|je\s*m/i.test(h)); }
+    if(role==='dia') cand=cand.filter(([h])=>!/matte/i.test(h));
+    map[role]=cand.length?cand[cand.length-1][1]:-1; });
+  const body=aoa.slice(hr+1);
+  const compute=m=>{
+    const lens=body.map(r=>num(r[m.len])).filter(v=>v>0).sort((a,b)=>a-b), med=lens[Math.floor(lens.length/2)]||0;
+    const lf=med>=500?1000:med>=15?100:1; // mm / cm / m
+    const acc={}; let rowsUsed=0;
+    body.forEach(r=>{ const txt=r.join(' ');
+      if(/summe|gesamt|total|übertrag/i.test(txt)) return;
+      const mk=m.mat>=0?matKey(r[m.mat]):null;
+      const d=m.dia>=0?normDia(r[m.dia]):null;
+      let kg=m.kg>=0?num(r[m.kg]):NaN;
+      if(mk){ if(kg>0){ acc['M:'+mk]=(acc['M:'+mk]||0)+kg; rowsUsed++; } return; }
+      if(!d) return;
+      if(!(kg>0)){ const n=m.n>=0?num(r[m.n]):NaN, L=m.len>=0?num(r[m.len]):NaN; if(n>0&&L>0) kg=n*L/lf*KGM[d]; }
+      if(kg>0){ acc['d'+d]=(acc['d'+d]||0)+kg; rowsUsed++; } });
+    return {items:Object.entries(acc).sort((a,b)=>catSort(a[0],b[0])).map(([cat,kg])=>({cat,kg:Math.round(kg*10)/10})),rowsUsed,lf};
+  };
+  const res=compute(map);
+  // Gesamtgewicht in Summenzeilen suchen
+  let total=null; body.forEach(r=>{ const txt=r.join(' '); if(/gesamt|summe|total/i.test(txt)){ const v=r.map(num).filter(x=>x>0); if(v.length&&map.kg>=0&&num(r[map.kg])>0) total=num(r[map.kg]); else if(v.length) total=Math.max(...v); } });
+  const sel=role=>`<select data-role="${role}"><option value="-1">–</option>${head.map((h,i)=>`<option value="${i}" ${map[role]===i?'selected':''}>${esc(h||'Spalte '+(i+1))}</option>`).join('')}</select>`;
+  const mapUI=`<div class="grid" style="margin-top:8px" id="mapUI">${ROLES.map(([r,l])=>`<label>Spalte ${l}${sel(r)}</label>`).join('')}</div><p class="hint">${res.rowsUsed} Zeilen ausgewertet. Falls etwas falsch zugeordnet ist, Spalten oben ändern. Fehlt das Gewicht, wird es aus Anzahl × Länge × Nenngewicht berechnet.</p>`;
+  return {items:res.items,total,how:`${res.rowsUsed} Positionen aus ${file.name.split('.').pop().toUpperCase()}`,nr:file.name.replace(/\.[^.]+$/,''),mapUI,
+    bindMap(cb){ const box=$('mapUI'); box.onchange=()=>{ box.querySelectorAll('select').forEach(s=>map[s.dataset.role]=+s.value); cb(compute(map).items); }; }};
+}
+
+// PDF: Text zeilenweise, dann Gewichtsübersicht bzw. Einzelpositionen suchen
+async function pdfLines(file){
+  if(!window.pdfjsLib) throw new Error('PDF-Bibliothek nicht geladen (vendor-Ordner fehlt?)');
+  const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise; const lines=[];
+  for(let p=1;p<=Math.min(pdf.numPages,60);p++){ const tc=await (await pdf.getPage(p)).getTextContent();
+    const rows=[]; tc.items.forEach(it=>{ if(!it.str.trim()) return; const y=it.transform[5], x=it.transform[4];
+      let r=rows.find(r=>Math.abs(r.y-y)<2.5); if(!r){ r={y,parts:[]}; rows.push(r); } r.parts.push({x,s:it.str.trim()}); });
+    rows.sort((a,b)=>b.y-a.y).forEach(r=>lines.push(r.parts.sort((a,b)=>a.x-b.x).map(p=>p.s).join(' '))); }
+  return lines;
+}
+async function parsePdf(file){
+  const lines=await pdfLines(file), raw=lines.join('\n');
+  if(!raw.replace(/\s/g,'').length) return {items:[],total:null,how:'',raw:'(kein Text – gescannte PDF)'};
+  const N='(\\d{1,3}(?:[.\\s]\\d{3})*(?:,\\d+)?|\\d+(?:[.,]\\d+)?)';
+  const acc={}; let how='';
+  // 1) Gewichtsübersicht als Tabelle: Zeile mit Durchmessern, darunter Zeile "Gewicht/kg/Summe" mit Zahlen
+  for(let i=0;i<lines.length&&!Object.keys(acc).length;i++){
+    const toks=lines[i].replace(/[Øø⌀]/g,' ').split(/\s+/).filter(Boolean);
+    const ds=toks.map(x=>/^\d{1,2}$/.test(x)?+x:null);
+    const dias=ds.filter(d=>d&&KGM[d]);
+    if(dias.length<2||dias.length<toks.length*0.6) continue;
+    if(!dias.every((d,j)=>!j||d>dias[j-1])) continue;
+    for(let j=i+1;j<Math.min(lines.length,i+12);j++){
+      if(!/gew|kg|summe|gesamt|tonn/i.test(lines[j])) continue;
+      const nums=(lines[j].match(/\d{1,3}(?:\.\d{3})*,\d+|\d+,\d+|\d+\.\d+|\d+/g)||[]).map(num);
+      if(nums.length>=dias.length){ const vals=nums.slice(0,dias.length);
+        const isT=/\bt\b|tonn/i.test(lines[j])&&!/kg/i.test(lines[j]);
+        dias.forEach((d,k)=>{ const v=vals[k]*(isT?1000:1); if(v>0) acc['d'+d]=(acc['d'+d]||0)+v; }); how='Gewichtsübersicht je Durchmesser'; break; }
+    }
+  }
+  // 2) Zeilen der Form "Ø 12 ... 1.234,5 kg"
+  if(!Object.keys(acc).length){
+    const re=new RegExp('(?:[Øø⌀]|\\bd\\s*=?|\\bDurchm\\w*\\.?)\\s*(\\d{1,2})\\b(?:\\s*mm)?[^\\n]*?'+N+'\\s*kg','i');
+    lines.forEach(l=>{ if(/je\s*m|kg\s*\/\s*m/i.test(l)) return; const m=l.match(re); if(m){ const d=+m[1], v=num(m[2]); if(KGM[d]&&v>0) acc['d'+d]=Math.max(acc['d'+d]||0,v); } });
+    if(Object.keys(acc).length) how='Summenzeilen je Durchmesser';
+  }
+  // 3) Einzelpositionen: Pos, Anzahl, Ø, Länge -> Gewicht rechnen
+  if(!Object.keys(acc).length){
+    let cnt=0;
+    lines.forEach(l=>{ const m=l.match(/^\s*(\d{1,3})\s+(\d{1,4})\s+[Øø⌀]?\s*(6|8|10|12|14|16|20|25|28|32|40)\s+(\d{2,5}(?:,\d+)?)\b/);
+      if(!m) return; const n=+m[2], d=+m[3], L=num(m[4]); const Lm=L>=500?L/1000:L>=15?L/100:L; const kg=n*Lm*KGM[d];
+      if(kg>0&&kg<20000){ acc['d'+d]=(acc['d'+d]||0)+kg; cnt++; } });
+    if(cnt) how=`${cnt} Einzelpositionen, Gewicht aus Anzahl × Länge berechnet`;
+  }
+  // Matten
+  lines.forEach(l=>{ const mk=matKey(l); if(!mk) return; const m=l.match(new RegExp(N+'\\s*kg','i')); if(m){ const v=num(m[1]); if(v>0) acc['M:'+mk]=Math.max(acc['M:'+mk]||0,v); } });
+  // Gesamtgewicht
+  let total=null; lines.forEach(l=>{ if(/gesamt\s*gew|gesamtgewicht|summe\s*gesamt|gesamt\s*summe|total/i.test(l)){ const m=l.match(new RegExp(N+'\\s*(kg|t)\\b','i')); if(m){ const v=num(m[1])*(m[2].toLowerCase()==='t'?1000:1); if(v>0) total=Math.max(total||0,v); } } });
+  const nrM=raw.match(/(?:Listen?|Stahlliste|Biegeliste)[\s-]*(?:Nr\.?|Nummer)\s*[:.]?\s*([A-Z0-9][\w./-]{0,20})/i);
+  return {items:Object.entries(acc).sort((a,b)=>catSort(a[0],b[0])).map(([cat,kg])=>({cat,kg:Math.round(kg*10)/10})),total,how,raw,nr:nrM?nrM[1]:''};
+}
+
+// ---------- Export / Sicherung ----------
+function csv(name,rows){ const s='﻿'+rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(';')).join('\r\n');
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([s],{type:'text/csv'})); a.download=name.replace(/[\\/:*?"<>|]/g,'_'); a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),5000); }
+const b64=blob=>new Promise(r=>{ const fr=new FileReader(); fr.onload=()=>r(fr.result.split(',')[1]); fr.readAsDataURL(blob); });
+$('btnExport').onclick=async()=>{
+  const ids=[...S.plans,...S.lists].map(x=>x.fileId).filter(Boolean); const files=[];
+  toast('Sicherung wird erstellt …');
+  for(const id of ids){ const f=await getFile(id); if(f) files.push({id:f.id,name:f.name,type:f.type,data:await b64(f.blob)}); }
+  const blob=new Blob([JSON.stringify({app:'riedel-stahllisten',exported:new Date().toISOString(),state:S,files})],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`stahllisten-sicherung-${today()}.json`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+  toast(`Sicherung mit ${S.projects.length} Projekten und ${files.length} Dateien gespeichert`); };
+
+// Übernimmt Projekte aus einer Sicherung oder der alten lokalen Version; Dateien werden hochgeladen
+async function importData(state,files){
+  const exist=new Set(S.projects.map(p=>p.id)); const neu=(state.projects||[]).filter(p=>!exist.has(p.id));
+  const replace=(state.projects||[]).some(p=>exist.has(p.id))?confirm('Einige Projekte sind bereits in der Datenbank. OK = mit Stand aus der Datei überschreiben, Abbrechen = nur neue Projekte hinzufügen.'):false;
+  const take=replace?state.projects:neu, pids=new Set(take.map(p=>p.id));
+  const objs=k=>(state[k]||[]).filter(x=>pids.has(x.projectId)).map(x=>({...x}));
+  const plans=objs('plans'), lists=objs('lists'), orders=objs('orders');
+  const need=new Set([...plans,...lists].map(x=>x.fileId).filter(Boolean)), map={};
+  let n=0; for(const f of files){ if(!need.has(f.id)) continue; n++; toast(`Datei ${n} von ${need.size} wird hochgeladen …`);
+    map[f.id]=(await putFile(new File([f.blob],f.name,{type:f.type}))).id; }
+  [...plans,...lists].forEach(x=>{ if(x.fileId) x.fileId=map[x.fileId]||''; });
+  const old=[...S.plans,...S.lists].filter(x=>pids.has(x.projectId)&&x.fileId).map(x=>x.fileId);
+  S.plans=S.plans.filter(x=>!pids.has(x.projectId)).concat(plans);
+  S.lists=S.lists.filter(x=>!pids.has(x.projectId)).concat(lists);
+  S.orders=S.orders.filter(x=>!pids.has(x.projectId)).concat(orders);
+  S.projects=S.projects.filter(p=>!pids.has(p.id)).concat(take);
+  await save(); if(replace) for(const id of old) await delFile(id);
+  return take.length;
+}
+$('importFile').onchange=async e=>{ const f=e.target.files[0]; e.target.value=''; if(!f) return;
+  try{ const d=JSON.parse(await f.text()); if(d.app!=='riedel-stahllisten'||!d.state) throw new Error('Keine Stahllisten-Sicherung');
+    const files=(d.files||[]).map(fr=>({id:fr.id,name:fr.name,type:fr.type,blob:new Blob([Uint8Array.from(atob(fr.data),c=>c.charCodeAt(0))],{type:fr.type})}));
+    const n=await importData(d.state,files); toast(`${n} Projekt${n===1?'':'e'} aus Sicherung übernommen`); route();
+  }catch(err){ alert('Sicherung konnte nicht geladen werden: '+errMsg(err)); } };
+
+// Alte lokale Version (IndexedDB) übernehmen
+const OLD_DB='riedel-stahllisten';
+async function readOldLocal(){
+  try{ if(indexedDB.databases){ const dbs=await indexedDB.databases(); if(!dbs.some(d=>d.name===OLD_DB)) return null; }
+    const db=await new Promise((res,rej)=>{ const r=indexedDB.open(OLD_DB); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); });
+    if(!db.objectStoreNames.contains('kv')){ db.close(); return null; }
+    const get=(store,fn)=>new Promise((res,rej)=>{ const x=db.transaction(store,'readonly'); const r=fn(x.objectStore(store)); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); });
+    const state=await get('kv',s=>s.get('state')); const files=db.objectStoreNames.contains('files')?await get('files',s=>s.getAll()):[];
+    db.close(); return state&&state.projects&&state.projects.length?{state,files}:null;
+  }catch(e){ return null; }
+}
+async function offerMigration(){
+  if(lsGet('stahl-lokal-uebernommen',false)) return;
+  const old=await readOldLocal(); if(!old) return;
+  const el=document.createElement('div'); el.className='banner';
+  el.innerHTML=`<p><b>${old.state.projects.length} Projekt${old.state.projects.length>1?'e':''} aus der bisherigen lokalen Version</b> liegen noch in diesem Browser. In die Datenbank übernehmen, damit das Team darauf zugreifen kann?</p><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="button" data-m="ok">In Datenbank übernehmen</button><button class="btn sec" type="button" data-m="no">Nicht übernehmen</button></div>`;
+  $('app').prepend(el);
+  el.onclick=async e=>{ const b=e.target.closest('[data-m]'); if(!b) return;
+    if(b.dataset.m==='ok'){ el.querySelectorAll('button').forEach(x=>x.disabled=true);
+      try{ const n=await importData(old.state,old.files); toast(`${n} Projekt${n===1?'':'e'} übernommen`); }catch(err){ alert('Übernahme fehlgeschlagen: '+errMsg(err)); el.querySelectorAll('button').forEach(x=>x.disabled=false); return; } }
+    lsSet('stahl-lokal-uebernommen',true); el.remove(); route(false); };
+}
+
+// ---------- Anmeldung ----------
+function authScreen(mode,msg,cls){
+  ready=false; $('hdrRight').hidden=true;
+  const c=cfg(), T={login:'Anmelden',signup:'Konto anlegen',reset:'Passwort zurücksetzen',newpw:'Neues Passwort festlegen'}[mode];
+  $('app').innerHTML=`<div class="auth"><h2>${T}</h2><p class="sub">${mode==='newpw'?'Bitte ein neues Passwort wählen.':'Die Stahllisten liegen geschützt in der Datenbank. Zugriff nur für freigeschaltete Personen.'}</p>
+   <form class="panel" id="authForm" novalidate>
+    ${mode!=='newpw'?`<label>E-Mail<input id="aMail" type="email" autocomplete="username" required value="${esc(lsGet('stahl-last-mail',''))}"></label>`:''}
+    ${mode!=='reset'?`<label>Passwort<input id="aPw" type="password" autocomplete="${mode==='login'?'current-password':'new-password'}" required minlength="8"></label>`:''}
+    <p class="msg ${cls||''}" id="aMsg">${msg||''}</p>
+    <div class="row"><button class="btn red" type="submit">${T}</button>
+     ${mode==='login'?`<button class="linkbtn" type="button" data-go="reset">Passwort vergessen?</button>`:mode==='newpw'?'':`<button class="linkbtn" type="button" data-go="login">Zurück zur Anmeldung</button>`}</div>
+    ${mode==='login'?`<p class="msg" style="color:var(--muted)">Noch kein Konto? <button class="linkbtn" type="button" data-go="signup">Konto anlegen</button> – danach schaltet ein Admin den Zugang frei.</p>`:''}
+   </form>
+   <details class="raw"><summary>Datenbank-Verbindung</summary><div class="panel" style="margin-top:8px"><label>Supabase-URL<input id="cUrl" value="${esc(c.url)}"></label><label>Publishable Key<input id="cKey" value="${esc(c.key)}"></label><div class="row"><button class="btn sec sm" type="button" id="cSave">Übernehmen</button><button class="linkbtn" type="button" id="cReset">Standard</button></div></div></details></div>`;
+  $('app').querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>authScreen(b.dataset.go));
+  $('cSave').onclick=()=>{ lsSet(LS_CFG,{url:$('cUrl').value.trim(),key:$('cKey').value.trim()}); location.reload(); };
+  $('cReset').onclick=()=>{ try{ localStorage.removeItem(LS_CFG); }catch(e){} location.reload(); };
+  $('authForm').onsubmit=async e=>{ e.preventDefault(); const m=$('aMsg'), btn=e.target.querySelector('button[type=submit]');
+    const mail=$('aMail')?.value.trim().toLowerCase(), pw=$('aPw')?.value;
+    if(mail!==undefined&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(mail)){ m.className='msg bad'; m.textContent='Bitte eine gültige E-Mail eingeben.'; return; }
+    if(pw!==undefined&&mode!=='login'&&pw.length<8){ m.className='msg bad'; m.textContent='Das Passwort braucht mindestens 8 Zeichen.'; return; }
+    if(mail) lsSet('stahl-last-mail',mail);
+    btn.disabled=true; m.className='msg'; m.textContent='Bitte warten …';
+    const back=location.origin+location.pathname;
+    try{
+      if(mode==='login'){ const {error}=await sb.auth.signInWithPassword({email:mail,password:pw}); if(error) throw error; }
+      else if(mode==='signup'){ const {data,error}=await sb.auth.signUp({email:mail,password:pw,options:{emailRedirectTo:back}}); if(error) throw error;
+        if(!data.session){ authScreen('login','Konto angelegt. Bitte den Link in der Bestätigungs-Mail öffnen und danach anmelden.','ok'); return; } }
+      else if(mode==='reset'){ const {error}=await sb.auth.resetPasswordForEmail(mail,{redirectTo:back}); if(error) throw error;
+        authScreen('login','Falls ein Konto existiert, kommt gleich eine E-Mail mit einem Link zum Zurücksetzen.','ok'); return; }
+      else if(mode==='newpw'){ const {error}=await sb.auth.updateUser({password:pw}); if(error) throw error; toast('Passwort geändert'); history.replaceState(null,'',back); }
+      await afterLogin();
+    }catch(err){ btn.disabled=false; m.className='msg bad';
+      const t=errMsg(err); m.textContent=/invalid login/i.test(t)?'E-Mail oder Passwort falsch.':/not confirmed/i.test(t)?'E-Mail noch nicht bestätigt – bitte den Link in der Bestätigungs-Mail öffnen.':/already registered/i.test(t)?'Für diese E-Mail gibt es schon ein Konto. Bitte anmelden.':/fetch|network/i.test(t)?'Datenbank nicht erreichbar. Internetverbindung prüfen; ggf. ist das Supabase-Projekt pausiert.':t; }
+  };
+}
+
+async function afterLogin(){
+  const {data:{session}}=await sb.auth.getSession(); if(!session){ authScreen('login'); return; }
+  me=session.user; $('app').innerHTML='<p class="sub" style="margin-top:26px">Daten werden geladen …</p>';
+  const {data,error}=await sb.rpc('stahl_meine_rolle');
+  if(error){ if(error.code==='PGRST202'||error.code==='42883'||/could not find the function/i.test(error.message)) return setupScreen(); return blockScreen('Fehler beim Prüfen des Zugangs: '+errMsg(error)); }
+  if(!data) return blockScreen();
+  rolle=data;
+  try{ await load(); }catch(e){ return blockScreen('Daten konnten nicht geladen werden: '+errMsg(e)); }
+  ready=true; $('hdrRight').hidden=false; $('whoMail').textContent=me.email; $('btnTeam').hidden=rolle!=='admin'; setSync('ok');
+  route(); offerMigration();
+}
+function blockScreen(err){
+  ready=false; $('hdrRight').hidden=true;
+  $('app').innerHTML=`<div class="auth"><h2>${err?'Fehler':'Noch kein Zugang'}</h2><div class="panel">
+    <p class="msg ${err?'bad':''}">${err?esc(err):`Du bist als <b>${esc(me.email)}</b> angemeldet, aber noch nicht für die Stahllisten freigeschaltet. Bitte einen Admin, dich unter „Zugänge“ freizuschalten.`}</p>
+    <div class="row"><button class="btn" type="button" id="bRetry">Erneut prüfen</button><button class="btn sec" type="button" id="bOut">Abmelden</button></div></div></div>`;
+  $('bRetry').onclick=afterLogin; $('bOut').onclick=logout;
+}
+async function setupScreen(){
+  ready=false; $('hdrRight').hidden=true;
+  let sql=''; try{ sql=await (await fetch('supabase-setup.sql',{cache:'no-cache'})).text(); }catch(e){ sql='-- supabase-setup.sql konnte nicht geladen werden. Datei im Repo unter stahllisten/ öffnen.'; }
+  sql+=`\n-- Dich (${me.email}) als ersten Admin freischalten:\ninsert into public.stahl_zugang (email, rolle) values ('${me.email.toLowerCase().replace(/'/g,"''")}', 'admin')\non conflict (email) do update set rolle = 'admin';\n`;
+  const ref=(cfg().url.match(/^https:\/\/([^.]+)\.supabase\.co/)||[])[1];
+  $('app').innerHTML=`<section><h2>Datenbank einrichten</h2><p class="sub">Die Tabellen für die Stahllisten fehlen noch in der Datenbank. Einmalig im Supabase SQL Editor ausführen – danach „Erneut prüfen“.</p>
+    <ol class="sub"><li>SQL kopieren</li><li>${ref?`<a href="https://supabase.com/dashboard/project/${esc(ref)}/sql/new" target="_blank" rel="noopener">Supabase SQL Editor öffnen</a>`:'Supabase SQL Editor öffnen'}, einfügen und „Run“ klicken</li><li>Hier „Erneut prüfen“</li></ol>
+    <div class="row" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px"><button class="btn red" type="button" id="sCopy">SQL kopieren</button><button class="btn" type="button" id="sRetry">Erneut prüfen</button><button class="btn sec" type="button" id="sOut">Abmelden</button></div>
+    <pre class="sql" id="sSql">${esc(sql)}</pre></section>`;
+  $('sCopy').onclick=async()=>{ try{ await navigator.clipboard.writeText(sql); toast('SQL kopiert'); }catch(e){ const r=document.createRange(); r.selectNodeContents($('sSql')); getSelection().removeAllRanges(); getSelection().addRange(r); toast('Text markiert – mit Strg+C kopieren'); } };
+  $('sRetry').onclick=afterLogin; $('sOut').onclick=logout;
+}
+async function logout(){ const p=pending(); if(ready&&(p.up.length||p.del.length)){ await save(); }
+  ready=false; S=EMPTY(); synced=new Map(); await sb.auth.signOut(); authScreen('login','Abgemeldet.','ok'); }
+$('btnLogout').onclick=logout;
+
+// ---------- Zugänge (nur Admin) ----------
+async function loadTeam(){
+  const {data,error}=await sb.from('stahl_zugang').select('email,name,rolle,angelegt_am').order('email');
+  if(error){ $('tRows').innerHTML=`<tr><td colspan="5" class="msg bad">${esc(errMsg(error))}</td></tr>`; return; }
+  $('tRows').innerHTML=data.map(z=>`<tr><td>${esc(z.email)}</td><td>${esc(z.name||'')}</td><td>${z.rolle==='admin'?'Admin':'Mitglied'}</td><td>${dDE((z.angelegt_am||'').slice(0,10))}</td><td>${z.email===me.email.toLowerCase()?'<small style="color:var(--muted)">du</small>':`<button class="linkbtn" type="button" data-rm="${esc(z.email)}">Zugang entziehen</button>`}</td></tr>`).join('');
+}
+$('btnTeam').onclick=()=>{ $('tMsg').textContent=''; $('tMail').value=''; $('tName').value=''; $('tRole').value='mitglied'; $('dlgTeam').showModal(); loadTeam(); };
+$('tAdd').onclick=async()=>{ const email=$('tMail').value.trim().toLowerCase(), m=$('tMsg');
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ m.className='msg bad'; m.textContent='Bitte eine gültige E-Mail eingeben.'; return; }
+  const {error}=await sb.from('stahl_zugang').upsert({email,name:$('tName').value.trim()||null,rolle:$('tRole').value});
+  if(error){ m.className='msg bad'; m.textContent=errMsg(error); return; }
+  m.className='msg ok'; m.textContent=email+' ist freigeschaltet.'; $('tMail').value=''; $('tName').value=''; loadTeam(); };
+$('tRows').onclick=async e=>{ const b=e.target.closest('[data-rm]'); if(!b) return;
+  if(!confirm(`Zugang für ${b.dataset.rm} entziehen?`)) return;
+  const {error}=await sb.from('stahl_zugang').delete().eq('email',b.dataset.rm);
+  if(error){ $('tMsg').className='msg bad'; $('tMsg').textContent=errMsg(error); } else loadTeam(); };
+
+// ---------- Logo ----------
+document.querySelectorAll('img[data-src]').forEach(img=>{ const srcs=img.dataset.src.split('|'); let i=0;
+  img.onerror=()=>{ i++; if(i<srcs.length) img.src=srcs[i]; else { const s=document.createElement('span'); s.className='mark'; s.textContent='RB'; img.replaceWith(s); } };
+  img.src=srcs[0]; });
+
+window.addEventListener('unhandledrejection',e=>{ console.error(e.reason); toast('Fehler: '+errMsg(e.reason)); });
+(async()=>{
+  if(!window.supabase){ $('app').innerHTML='<p class="msg bad" style="margin-top:26px">Datenbank-Bibliothek konnte nicht geladen werden (vendor/supabase.js fehlt).</p>'; return; }
+  const c=cfg(); sb=window.supabase.createClient(c.url,c.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storageKey:'stahllisten-auth'}});
+  let recovery=/type=recovery/.test(location.hash);
+  sb.auth.onAuthStateChange((ev)=>{ if(ev==='PASSWORD_RECOVERY'){ recovery=true; authScreen('newpw'); }
+    else if(ev==='SIGNED_OUT'&&ready){ authScreen('login','Sitzung beendet – bitte erneut anmelden.'); } });
+  const {data:{session}}=await sb.auth.getSession();
+  if(recovery&&session) authScreen('newpw'); else if(session) afterLogin(); else authScreen('login');
+})();
+})();
+</script>
+</body>
+</html>
