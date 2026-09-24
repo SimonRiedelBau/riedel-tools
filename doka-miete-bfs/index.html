@@ -2,6 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
+<meta name="rb-tool" content="Doka-Mietrechnungen">
 <script src="../assets/auth-gate.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
@@ -127,6 +128,9 @@ dialog form{display:flex;flex-direction:column;max-height:calc(100vh - 26px)}
 .dh h2{margin:0}
 .db{padding:16px 18px;overflow:auto}
 .df{display:flex;gap:10px;justify-content:flex-end;padding:12px 18px;border-top:1px solid var(--rule);flex-wrap:wrap}
+
+/* Riedel-Tools: Logo, E-Mail und Abmelden stehen in der gemeinsamen Leiste oben */
+header.top > .logo-riedel, header.top > .mark, #whoMail, #btnLogout{display:none!important}
 </style>
 </head>
 <body>

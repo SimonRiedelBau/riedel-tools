@@ -1,0 +1,55 @@
+/* Riedel-Tools – gemeinsame Gestaltung (Farben, Schriften, Kopfleiste).
+   Wird von assets/auth-gate.js auf jeder Tool-Seite geladen. Die Tools
+   übernehmen die Farben über ihre eigenen CSS-Variablen (var(--rb-…)). */
+@import url("https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap");
+
+:root{
+  --rb-bg:#ECEDEB; --rb-surface:#F8F8F6; --rb-surface2:#F1F2F0; --rb-soft:#DFE1DF; --rb-rule:#CDD0CF;
+  --rb-ink:#1D2124; --rb-ink2:#3A4045; --rb-muted:#5F666B; --rb-grey:#8A9095; --rb-light:#BCC0C1;
+  --rb-red:#FF0000; --rb-red-ink:#C4000B; --rb-red-soft:#FBE3E1;
+  --rb-ok:#2E7D4F; --rb-ok-soft:#E0EFE5; --rb-warn:#B25E00; --rb-warn-soft:#F6E9D8;
+  --rb-info:#2F5F8A; --rb-info-soft:#E1EAF2;
+  /* Kennfarben für Kategorien (z. B. Normen), gut lesbar auf hellem und dunklem Grund */
+  --rb-c-green:#2E7D4F; --rb-c-amber:#9A5A00; --rb-c-blue:#2F5F8A; --rb-c-purple:#6E3FA3; --rb-c-red:#C4000B;
+  --rb-sans:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  --rb-cond:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --rb-mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+  --rb-bar-h:48px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --rb-bg:#15181A; --rb-surface:#1E2225; --rb-surface2:#23282B; --rb-soft:#262B2E; --rb-rule:#343A3E;
+  --rb-ink:#E7E9E7; --rb-ink2:#C9CDCB; --rb-muted:#9BA1A5; --rb-grey:#7D848A; --rb-light:#4A5055;
+  --rb-red:#FF2A1F; --rb-red-ink:#FF6A5F; --rb-red-soft:#3A1E1D;
+  --rb-ok:#5FC58A; --rb-ok-soft:#1C3326; --rb-warn:#F0A04B; --rb-warn-soft:#3A2C1A;
+  --rb-info:#7FB0DC; --rb-info-soft:#1D2B38;
+  --rb-c-green:#5FC58A; --rb-c-amber:#F0B450; --rb-c-blue:#70B8FF; --rb-c-purple:#C080FF; --rb-c-red:#FF6A5F;
+  color-scheme:dark; } }
+:root[data-theme="dark"]{
+  --rb-bg:#15181A; --rb-surface:#1E2225; --rb-surface2:#23282B; --rb-soft:#262B2E; --rb-rule:#343A3E;
+  --rb-ink:#E7E9E7; --rb-ink2:#C9CDCB; --rb-muted:#9BA1A5; --rb-grey:#7D848A; --rb-light:#4A5055;
+  --rb-red:#FF2A1F; --rb-red-ink:#FF6A5F; --rb-red-soft:#3A1E1D;
+  --rb-ok:#5FC58A; --rb-ok-soft:#1C3326; --rb-warn:#F0A04B; --rb-warn-soft:#3A2C1A;
+  --rb-info:#7FB0DC; --rb-info-soft:#1D2B38;
+  --rb-c-green:#5FC58A; --rb-c-amber:#F0B450; --rb-c-blue:#70B8FF; --rb-c-purple:#C080FF; --rb-c-red:#FF6A5F;
+  color-scheme:dark; }
+
+/* ---------- Kopfleiste „← Riedel-Tools“ ---------- */
+.rb-bar{position:relative;z-index:1000;height:var(--rb-bar-h);display:flex;align-items:center;gap:12px;
+  padding:0 max(16px,env(safe-area-inset-left,0px));background:var(--rb-surface);border-bottom:3px solid var(--rb-ink);
+  font:500 14px/1 var(--rb-sans);color:var(--rb-ink);box-sizing:border-box}
+.rb-bar *{box-sizing:border-box}
+.rb-bar a.rb-home{display:flex;align-items:center;gap:10px;color:var(--rb-ink);text-decoration:none;min-width:0}
+.rb-bar a.rb-home:hover .rb-back{color:var(--rb-red-ink)}
+.rb-bar a.rb-home:focus-visible,.rb-bar button:focus-visible{outline:2px solid var(--rb-red);outline-offset:2px}
+.rb-bar .rb-logo{width:30px;height:30px;flex:none;display:block}
+.rb-bar .rb-mark{width:30px;height:30px;flex:none;background:var(--rb-red);color:#fff;display:grid;place-items:center;font:700 11px/1 var(--rb-cond)}
+.rb-bar .rb-back{font:700 18px/1 var(--rb-cond);letter-spacing:.01em;white-space:nowrap}
+.rb-bar .rb-sep{color:var(--rb-grey);flex:none}
+.rb-bar .rb-tool{font:600 18px/1 var(--rb-cond);color:var(--rb-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.rb-bar .rb-right{margin-left:auto;display:flex;align-items:center;gap:12px;flex:none}
+.rb-bar .rb-who{color:var(--rb-muted);font-size:13px;max-width:26ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rb-bar button.rb-out{font:600 13px/1 var(--rb-sans);padding:7px 11px;border:2px solid var(--rb-ink);background:transparent;color:var(--rb-ink);cursor:pointer}
+.rb-bar button.rb-out:hover{background:var(--rb-ink);color:var(--rb-bg)}
+@media (max-width:640px){ .rb-bar .rb-who{display:none} .rb-bar .rb-sep,.rb-bar .rb-tool{display:none} }
+@media print{ .rb-bar{display:none!important} }

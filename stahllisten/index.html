@@ -2,6 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
+<meta name="rb-tool" content="Stahllisten">
 <script src="../assets/auth-gate.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
@@ -162,6 +163,9 @@ pre.sql{max-height:340px;overflow:auto;background:var(--surface);border:1px soli
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 @media print{.tabs,.toolbar,.top .right,.drop,footer,.noprint{display:none!important}body{background:#fff}}
+
+/* Riedel-Tools: Logo, E-Mail und Abmelden stehen in der gemeinsamen Leiste oben */
+header.top > .logo-riedel, header.top > .mark, #whoMail, #btnLogout{display:none!important}
 </style>
 </head>
 <body>

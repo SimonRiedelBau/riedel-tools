@@ -2,6 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
+<meta name="rb-tool" content="Erdarbeiten & Bodenmaterial">
 <script src="../assets/auth-gate.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Erdarbeiten & Bodenmaterial – Normenassistent</title>
@@ -19,27 +20,28 @@
 
 <style>
   :root {
-    --bg: #1a1c1e;
-    --surface: #23262b;
-    --surface2: #2c3036;
-    --border: #363b42;
-    --accent: #c8922a;
-    --accent2: #e6b04a;
-    --accent-dim: rgba(200,146,42,0.13);
-    --text: #e8e4dc;
-    --text-muted: #8d9099;
-    --text-dim: #b8b2a8;
-    --green: #5aad7a;
-    --red: #c85a5a;
-    --blue: #4a8fc8;
-    --warn: #c89a2a;
-    --radius: 10px;
-    --radius-sm: 6px;
-    --shadow: 0 2px 12px rgba(0,0,0,0.35);
+    /* Farben aus assets/riedel.css (Riedel-Tools, hell/dunkel automatisch) */
+    --bg: var(--rb-bg);
+    --surface: var(--rb-surface);
+    --surface2: var(--rb-surface2);
+    --border: var(--rb-rule);
+    --accent: var(--rb-red-ink);
+    --accent2: var(--rb-red-ink);
+    --accent-dim: var(--rb-red-soft);
+    --text: var(--rb-ink);
+    --text-muted: var(--rb-muted);
+    --text-dim: var(--rb-ink2);
+    --green: var(--rb-c-green);
+    --red: var(--rb-c-red);
+    --blue: var(--rb-c-blue);
+    --warn: var(--rb-c-amber);
+    --radius: 0;
+    --radius-sm: 0;
+    --shadow: none;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
-    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-family: var(--rb-sans);
     background: var(--bg);
     color: var(--text);
     min-height: 100vh;
@@ -51,6 +53,7 @@
   header {
     background: var(--surface);
     border-bottom: 1px solid var(--border);
+    box-shadow: inset 0 -1px 0 var(--border);
     padding: 0 24px;
     display: flex;
     align-items: center;
@@ -62,12 +65,12 @@
   }
   .logo {
     width: 44px; height: 34px;
-    border-radius: 8px;
+    border-radius:0;
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0;
     overflow: visible;
   }
-  .header-title { font-size: 15px; font-weight: 600; letter-spacing: .01em; }
+  .header-title { font: 700 20px/1.1 var(--rb-cond); }
   .header-sub { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
   .header-badge {
     margin-left: auto;
@@ -75,7 +78,7 @@
     border: 1px solid var(--accent);
     color: var(--accent2);
     font-size: 11px; font-weight: 600;
-    padding: 3px 9px; border-radius: 20px;
+    padding: 3px 9px; border-radius:0;
     letter-spacing: .04em;
   }
 
@@ -109,7 +112,7 @@
     transition: all .15s;
   }
   .nav-btn:hover { background: var(--surface2); color: var(--text); }
-  .nav-btn.active { background: var(--accent-dim); color: var(--accent2); font-weight: 600; }
+  .nav-btn.active { background: var(--rb-ink); color: var(--rb-bg); font-weight: 600; }
   .nav-btn .ico { font-size: 16px; width: 20px; text-align: center; flex-shrink: 0; }
   .nav-divider { border: none; border-top: 1px solid var(--border); margin: 8px 10px; }
 
@@ -121,7 +124,7 @@
   .panel.active { display: block; }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
-  h1 { font-size: 22px; font-weight: 700; margin-bottom: 4px; color: var(--text); }
+  h1 { font: 700 30px/1.05 var(--rb-cond); margin-bottom: 4px; color: var(--text); padding-bottom: 10px; border-bottom: 3px solid var(--text); }
   .panel-desc { color: var(--text-muted); font-size: 13.5px; margin-bottom: 24px; line-height: 1.5; }
 
   /* ── CARDS ── */
@@ -133,8 +136,8 @@
     margin-bottom: 16px;
   }
   .card-title {
-    font-size: 14px; font-weight: 700;
-    color: var(--accent2);
+    font: 700 19px/1.2 var(--rb-cond);
+    color: var(--text);
     margin-bottom: 10px;
     display: flex; align-items: center; gap: 8px;
   }
@@ -143,7 +146,7 @@
     background: var(--accent-dim);
     border: 1px solid var(--accent);
     color: var(--accent);
-    padding: 2px 7px; border-radius: 20px;
+    padding: 2px 7px; border-radius:0;
     letter-spacing: .04em;
   }
 
@@ -160,7 +163,7 @@
   .norm-text { color: var(--text-dim); }
   .norm-tag {
     font-size: 10px; font-weight: 600; padding: 2px 8px;
-    border-radius: 20px; white-space: nowrap;
+    border-radius:0; white-space: nowrap;
   }
   .tag-vob { background: rgba(74,143,200,.18); color: var(--blue); border: 1px solid rgba(74,143,200,.4); }
   .tag-geo { background: rgba(90,173,122,.15); color: var(--green); border: 1px solid rgba(90,173,122,.35); }
@@ -184,7 +187,7 @@
     background: var(--surface);
     border: 1px solid var(--border);
     color: var(--text-muted);
-    font-size: 10.5px; padding: 1px 7px; border-radius: 10px; margin: 2px 2px 0 0;
+    font-size: 10.5px; padding: 1px 7px; border-radius:0; margin: 2px 2px 0 0;
   }
 
   /* ── CHECKLIST ── */
@@ -202,7 +205,7 @@
   .check-box {
     width: 18px; height: 18px;
     border: 2px solid var(--border);
-    border-radius: 4px; flex-shrink: 0; margin-top: 2px;
+    border-radius:0; flex-shrink: 0; margin-top: 2px;
     display: flex; align-items: center; justify-content: center;
     font-size: 11px; transition: all .15s;
   }
@@ -214,24 +217,24 @@
     font-size: 12px;
   }
   .ctrl-btn {
-    padding: 4px 12px; border-radius: 20px; border: 1px solid var(--border);
+    padding: 4px 12px; border-radius:0; border: 1px solid var(--border);
     background: var(--surface2); color: var(--text-muted); cursor: pointer;
     font-size: 12px; transition: all .15s;
   }
   .ctrl-btn:hover { border-color: var(--accent); color: var(--accent2); }
-  .progress-bar-wrap { height: 4px; background: var(--surface2); border-radius: 2px; margin-bottom: 16px; overflow: hidden; }
-  .progress-bar { height: 100%; background: var(--green); border-radius: 2px; transition: width .3s; }
+  .progress-bar-wrap { height: 4px; background: var(--surface2); border-radius:0; margin-bottom: 16px; overflow: hidden; }
+  .progress-bar { height: 100%; background: var(--green); border-radius:0; transition: width .3s; }
 
   /* ── AUSSCHREIBUNG ── */
   .stlb-tabs { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
   .stlb-tab {
-    padding: 6px 16px; border-radius: 20px;
+    padding: 6px 16px; border-radius:0;
     border: 1px solid var(--border);
     background: transparent; color: var(--text-muted);
     font-size: 12.5px; cursor: pointer; transition: all .15s;
   }
   .stlb-tab:hover { border-color: var(--accent); color: var(--accent2); }
-  .stlb-tab.active { background: var(--accent); border-color: var(--accent); color: #1a1200; font-weight: 700; }
+  .stlb-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
   .stlb-block { display: none; }
   .stlb-block.active { display: block; }
   .stlb-pos {
@@ -244,11 +247,11 @@
   .stlb-pos-head {
     display: flex; align-items: center; gap: 10px;
     padding: 10px 14px;
-    background: rgba(255,255,255,.03);
+    background: var(--surface2);
     border-bottom: 1px solid var(--border);
     cursor: pointer; transition: background .15s;
   }
-  .stlb-pos-head:hover { background: rgba(255,255,255,.06); }
+  .stlb-pos-head:hover { background: var(--rb-soft); }
   .oz { font-size: 11px; font-weight: 700; color: var(--accent); font-family: monospace; }
   .pos-title { font-size: 13.5px; font-weight: 600; color: var(--text); flex: 1; }
   .pos-unit { font-size: 11px; color: var(--text-muted); }
@@ -262,7 +265,7 @@
   .stlb-pos-body pre {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 6px;
+    border-radius:0;
     padding: 14px; margin-top: 10px;
     font-family: 'Courier New', monospace;
     font-size: 12px; color: var(--text-dim);
@@ -271,7 +274,7 @@
   .copy-btn {
     display: inline-flex; align-items: center; gap: 5px;
     margin-top: 10px; padding: 5px 12px;
-    border-radius: 20px; border: 1px solid var(--border);
+    border-radius:0; border: 1px solid var(--border);
     background: transparent; color: var(--text-muted);
     font-size: 12px; cursor: pointer; transition: all .15s;
   }
@@ -293,7 +296,7 @@
     border: 1px solid rgba(200,146,42,.3);
     border-radius: var(--radius-sm);
     padding: 12px 16px;
-    font-size: 13px; color: var(--accent2);
+    font-size: 13px; color: var(--warn);
     margin-top: 10px; line-height: 1.55;
   }
   .alert-box.info { background: rgba(74,143,200,.1); border-color: rgba(74,143,200,.3); color: var(--blue); }
@@ -337,7 +340,7 @@
     color: var(--text-dim); vertical-align: top;
   }
   table.kw-table tr:last-child td { border-bottom: none; }
-  table.kw-table tr:hover td { background: rgba(255,255,255,.02); }
+  table.kw-table tr:hover td { background: var(--surface2); }
   table.kw-table td:first-child { color: var(--text); font-weight: 600; }
 
   /* ── QUICK CARDS ── */
@@ -375,7 +378,7 @@
   .kub-hint { font-size: 12px; color: var(--text-muted); margin-top: 8px; line-height: 1.5; }
   .kub-input {
     width: 100%; background: var(--surface); border: 1px solid var(--border);
-    color: var(--text); border-radius: 4px; padding: 5px 7px; font-size: 12.5px; font-family: inherit;
+    color: var(--text); border-radius:0; padding: 5px 7px; font-size: 12.5px; font-family: inherit;
   }
   .kub-input:focus { outline: none; border-color: var(--accent); }
   .kub-del-btn {
@@ -387,7 +390,7 @@
   .kub-field label { display: block; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 5px; }
   .kub-field input, .kub-field select {
     width: 100%; background: var(--surface2); border: 1px solid var(--border);
-    color: var(--text); border-radius: 6px; padding: 8px 10px; font-size: 13.5px; font-family: inherit;
+    color: var(--text); border-radius:0; padding: 8px 10px; font-size: 13.5px; font-family: inherit;
   }
   .kub-field input:focus, .kub-field select:focus { outline: none; border-color: var(--accent); }
   .kub-slope-row { display: flex; align-items: center; gap: 12px; }
@@ -401,32 +404,32 @@
   .kub-stat .value { font-size: 21px; font-weight: 700; color: var(--accent2); }
   .kub-stat .sub { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
   .kub-legend { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 12px; font-size: 12px; color: var(--text-muted); }
-  .kub-legend i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+  .kub-legend i { display: inline-block; width: 11px; height: 11px; border-radius:0; margin-right: 6px; vertical-align: -1px; }
 
   /* ── KUBATUR: BEREICHE, KANTEN-BÖSCHUNG, VOLLBILD ── */
   .kub-zone-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
   .kub-zone-tab {
     display: inline-flex; align-items: center; gap: 7px;
-    padding: 6px 12px; border-radius: 20px;
+    padding: 6px 12px; border-radius:0;
     border: 1px solid var(--border); background: transparent; color: var(--text-muted);
     font-size: 12.5px; cursor: pointer; transition: all .15s;
   }
   .kub-zone-tab:hover { border-color: var(--accent); color: var(--accent2); }
-  .kub-zone-tab.active { background: var(--accent); border-color: var(--accent); color: #1a1200; font-weight: 700; }
+  .kub-zone-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
   .kub-zone-del { font-size: 10px; opacity: .65; }
   .kub-zone-del:hover { opacity: 1; color: var(--red); }
   .kub-edge-toggle { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--text-dim); cursor: pointer; white-space: nowrap; }
   .kub-fs-exit {
     display: none; align-items: center; gap: 6px;
     position: absolute; top: 10px; right: 10px; z-index: 20;
-    padding: 7px 14px; border-radius: 20px; border: 1px solid var(--border);
+    padding: 7px 14px; border-radius:0; border: 1px solid var(--border);
     background: rgba(20,22,25,0.9); color: var(--text); cursor: pointer; font-size: 12.5px;
   }
   .kub-fs-exit:hover { border-color: var(--accent); color: var(--accent2); }
   .kub-fs-toolbar { display: none; align-items: center; gap: 8px; position: absolute; top: 10px; left: 10px; z-index: 20; }
   .kub-fs-toolbar .ctrl-btn { background: rgba(20,22,25,0.9); }
   .kub-fs-zonename {
-    background: rgba(20,22,25,0.9); border: 1px solid var(--border); border-radius: 20px;
+    background: rgba(20,22,25,0.9); border: 1px solid var(--border); border-radius:0;
     padding: 7px 14px; font-size: 12.5px; color: var(--accent2); font-weight: 600;
   }
   .kub-canvas-wrap:fullscreen { width: 100vw; height: 100vh; background: #000; }
@@ -435,22 +438,37 @@
   .kub-tool-group { display: flex; flex-wrap: wrap; gap: 6px; }
   .kub-tool-btn {
     display: inline-flex; align-items: center; gap: 5px;
-    padding: 4px 12px; border-radius: 20px; border: 1px solid var(--border);
+    padding: 4px 12px; border-radius:0; border: 1px solid var(--border);
     background: var(--surface2); color: var(--text-muted); cursor: pointer;
     font-size: 12px; font-family: inherit; transition: all .15s;
   }
   .kub-tool-btn:hover { border-color: var(--accent); color: var(--accent2); }
-  .kub-tool-btn.active { background: var(--accent); border-color: var(--accent); color: #1a1200; font-weight: 700; }
+  .kub-tool-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
   .kub-fs-toolbar { flex-wrap: wrap; max-width: calc(100% - 150px); }
   .kub-fs-toolbar .kub-tool-btn { background: rgba(20,22,25,0.9); }
-  .kub-fs-toolbar .kub-tool-btn.active { background: var(--accent); color: #1a1200; }
+  .kub-fs-toolbar .kub-tool-btn.active { background: var(--accent); color: #fff; }
   .kub-height-editor {
     position: absolute; z-index: 30; width: 78px; padding: 5px 7px;
-    border-radius: 6px; border: 1px solid var(--accent); background: var(--surface);
+    border-radius:0; border: 1px solid var(--accent); background: var(--surface);
     color: var(--text); font-size: 13px; font-family: inherit; display: none;
     box-shadow: 0 4px 14px rgba(0,0,0,.45);
   }
   .kub-height-editor:focus { outline: none; }
+
+  /* ── Riedel-Tools: schmale Bildschirme (Seitenleiste wird zur Leiste oben) ── */
+  @media (max-width: 760px) {
+    header { position: static; height: auto; padding: 10px 16px; gap: 12px; }
+    header > div { min-width: 0; }
+    .header-badge { display: none; }
+    .layout { flex-direction: column; min-height: 0; }
+    nav { position: sticky; top: 0; z-index: 90; width: auto; height: auto; padding: 6px 8px; display: flex; gap: 2px;
+      overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--border); -webkit-overflow-scrolling: touch; }
+    .nav-group { display: flex; gap: 2px; margin: 0; flex: none; }
+    .nav-group-label, .nav-divider { display: none; }
+    .nav-btn { width: auto; white-space: nowrap; flex: none; }
+    main { padding: 20px 16px; max-width: none; min-width: 0; }
+    h1 { font-size: 25px; }
+  }
 </style>
 </head>
 <body>
@@ -1884,8 +1902,8 @@ ______________________
           </div>
         </div>
         <div class="kub-legend" style="margin-top:-6px;margin-bottom:10px">
-          <span><i style="background:#c8922a"></i> Kante = Böschung (geneigt)</span>
-          <span><i style="background:#c85a5a"></i> Kante = senkrechte Wand / Verbau</span>
+          <span><i style="background:var(--accent)"></i> Kante = Böschung (geneigt)</span>
+          <span><i style="background:var(--red)"></i> Kante = senkrechte Wand / Verbau</span>
           <span>🔍 Mausrad zoomt jederzeit · mittlere Maustaste oder Werkzeug „Verschieben" verschiebt den Plan</span>
         </div>
 
@@ -1996,9 +2014,9 @@ ______________________
           <button class="kub-fs-exit" id="kub-fs-exit-3d" onclick="kubToggleFullscreen('3d')">✕ Vollbild verlassen</button>
         </div>
         <div class="kub-legend">
-          <span><i style="background:#4a8fc8"></i> Sohle / Krone (Zielhöhe)</span>
-          <span><i style="background:#c8922a"></i> Böschung</span>
-          <span><i style="background:#5aad7a"></i> Geländeanschluss (vereinfacht)</span>
+          <span><i style="background:var(--blue)"></i> Sohle / Krone (Zielhöhe)</span>
+          <span><i style="background:var(--accent)"></i> Böschung</span>
+          <span><i style="background:var(--green)"></i> Geländeanschluss (vereinfacht)</span>
         </div>
       </div>
     </div>

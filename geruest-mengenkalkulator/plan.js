@@ -196,7 +196,7 @@ const PlanTrace = (() => {
 
     if (tracePoints.length) {
       const scr = tracePoints.map(workingToScreen);
-      ctx.strokeStyle = "#b5502e";
+      ctx.strokeStyle = "#C4000B";
       ctx.lineWidth = 2;
       ctx.beginPath();
       scr.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
@@ -204,7 +204,7 @@ const PlanTrace = (() => {
       ctx.stroke();
 
       scr.forEach((p, i) => {
-        ctx.fillStyle = "#b5502e";
+        ctx.fillStyle = "#C4000B";
         ctx.beginPath();
         ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
         ctx.fill();

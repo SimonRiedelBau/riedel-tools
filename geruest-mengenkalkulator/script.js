@@ -603,7 +603,7 @@ function renderPlan2D(result) {
   if (hasKonsole) {
     addPath(ringToPath(geometry.outerRing, geometry.closed), {
       fill: "none",
-      stroke: "#b5502e",
+      stroke: "#C4000B",
       "stroke-width": sw * 1.2,
       "stroke-dasharray": `${sw * 2.5},${sw * 1.5}`,
     });
