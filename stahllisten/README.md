@@ -23,6 +23,8 @@ z. B. Bewehrungsplan `BFS_88160_B_T_5_BP_U1_2233_01`, Stahlliste `BFS_88160_B_T_
   erhalten (zählt nicht mehr zum Bedarf), damit die Bestellung nachvollziehbar bleibt.
 - **Zuordnung** Stahlliste → Plan über die 4-stellige **Nummer**. Gibt es mehrere Pläne mit derselben Nummer, entscheiden
   Bauteil, Ebene und Gebäude. Kommt der Plan erst nach der Liste, wird die Liste beim Plan-Upload nachträglich zugeordnet.
+- In den Tabellen *Pläne* und *Stahllisten* stehen **Index** und **Bereich** (Haus/Bauteil und Ebene im Klartext, z. B.
+  „Bauteil B (West) · 1. UG“) automatisch aus dem Dateinamen.
 - Nach jedem Upload zeigt ein Kasten, was angelegt, ersetzt, übersprungen oder nicht zugeordnet wurde.
 - Stahllisten lassen sich im Reiter *Stahllisten* auch mehrere auf einmal hochladen.
 - Dateinamen, die nicht der Codierung folgen, funktionieren wie bisher (Plan-Nr. aus dem Dateinamen, Zuordnung von Hand).
