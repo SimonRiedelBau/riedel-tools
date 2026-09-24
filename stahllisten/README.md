@@ -19,7 +19,7 @@ Bewehrungsbedarf für laufende Projekte: Pläne und Stahllisten hochladen, Beste
 - Hinweise: Abgleich mit Kalkulation, überfällige Lieferungen, Pläne ohne Stahlliste, bestellte ersetzte Listen
 
 ## Datenbank und Zugriffsschutz
-Die Daten liegen im Supabase-Projekt der Riedel-Tools (dasselbe wie Bautagebuch):
+Die Daten liegen im eigenen Supabase-Projekt **riedel-stahllisten** (`sazhfayopozqcluvmqqu`):
 - Tabelle `stahl_objekte` – Projekte, Pläne, Stahllisten, Bestellungen
 - privater Storage-Bucket `stahllisten` – Plan- und Listendateien (max. 50 MB je Datei), geöffnet nur über 5 Minuten gültige Links
 - Tabelle `stahl_zugang` – Freigabeliste

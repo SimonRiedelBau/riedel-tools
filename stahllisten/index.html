@@ -178,7 +178,7 @@ pre.sql{max-height:340px;overflow:auto;background:var(--surface);border:1px soli
 </header>
 <main id="app"><p class="sub" style="margin-top:26px">Verbindung zur Datenbank wird hergestellt …</p></main>
 <footer>
-  Die Daten liegen in der Riedel-Datenbank (Supabase). Zugriff haben nur angemeldete Personen, die ein Admin unter „Zugänge“ freigeschaltet hat; das prüft die Datenbank selbst.
+  Die Daten liegen im Supabase-Projekt „riedel-stahllisten“. Zugriff haben nur angemeldete Personen, die ein Admin unter „Zugänge“ freigeschaltet hat; das prüft die Datenbank selbst.
   Pläne und Listen liegen in einem privaten Dateispeicher und werden nur über kurz gültige Links geöffnet.
   „Sicherung speichern“ lädt zusätzlich eine Datei mit allen Projekten und Dateien herunter.
   Gewichte ohne Angabe in der Liste werden mit den Nenngewichten nach DIN 488 berechnet.
@@ -317,7 +317,7 @@ const catGroup=k=>k.startsWith('M')?'M':k; // Matten im Dashboard zusammenfassen
 const CAT_OPTS=[...DIAS.map(d=>'d'+d),'M','S'];
 
 // ---------- Datenbank (Supabase) ----------
-const SB_DEFAULT={url:'https://dlypbcdoxlfyyavmrhlr.supabase.co',key:'sb_publishable_VI2Oei75votfVOgtuVIcmw_K5-lAeLi'};
+const SB_DEFAULT={url:'https://sazhfayopozqcluvmqqu.supabase.co',key:'sb_publishable_ZXiMVG3_xnblRTtMfJuJtA_kDgPuFLU'}; // Supabase-Projekt riedel-stahllisten
 const TABLE='stahl_objekte', BUCKET='stahllisten', LS_CFG='stahl-sb-cfg';
 const KIND={projects:'projekt',plans:'plan',lists:'liste',orders:'bestellung'};
 const EMPTY=()=>({version:1,projects:[],plans:[],lists:[],orders:[]});
