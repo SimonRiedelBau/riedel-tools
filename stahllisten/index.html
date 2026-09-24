@@ -519,9 +519,9 @@ function tabPlans(p,c,plans){
   let h=`<section style="margin-top:18px">${reportBox('plaene')}<div class="drop" id="planDrop"><p><b>Pläne hochladen:</b> Eine oder mehrere Plan-PDFs hierher ziehen. Plan-Nr. und Index kommen aus dem Dateinamen (z. B. <code>BFS_88160_B_T_5_BP_U1_2233_01</code>: Index 01). Ein höherer Index ersetzt den alten Plan; Stahllisten mit derselben Nummer werden automatisch zugeordnet.</p>
     <div style="display:flex;gap:8px"><label class="btn" style="flex-direction:row" tabindex="0">Dateien wählen<input type="file" id="planFiles" multiple accept="application/pdf,image/*,.dwg,.dxf" hidden></label><button class="btn sec" id="planNew" type="button">Ohne Datei anlegen</button></div></div>`;
   if(plans.length){
-    h+=`<div class="tbl scroll" style="margin-top:16px"><table><thead><tr><th>Plan-Nr.</th><th>Index</th><th>Bauteil / Inhalt</th><th>Eingang</th><th>Stahllisten</th><th class="n">Bedarf t</th><th>Datei</th><th></th></tr></thead><tbody>`;
+    h+=`<div class="tbl scroll" style="margin-top:16px"><table><thead><tr><th>Plan-Nr.</th><th>Index</th><th>Bereich</th><th>Bauteil / Inhalt</th><th>Eingang</th><th>Stahllisten</th><th class="n">Bedarf t</th><th>Datei</th><th></th></tr></thead><tbody>`;
     plans.forEach(pl=>{ const ls=S.lists.filter(l=>l.planId===pl.id);
-      h+=`<tr><td><b>${esc(pl.nr)}</b></td><td>${esc(pl.idx||'')}</td><td class="wrap">${esc(pl.title||'')}</td><td>${dDE(pl.date)}</td>
+      h+=`<tr><td><b>${esc(pl.nr)}</b></td><td>${esc(pl.idx||(planCode(pl)?.idx)||'')}</td><td>${esc(bereich(planCode(pl)))}</td><td class="wrap">${esc(pl.title||'')}</td><td>${dDE(pl.date)}</td>
       <td>${ls.length?ls.map(l=>`${esc(l.nr)} ${statusTag(l)}`).join('<br>'):`<button class="linkbtn" data-newlist="${pl.id}" type="button">+ Stahlliste</button>`}</td>
       <td class="n">${t(sum(ls.filter(l=>!l.ersetzt),listKg))}</td>
       <td>${pl.fileId?`<button class="linkbtn" data-open="${pl.fileId}" type="button">${esc(pl.fileName||'öffnen')}</button>`:'–'}</td>
@@ -560,6 +560,13 @@ function parseCode(name){
   const up=x=>x.toUpperCase(), [,proj,geb,bt,gew,lph,art,ebene,num,idx]=m;
   return {proj:up(proj),geb,bt:up(bt),gew:up(gew),lph,art:up(art),ebene:up(ebene),num,idx,nr:[up(proj),geb,up(bt),up(gew),lph,up(art),up(ebene),num].join('_')};
 }
+// Klartext laut Plancodierung (Haus/Bauteil, Ebene)
+const BT_NAME={A:'Mitte (Zugang)',B:'West',C:'Ost',D:'2. Bauabschnitt','Ü':'Übersicht',X:'Außen/Nebengeb.'};
+const EBENE_NAME={'0':'EG','1':'1. OG','2':'2. OG','3':'3. OG',U1:'1. UG',U2:'2. UG',NORD:'Ansicht N',OST:'Ansicht O','SÜD':'Ansicht S',WEST:'Ansicht W','Ü':'übergreifend'};
+function bereich(c){ if(!c) return '';
+  const bt='Bauteil '+c.bt+(BT_NAME[c.bt]?' ('+BT_NAME[c.bt]+')':'');
+  const eb=EBENE_NAME[c.ebene]||(/^[A-Z]$/.test(c.ebene)?'Schnitt '+c.ebene:c.ebene);
+  return bt+' · '+eb; }
 const idxNum=v=>{ const n=parseInt(v,10); return isNaN(n)?-1:n; };
 const listCode=l=>l.code||parseCode(l.fileName);
 const planCode=pl=>pl.code||parseCode(pl.fileName)||parseCode(pl.nr+'_'+(pl.idx||'00'));
@@ -589,13 +596,13 @@ function statusTag(l){ if(l.ersetzt) return '<span class="tag old">ersetzt</span
   return s==='offen'?'<span class="tag open">offen</span>':s==='bestellt'?'<span class="tag best">bestellt</span>':'<span class="tag lief">geliefert</span>'; }
 function listTable(lists){
   const cats=[...new Set(lists.flatMap(l=>(l.items||[]).map(i=>catGroup(i.cat))))].sort(catSort);
-  let h=`<div class="tbl scroll"><table><thead><tr><th>Liste</th><th>Plan</th><th>Bauteil</th><th>Status</th>${cats.map(k=>`<th class="n">${esc(catLabel(k))}</th>`).join('')}<th class="n">Summe kg</th><th>Datei</th><th></th></tr></thead><tbody>`;
+  let h=`<div class="tbl scroll"><table><thead><tr><th>Liste</th><th>Index</th><th>Bereich</th><th>Plan</th><th>Bauteil</th><th>Status</th>${cats.map(k=>`<th class="n">${esc(catLabel(k))}</th>`).join('')}<th class="n">Summe kg</th><th>Datei</th><th></th></tr></thead><tbody>`;
   lists.forEach(l=>{ const pl=S.plans.find(x=>x.id===l.planId), g=addItems({},l.items);
-    h+=`<tr class="${l.ersetzt?'dim':''}"><td><b>${esc(l.nr)}</b>${l.idx?` <span class="tag">Index ${esc(l.idx)}</span>`:''}<br><small style="color:var(--muted)">${dDE(l.date)}</small></td><td>${pl?esc(pl.nr+(pl.idx?' / '+pl.idx:'')):'–'}</td><td class="wrap">${esc(l.title||'')}</td><td class="nostrike">${statusTag(l)}</td>
+    h+=`<tr class="${l.ersetzt?'dim':''}"><td><b>${esc(l.nr)}</b><br><small style="color:var(--muted)">${dDE(l.date)}</small></td><td>${esc(l.idx||(listCode(l)?.idx)||'')}</td><td>${esc(bereich(listCode(l)||(pl&&planCode(pl))))}</td><td>${pl?esc(pl.nr+(pl.idx?' / '+pl.idx:'')):'–'}</td><td class="wrap">${esc(l.title||'')}</td><td class="nostrike">${statusTag(l)}</td>
       ${cats.map(k=>`<td class="n">${g[k]?fmt(g[k]):''}</td>`).join('')}<td class="n"><b>${fmt(listKg(l))}</b></td>
       <td class="nostrike">${l.fileId?`<button class="linkbtn" data-open="${l.fileId}" type="button">öffnen</button>`:'–'}</td><td class="nostrike"><button class="linkbtn" data-editlist="${l.id}" type="button">Bearbeiten</button></td></tr>`; });
   const tot={}; lists.filter(l=>!l.ersetzt).forEach(l=>addItems(tot,l.items));
-  h+=`<tr class="sum"><td colspan="4">${lists.length} Listen${lists.some(l=>l.ersetzt)?' (Summe ohne ersetzte)':''}</td>${cats.map(k=>`<td class="n">${fmt(tot[k]||0)}</td>`).join('')}<td class="n">${fmt(sum(Object.values(tot),v=>v))}</td><td colspan="2"></td></tr></tbody></table></div>`;
+  h+=`<tr class="sum"><td colspan="6">${lists.length} Listen${lists.some(l=>l.ersetzt)?' (Summe ohne ersetzte)':''}</td>${cats.map(k=>`<td class="n">${fmt(tot[k]||0)}</td>`).join('')}<td class="n">${fmt(sum(Object.values(tot),v=>v))}</td><td colspan="2"></td></tr></tbody></table></div>`;
   return h;
 }
 function bindListTable(){
