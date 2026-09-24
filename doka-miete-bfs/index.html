@@ -23,6 +23,7 @@
   --red:#FF2A1F; --red-ink:#FF6A5F; --grey:#7D848A; --light:#4A5055; --ok:#5FC58A; --warn:#F0A04B; }
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 *,*::before,*::after{box-sizing:inherit}
+[hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.5 var(--sans);font-variant-numeric:tabular-nums}
 .wrap{max-width:1180px;margin:0 auto;padding:20px 20px 60px}
 header.top{display:flex;align-items:center;gap:14px;border-bottom:3px solid var(--ink);padding-bottom:14px}
@@ -103,6 +104,28 @@ details.cfg summary{cursor:pointer;color:var(--muted)}
 .local{margin:10px 0 0;padding:0;list-style:none;font-size:14px}
 .local li{display:flex;gap:10px;align-items:center;padding:4px 0}
 .linkbtn{background:none;border:0;color:var(--red-ink);cursor:pointer;font:inherit;text-decoration:underline;padding:0}
+.btn.sm{font-size:13px;padding:7px 11px}
+.acct{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:flex-end;margin-top:10px}
+.who{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);margin-right:4px}
+.sync{width:9px;height:9px;border-radius:50%;background:var(--ok);display:inline-block}
+.sync.busy{background:var(--warn)}.sync.err{background:var(--red)}
+.auth{max-width:440px;margin-top:30px}
+.auth .panel{display:flex;flex-direction:column;gap:12px}
+.auth input{width:100%;min-width:0}
+.auth .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.msg{font-size:14px;margin:0}
+.msg.ok{color:var(--ok)}.msg.bad{color:var(--red-ink)}
+pre.sql{max-height:340px;overflow:auto;background:var(--surface);border:1px solid var(--rule);padding:10px;font-size:12px;white-space:pre-wrap}
+.banner{background:var(--surface);border:1px solid var(--rule);border-left:6px solid var(--warn);padding:14px 16px;margin-top:12px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+.banner p{margin:0;max-width:70ch}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;font-size:14px;z-index:99;max-width:calc(100vw - 32px)}
+dialog{border:1px solid var(--rule);background:var(--bg);color:var(--ink);padding:0;width:min(760px,calc(100vw - 24px));max-height:calc(100vh - 24px)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+dialog form{display:flex;flex-direction:column;max-height:calc(100vh - 26px)}
+.dh{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:3px solid var(--ink)}
+.dh h2{margin:0}
+.db{padding:16px 18px;overflow:auto}
+.df{display:flex;gap:10px;justify-content:flex-end;padding:12px 18px;border-top:1px solid var(--rule);flex-wrap:wrap}
 </style>
 </head>
 <body>
@@ -113,34 +136,27 @@ details.cfg summary{cursor:pointer;color:var(--muted)}
   <div class="stand"><div id="stand"></div>
     <img class="logo-doka" id="logoDoka" alt="Lieferant Doka" title="Lieferant: Doka Deutschland GmbH" data-src="assets/logo-doka.svg|assets/logo-doka.png|assets/logo-doka.jpg" data-fallback="doka"></div>
 </header>
+<div class="acct" id="acct" hidden>
+  <span class="who"><span id="syncState" class="sync ok" title="Speicherstatus"></span><span id="whoMail"></span></span>
+  <button class="btn sec sm" id="btnTeam" type="button" hidden>Zugänge</button>
+  <button class="btn sec sm" id="exportJson" type="button">Sicherung speichern</button>
+  <label class="btn sec sm" style="flex-direction:row" tabindex="0" id="importLbl">Sicherung laden<input type="file" id="importFile" accept="application/json,.json" hidden></label>
+  <button class="btn sec sm" id="btnLogout" type="button">Abmelden</button>
+</div>
+<main id="gate"><p class="sub" style="margin-top:26px">Verbindung zur Datenbank wird hergestellt …</p></main>
+<div id="dash" hidden>
 
 <section style="margin-top:26px" aria-labelledby="upH">
   <h2 id="upH">Neue Rechnung einlesen</h2>
   <div class="drop" id="drop">
-    <p>Doka-Mietrechnung als PDF hierher ziehen oder auswählen. Die Datei wird nur in diesem Browser ausgelesen; vor der Übernahme siehst du die Summenprüfung.</p>
+    <p>Doka-Mietrechnung als PDF hierher ziehen oder auswählen. Die Datei wird im Browser ausgelesen; vor der Übernahme siehst du die Summenprüfung. Übernommene Rechnungen landen geschützt in der Datenbank.</p>
     <label class="btn" style="flex-direction:row" tabindex="0" id="pickLbl">PDF auswählen<input type="file" id="file" accept="application/pdf" hidden multiple></label>
   </div>
   <div id="result"></div>
-  <ul class="local" id="localList"></ul>
-  <details class="cfg" id="cfg">
-    <summary>Speicherort einstellen</summary>
-    <p class="sub" style="margin-top:8px">Ohne Einstellung bleiben neue Rechnungen nur in diesem Browser. Mit einem GitHub-Token werden sie direkt als Commit ins Repo gespeichert und sind auf allen Geräten sichtbar. Der Token bleibt nur in diesem Browser gespeichert.</p>
-    <div class="grid">
-      <label>Repo-Besitzer<input id="ghOwner" autocomplete="off"></label>
-      <label>Repository<input id="ghRepo" autocomplete="off"></label>
-      <label>Branch<input id="ghBranch" autocomplete="off" placeholder="automatisch"></label>
-      <label>Datei im Repo<input id="ghPath" autocomplete="off"></label>
-      <label>Token (fine-grained, Contents: Read and write)<input id="ghToken" type="password" autocomplete="off"></label>
-    </div>
-    <div class="row" style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap">
-      <button class="btn sec" id="ghSave">Einstellung speichern</button>
-      <button class="btn sec" id="ghClear">Token löschen</button>
-      <button class="btn sec" id="exportJson">rechnungen.json herunterladen</button>
-    </div>
-    <p class="status" id="ghStatus"></p>
-  </details>
+  <div id="migr"></div>
 </section>
 
+<div id="dashBody">
 <div class="hero">
   <div class="panel">
     <h2>Mietrechnung je Monat</h2>
@@ -193,9 +209,29 @@ details.cfg summary{cursor:pointer;color:var(--muted)}
 <section><h2>Prüfhinweise</h2><ul class="notes" id="notes"></ul></section>
 <footer id="foot"></footer>
 </div>
+</div>
+</div>
+
+<!-- Zugänge -->
+<dialog id="dlgTeam"><form method="dialog">
+  <div class="dh"><h2>Zugänge</h2><button class="linkbtn" value="cancel">Schließen</button></div>
+  <div class="db">
+    <p class="sub">Nur freigeschaltete Personen sehen die Doka-Rechnungen. Die Person muss sich vorher im Tool ein Konto angelegt und die E-Mail bestätigt haben. Ein bestehendes Stahllisten-Konto funktioniert auch; die Freigabe gilt aber je Tool.</p>
+    <div class="grid">
+      <label>E-Mail<input id="tMail" type="email" autocomplete="off"></label>
+      <label>Name<input id="tName" autocomplete="off"></label>
+      <label>Rolle<select id="tRole"><option value="mitglied">Mitglied</option><option value="admin">Admin (darf Zugänge verwalten)</option></select></label>
+      <div style="display:flex;align-items:end"><button class="btn" type="button" id="tAdd">Freischalten</button></div>
+    </div>
+    <p class="msg" id="tMsg" style="margin-top:8px"></p>
+    <div class="tbl scroll" style="margin-top:12px"><table><thead><tr><th>E-Mail</th><th>Name</th><th>Rolle</th><th>seit</th><th></th></tr></thead><tbody id="tRows"></tbody></table></div>
+  </div>
+  <div class="df"><button class="btn sec" value="cancel">Schließen</button></div>
+</form></dialog>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="doka-parser.js"></script>
+<script src="vendor/supabase.js"></script>
 <script>
 (function(){
 if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -211,20 +247,57 @@ const sum=(a,f)=>a.reduce((s,x)=>s+f(x),0);
 const r2=v=>Math.round(v*100)/100;
 const prevMonth=m=>{let [y,mo]=m.split('-').map(Number);mo--;if(!mo){mo=12;y--;}return y+'-'+String(mo).padStart(2,'0');};
 const nextMonth=m=>{let [y,mo]=m.split('-').map(Number);mo++;if(mo>12){mo=1;y++;}return y+'-'+String(mo).padStart(2,'0');};
+// Frühere Version: Rechnungen nur im Browser bzw. GitHub-Token – wird nur noch zur Übernahme gelesen bzw. gelöscht
 const LS_UP='doka-bfs-uploads', LS_GH='doka-bfs-github';
 const ls={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}},del(k){try{localStorage.removeItem(k)}catch(e){}}};
+ls.del(LS_GH);
+function toast(msg){ const d=document.createElement('div'); d.className='toast'; d.textContent=msg; document.body.appendChild(d); setTimeout(()=>d.remove(),3200); }
 
-let BASE=null, D=null;
+// ---------- Datenbank (Supabase) ----------
+// Gleiches Supabase-Projekt wie die Stahllisten (riedel-stahllisten), eigene Tabellen doka_daten / doka_zugang.
+const SB_CFG={url:'https://sazhfayopozqcluvmqqu.supabase.co',key:'sb_publishable_ZXiMVG3_xnblRTtMfJuJtA_kDgPuFLU'};
+const TABLE='doka_daten', STAMM=['baustelle','projekt','kostenstelle','lieferant','kunde','mietbeginn'];
+const EMPTY=()=>({stand:null,rechnungen:[]});
+let sb=null, me=null, rolle=null, ready=false;
+let BASE=EMPTY(), D=null;
+const errMsg=e=>(e&&(e.message||e.error_description||e.msg))||String(e);
+function setSync(st,title){ const el=$('syncState'); if(!el) return; el.className='sync '+st; el.title=title||({ok:'Alles gespeichert',busy:'Speichert …',err:'Nicht gespeichert'}[st]); }
+async function load(){
+  const {data,error}=await sb.from(TABLE).select('id,art,monat,data,geaendert_am');
+  if(error) throw error;
+  const base=EMPTY(); let stand='';
+  data.forEach(r=>{ if(r.geaendert_am>stand) stand=r.geaendert_am;
+    if(r.art==='stammdaten') STAMM.forEach(k=>{ if(r.data[k]!=null) base[k]=r.data[k]; });
+    else base.rechnungen.push({...r.data,nr:r.id,monat:r.monat}); });
+  base.rechnungen.sort((a,b)=>a.monat.localeCompare(b.monat));
+  base.stand=stand?stand.slice(0,10):null;
+  BASE=base;
+}
+// Speichert Rechnungen; eine vorhandene andere Rechnung desselben Monats wird ersetzt.
+async function saveInvoices(list){
+  setSync('busy');
+  try{
+    const months=list.map(i=>i.monat), nrs=new Set(list.map(i=>i.nr));
+    const {data:old,error:e1}=await sb.from(TABLE).select('id').eq('art','rechnung').in('monat',months); if(e1) throw e1;
+    const drop=old.map(r=>r.id).filter(id=>!nrs.has(id));
+    if(drop.length){ const {error}=await sb.from(TABLE).delete().in('id',drop); if(error) throw error; }
+    for(let i=0;i<list.length;i+=20){
+      const {error}=await sb.from(TABLE).upsert(list.slice(i,i+20).map(inv=>({id:inv.nr,art:'rechnung',monat:inv.monat,data:inv})));
+      if(error) throw error; }
+    setSync('ok');
+  }catch(e){ setSync('err','Nicht gespeichert: '+errMsg(e)); throw e; }
+}
+async function saveStamm(obj){
+  const data={}; STAMM.forEach(k=>{ if(obj[k]!=null&&obj[k]!=='') data[k]=obj[k]; });
+  if(!Object.keys(data).length) return;
+  const {error}=await sb.from(TABLE).upsert({id:'stammdaten',art:'stammdaten',monat:null,data}); if(error) throw error;
+}
+const validInv=r=>r&&/^\d{6,}$/.test(r.nr||'')&&/^\d{4}-\d{2}$/.test(r.monat||'')&&typeof r.netto==='number'&&Array.isArray(r.positionen);
 
 // ---------- Ableitungen ----------
 function derive(base){
-  const local=ls.get(LS_UP,[]);
-  const baseNr=new Set(base.rechnungen.map(r=>r.nr));
-  const keep=local.filter(r=>!baseNr.has(r.nr));
-  if(keep.length!==local.length) ls.set(LS_UP,keep);
   const byMonth={};
-  for(const r of base.rechnungen) byMonth[r.monat]={...r,lokal:false};
-  for(const r of keep) byMonth[r.monat]={...r,lokal:true};
+  for(const r of base.rechnungen) byMonth[r.monat]={...r};
   const M=Object.values(byMonth).sort((a,b)=>a.monat.localeCompare(b.monat));
   const find=m=>M.find(x=>x.monat===m);
   // Warenwert fuer Scans aus Nachbarn
@@ -265,17 +338,19 @@ function derive(base){
   const area=d=>{if(!d)return 0;const p=d.replace(' m','').split(' x ').map(v=>parseFloat(v.replace(',','.')));return p[0]*p[1];};
   const stamm=Object.values(master).sort((a,b)=>a.id.localeCompare(b.id));
   stamm.forEach(e=>{e.fam=fam(e.name);e.area=area(e.dim);e.ep=e.ep||0;});
-  return {...base,M,stock,stamm,lokal:keep};
+  return {...base,M,stock,stamm};
 }
 
 // ---------- Darstellung ----------
 function render(){
   D=derive(BASE);
-  const M=D.M; if(!M.length) return;
+  const M=D.M; renderMigr();
+  $('dashBody').hidden=!M.length;
+  if(!M.length){ $('meta').textContent='Noch keine Rechnungen in der Datenbank.'; $('stand').innerHTML=''; return; }
   const last=M[M.length-1], prev=M[M.length-2]||last;
   const stockMonths=Object.keys(D.stock).sort(), lastStock=stockMonths[stockMonths.length-1];
   const st=D.stock[lastStock]||{};
-  $('meta').textContent=`Baustelle ${D.baustelle}, Projekt ${D.projekt}, Kostenstelle ${D.kostenstelle}`;
+  $('meta').textContent=[D.baustelle&&'Baustelle '+D.baustelle,D.projekt&&'Projekt '+D.projekt,D.kostenstelle&&'Kostenstelle '+D.kostenstelle].filter(Boolean).join(', ')||'Stammdaten fehlen – über „Sicherung laden“ einspielen.';
   $('stand').innerHTML=`Stand ${labL(last.monat)}<span>Rechnung ${esc(last.nr)} vom ${esc(last.datum)}</span>`;
   const nettoSum=sum(M,m=>m.netto), bruttoSum=sum(M,m=>m.endsumme), dN=last.netto-prev.netto;
   const stockN=sum(Object.values(st),v=>v), sbWW=sum(D.stamm,e=>(st[e.id]||0)*e.ep);
@@ -304,7 +379,7 @@ function render(){
   // Monatstabelle
   { let h=`<thead><tr><th>Monat</th><th>Rechnung</th><th class="n">Miete brutto</th><th class="n">davon Sichtbeton</th><th class="n">Nebenkosten</th><th class="n">Rabatt</th><th class="n">Netto</th><th class="n">Δ Netto</th><th class="n">MwSt.</th><th class="n">Endsumme</th><th class="n">Warenwert Endbestand</th><th>Quelle</th></tr></thead><tbody>`;
     M.forEach((m,i)=>{const d=i?m.netto-M[i-1].netto:null;
-      h+=`<tr><td>${labL(m.monat)}</td><td>${esc(m.nr)}<br><small style="color:var(--muted)">${esc(m.datum)}</small></td><td class="n">${eur(m.miete_brutto)}</td><td class="n">${eur(m.sb)}</td><td class="n">${eur(m.neben)}</td><td class="n">${eur(m.rabatt)}</td><td class="n"><b>${eur(m.netto)}</b></td><td class="n ${d>0.005?'up':d<-0.005?'dn':''}">${d==null?'':(d>0?'+':'')+eur(d)}</td><td class="n">${eur(m.mwst)}</td><td class="n">${eur(m.endsumme)}</td><td class="n">${eur(m.ww_ende,0)}</td><td>${m.quelle==='scan'?'<span class="tag scan">Scan, nur Seite 1</span>':'<span class="tag">digital</span>'}${m.lokal?' <span class="tag scan">nur lokal</span>':''}</td></tr>`;});
+      h+=`<tr><td>${labL(m.monat)}</td><td>${esc(m.nr)}<br><small style="color:var(--muted)">${esc(m.datum)}</small></td><td class="n">${eur(m.miete_brutto)}</td><td class="n">${eur(m.sb)}</td><td class="n">${eur(m.neben)}</td><td class="n">${eur(m.rabatt)}</td><td class="n"><b>${eur(m.netto)}</b></td><td class="n ${d>0.005?'up':d<-0.005?'dn':''}">${d==null?'':(d>0?'+':'')+eur(d)}</td><td class="n">${eur(m.mwst)}</td><td class="n">${eur(m.endsumme)}</td><td class="n">${eur(m.ww_ende,0)}</td><td>${m.quelle==='scan'?'<span class="tag scan">Scan, nur Seite 1</span>':'<span class="tag">digital</span>'}</td></tr>`;});
     h+=`<tr class="sum"><td colspan="2">Summe</td><td class="n">${eur(sum(M,m=>m.miete_brutto))}</td><td></td><td></td><td class="n">${eur(sum(M,m=>m.rabatt))}</td><td class="n">${eur(nettoSum)}</td><td></td><td class="n">${eur(sum(M,m=>m.mwst))}</td><td class="n">${eur(bruttoSum)}</td><td></td><td></td></tr></tbody>`;
     $('tMonths').innerHTML=h; }
 
@@ -325,8 +400,7 @@ function render(){
   keepVal('posMonth',M.filter(m=>m.quelle==='digital').reverse().map(m=>`<option value="${m.monat}">${labL(m.monat)} (${esc(m.nr)})</option>`).join(''));
   keepVal('posSec','<option value="">Alle</option>'+['Anfangsbestand','Lieferung','Rücklieferung','Nebenkosten'].map(s=>`<option>${s}</option>`).join(''));
   renderSB(fams); renderPos(); renderNotes(last,stockMonths,stockN,sbWW);
-  $('foot').innerHTML=`Datenquelle: ${M.length} Doka-Mietrechnungen ${esc(M[0].nr)} bis ${esc(last.nr)}, ${esc(D.lieferant)}, Kunden-Nr. ${esc(D.kunde)}, Mietbeginn ${esc(D.mietbeginn)}. Basisdaten-Stand ${esc(D.stand)}.`;
-  renderLocal();
+  $('foot').innerHTML=`Datenquelle: ${M.length} Doka-Mietrechnungen ${esc(M[0].nr)} bis ${esc(last.nr)}`+(D.lieferant?`, ${esc(D.lieferant)}`:'')+(D.kunde?`, Kunden-Nr. ${esc(D.kunde)}`:'')+(D.mietbeginn?`, Mietbeginn ${esc(D.mietbeginn)}`:'')+`. Letzte Änderung in der Datenbank ${esc(D.stand||'–')}.`;
 }
 function renderSB(){
   const m=$('sbMonth').value,f=$('sbFam').value,q=$('sbQ').value.trim().toLowerCase(),st=D.stock[m]||{};
@@ -405,7 +479,7 @@ function showResult(inv,err){
   }
   const ok=Math.abs(inv.summe_positionen-inv.miete_brutto)<0.01 && Math.abs(inv.miete_brutto+inv.rabatt-inv.netto)<0.011;
   const same=D.M.find(m=>m.nr===inv.nr);
-  if(same){ $('result').innerHTML=`<div class="result ok"><h3>Rechnung ${esc(inv.nr)} ist bereits enthalten</h3><p>${labL(inv.monat)} ist im Dashboard schon erfasst${same.lokal?' (in diesem Browser)':''}. Es wurde nichts geändert.</p><div class="row"><button class="btn sec" id="discard">Schließen</button></div></div>`; $('discard').onclick=()=>{$('result').innerHTML='';}; return; }
+  if(same){ $('result').innerHTML=`<div class="result ok"><h3>Rechnung ${esc(inv.nr)} ist bereits enthalten</h3><p>${labL(inv.monat)} ist im Dashboard schon erfasst. Es wurde nichts geändert.</p><div class="row"><button class="btn sec" id="discard">Schließen</button></div></div>`; $('discard').onclick=()=>{$('result').innerHTML='';}; return; }
   const exists=D.M.find(m=>m.monat===inv.monat);
   const sbN=sum(inv.endbestand.filter(e=>e.art===SB),e=>e.menge);
   r.innerHTML=`<div class="result ${ok?'ok':'bad'}"><h3>Rechnung ${esc(inv.nr)}, ${labL(inv.monat)}</h3>
@@ -418,21 +492,13 @@ function showResult(inv,err){
   $('discard').onclick=()=>{pending=null;r.innerHTML='';};
 }
 async function adopt(inv){
-  const gh=ls.get(LS_GH,null);
   const r=$('result');
-  if(gh&&gh.token){
-    r.innerHTML=`<div class="result"><h3>Speichere in GitHub …</h3></div>`;
-    try{ await ghCommit(gh,inv); BASE=await ghFetchBase(gh)||mergeBase(BASE,inv);
-      r.innerHTML=`<div class="result ok"><h3>Gespeichert in ${esc(gh.owner)}/${esc(gh.repo)}</h3><p>GitHub Pages braucht etwa eine Minute, bis die Änderung auf allen Geräten sichtbar ist.</p></div>`;
-      render(); return;
-    }catch(e){ r.innerHTML=`<div class="result bad"><h3>GitHub-Speicherung fehlgeschlagen</h3><p>${esc(e.message)}. Die Rechnung wurde stattdessen in diesem Browser gespeichert.</p></div>`; }
-  }
-  const up=ls.get(LS_UP,[]).filter(x=>x.monat!==inv.monat&&x.nr!==inv.nr); up.push(inv);
-  if(!ls.set(LS_UP,up)){ r.innerHTML=`<div class="result bad"><h3>Speichern im Browser nicht möglich</h3><p>Der Browser-Speicher ist voll oder gesperrt. Nutze „rechnungen.json herunterladen" und lade die Datei ins Repo.</p></div>`; BASE=mergeBase(BASE,inv); render(); return; }
-  if(!(gh&&gh.token)) r.innerHTML=`<div class="result ok"><h3>Rechnung ${esc(inv.nr)} übernommen</h3><p>Gespeichert in diesem Browser. Für alle Geräte: Speicherort einstellen oder rechnungen.json herunterladen und ins Repo laden.</p></div>`;
-  render();
+  r.innerHTML=`<div class="result"><h3>Speichere in der Datenbank …</h3></div>`;
+  try{ await saveInvoices([inv]); await load();
+    r.innerHTML=`<div class="result ok"><h3>Rechnung ${esc(inv.nr)} übernommen</h3><p>${labL(inv.monat)} ist gespeichert und für alle Freigeschalteten sichtbar.</p></div>`;
+    render();
+  }catch(e){ r.innerHTML=`<div class="result bad"><h3>Speichern fehlgeschlagen</h3><p>${esc(errMsg(e))}. Die Rechnung wurde nicht übernommen – bitte erneut versuchen.</p></div>`; }
 }
-function mergeBase(base,inv){ return {...base,stand:new Date().toISOString().slice(0,10),rechnungen:base.rechnungen.filter(x=>x.monat!==inv.monat&&x.nr!==inv.nr).concat([inv]).sort((a,b)=>a.monat.localeCompare(b.monat))}; }
 async function handleFiles(files){
   for(const f of files){
     if(!window.pdfjsLib||!window.DokaParser){showResult(null,{message:'PDF-Leser konnte nicht geladen werden (Internetverbindung prüfen).'});return;}
@@ -447,56 +513,35 @@ const drop=$('drop');
 drop.addEventListener('drop',e=>handleFiles([...e.dataTransfer.files].filter(f=>f.type==='application/pdf'||/\.pdf$/i.test(f.name))));
 $('file').addEventListener('change',e=>{handleFiles([...e.target.files]);e.target.value='';});
 $('pickLbl').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('file').click();}});
-function renderLocal(){
-  const l=D.lokal;
-  $('localList').innerHTML=l.length?l.map(x=>`<li><span class="tag scan">nur in diesem Browser</span> ${esc(x.nr)}, ${labL(x.monat)} <button class="linkbtn" data-nr="${esc(x.nr)}">entfernen</button></li>`).join(''):'';
-  $('localList').querySelectorAll('button').forEach(b=>b.onclick=()=>{ls.set(LS_UP,ls.get(LS_UP,[]).filter(x=>x.nr!==b.dataset.nr));render();});
-}
 
-// ---------- GitHub ----------
-const b64=str=>{const bytes=new TextEncoder().encode(str);let bin='';for(let i=0;i<bytes.length;i+=0x8000)bin+=String.fromCharCode.apply(null,bytes.subarray(i,i+0x8000));return btoa(bin);};
-const unb64=s=>new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\n/g,'')),c=>c.charCodeAt(0)));
-const ghUrl=gh=>`https://api.github.com/repos/${encodeURIComponent(gh.owner)}/${encodeURIComponent(gh.repo)}/contents/${(gh.path||'data/rechnungen.json').split('/').map(encodeURIComponent).join('/')}`;
-const ghHead=gh=>({'Authorization':'Bearer '+gh.token,'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'});
-async function ghGet(gh){
-  const res=await fetch(ghUrl(gh)+'?ref='+encodeURIComponent(gh.branch),{headers:ghHead(gh)});
-  if(!res.ok) throw new Error(res.status===404?(gh.path||'data/rechnungen.json')+' oder Repo nicht gefunden':res.status===401?'Token ungültig oder abgelaufen':'GitHub-Fehler '+res.status);
-  const j=await res.json();
-  let text=j.content?unb64(j.content):null;
-  if(!text&&j.download_url){ text=await (await fetch(j.git_url,{headers:ghHead(gh)})).json().then(b=>unb64(b.content)); }
-  return {sha:j.sha,data:JSON.parse(text)};
+// ---------- Sicherung und Übernahme ----------
+$('exportJson').onclick=()=>{ const data={...BASE,stand:BASE.stand||new Date().toISOString().slice(0,10)};
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(data)],{type:'application/json'})); a.download='doka-rechnungen-'+new Date().toISOString().slice(0,10)+'.json'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000); };
+async function importData(obj){
+  const list=(obj&&Array.isArray(obj.rechnungen)?obj.rechnungen:[]).filter(validInv);
+  if(!list.length) throw new Error('Keine gültigen Rechnungen in der Datei gefunden');
+  await saveStamm(obj); await saveInvoices(list); await load(); render();
+  return list.length;
 }
-async function ghFetchBase(gh){ try{return (await ghGet(gh)).data}catch(e){return null} }
-async function ghCommit(gh,inv){
-  const {sha,data}=await ghGet(gh);
-  const merged=mergeBase(data,inv);
-  const res=await fetch(ghUrl(gh),{method:'PUT',headers:{...ghHead(gh),'Content-Type':'application/json'},
-    body:JSON.stringify({message:`Doka-Rechnung ${inv.nr} (${inv.monat}) ergänzt`,content:b64(JSON.stringify(merged)),sha,branch:gh.branch})});
-  if(!res.ok) throw new Error(res.status===403||res.status===404?'Keine Schreibrechte – Token braucht „Contents: Read and write" für dieses Repo':'GitHub-Fehler '+res.status);
-  const up=ls.get(LS_UP,[]).filter(x=>x.nr!==inv.nr); ls.set(LS_UP,up);
+$('importFile').addEventListener('change',async e=>{ const f=e.target.files[0]; e.target.value=''; if(!f) return;
+  try{ const obj=JSON.parse(await f.text());
+    const n=(obj.rechnungen||[]).filter(validInv).length;
+    if(!confirm(`${n} Rechnung${n===1?'':'en'} aus „${f.name}“ in die Datenbank übernehmen? Rechnungen mit gleicher Nummer oder gleichem Monat werden ersetzt.`)) return;
+    { const k=await importData(obj); toast(k+(k===1?' Rechnung':' Rechnungen')+' übernommen'); };
+  }catch(err){ alert('Sicherung konnte nicht geladen werden: '+errMsg(err)); } });
+$('importLbl').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('importFile').click();}});
+// Rechnungen, die in der früheren Version nur in diesem Browser gespeichert wurden
+function renderMigr(){
+  const el=$('migr'), have=new Set(BASE.rechnungen.map(r=>r.nr)), old=ls.get(LS_UP,[]).filter(r=>validInv(r)&&!have.has(r.nr));
+  let h='';
+  if(old.length) h+=`<div class="banner"><p><b>${old.length} Rechnung${old.length===1?'':'en'} nur in diesem Browser</b> (${old.map(r=>esc(r.nr)).join(', ')}) aus der früheren Version. In die Datenbank übernehmen?</p><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn red sm" type="button" data-m="ok">Übernehmen</button><button class="btn sec sm" type="button" data-m="no">Verwerfen</button></div></div>`;
+  if(!BASE.rechnungen.length) h+=`<div class="banner"><p><b>Die Datenbank ist noch leer.</b> Bisherige Daten (z. B. <code>rechnungen.json</code>) über „Sicherung laden“ oben einspielen oder eine Rechnung als PDF einlesen.</p></div>`;
+  el.innerHTML=h;
+  el.onclick=async e=>{ const b=e.target.closest('[data-m]'); if(!b) return;
+    if(b.dataset.m==='no'&&!confirm('Die nur im Browser gespeicherten Rechnungen endgültig verwerfen?')) return;
+    if(b.dataset.m==='ok'){ b.disabled=true; try{ await saveInvoices(old); await load(); toast(old.length+(old.length===1?' Rechnung':' Rechnungen')+' übernommen'); }catch(err){ b.disabled=false; alert('Übernahme fehlgeschlagen: '+errMsg(err)); return; } }
+    ls.del(LS_UP); render(); };
 }
-function guessCfg(){
-  if(!location.hostname.endsWith('github.io')) return {};
-  const segs=location.pathname.split('/').filter(Boolean); if(segs.length&&/\.html?$/.test(segs[segs.length-1])) segs.pop();
-  const owner=location.hostname.split('.')[0];
-  if(!segs.length||segs[0]===owner+'.github.io') return {owner,repo:owner+'.github.io',path:'data/rechnungen.json'};
-  return {owner,repo:segs[0],path:[...segs.slice(1),'data','rechnungen.json'].join('/')};
-}
-function loadCfg(){ const gh=ls.get(LS_GH,{}), g=guessCfg();
-  $('ghOwner').value=gh.owner||g.owner||''; $('ghRepo').value=gh.repo||g.repo||''; $('ghBranch').value=gh.branch||''; $('ghPath').value=gh.path||g.path||'data/rechnungen.json'; $('ghToken').value=gh.token?'••••••••':'';
-  $('ghStatus').textContent=gh.token?`Neue Rechnungen werden in ${gh.owner}/${gh.repo} (${gh.branch}) unter ${gh.path} gespeichert.`:'Neue Rechnungen werden nur in diesem Browser gespeichert.'; }
-$('ghSave').onclick=async()=>{ const old=ls.get(LS_GH,{}); const tok=$('ghToken').value.startsWith('••')?old.token:$('ghToken').value.trim();
-  const gh={owner:$('ghOwner').value.trim(),repo:$('ghRepo').value.trim(),branch:$('ghBranch').value.trim(),path:$('ghPath').value.trim().replace(/^\/+/,''),token:tok};
-  $('ghStatus').textContent='Prüfe Zugriff …';
-  try{
-    if(!gh.branch){ const r=await fetch(`https://api.github.com/repos/${encodeURIComponent(gh.owner)}/${encodeURIComponent(gh.repo)}`,{headers:ghHead(gh)});
-      if(!r.ok) throw new Error(r.status===401?'Token ungültig oder abgelaufen':r.status===404?'Repo nicht gefunden oder kein Zugriff':'GitHub-Fehler '+r.status);
-      gh.branch=(await r.json()).default_branch; }
-    await ghGet(gh); ls.set(LS_GH,gh); loadCfg(); $('ghStatus').textContent+=' Zugriff geprüft.';
-  }catch(e){ $('ghStatus').textContent='Nicht gespeichert: '+e.message+'.'; } };
-$('ghClear').onclick=()=>{const gh=ls.get(LS_GH,{});delete gh.token;ls.set(LS_GH,gh);loadCfg();};
-$('exportJson').onclick=()=>{ let data=BASE; for(const inv of D.lokal) data=mergeBase(data,inv);
-  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(data)],{type:'application/json'})); a.download='rechnungen.json'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000); };
 
 // ---------- Logos: offizielle Dateien aus assets/, sonst neutraler Platzhalter ----------
 document.querySelectorAll('img[data-src]').forEach(img=>{
@@ -509,10 +554,102 @@ document.querySelectorAll('img[data-src]').forEach(img=>{
   img.src=srcs[0];
 });
 
+// ---------- Anmeldung ----------
+function showGate(html){ ready=false; $('acct').hidden=true; $('dash').hidden=true; $('gate').hidden=false; $('gate').innerHTML=html; }
+function authScreen(mode,msg,cls){
+  const T={login:'Anmelden',signup:'Konto anlegen',reset:'Passwort zurücksetzen',newpw:'Neues Passwort festlegen'}[mode];
+  $('meta').textContent='Zugriff nur für freigeschaltete Personen.'; $('stand').innerHTML='';
+  showGate(`<div class="auth"><h2>${T}</h2><p class="sub">${mode==='newpw'?'Bitte ein neues Passwort wählen.':'Die Rechnungsdaten liegen geschützt in der Datenbank. Ein bestehendes Stahllisten-Konto funktioniert auch hier; freigeschaltet wird aber je Tool.'}</p>
+   <form class="panel" id="authForm" novalidate>
+    ${mode!=='newpw'?`<label>E-Mail<input id="aMail" type="email" autocomplete="username" required value="${esc(ls.get('doka-last-mail',''))}"></label>`:''}
+    ${mode!=='reset'?`<label>Passwort<input id="aPw" type="password" autocomplete="${mode==='login'?'current-password':'new-password'}" required minlength="8"></label>`:''}
+    <p class="msg ${cls||''}" id="aMsg">${msg||''}</p>
+    <div class="row"><button class="btn red" type="submit">${T}</button>
+     ${mode==='login'?`<button class="linkbtn" type="button" data-go="reset">Passwort vergessen?</button>`:mode==='newpw'?'':`<button class="linkbtn" type="button" data-go="login">Zurück zur Anmeldung</button>`}</div>
+    ${mode==='login'?`<p class="msg" style="color:var(--muted)">Noch kein Konto? <button class="linkbtn" type="button" data-go="signup">Konto anlegen</button> – danach schaltet ein Admin den Zugang frei.</p>`:''}
+   </form></div>`);
+  $('gate').querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>authScreen(b.dataset.go));
+  $('authForm').onsubmit=async e=>{ e.preventDefault(); const m=$('aMsg'), btn=e.target.querySelector('button[type=submit]');
+    const mail=$('aMail')?.value.trim().toLowerCase(), pw=$('aPw')?.value;
+    if(mail!==undefined&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(mail)){ m.className='msg bad'; m.textContent='Bitte eine gültige E-Mail eingeben.'; return; }
+    if(pw!==undefined&&mode!=='login'&&pw.length<8){ m.className='msg bad'; m.textContent='Das Passwort braucht mindestens 8 Zeichen.'; return; }
+    if(mail) ls.set('doka-last-mail',mail);
+    btn.disabled=true; m.className='msg'; m.textContent='Bitte warten …';
+    const back=location.origin+location.pathname;
+    try{
+      if(mode==='login'){ const {error}=await sb.auth.signInWithPassword({email:mail,password:pw}); if(error) throw error; }
+      else if(mode==='signup'){ const {data,error}=await sb.auth.signUp({email:mail,password:pw,options:{emailRedirectTo:back}}); if(error) throw error;
+        if(!data.session){ authScreen('login','Konto angelegt. Bitte den Link in der Bestätigungs-Mail öffnen und danach anmelden.','ok'); return; } }
+      else if(mode==='reset'){ const {error}=await sb.auth.resetPasswordForEmail(mail,{redirectTo:back}); if(error) throw error;
+        authScreen('login','Falls ein Konto existiert, kommt gleich eine E-Mail mit einem Link zum Zurücksetzen.','ok'); return; }
+      else if(mode==='newpw'){ const {error}=await sb.auth.updateUser({password:pw}); if(error) throw error; toast('Passwort geändert'); history.replaceState(null,'',back); }
+      await afterLogin();
+    }catch(err){ btn.disabled=false; m.className='msg bad';
+      const t=errMsg(err); m.textContent=/invalid login/i.test(t)?'E-Mail oder Passwort falsch.':/not confirmed/i.test(t)?'E-Mail noch nicht bestätigt – bitte den Link in der Bestätigungs-Mail öffnen.':/already registered/i.test(t)?'Für diese E-Mail gibt es schon ein Konto. Bitte anmelden.':/fetch|network/i.test(t)?'Datenbank nicht erreichbar. Internetverbindung prüfen; ggf. ist das Supabase-Projekt pausiert.':t; }
+  };
+}
+async function afterLogin(){
+  const {data:{session}}=await sb.auth.getSession(); if(!session){ authScreen('login'); return; }
+  me=session.user; showGate('<p class="sub" style="margin-top:26px">Daten werden geladen …</p>');
+  const {data,error}=await sb.rpc('doka_meine_rolle');
+  if(error){ if(error.code==='PGRST202'||error.code==='42883'||/could not find the function/i.test(error.message)) return setupScreen(); return blockScreen('Fehler beim Prüfen des Zugangs: '+errMsg(error)); }
+  if(!data) return blockScreen();
+  rolle=data;
+  try{ await load(); }catch(e){ return blockScreen('Daten konnten nicht geladen werden: '+errMsg(e)); }
+  ready=true; $('gate').hidden=true; $('dash').hidden=false; $('acct').hidden=false;
+  $('whoMail').textContent=me.email; $('btnTeam').hidden=rolle!=='admin'; setSync('ok');
+  render();
+}
+function blockScreen(err){
+  showGate(`<div class="auth"><h2>${err?'Fehler':'Noch kein Zugang'}</h2><div class="panel">
+    <p class="msg ${err?'bad':''}">${err?esc(err):`Du bist als <b>${esc(me.email)}</b> angemeldet, aber noch nicht für die Doka-Mietrechnungen freigeschaltet. Bitte einen Admin, dich unter „Zugänge“ freizuschalten.`}</p>
+    <div class="row"><button class="btn" type="button" id="bRetry">Erneut prüfen</button><button class="btn sec" type="button" id="bOut">Abmelden</button></div></div></div>`);
+  $('bRetry').onclick=afterLogin; $('bOut').onclick=logout;
+}
+async function setupScreen(){
+  let sql=''; try{ sql=await (await fetch('supabase-setup.sql',{cache:'no-cache'})).text(); }catch(e){ sql='-- supabase-setup.sql konnte nicht geladen werden. Datei im Repo unter doka-miete-bfs/ öffnen.'; }
+  sql+=`\n-- Dich (${me.email}) als ersten Admin freischalten:\ninsert into public.doka_zugang (email, rolle) values ('${me.email.toLowerCase().replace(/'/g,"''")}', 'admin')\non conflict (email) do update set rolle = 'admin';\n`;
+  const ref=(SB_CFG.url.match(/^https:\/\/([^.]+)\.supabase\.co/)||[])[1];
+  showGate(`<section style="margin-top:26px"><h2>Datenbank einrichten</h2><p class="sub">Die Tabellen für die Doka-Rechnungen fehlen noch in der Datenbank. Einmalig im Supabase SQL Editor ausführen – danach „Erneut prüfen“.</p>
+    <ol class="sub"><li>SQL kopieren</li><li><a href="https://supabase.com/dashboard/project/${esc(ref)}/sql/new" target="_blank" rel="noopener">Supabase SQL Editor öffnen</a>, einfügen und „Run“ klicken</li><li>Hier „Erneut prüfen“</li></ol>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px"><button class="btn red" type="button" id="sCopy">SQL kopieren</button><button class="btn" type="button" id="sRetry">Erneut prüfen</button><button class="btn sec" type="button" id="sOut">Abmelden</button></div>
+    <pre class="sql" id="sSql">${esc(sql)}</pre></section>`);
+  $('sCopy').onclick=async()=>{ try{ await navigator.clipboard.writeText(sql); toast('SQL kopiert'); }catch(e){ const r=document.createRange(); r.selectNodeContents($('sSql')); getSelection().removeAllRanges(); getSelection().addRange(r); toast('Text markiert – mit Strg+C kopieren'); } };
+  $('sRetry').onclick=afterLogin; $('sOut').onclick=logout;
+}
+async function logout(){ BASE=EMPTY(); D=null; $('result').innerHTML=''; await sb.auth.signOut(); authScreen('login','Abgemeldet.','ok'); }
+$('btnLogout').onclick=logout;
+// Änderungen anderer nachladen, wenn das Fenster wieder aktiv wird
+window.addEventListener('focus',async()=>{ if(!ready) return; try{ await load(); render(); }catch(e){ console.warn(e); } });
+
+// ---------- Zugänge (nur Admin) ----------
+const dDE=s=>s?s.split('-').reverse().join('.'):'';
+async function loadTeam(){
+  const {data,error}=await sb.from('doka_zugang').select('email,name,rolle,angelegt_am').order('email');
+  if(error){ $('tRows').innerHTML=`<tr><td colspan="5" class="msg bad">${esc(errMsg(error))}</td></tr>`; return; }
+  $('tRows').innerHTML=data.map(z=>`<tr><td>${esc(z.email)}</td><td>${esc(z.name||'')}</td><td>${z.rolle==='admin'?'Admin':'Mitglied'}</td><td>${dDE((z.angelegt_am||'').slice(0,10))}</td><td>${z.email===me.email.toLowerCase()?'<small style="color:var(--muted)">du</small>':`<button class="linkbtn" type="button" data-rm="${esc(z.email)}">Zugang entziehen</button>`}</td></tr>`).join('');
+}
+$('btnTeam').onclick=()=>{ $('tMsg').textContent=''; $('tMail').value=''; $('tName').value=''; $('tRole').value='mitglied'; $('dlgTeam').showModal(); loadTeam(); };
+$('tAdd').onclick=async()=>{ const email=$('tMail').value.trim().toLowerCase(), m=$('tMsg');
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ m.className='msg bad'; m.textContent='Bitte eine gültige E-Mail eingeben.'; return; }
+  const {error}=await sb.from('doka_zugang').upsert({email,name:$('tName').value.trim()||null,rolle:$('tRole').value});
+  if(error){ m.className='msg bad'; m.textContent=errMsg(error); return; }
+  m.className='msg ok'; m.textContent=email+' ist freigeschaltet.'; $('tMail').value=''; $('tName').value=''; loadTeam(); };
+$('tRows').onclick=async e=>{ const b=e.target.closest('[data-rm]'); if(!b) return;
+  if(!confirm(`Zugang für ${b.dataset.rm} entziehen?`)) return;
+  const {error}=await sb.from('doka_zugang').delete().eq('email',b.dataset.rm);
+  if(error){ $('tMsg').className='msg bad'; $('tMsg').textContent=errMsg(error); } else loadTeam(); };
+
 // ---------- Start ----------
-fetch('data/rechnungen.json',{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()})
- .then(d=>{BASE=d;loadCfg();render();})
- .catch(e=>{$('meta').textContent='Basisdaten data/rechnungen.json konnten nicht geladen werden ('+e.message+').';});
+(async()=>{
+  if(!window.supabase){ showGate('<p class="msg bad" style="margin-top:26px">Datenbank-Bibliothek konnte nicht geladen werden (vendor/supabase.js fehlt).</p>'); return; }
+  sb=window.supabase.createClient(SB_CFG.url,SB_CFG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storageKey:'doka-auth'}});
+  let recovery=/type=recovery/.test(location.hash);
+  sb.auth.onAuthStateChange((ev)=>{ if(ev==='PASSWORD_RECOVERY'){ recovery=true; authScreen('newpw'); }
+    else if(ev==='SIGNED_OUT'&&ready){ authScreen('login','Sitzung beendet – bitte erneut anmelden.'); } });
+  const {data:{session}}=await sb.auth.getSession();
+  if(recovery&&session) authScreen('newpw'); else if(session) afterLogin(); else authScreen('login');
+})();
 })();
 </script>
 </body>
