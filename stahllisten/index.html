@@ -2,6 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
+<script src="../assets/auth-gate.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
 <title>Stahllisten</title>
@@ -959,7 +960,7 @@ document.querySelectorAll('img[data-src]').forEach(img=>{ const srcs=img.dataset
 window.addEventListener('unhandledrejection',e=>{ console.error(e.reason); toast('Fehler: '+errMsg(e.reason)); });
 (async()=>{
   if(!window.supabase){ $('app').innerHTML='<p class="msg bad" style="margin-top:26px">Datenbank-Bibliothek konnte nicht geladen werden (vendor/supabase.js fehlt).</p>'; return; }
-  const c=cfg(); sb=window.supabase.createClient(c.url,c.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storageKey:'stahllisten-auth'}});
+  const c=cfg(); sb=window.supabase.createClient(c.url,c.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storageKey:'riedel-auth'}});
   let recovery=/type=recovery/.test(location.hash);
   sb.auth.onAuthStateChange((ev)=>{ if(ev==='PASSWORD_RECOVERY'){ recovery=true; authScreen('newpw'); }
     else if(ev==='SIGNED_OUT'&&ready){ authScreen('login','Sitzung beendet – bitte erneut anmelden.'); } });

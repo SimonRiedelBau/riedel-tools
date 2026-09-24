@@ -2,6 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
+<script src="../assets/auth-gate.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
 <title>Doka-Miete BfS Oberschleißheim</title>
@@ -643,7 +644,7 @@ $('tRows').onclick=async e=>{ const b=e.target.closest('[data-rm]'); if(!b) retu
 // ---------- Start ----------
 (async()=>{
   if(!window.supabase){ showGate('<p class="msg bad" style="margin-top:26px">Datenbank-Bibliothek konnte nicht geladen werden (vendor/supabase.js fehlt).</p>'); return; }
-  sb=window.supabase.createClient(SB_CFG.url,SB_CFG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storageKey:'doka-auth'}});
+  sb=window.supabase.createClient(SB_CFG.url,SB_CFG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storageKey:'riedel-auth'}});
   let recovery=/type=recovery/.test(location.hash);
   sb.auth.onAuthStateChange((ev)=>{ if(ev==='PASSWORD_RECOVERY'){ recovery=true; authScreen('newpw'); }
     else if(ev==='SIGNED_OUT'&&ready){ authScreen('login','Sitzung beendet – bitte erneut anmelden.'); } });
