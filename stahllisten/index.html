@@ -321,11 +321,11 @@ function toast(msg){ const d=document.createElement('div'); d.className='toast';
 // Nenngewichte kg/m nach DIN 488
 const KGM={6:.222,8:.395,10:.617,12:.888,14:1.21,16:1.58,20:2.47,25:3.85,28:4.83,32:6.31,40:9.86};
 const DIAS=Object.keys(KGM).map(Number);
-const catLabel=k=>k.startsWith('d')?'Ø '+k.slice(1):k==='M'?'Matten':k.startsWith('M:')?'Matte '+k.slice(2):k==='S'?'Sonstiges':k;
-const catOrder=k=>k.startsWith('d')?+k.slice(1):k.startsWith('M')?(k==='M'?500:501):900;
+const catLabel=k=>k.startsWith('d')?'Ø '+k.slice(1):k==='M'?'Matten':k.startsWith('M:')?'Matte '+k.slice(2):k==='K'?'Unterstützungskörbe':k==='S'?'Sonstiges':k;
+const catOrder=k=>k.startsWith('d')?+k.slice(1):k.startsWith('M')?(k==='M'?500:501):k==='K'?600:900;
 const catSort=(a,b)=>catOrder(a)-catOrder(b)||a.localeCompare(b);
 const catGroup=k=>k.startsWith('M')?'M':k; // Matten im Dashboard zusammenfassen
-const CAT_OPTS=[...DIAS.map(d=>'d'+d),'M','S'];
+const CAT_OPTS=[...DIAS.map(d=>'d'+d),'M','K','S'];
 
 // ---------- Datenbank (Supabase) ----------
 const SB_DEFAULT={url:'https://sazhfayopozqcluvmqqu.supabase.co',key:'sb_publishable_ZXiMVG3_xnblRTtMfJuJtA_kDgPuFLU'}; // Supabase-Projekt riedel-stahllisten
@@ -578,6 +578,13 @@ function matchPlan(pid,c){
   if(cand.length===1) return {plan:cand[0][0]};
   return {plan:null,why:cand.length?`mehrere Pläne mit Nummer ${c.num} – bitte zuordnen`:`noch kein Plan mit Nummer ${c.num}`};
 }
+// Plan über die in der Stahlliste angegebene Plannummer (z. B. „Plannr.: BFS_…_BP_U1_2131_01“)
+function planFromRef(pid,ref){ const rc=parseCode(ref); if(!rc) return null;
+  return S.plans.find(x=>x.projectId===pid&&planCode(x)?.nr===rc.nr)||null; }
+// Prüfhinweise zum Auslesen: Abgleich mit Gesamtgewicht und Summen der Liste
+function parseWarnings(r){ const w=[...(r.checks||[])], tot=sum(r.items||[],i=>i.kg);
+  if(r.total&&(r.items||[]).length&&Math.abs(tot-r.total)>Math.max(1,r.total*.005)) w.push(`erkannt ${fmt(tot,1)} kg, Gesamtgewicht laut Liste ${fmt(r.total,1)} kg`);
+  return w; }
 // Stahllisten ohne Plan nachträglich zuordnen (z. B. wenn der Plan nach der Liste kommt)
 function linkLists(pid){ const out=[];
   S.lists.filter(l=>l.projectId===pid&&!l.planId).forEach(l=>{ const m=matchPlan(pid,listCode(l)); if(m.plan){ l.planId=m.plan.id; if(!l.title) l.title=m.plan.title||''; out.push([l,m.plan]); } });
@@ -627,13 +634,14 @@ function tabLists(p,c){
       const olds=S.lists.filter(l=>l.projectId===p.id&&!l.ersetzt&&(l.nr===nr||listCode(l)?.nr===nr));
       if(c&&olds.some(l=>idxNum(l.idx)>=idxNum(c.idx))){ lines.push(['info',`${esc(nr)}: Index ${esc(c.idx)} übersprungen – ein gleicher oder höherer Index ist schon vorhanden`]); continue; }
       let r={items:[]}; try{ r=await parseSteel(f); }catch(e){ r={items:[],err:e.message}; }
-      const rec=await putFile(f), pl=matchPlan(p.id,c);
+      const rec=await putFile(f), ref=planFromRef(p.id,r.planRef), pl=ref?{plan:ref}:matchPlan(p.id,c);
       const l={id:uid(),projectId:p.id,nr,idx:c?c.idx:'',planId:pl.plan?pl.plan.id:'',date:today(),title:pl.plan?.title||'',ersetzt:false,items:cleanItems(r.items||[]),fileId:rec.id,fileName:f.name};
       if(c) l.code=c;
       const repl=c?await replaceOld(olds):'';
       S.lists.push(l);
-      const kg=listKg(l);
-      lines.push([kg&&pl.plan?'ok':'warn',`${esc(nr)}${l.idx?' Index '+esc(l.idx):''}: ${kg?fmt(kg,1)+' kg':'<b>keine Gewichte erkannt</b> – bitte unter „Bearbeiten“ ergänzen'}, ${pl.plan?'Plan '+esc(pl.plan.nr)+(pl.plan.idx?' / '+esc(pl.plan.idx):''):'<b>'+esc(pl.why)+'</b>'}${repl}`]); }
+      const kg=listKg(l), warn=parseWarnings(r);
+      if(!kg&&r.err) warn.push(r.err);
+      lines.push([kg&&pl.plan&&!warn.length?'ok':'warn',`${esc(nr)}${l.idx?' Index '+esc(l.idx):''}: ${kg?fmt(kg,1)+' kg':'<b>keine Gewichte erkannt</b> – bitte unter „Bearbeiten“ ergänzen'}, ${pl.plan?'Plan '+esc(pl.plan.nr)+(pl.plan.idx?' / '+esc(pl.plan.idx):''):'<b>'+esc(pl.why)+'</b>'}${repl}${warn.length?' · <b>Bitte prüfen:</b> '+esc(warn.join('; ')):(kg&&r.total?' · stimmt mit Gesamtgewicht überein':'')}`]); }
     await save(); setReport('listen',lines); renderProject(p.id); };
   $('listFiles').onchange=e=>{ if(e.target.files.length) add([...e.target.files]); e.target.value=''; };
   dropZone($('listDrop'),add);
@@ -730,11 +738,14 @@ function editList(l,presetPlan){
       if(r.items.length){ rows.set(r.items); }
       const code=isPlan?null:parseCode(file.name);
       if(code){ $('lNr').value=code.nr; $('lIdx').value=code.idx; newCode=code;
-        if(!$('lPlan').value){ const mp=matchPlan(curPid,code); if(mp.plan){ $('lPlan').value=mp.plan.id; planSel(); } } }
+        if(!$('lPlan').value){ const mp=planFromRef(curPid,r.planRef)||matchPlan(curPid,code).plan; if(mp){ $('lPlan').value=mp.id; planSel(); } } }
+      else if(!isPlan&&!$('lPlan').value){ const mp=planFromRef(curPid,r.planRef); if(mp){ $('lPlan').value=mp.id; planSel(); } }
       else if(!$('lNr').value) $('lNr').value=r.nr||file.name.replace(/\.[^.]+$/,'');
       const tot=sum(r.items,i=>i.kg);
       let cls=r.items.length?'ok':'bad', msg=r.items.length?`${r.items.length} Sorten erkannt, zusammen ${fmt(tot,1)} kg (${r.how}).`:'Keine Gewichte erkannt. Bitte die Gewichtsübersicht der Liste von Hand eintragen.';
-      if(r.total&&r.items.length){ const d=tot-r.total; if(Math.abs(d)>Math.max(1,r.total*.005)){ cls='warn'; msg+=` Achtung: Gesamtgewicht laut Datei ${fmt(r.total,1)} kg weicht um ${fmt(d,1)} kg ab – bitte prüfen.`; } else msg+=` Stimmt mit dem Gesamtgewicht der Datei überein.`; }
+      const warn=parseWarnings(r);
+      if(warn.length){ cls='warn'; msg+=' Bitte prüfen: '+esc(warn.join('; '))+'.'; }
+      else if(r.total&&r.items.length) msg+=` Stimmt mit dem Gesamtgewicht der Datei überein (${fmt(r.total,1)} kg).`;
       else if(r.total&&!r.items.length){ cls='warn'; msg=`Nur Gesamtgewicht ${fmt(r.total,1)} kg erkannt. Aufteilung nach Durchmesser bitte ergänzen.`; }
       $('lParse').innerHTML=`<p class="hint ${cls}">${msg}</p>${r.mapUI||''}${r.raw?`<details class="raw"><summary>Ausgelesener Text</summary><pre>${esc(r.raw.slice(0,20000))}</pre></details>`:''}`;
       if(r.bindMap) r.bindMap(items=>{ rows.set(items); });
@@ -852,9 +863,69 @@ async function pdfLines(file){
     rows.sort((a,b)=>b.y-a.y).forEach(r=>lines.push(r.parts.sort((a,b)=>a.x-b.x).map(p=>p.s).join(' '))); }
   return lines;
 }
+// Stücklisten mit Abschnitten (z. B. ahw Ingenieure / Mb-Programme):
+//   RUNDSTAHL-STÜCKLISTE  – Positionen (Pos, Stück, Ø, Schnittlänge, Einzelgewicht, Gesamtlänge) und
+//                           GESAMTMENGE je Ø (Ø, kg/m, m, kg) mit GESAMTGEWICHT
+//   UNTERSTÜTZUNGSKÖRBE   – GESAMTMENGE je Typ (Typ, kg/m, Stück, m, kg) mit GESAMTGEWICHT
+//   Mattengewichte        – Anzahl, Typ, kg; Brutto/Netto
+//   BIEGELISTE / SCHNEIDESKIZZE werden übersprungen (doppelte Angaben, Zahlen aus Skizzen)
+// Jede Masse wird gegengeprüft: Summe je Ø gegen Positionen, Abschnittssumme gegen Gesamtgewicht.
+function parseStueckliste(lines){
+  const D='(\\d{1,3}(?:\\.\\d{3})*,\\d+)';
+  const reSum=new RegExp('^(\\d{1,2})\\s+(\\d,\\d{2,4})\\s+'+D+'\\s+'+D+'$');                       // Ø kg/m m kg
+  const rePos=new RegExp('^(\\d{1,4})\\s+(\\d{1,5})\\s+(\\d{1,2})\\s+(\\d+,\\d{2,3})\\s+'+D+'\\s+'+D+'$'); // Pos Stück Ø L G Lges
+  const reKorb=new RegExp('^([A-Za-z][\\w./-]*)\\s+(\\d,\\d{2,4})\\s+(\\d{1,5})\\s+'+D+'\\s+'+D+'$');   // Typ kg/m Stück m kg
+  const reMat=new RegExp('^(\\d{1,5})\\s+([QRNK]\\s?\\d{3}\\s?-?\\s?[AE]?)\\s+'+D+'$','i');           // Anzahl Typ kg
+  const out={dia:{},pos:{},posN:0,korb:{},mat:{},rundTotal:null,korbTotal:null,matBrutto:null,matNetto:null};
+  let sec='', inSum=false;
+  for(const line of lines){
+    const l=line.trim(), c=l.replace(/\s+/g,'').toUpperCase();
+    if(/RUNDSTAHL-?STÜCKLISTE|STABSTAHL-?STÜCKLISTE/.test(c)){ sec='rund'; inSum=false; continue; }
+    if(/UNTERSTÜTZUNGSKÖRBE|UNTERSTUETZUNGSKOERBE/.test(c)){ sec='korb'; inSum=false; continue; }
+    if(/^BIEGELISTE|SCHNEIDESKIZZE/.test(c)){ sec='skip'; inSum=false; continue; }
+    if(/^MATTENGEWICHTE/.test(c)){ sec='matte'; continue; }
+    if(/^GESAMTMENGE/.test(c)){ inSum=true; continue; }
+    const gt=c.match(/^GESAMTGEWICHT(\d{1,3}(?:\.\d{3})*,\d+)$/);
+    if(gt){ const v=num(gt[1]); if(sec==='rund') out.rundTotal=(out.rundTotal||0)+v; else if(sec==='korb') out.korbTotal=(out.korbTotal||0)+v; inSum=false; continue; }
+    let m;
+    if(sec==='rund'&&inSum&&(m=l.match(reSum))){ const d=+m[1], kgm=num(m[2]); if(KGM[d]&&Math.abs(kgm-KGM[d])<=KGM[d]*.03) out.dia[d]=(out.dia[d]||0)+num(m[4]); continue; }
+    if(sec==='rund'&&!inSum&&(m=l.match(rePos))){ const d=+m[3]; if(KGM[d]){ out.pos[d]=(out.pos[d]||0)+(+m[2])*num(m[5]); out.posN++; } continue; }
+    if(sec==='korb'&&inSum&&(m=l.match(reKorb))){ out.korb[m[1]]=(out.korb[m[1]]||0)+num(m[5]); continue; }
+    if(sec==='matte'){
+      if((m=l.match(reMat))){ const k=m[2].replace(/\s|-/g,'').toUpperCase(); out.mat[k]=(out.mat[k]||0)+num(m[3]); continue; }
+      if((m=c.match(/^BRUTTO(\d{1,3}(?:\.\d{3})*,\d+)/))){ out.matBrutto=num(m[1]); continue; }
+      if((m=c.match(/^NETTO(\d{1,3}(?:\.\d{3})*,\d+)/))){ out.matNetto=num(m[1]); continue; }
+    }
+  }
+  const has=o=>Object.keys(o).length>0;
+  if(!has(out.dia)&&!has(out.pos)&&!has(out.mat)&&!has(out.korb)) return null;
+  const acc={}, checks=[], parts=[];
+  const dia=has(out.dia)?out.dia:out.pos;
+  Object.entries(dia).forEach(([d,kg])=>acc['d'+d]=kg);
+  if(has(out.dia)&&has(out.pos)){ // Summe je Ø gegen Einzelpositionen
+    new Set([...Object.keys(out.dia),...Object.keys(out.pos)]).forEach(d=>{ const a=out.dia[d]||0, b=out.pos[d]||0;
+      if(Math.abs(a-b)>Math.max(1,a*.005)) checks.push(`Ø ${d}: Summe ${fmt(a,1)} kg, Positionen ergeben ${fmt(b,1)} kg`); }); }
+  const diaSum=sum(Object.values(dia),v=>v);
+  if(has(dia)) parts.push(`Stabstahl ${fmt(diaSum,1)} kg aus ${has(out.dia)?'Gesamtmenge je Ø':out.posN+' Positionen'}`);
+  if(out.rundTotal!=null&&Math.abs(diaSum-out.rundTotal)>Math.max(1,out.rundTotal*.005)) checks.push(`Stabstahl: erkannt ${fmt(diaSum,1)} kg, Gesamtgewicht laut Liste ${fmt(out.rundTotal,1)} kg`);
+  const korbSum=sum(Object.values(out.korb),v=>v);
+  if(korbSum){ acc.K=korbSum; parts.push(`Unterstützungskörbe ${fmt(korbSum,1)} kg (${Object.keys(out.korb).join(', ')})`); }
+  if(out.korbTotal!=null&&Math.abs(korbSum-out.korbTotal)>Math.max(1,out.korbTotal*.005)) checks.push(`Unterstützungskörbe: erkannt ${fmt(korbSum,1)} kg, Gesamtgewicht laut Liste ${fmt(out.korbTotal,1)} kg`);
+  const matSum=sum(Object.values(out.mat),v=>v);
+  Object.entries(out.mat).forEach(([k,kg])=>acc['M:'+k]=kg);
+  if(matSum) parts.push(`Matten ${fmt(matSum,1)} kg brutto${out.matNetto?` (netto ${fmt(out.matNetto,1)} kg)`:''}`);
+  if(out.matBrutto!=null&&Math.abs(matSum-out.matBrutto)>Math.max(1,out.matBrutto*.005)) checks.push(`Matten: erkannt ${fmt(matSum,1)} kg, Brutto laut Liste ${fmt(out.matBrutto,1)} kg`);
+  const tParts=[out.rundTotal,out.korbTotal,out.matBrutto].filter(v=>v!=null);
+  return {acc,how:parts.join(' · '),checks,total:tParts.length?sum(tParts,v=>v):null};
+}
+
 async function parsePdf(file){
   const lines=await pdfLines(file), raw=lines.join('\n');
   if(!raw.replace(/\s/g,'').length) return {items:[],total:null,how:'',raw:'(kein Text – gescannte PDF)'};
+  const planRef=(raw.match(/Plan\s*-?\s*nr\.?\s*:?\s*([A-Za-z0-9]+(?:_[A-Za-z0-9ÄÖÜäöü]+){5,})/i)||[])[1]||'';
+  const st=parseStueckliste(lines);
+  if(st) return {items:Object.entries(st.acc).sort((a,b)=>catSort(a[0],b[0])).map(([cat,kg])=>({cat,kg:Math.round(kg*10)/10})),
+    total:st.total,how:st.how,checks:st.checks,raw,nr:'',planRef};
   const N='(\\d{1,3}(?:[.\\s]\\d{3})*(?:,\\d+)?|\\d+(?:[.,]\\d+)?)';
   const acc={}; let how='';
   // 1) Gewichtsübersicht als Tabelle: Zeile mit Durchmessern, darunter Zeile "Gewicht/kg/Summe" mit Zahlen
@@ -891,7 +962,7 @@ async function parsePdf(file){
   // Gesamtgewicht
   let total=null; lines.forEach(l=>{ if(/gesamt\s*gew|gesamtgewicht|summe\s*gesamt|gesamt\s*summe|total/i.test(l)){ const m=l.match(new RegExp(N+'\\s*(kg|t)\\b','i')); if(m){ const v=num(m[1])*(m[2].toLowerCase()==='t'?1000:1); if(v>0) total=Math.max(total||0,v); } } });
   const nrM=raw.match(/(?:Listen?|Stahlliste|Biegeliste)[\s-]*(?:Nr\.?|Nummer)\s*[:.]?\s*([A-Z0-9][\w./-]{0,20})/i);
-  return {items:Object.entries(acc).sort((a,b)=>catSort(a[0],b[0])).map(([cat,kg])=>({cat,kg:Math.round(kg*10)/10})),total,how,raw,nr:nrM?nrM[1]:''};
+  return {items:Object.entries(acc).sort((a,b)=>catSort(a[0],b[0])).map(([cat,kg])=>({cat,kg:Math.round(kg*10)/10})),total,how,raw,nr:nrM?nrM[1]:'',planRef};
 }
 
 // ---------- Export / Sicherung ----------

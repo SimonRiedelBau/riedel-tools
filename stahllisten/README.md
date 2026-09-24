@@ -7,6 +7,11 @@ Bewehrungsbedarf für laufende Projekte: Pläne und Stahllisten hochladen, Beste
 2. **Pläne hochladen** (Reiter *Pläne*) – mehrere PDFs auf einmal; Plan-Nr. und Index werden aus dem Dateinamen vorgeschlagen (z. B. `BP-101_Index_b.pdf`).
 3. **Stahllisten hinzufügen** (Reiter *Stahllisten*) – einem Plan zuordnen und die Datei auslesen lassen:
    - **Excel/CSV** (am zuverlässigsten): Spalten Ø, Anzahl, Länge, Gewicht, Mattentyp werden automatisch erkannt und lassen sich umstellen. Fehlt das Gewicht, wird es aus Anzahl × Länge × Nenngewicht (DIN 488) berechnet; Länge in mm, cm oder m wird erkannt.
+   - **PDF-Stücklisten mit Abschnitten** (z. B. ahw Ingenieure: Rundstahl-Stückliste, Unterstützungskörbe, Mattengewichte) werden
+     vollständig ausgelesen: Stabstahl je Ø aus der Gesamtmenge, Unterstützungskörbe, Matten je Typ (brutto). Jede Masse wird
+     gegengeprüft (Summe je Ø gegen die Einzelpositionen, jeder Abschnitt gegen sein Gesamtgewicht bzw. Matten-Brutto);
+     Abweichungen erscheinen als „Bitte prüfen“. Die „Plannr.“ aus der Liste wird für die Zuordnung zum Plan genutzt.
+     Biegeliste und Schneideskizze werden übersprungen (doppelte Angaben).
    - **PDF**: Gewichtsübersicht je Durchmesser, Summenzeilen „Ø 12 … kg“ oder Einzelpositionen; Matten (Q/R…) mit kg. Das erkannte Ergebnis wird mit dem Gesamtgewicht der Datei abgeglichen.
    - Ist die Stahlliste auf dem Plan selbst, „Aus Plan-PDF auslesen“ nutzen.
    - Gescannte PDFs haben keinen Text – dann die Gewichte von Hand eintragen.
