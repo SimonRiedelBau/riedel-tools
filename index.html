@@ -37,6 +37,42 @@ header.top{display:flex;align-items:center;gap:14px;border-bottom:3px solid var(
 .tool p{margin:0;color:var(--muted);font-size:13.5px;line-height:1.45;flex:1}
 .tool span{font:600 12.5px/1 var(--sans);color:var(--red-ink);letter-spacing:.02em}
 footer{margin-top:48px;color:var(--muted);font-size:13px;border-top:1px solid var(--rule);padding-top:14px}
+[hidden]{display:none!important}
+.right{margin-left:auto;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:flex-end}
+.who{font-size:13px;color:var(--muted);margin-right:4px}
+h2{font:700 24px/1.1 var(--cond);margin:0 0 4px}
+.sub{color:var(--muted);margin:0 0 16px;max-width:75ch}
+.panel{background:var(--surface);border:1px solid var(--rule);padding:18px}
+label{font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+select,input{font:inherit;font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--rule);padding:6px 8px;min-width:0}
+select:focus-visible,input:focus-visible,button:focus-visible{outline:2px solid var(--red);outline-offset:1px}
+.btn{font:600 15px/1 var(--sans);padding:10px 16px;border:2px solid var(--ink);background:var(--ink);color:var(--bg);cursor:pointer}
+.btn.sec{background:transparent;color:var(--ink)}
+.btn.red{background:var(--red);border-color:var(--red);color:#fff}
+.btn.sm{font-size:13px;padding:7px 11px}
+.btn:disabled{opacity:.45;cursor:default}
+.linkbtn{background:none;border:0;color:var(--red-ink);cursor:pointer;font:inherit;text-decoration:underline;padding:0}
+.auth{max-width:440px;margin-top:30px}
+.auth .panel{display:flex;flex-direction:column;gap:12px}
+.auth input{width:100%}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.msg{font-size:14px;margin:0}
+.msg.ok{color:#2E7D4F}.msg.bad{color:var(--red-ink)}
+pre.sql{max-height:340px;overflow:auto;background:var(--surface);border:1px solid var(--rule);padding:10px;font-size:12px;white-space:pre-wrap}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;font-size:14px;z-index:99;max-width:calc(100vw - 32px)}
+dialog{border:1px solid var(--rule);background:var(--bg);color:var(--ink);padding:0;width:min(760px,calc(100vw - 24px));max-height:calc(100vh - 24px)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+dialog form{display:flex;flex-direction:column;max-height:calc(100vh - 26px)}
+.dh{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:3px solid var(--ink)}
+.dh h2{margin:0}
+.db{padding:16px 18px;overflow:auto}
+.df{display:flex;gap:10px;justify-content:flex-end;padding:12px 18px;border-top:1px solid var(--rule);flex-wrap:wrap}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:7px 10px;text-align:left;border-bottom:1px solid var(--rule);white-space:nowrap}
+th{font:600 13px/1.2 var(--sans);color:var(--muted);background:var(--soft)}
+.scroll{overflow-x:auto}
+@media (max-width:700px){.top{flex-wrap:wrap}.right{margin-left:0;width:100%;justify-content:flex-start}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -45,9 +81,15 @@ footer{margin-top:48px;color:var(--muted);font-size:13px;border-top:1px solid va
 <header class="top">
   <img class="logo-riedel" id="logoRiedel" alt="Riedel Bau" data-src="assets/logo-riedel.svg|assets/logo-riedel.png|assets/logo-riedel.jpg" data-fallback="riedel">
   <div><h1>Riedel-Tools</h1><p>Digitale Werkzeuge für Planung, Ausführung und Abrechnung auf der Baustelle.</p></div>
+  <div class="right" id="acct" hidden>
+    <span class="who" id="whoMail"></span>
+    <button class="btn sec sm" id="btnTeam" type="button" hidden>Zugänge</button>
+    <button class="btn sec sm" id="btnLogout" type="button">Abmelden</button>
+  </div>
 </header>
 
-<div class="tools">
+<main id="gate"><p class="sub" style="margin-top:26px">Verbindung wird hergestellt …</p></main>
+<div class="tools" id="tools" hidden>
   <a class="tool" href="doka-miete-bfs/">
     <h2>Doka-Mietrechnungen</h2>
     <p>Dashboard für die monatlichen Doka-Mietrechnungen (Baustelle BfS Oberschleißheim): Monatsentwicklung, Rechnungspositionen und Bestand der Sichtbetonelemente. Geschützt in der Datenbank, mit Anmeldung.</p>
@@ -90,10 +132,30 @@ footer{margin-top:48px;color:var(--muted);font-size:13px;border-top:1px solid va
   </a>
 </div>
 
-<footer>Riedel Bau – interne Werkzeuge. Nicht für die öffentliche Suche bestimmt.</footer>
+<footer>Riedel Bau – interne Werkzeuge. Zugang nur für freigeschaltete Personen.</footer>
 </div>
 
+<!-- Zugänge -->
+<dialog id="dlgTeam"><form method="dialog">
+  <div class="dh"><h2>Zugänge</h2><button class="linkbtn" value="cancel">Schließen</button></div>
+  <div class="db">
+    <p class="sub">Freigeschaltete Personen dürfen die Tools öffnen. Die Person muss sich vorher hier ein Konto angelegt und die E-Mail bestätigt haben. Für die Daten von Stahllisten und Doka-Mietrechnungen braucht es zusätzlich die Freigabe im jeweiligen Tool.</p>
+    <div class="grid">
+      <label>E-Mail<input id="tMail" type="email" autocomplete="off"></label>
+      <label>Name<input id="tName" autocomplete="off"></label>
+      <label>Rolle<select id="tRole"><option value="mitglied">Mitglied</option><option value="admin">Admin (darf Zugänge verwalten)</option></select></label>
+      <div style="display:flex;align-items:end"><button class="btn" type="button" id="tAdd">Freischalten</button></div>
+    </div>
+    <p class="msg" id="tMsg" style="margin-top:8px"></p>
+    <div class="scroll" style="margin-top:12px"><table><thead><tr><th>E-Mail</th><th>Name</th><th>Rolle</th><th>seit</th><th></th></tr></thead><tbody id="tRows"></tbody></table></div>
+  </div>
+  <div class="df"><button class="btn sec" value="cancel">Schließen</button></div>
+</form></dialog>
+
+<script src="assets/vendor/supabase.js"></script>
 <script>
+(function(){
+'use strict';
 document.querySelectorAll('img[data-src]').forEach(img=>{
   const srcs=img.dataset.src.split('|'); let i=0;
   const fallback=()=>{ const span=document.createElement('span');
@@ -102,6 +164,113 @@ document.querySelectorAll('img[data-src]').forEach(img=>{
   img.onerror=()=>{ i++; if(i<srcs.length) img.src=srcs[i]; else fallback(); };
   img.src=srcs[0];
 });
+
+// ---------- Anmeldung (Supabase-Projekt riedel-stahllisten, Freigabeliste tools_zugang) ----------
+const CFG={url:'https://sazhfayopozqcluvmqqu.supabase.co',key:'sb_publishable_ZXiMVG3_xnblRTtMfJuJtA_kDgPuFLU',storageKey:'riedel-auth'};
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const errMsg=e=>(e&&(e.message||e.error_description||e.msg))||String(e);
+const dDE=s=>s?s.split('-').reverse().join('.'):'';
+const lsGet=(k,d)=>{ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):d; }catch(e){ return d; } };
+const lsSet=(k,v)=>{ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} };
+function toast(msg){ const d=document.createElement('div'); d.className='toast'; d.textContent=msg; document.body.appendChild(d); setTimeout(()=>d.remove(),3200); }
+const base=location.pathname.replace(/[^/]*$/,'');
+// Nach der Anmeldung zurück zum Tool, von dem man kam (nur Seiten dieser Website)
+function nextTarget(){ const n=new URLSearchParams(location.search).get('next');
+  return n&&n.startsWith(base)&&!n.startsWith('//')&&!/[\\]/.test(n)&&n!==base?n:null; }
+let sb=null, me=null, rolle=null, ready=false;
+
+function showGate(html){ ready=false; $('acct').hidden=true; $('tools').hidden=true; $('gate').hidden=false; $('gate').innerHTML=html; }
+function authScreen(mode,msg,cls){
+  const T={login:'Anmelden',signup:'Konto anlegen',reset:'Passwort zurücksetzen',newpw:'Neues Passwort festlegen'}[mode];
+  showGate(`<div class="auth"><h2>${T}</h2><p class="sub">${mode==='newpw'?'Bitte ein neues Passwort wählen.':nextTarget()?'Bitte anmelden, um das Tool zu öffnen.':'Die Riedel-Tools sind nur für freigeschaltete Personen zugänglich.'}</p>
+   <form class="panel" id="authForm" novalidate>
+    ${mode!=='newpw'?`<label>E-Mail<input id="aMail" type="email" autocomplete="username" required value="${esc(lsGet('riedel-last-mail',''))}"></label>`:''}
+    ${mode!=='reset'?`<label>Passwort<input id="aPw" type="password" autocomplete="${mode==='login'?'current-password':'new-password'}" required minlength="8"></label>`:''}
+    <p class="msg ${cls||''}" id="aMsg">${msg||''}</p>
+    <div class="row"><button class="btn red" type="submit">${T}</button>
+     ${mode==='login'?`<button class="linkbtn" type="button" data-go="reset">Passwort vergessen?</button>`:mode==='newpw'?'':`<button class="linkbtn" type="button" data-go="login">Zurück zur Anmeldung</button>`}</div>
+    ${mode==='login'?`<p class="msg" style="color:var(--muted)">Noch kein Konto? <button class="linkbtn" type="button" data-go="signup">Konto anlegen</button> – danach schaltet ein Admin den Zugang frei. Ein bestehendes Stahllisten-Konto funktioniert auch.</p>`:''}
+   </form></div>`);
+  $('gate').querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>authScreen(b.dataset.go));
+  $('authForm').onsubmit=async e=>{ e.preventDefault(); const m=$('aMsg'), btn=e.target.querySelector('button[type=submit]');
+    const mail=$('aMail')?.value.trim().toLowerCase(), pw=$('aPw')?.value;
+    if(mail!==undefined&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(mail)){ m.className='msg bad'; m.textContent='Bitte eine gültige E-Mail eingeben.'; return; }
+    if(pw!==undefined&&mode!=='login'&&pw.length<8){ m.className='msg bad'; m.textContent='Das Passwort braucht mindestens 8 Zeichen.'; return; }
+    if(mail) lsSet('riedel-last-mail',mail);
+    btn.disabled=true; m.className='msg'; m.textContent='Bitte warten …';
+    const back=location.origin+base;
+    try{
+      if(mode==='login'){ const {error}=await sb.auth.signInWithPassword({email:mail,password:pw}); if(error) throw error; }
+      else if(mode==='signup'){ const {data,error}=await sb.auth.signUp({email:mail,password:pw,options:{emailRedirectTo:back}}); if(error) throw error;
+        if(!data.session){ authScreen('login','Konto angelegt. Bitte den Link in der Bestätigungs-Mail öffnen und danach anmelden.','ok'); return; } }
+      else if(mode==='reset'){ const {error}=await sb.auth.resetPasswordForEmail(mail,{redirectTo:back}); if(error) throw error;
+        authScreen('login','Falls ein Konto existiert, kommt gleich eine E-Mail mit einem Link zum Zurücksetzen.','ok'); return; }
+      else if(mode==='newpw'){ const {error}=await sb.auth.updateUser({password:pw}); if(error) throw error; toast('Passwort geändert'); history.replaceState(null,'',base); }
+      await afterLogin();
+    }catch(err){ btn.disabled=false; m.className='msg bad';
+      const t=errMsg(err); m.textContent=/invalid login/i.test(t)?'E-Mail oder Passwort falsch.':/not confirmed/i.test(t)?'E-Mail noch nicht bestätigt – bitte den Link in der Bestätigungs-Mail öffnen.':/already registered/i.test(t)?'Für diese E-Mail gibt es schon ein Konto. Bitte anmelden.':/fetch|network/i.test(t)?'Datenbank nicht erreichbar. Internetverbindung prüfen; ggf. ist das Supabase-Projekt pausiert.':t; }
+  };
+}
+async function afterLogin(){
+  const {data:{session}}=await sb.auth.getSession(); if(!session){ authScreen('login'); return; }
+  me=session.user; showGate('<p class="sub" style="margin-top:26px">Zugang wird geprüft …</p>');
+  const {data,error}=await sb.rpc('tools_meine_rolle');
+  if(error){ if(error.code==='PGRST202'||error.code==='42883'||/could not find the function/i.test(error.message)) return setupScreen(); return blockScreen('Fehler beim Prüfen des Zugangs: '+errMsg(error)); }
+  if(!data) return blockScreen();
+  rolle=data;
+  const n=nextTarget(); if(n){ location.replace(n); return; }
+  ready=true; $('gate').hidden=true; $('tools').hidden=false; $('acct').hidden=false;
+  $('whoMail').textContent=me.email; $('btnTeam').hidden=rolle!=='admin';
+}
+function blockScreen(err){
+  showGate(`<div class="auth"><h2>${err?'Fehler':'Noch kein Zugang'}</h2><div class="panel">
+    <p class="msg ${err?'bad':''}">${err?esc(err):`Du bist als <b>${esc(me.email)}</b> angemeldet, aber noch nicht für die Riedel-Tools freigeschaltet. Bitte einen Admin, dich unter „Zugänge“ freizuschalten.`}</p>
+    <div class="row"><button class="btn" type="button" id="bRetry">Erneut prüfen</button><button class="btn sec" type="button" id="bOut">Abmelden</button></div></div></div>`);
+  $('bRetry').onclick=afterLogin; $('bOut').onclick=logout;
+}
+async function setupScreen(){
+  let sql=''; try{ sql=await (await fetch('zugang-setup.sql',{cache:'no-cache'})).text(); }catch(e){ sql='-- zugang-setup.sql konnte nicht geladen werden. Datei im Repo öffnen.'; }
+  sql+=`\n-- Dich (${me.email}) als ersten Admin freischalten:\ninsert into public.tools_zugang (email, rolle) values ('${me.email.toLowerCase().replace(/'/g,"''")}', 'admin')\non conflict (email) do update set rolle = 'admin';\n`;
+  const ref=(CFG.url.match(/^https:\/\/([^.]+)\.supabase\.co/)||[])[1];
+  showGate(`<section style="margin-top:26px"><h2>Zugang einrichten</h2><p class="sub">Die Freigabeliste für die Riedel-Tools fehlt noch in der Datenbank. Einmalig im Supabase SQL Editor ausführen – danach „Erneut prüfen“.</p>
+    <ol class="sub"><li>SQL kopieren</li><li><a href="https://supabase.com/dashboard/project/${esc(ref)}/sql/new" target="_blank" rel="noopener">Supabase SQL Editor öffnen</a>, einfügen und „Run“ klicken</li><li>Hier „Erneut prüfen“</li></ol>
+    <div class="row" style="margin-bottom:10px"><button class="btn red" type="button" id="sCopy">SQL kopieren</button><button class="btn" type="button" id="sRetry">Erneut prüfen</button><button class="btn sec" type="button" id="sOut">Abmelden</button></div>
+    <pre class="sql" id="sSql">${esc(sql)}</pre></section>`);
+  $('sCopy').onclick=async()=>{ try{ await navigator.clipboard.writeText(sql); toast('SQL kopiert'); }catch(e){ const r=document.createRange(); r.selectNodeContents($('sSql')); getSelection().removeAllRanges(); getSelection().addRange(r); toast('Text markiert – mit Strg+C kopieren'); } };
+  $('sRetry').onclick=afterLogin; $('sOut').onclick=logout;
+}
+async function logout(){ await sb.auth.signOut(); history.replaceState(null,'',base); authScreen('login','Abgemeldet.','ok'); }
+$('btnLogout').onclick=logout;
+
+// ---------- Zugänge (nur Admin) ----------
+async function loadTeam(){
+  const {data,error}=await sb.from('tools_zugang').select('email,name,rolle,angelegt_am').order('email');
+  if(error){ $('tRows').innerHTML=`<tr><td colspan="5" class="msg bad">${esc(errMsg(error))}</td></tr>`; return; }
+  $('tRows').innerHTML=data.map(z=>`<tr><td>${esc(z.email)}</td><td>${esc(z.name||'')}</td><td>${z.rolle==='admin'?'Admin':'Mitglied'}</td><td>${dDE((z.angelegt_am||'').slice(0,10))}</td><td>${z.email===me.email.toLowerCase()?'<small style="color:var(--muted)">du</small>':`<button class="linkbtn" type="button" data-rm="${esc(z.email)}">Zugang entziehen</button>`}</td></tr>`).join('');
+}
+$('btnTeam').onclick=()=>{ $('tMsg').textContent=''; $('tMail').value=''; $('tName').value=''; $('tRole').value='mitglied'; $('dlgTeam').showModal(); loadTeam(); };
+$('tAdd').onclick=async()=>{ const email=$('tMail').value.trim().toLowerCase(), m=$('tMsg');
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ m.className='msg bad'; m.textContent='Bitte eine gültige E-Mail eingeben.'; return; }
+  const {error}=await sb.from('tools_zugang').upsert({email,name:$('tName').value.trim()||null,rolle:$('tRole').value});
+  if(error){ m.className='msg bad'; m.textContent=errMsg(error); return; }
+  m.className='msg ok'; m.textContent=email+' ist freigeschaltet.'; $('tMail').value=''; $('tName').value=''; loadTeam(); };
+$('tRows').onclick=async e=>{ const b=e.target.closest('[data-rm]'); if(!b) return;
+  if(!confirm(`Zugang für ${b.dataset.rm} entziehen?`)) return;
+  const {error}=await sb.from('tools_zugang').delete().eq('email',b.dataset.rm);
+  if(error){ $('tMsg').className='msg bad'; $('tMsg').textContent=errMsg(error); } else loadTeam(); };
+
+// ---------- Start ----------
+(async()=>{
+  if(!window.supabase){ showGate('<p class="msg bad" style="margin-top:26px">Anmelde-Bibliothek konnte nicht geladen werden (assets/vendor/supabase.js fehlt).</p>'); return; }
+  sb=window.supabase.createClient(CFG.url,CFG.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storageKey:CFG.storageKey}});
+  let recovery=/type=recovery/.test(location.hash);
+  sb.auth.onAuthStateChange((ev)=>{ if(ev==='PASSWORD_RECOVERY'){ recovery=true; authScreen('newpw'); }
+    else if(ev==='SIGNED_OUT'&&ready){ authScreen('login','Sitzung beendet – bitte erneut anmelden.'); } });
+  const {data:{session}}=await sb.auth.getSession();
+  if(recovery&&session) authScreen('newpw'); else if(session) afterLogin(); else authScreen('login');
+})();
+})();
 </script>
 </body>
 </html>
