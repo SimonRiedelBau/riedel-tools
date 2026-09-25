@@ -355,7 +355,54 @@ function applyRows(rows){ const n=EMPTY(), inv=Object.fromEntries(Object.entries
 async function load(){ applyRows(await fetchAll()); }
 let saveChain=Promise.resolve();
 function save(){ saveChain=saveChain.then(doSave,doSave); return saveChain; }
+// ---------- Verlauf ----------
+// Beim Speichern werden die Änderungen gegenüber dem zuletzt gespeicherten Stand beschrieben und im Projekt
+// (project.log) mitgeführt: angelegt, neuer Index, ersetzt, Gewicht geändert, bestellt, geliefert, gelöscht.
+const ART_NAME={projekt:'Projekt',plan:'Plan',liste:'Stahlliste',bestellung:'Bestellung'};
+const artOf=d=>d.listIds!==undefined||d.status!==undefined?'bestellung':d.items!==undefined?'liste':d.projectId!==undefined?'plan':'projekt';
+function describe(art,old,d){
+  const kgL=x=>sum(x.items||[],i=>+i.kg), nm=x=>art==='bestellung'?'Bestellung '+(x.nr||dDE(x.date)):ART_NAME[art]+' '+(x.nr||x.name||'')+(x.idx?' Index '+x.idx:'');
+  const planNm=id=>{ const pl=S.plans.find(x=>x.id===id); return pl?pl.nr+(pl.idx?' / '+pl.idx:''):''; };
+  if(!old){
+    if(art==='projekt') return {text:'Projekt angelegt'};
+    if(art==='plan') return {text:nm(d)+' angelegt'};
+    if(art==='liste') return {text:nm(d)+' angelegt'+(d.planId?', Plan '+planNm(d.planId):'')+(d.ersetzt?' (ersetzt)':''),kg:kgL(d)};
+    return {text:nm(d)+' erfasst ('+(d.status||'bestellt')+'), Listen: '+((d.listIds||[]).map(id=>(S.lists.find(l=>l.id===id)||{}).nr||'?').join(', ')||'–'),kg:kgL(d)};
+  }
+  const ch=[];
+  if(art==='projekt'){ const a={...old}, b={...d}; delete a.log; delete b.log; return JSON.stringify(a)!==JSON.stringify(b)?{text:'Projektdaten geändert'}:null; }
+  if((old.idx||'')!==(d.idx||'')) ch.push(`Index ${old.idx||'–'} → ${d.idx||'–'}`);
+  else if(old.fileId!==d.fileId&&d.fileId) ch.push('Datei ersetzt');
+  if(art==='liste'){
+    if(!old.ersetzt&&d.ersetzt) ch.push('als ersetzt markiert'); if(old.ersetzt&&!d.ersetzt) ch.push('wieder gültig');
+    if(old.planId!==d.planId) ch.push(d.planId?'Plan '+planNm(d.planId)+' zugeordnet':'Plan-Zuordnung entfernt');
+  }
+  if(art==='bestellung'){
+    if(old.status!==d.status) ch.push(d.status==='geliefert'?'geliefert'+(d.ls?' (LS '+d.ls+')':''):'Status '+d.status);
+    if((old.due||'')!==(d.due||'')) ch.push('Liefertermin '+(dDE(d.due)||'–'));
+    if(JSON.stringify(old.listIds||[])!==JSON.stringify(d.listIds||[])) ch.push('Listen geändert');
+  }
+  if(art!=='plan'&&Math.abs(kgL(old)-kgL(d))>0.05) ch.push(`Gewicht ${fmt(kgL(old),1)} → ${fmt(kgL(d),1)} kg`);
+  if(!ch.length&&['title','date','nr','lief','note','ls'].some(k=>(old[k]||'')!==(d[k]||''))) ch.push('bearbeitet');
+  const head=(old.idx||'')!==(d.idx||'')?nm({...d,idx:''}):nm(d);
+  return ch.length?{text:head+': '+ch.join(', '),kg:art==='plan'?undefined:kgL(d)}:null;
+}
+function addLogEvents(){
+  const {up,del}=pending(), ts=new Date().toISOString(), who=me?.email||'', ev=[];
+  up.forEach(r=>{ const old=synced.has(r.id)?JSON.parse(synced.get(r.id)):null, e=describe(r.art,old,r.data);
+    if(e) ev.push({pid:r.projekt_id,art:r.art,...e}); });
+  del.forEach(id=>{ const old=JSON.parse(synced.get(id)), art=artOf(old); if(art==='projekt') return;
+    ev.push({pid:old.projectId,art,text:(art==='bestellung'?'Bestellung '+(old.nr||dDE(old.date)):ART_NAME[art]+' '+(old.nr||'')+(old.idx?' Index '+old.idx:''))+' gelöscht',kg:old.items?sum(old.items,i=>+i.kg):undefined}); });
+  // Neuer Index hat den alten überschrieben: „gelöscht“ + „angelegt“ zu einem Eintrag zusammenfassen
+  del.forEach(id=>{ const old=JSON.parse(synced.get(id)); if(artOf(old)==='projekt') return; const art=artOf(old);
+    const nu=up.find(r=>r.art===art&&!synced.has(r.id)&&r.data.nr===old.nr&&r.data.projectId===old.projectId);
+    if(!nu) return; const iDel=ev.findIndex(e=>e.art===art&&/ gelöscht$/.test(e.text)&&e.text.startsWith(ART_NAME[art]+' '+old.nr+(old.idx?' Index '+old.idx:'')));
+    const iNew=ev.findIndex(e=>e.art===art&&e.text.startsWith(ART_NAME[art]+' '+nu.data.nr+(nu.data.idx?' Index '+nu.data.idx:''))&&/ angelegt/.test(e.text));
+    if(iDel<0||iNew<0) return; ev[iNew].text=ev[iNew].text.replace(' angelegt',` angelegt – ersetzt Index ${old.idx||'–'} (${fmt(sum(old.items||[],i=>+i.kg),1)} kg)`); ev.splice(iDel,1); });
+  ev.forEach(e=>{ const p=S.projects.find(x=>x.id===e.pid); if(!p) return; (p.log||(p.log=[])).push({ts,who,art:e.art,text:e.text,kg:e.kg==null?null:Math.round(e.kg*10)/10}); });
+}
 async function doSave(){
+  addLogEvents();
   const {up,del}=pending(); if(!up.length&&!del.length) return;
   setSync('busy');
   try{
@@ -453,7 +500,7 @@ function renderProject(pid){
   const kalk=p.kalkT?p.kalkT*1000:null;
   let h=`<p class="crumb"><a href="#/">← Alle Projekte</a></p>
   <div class="toolbar" style="margin-top:8px"><div class="grow"><h2 style="font-size:30px">${esc(p.name)}</h2><div class="sub" style="margin:0">${esc([p.nr&&'Projekt '+p.nr,p.kst&&'Kostenstelle '+p.kst,p.lief&&'Biegebetrieb '+p.lief].filter(Boolean).join(' · '))}</div></div>
-  <button class="btn sec sm noprint" id="editProj" type="button">Projekt bearbeiten</button></div>
+  <button class="btn sm noprint" id="xlsxProj" type="button">Excel-Liste herunterladen</button><button class="btn sec sm noprint" id="editProj" type="button">Projekt bearbeiten</button></div>
   <div class="kpis">
     <div class="kpi"><small>Bedarf lt. Stahllisten</small><b>${t(c.tot.b)} t</b><span>${c.valid.length} gültige Listen${kalk?` · Kalkulation ${t(kalk)} t`:''}</span></div>
     <div class="kpi"><small>Bestellt</small><b>${t(c.tot.o)} t</b><span>${c.orders.length} Bestellungen${c.tot.b?` · ${fmt(Math.min(c.tot.o,c.tot.b)/c.tot.b*100)} % des Bedarfs`:''}</span></div>
@@ -463,12 +510,14 @@ function renderProject(pid){
   <div class="meter">${meterSegs(c.tot)}</div>
   <div class="legend"><span><i class="c-lief"></i>Geliefert</span><span><i class="c-best"></i>Bestellt, nicht geliefert</span><span><i class="c-open"></i>Noch zu bestellen</span></div>
   <div class="tabs" role="tablist">
-    ${[['uebersicht','Übersicht',''],['plaene','Pläne',plans.length],['listen','Stahllisten',c.lists.length],['bestellungen','Bestellungen',c.orders.length]].map(([k,l,n])=>`<button type="button" role="tab" aria-selected="${tab===k}" data-tab="${k}">${l}${n!==''?`<span>${n}</span>`:''}</button>`).join('')}
+    ${[['uebersicht','Übersicht',''],['plaene','Pläne',plans.length],['listen','Stahllisten',c.lists.length],['bestellungen','Bestellungen',c.orders.length],['verlauf','Verlauf',(p.log||[]).length]].map(([k,l,n])=>`<button type="button" role="tab" aria-selected="${tab===k}" data-tab="${k}">${l}${n!==''?`<span>${n}</span>`:''}</button>`).join('')}
   </div><div id="tabBody"></div>`;
   $('app').innerHTML=h;
   $('editProj').onclick=()=>editProject(p);
+  $('xlsxProj').onclick=async e=>{ const b=e.currentTarget; b.disabled=true; const tx=b.textContent; b.textContent='Excel wird erstellt …';
+    try{ await exportXlsx(p); }catch(err){ console.error(err); alert('Excel konnte nicht erstellt werden: '+errMsg(err)); } b.disabled=false; b.textContent=tx; };
   document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{ tab=b.dataset.tab; history.replaceState(null,'','#/p/'+pid+'/'+tab); renderProject(pid); });
-  ({uebersicht:tabOverview,plaene:tabPlans,listen:tabLists,bestellungen:tabOrders}[tab]||tabOverview)(p,c,plans);
+  ({uebersicht:tabOverview,plaene:tabPlans,listen:tabLists,bestellungen:tabOrders,verlauf:tabLog}[tab]||tabOverview)(p,c,plans);
 }
 
 function tabOverview(p,c){
@@ -667,6 +716,93 @@ function tabOrders(p,c){
   $('orderNew').onclick=()=>editOrder(null);
   document.querySelectorAll('[data-editorder]').forEach(b=>b.onclick=()=>editOrder(S.orders.find(x=>x.id===b.dataset.editorder)));
   document.querySelectorAll('[data-deliver]').forEach(b=>b.onclick=async()=>{ const o=S.orders.find(x=>x.id===b.dataset.deliver); o.status='geliefert'; await save(); renderProject(p.id); });
+}
+
+function tabLog(p){
+  const log=(p.log||[]).slice().reverse();
+  let h=`<section style="margin-top:0"><p class="sub">Jede Änderung an Plänen, Stahllisten und Bestellungen wird hier mit Zeitpunkt und Person mitgeführt – auch überschriebene Indizes. Der Verlauf ist auch in der Excel-Liste enthalten.</p>`;
+  h+=log.length?`<div class="tbl scroll"><table><thead><tr><th>Zeitpunkt</th><th>Person</th><th>Bereich</th><th>Vorgang</th><th class="n">kg</th></tr></thead><tbody>${log.map(e=>`<tr><td>${esc(tsDE(e.ts))}</td><td>${esc(e.who||'')}</td><td>${esc(ART_NAME[e.art]||'')}</td><td class="wrap">${esc(e.text)}</td><td class="n">${e.kg==null?'':fmt(e.kg,1)}</td></tr>`).join('')}</tbody></table></div>`
+    :`<div class="empty"><h3>Noch kein Verlauf</h3><p>Ab jetzt wird jede Änderung protokolliert.</p></div>`;
+  $('tabBody').innerHTML=h+'</section>';
+}
+const tsDE=iso=>{ if(!iso) return ''; const d=new Date(iso); return d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'})+' '+d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}); };
+
+// ---------- Excel-Liste (ExcelJS, wird erst beim Export geladen) ----------
+let xlsxLib=null;
+function loadExcelJS(){ return xlsxLib||(xlsxLib=new Promise((res,rej)=>{ if(window.ExcelJS) return res(window.ExcelJS);
+  const sc=document.createElement('script'); sc.src='vendor/exceljs.min.js'; sc.onload=()=>res(window.ExcelJS); sc.onerror=()=>{ xlsxLib=null; rej(new Error('vendor/exceljs.min.js nicht geladen')); }; document.head.appendChild(sc); })); }
+async function exportXlsx(p){
+  const ExcelJS=await loadExcelJS(), c=calc(p.id), now=new Date();
+  const wb=new ExcelJS.Workbook(); wb.creator='Riedel-Tools Stahllisten'; wb.created=now;
+  const INK='FF1D2124', RED='FFC4000B', GREY='FF8A9095', SOFT='FFECEDEB', RULE='FFCDD0CF';
+  const KG='#,##0.0', T='#,##0.00';
+  const font={name:'Arial',size:10};
+  const sheet=(name,title,cols)=>{ const ws=wb.addWorksheet(name,{views:[{state:'frozen',ySplit:4}],pageSetup:{orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0,paperSize:9}});
+    ws.columns=cols.map(x=>({key:x.key,width:x.w||14,style:{font,numFmt:x.fmt}}));
+    ws.getCell('A1').value=title; ws.getCell('A1').font={name:'Arial',size:16,bold:true,color:{argb:INK}};
+    ws.getCell('A2').value=[p.name,p.nr&&'Projekt '+p.nr,p.kst&&'Kostenstelle '+p.kst,p.lief&&'Biegebetrieb '+p.lief].filter(Boolean).join(' · '); ws.getCell('A2').font={...font,color:{argb:GREY}};
+    ws.getCell('A3').value='Stand '+tsDE(now.toISOString())+(me?.email?' · erstellt von '+me.email:''); ws.getCell('A3').font={...font,size:9,color:{argb:GREY}};
+    const hr=ws.getRow(4); cols.forEach((x,i)=>{ const cell=hr.getCell(i+1); cell.value=x.h; cell.font={name:'Arial',size:10,bold:true,color:{argb:'FFFFFFFF'}};
+      cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:INK}}; cell.alignment={vertical:'middle',horizontal:x.fmt?'right':'left',wrapText:true}; });
+    hr.height=28;
+    for(let i=1;i<=cols.length;i++) ws.getRow(3).getCell(i).border={bottom:{style:'medium',color:{argb:RED}}};
+    return ws; };
+  const addRow=(ws,vals,opt={})=>{ const r=ws.addRow(vals); r.eachCell({includeEmpty:true},cell=>{ cell.border={bottom:{style:'thin',color:{argb:RULE}}};
+      if(opt.dim) cell.font={...font,italic:true,color:{argb:GREY}}; if(opt.sum){ cell.font={...font,bold:true}; cell.border={top:{style:'medium',color:{argb:INK}}}; } });
+    return r; };
+  const filter=(ws,n)=>{ if(ws.rowCount>4) ws.autoFilter={from:{row:4,column:1},to:{row:ws.rowCount,column:n}}; };
+  const listCats=[...new Set(c.lists.flatMap(l=>(l.items||[]).map(i=>i.cat)))].sort(catSort);
+  const orderCats=[...new Set(c.orders.flatMap(o=>(o.items||[]).map(i=>i.cat)))].sort(catSort);
+  const kgOf=(items,k)=>{ const v=sum((items||[]).filter(i=>i.cat===k),i=>+i.kg); return v||null; };
+  const ordersOf=l=>c.orders.filter(o=>(o.listIds||[]).includes(l.id)).map(o=>o.nr||dDE(o.date)).join(', ');
+
+  // Übersicht
+  { const ws=sheet('Übersicht','Stahllisten – Übersicht',[{h:'Sorte',key:'k',w:24},{h:'Bedarf t',key:'b',fmt:T},{h:'Bestellt t',key:'o',fmt:T},{h:'Geliefert t',key:'g',fmt:T},{h:'Noch zu bestellen t',key:'r',fmt:T,w:18},{h:'Mehr bestellt t',key:'m',fmt:T,w:16}]);
+    c.rows.forEach(r=>{ const row=addRow(ws,[catLabel(r.k),r.b/1000,r.o/1000,r.g/1000,r.rest/1000,r.mehr?r.mehr/1000:null]); if(r.rest>0) row.getCell(5).font={...font,bold:true,color:{argb:RED}}; });
+    addRow(ws,['Summe',c.tot.b/1000,c.tot.o/1000,c.tot.g/1000,c.tot.rest/1000,c.tot.mehr?c.tot.mehr/1000:null],{sum:true});
+    ws.addRow([]);
+    const kalk=p.kalkT?p.kalkT*1000:null;
+    [['Gültige Stahllisten',c.valid.length],['davon noch nicht bestellt',c.openLists.length],['Bestellungen',c.orders.length],['Pläne',S.plans.filter(x=>x.projectId===p.id).length]].concat(kalk?[['Kalkulation t',kalk/1000],['Abdeckung durch Listen %',Math.round(c.tot.b/kalk*1000)/10]]:[])
+      .forEach(([a,b])=>{ const r=ws.addRow([a,b]); r.getCell(1).font={...font,color:{argb:GREY}}; r.getCell(2).numFmt=typeof b==='number'&&!Number.isInteger(b)?T:'0'; });
+    ws.addRow([]); const hn=ws.addRow(['Hinweise']); hn.getCell(1).font={...font,bold:true};
+    notes(p,c,kalk).forEach(([,x])=>{ const r=ws.addRow([x.replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'")]); ws.mergeCells(r.number,1,r.number,6); r.getCell(1).alignment={wrapText:true,vertical:'top'}; r.height=30; });
+  }
+  // Stahllisten
+  { const cols=[{h:'Liste',key:'nr',w:34},{h:'Index',key:'idx',w:7},{h:'Bereich',key:'ber',w:24},{h:'Plan',key:'plan',w:34},{h:'Plan-Index',key:'pidx',w:9},{h:'Bauteil',key:'bt',w:30},{h:'Datum',key:'dat',w:11},{h:'Status',key:'st',w:11},
+      ...listCats.map(k=>({h:catLabel(k)+' kg',key:k,fmt:KG,w:11})),{h:'Summe kg',key:'sum',fmt:KG,w:12},{h:'Bestellung',key:'best',w:16},{h:'Datei',key:'file',w:40}];
+    const ws=sheet('Stahllisten','Stahllisten',cols);
+    const ls=c.lists.slice().sort((a,b)=>String(a.nr).localeCompare(String(b.nr),'de',{numeric:true})||idxNum(a.idx)-idxNum(b.idx));
+    ls.forEach(l=>{ const pl=S.plans.find(x=>x.id===l.planId);
+      addRow(ws,[l.nr,l.idx||listCode(l)?.idx||'',bereich(listCode(l)||(pl&&planCode(pl))),pl?.nr||'',pl?.idx||'',l.title||'',dDE(l.date),l.ersetzt?'ersetzt':listStatus(l),...listCats.map(k=>kgOf(l.items,k)),listKg(l),ordersOf(l),l.fileName||''],{dim:l.ersetzt}); });
+    const v=c.valid; addRow(ws,[`${v.length} gültige Listen${ls.length>v.length?' (Summe ohne ersetzte)':''}`,'','','','','','','',...listCats.map(k=>sum(v,l=>kgOf(l.items,k)||0)),sum(v,listKg),'',''],{sum:true});
+    filter(ws,cols.length); }
+  // Pläne
+  { const cols=[{h:'Plan-Nr.',key:'nr',w:34},{h:'Index',key:'idx',w:7},{h:'Bereich',key:'ber',w:24},{h:'Bauteil / Inhalt',key:'t',w:30},{h:'Eingang',key:'d',w:11},{h:'Stahllisten',key:'ls',w:40},{h:'Bedarf kg',key:'kg',fmt:KG,w:12},{h:'Datei',key:'f',w:40}];
+    const ws=sheet('Pläne','Pläne',cols);
+    S.plans.filter(x=>x.projectId===p.id).sort((a,b)=>String(a.nr).localeCompare(String(b.nr),'de',{numeric:true})).forEach(pl=>{ const ls=S.lists.filter(l=>l.planId===pl.id);
+      addRow(ws,[pl.nr,pl.idx||'',bereich(planCode(pl)),pl.title||'',dDE(pl.date),ls.map(l=>l.nr+(l.idx?' / '+l.idx:'')+(l.ersetzt?' (ersetzt)':'')).join(', '),sum(ls.filter(l=>!l.ersetzt),listKg),pl.fileName||'']); });
+    filter(ws,cols.length); }
+  // Bestellungen
+  { const cols=[{h:'Datum',key:'d',w:11},{h:'Bestell-Nr.',key:'nr',w:16},{h:'Lieferant',key:'lf',w:20},{h:'Stahllisten',key:'ls',w:40},{h:'Liefertermin',key:'due',w:12},{h:'Status',key:'st',w:11},{h:'Lieferschein',key:'lsn',w:14},
+      ...orderCats.map(k=>({h:catLabel(k)+' kg',key:k,fmt:KG,w:11})),{h:'Summe kg',key:'sum',fmt:KG,w:12},{h:'Notiz',key:'n',w:30}];
+    const ws=sheet('Bestellungen','Bestellungen',cols);
+    const os=c.orders.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+    os.forEach(o=>{ const late=o.status!=='geliefert'&&o.due&&o.due<today();
+      const r=addRow(ws,[dDE(o.date),o.nr||'',o.lief||'',(o.listIds||[]).map(id=>(S.lists.find(l=>l.id===id)||{}).nr||'?').join(', '),dDE(o.due),o.status==='geliefert'?'geliefert':late?'überfällig':'bestellt',o.ls||'',...orderCats.map(k=>kgOf(o.items,k)),orderKg(o),o.note||'']);
+      if(late) r.getCell(6).font={...font,bold:true,color:{argb:RED}}; });
+    addRow(ws,[`${os.length} Bestellungen`,'','','','','','',...orderCats.map(k=>sum(os,o=>kgOf(o.items,k)||0)),sum(os,orderKg),''],{sum:true});
+    filter(ws,cols.length); }
+  // Verlauf
+  { const cols=[{h:'Zeitpunkt',key:'ts',w:17},{h:'Person',key:'who',w:28},{h:'Bereich',key:'art',w:12},{h:'Vorgang',key:'t',w:80},{h:'kg',key:'kg',fmt:KG,w:12}];
+    const ws=sheet('Verlauf','Verlauf',cols);
+    (p.log||[]).slice().reverse().forEach(e=>addRow(ws,[tsDE(e.ts),e.who||'',ART_NAME[e.art]||'',e.text,e.kg]));
+    filter(ws,cols.length); }
+
+  const buf=await wb.xlsx.writeBuffer();
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+  const stamp=now.toISOString().slice(0,16).replace('T','_').replace(':','');
+  a.download=`Stahllisten_${(p.name||'Projekt').replace(/[^\wÄÖÜäöüß-]+/g,'_')}_${stamp}.xlsx`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+  toast('Excel-Liste erstellt');
 }
 
 // ---------- Dialoge ----------

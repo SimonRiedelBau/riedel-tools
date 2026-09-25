@@ -39,6 +39,15 @@ z. B. Bewehrungsplan `BFS_88160_B_T_5_BP_U1_2233_01`, Stahlliste `BFS_88160_B_T_
 - Balken je Durchmesser, Tabelle „Noch zu bestellen“ (CSV-Export, Drucken), Liste der noch nicht bestellten Stahllisten mit Knopf „Offene Listen bestellen“
 - Hinweise: Abgleich mit Kalkulation, überfällige Lieferungen, Pläne ohne Stahlliste, bestellte ersetzte Listen
 
+## Excel-Liste und Verlauf
+- **Excel-Liste herunterladen** (im Projekt oben): erzeugt jederzeit den aktuellen Stand als `.xlsx` im Aufbau des Tools –
+  Blätter *Übersicht* (Bedarf, bestellt, geliefert, noch zu bestellen je Sorte, Kennzahlen, Hinweise), *Stahllisten*
+  (alle Listen inkl. ersetzter, Index, Bereich, Plan, Status, Gewicht je Sorte, Bestellung), *Pläne*, *Bestellungen* und *Verlauf*.
+- **Verlauf** (eigener Reiter): jede Änderung wird beim Speichern mit Zeitpunkt und Person mitgeführt – Plan/Liste angelegt,
+  neuer Index (auch überschriebene Listen mit ihrem alten Gewicht), Gewicht geändert, Plan zugeordnet, bestellt, geliefert, gelöscht.
+  Der Verlauf liegt im Projekt in der Datenbank und ist in jeder Excel-Liste enthalten.
+- `vendor/exceljs.min.js` (ExcelJS 4.4) wird erst beim Export geladen.
+
 ## Datenbank und Zugriffsschutz
 Die Daten liegen im eigenen Supabase-Projekt **riedel-stahllisten** (`sazhfayopozqcluvmqqu`):
 - Tabelle `stahl_objekte` – Projekte, Pläne, Stahllisten, Bestellungen
