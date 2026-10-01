@@ -15,6 +15,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Riedel-Tools">
 <script src="assets/app.js"></script>
+<script src="projekte/projekte.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
@@ -46,6 +47,8 @@ header.top{display:flex;align-items:center;gap:14px;border-bottom:3px solid var(
 .tool h2{font:600 21px/1.15 var(--cond);margin:0;color:var(--ink)}
 .tool p{margin:0;color:var(--muted);font-size:13.5px;line-height:1.45;flex:1}
 .tool span{font:600 12.5px/1 var(--sans);color:var(--red-ink);letter-spacing:.02em}
+.sec-h{font:700 15px/1 var(--sans);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:30px 0 -14px}
+.tool.proj{border-left-color:var(--ink)}
 footer{margin-top:48px;color:var(--muted);font-size:13px;border-top:1px solid var(--rule);padding-top:14px}
 [hidden]{display:none!important}
 .right{margin-left:auto;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:flex-end}
@@ -121,7 +124,12 @@ a,button{-webkit-tap-highlight-color:transparent}
   <div><b>Riedel-Tools als App</b><p id="installTxt"></p></div>
   <div class="row"><button class="btn red sm" id="installBtn" type="button" hidden>Installieren</button><button class="linkbtn" id="installHide" type="button">Ausblenden</button></div>
 </section>
-<div class="tools" id="tools" hidden>
+<section class="projects" id="projects" hidden>
+  <h2 class="sec-h">Projekte</h2>
+  <div class="tools" id="projCards"></div>
+</section>
+<div id="toolsWrap" hidden><h2 class="sec-h">Tools</h2>
+<div class="tools" id="tools">
   <a class="tool" href="doka-miete-bfs/">
     <h2>Doka-Mietrechnungen</h2>
     <p>Dashboard für die monatlichen Doka-Mietrechnungen (Baustelle BfS Oberschleißheim): Monatsentwicklung, Rechnungspositionen und Bestand der Sichtbetonelemente. Geschützt in der Datenbank, mit Anmeldung.</p>
@@ -162,6 +170,7 @@ a,button{-webkit-tap-highlight-color:transparent}
     <p>Projektbezogener Statik-Assistent für das Bauvorhaben Autohaus Ferrari München.</p>
     <span>Öffnen →</span>
   </a>
+</div>
 </div>
 
 <footer>Riedel Bau – interne Werkzeuge. Zugang nur für freigeschaltete Personen.</footer>
@@ -212,7 +221,7 @@ function nextTarget(){ const n=new URLSearchParams(location.search).get('next');
   return n&&n.startsWith(base)&&!n.startsWith('//')&&!/[\\]/.test(n)&&n!==base?n:null; }
 let sb=null, me=null, rolle=null, ready=false;
 
-function showGate(html){ ready=false; $('acct').hidden=true; $('tools').hidden=true; $('install').hidden=true; $('gate').hidden=false; $('gate').innerHTML=html; }
+function showGate(html){ ready=false; $('acct').hidden=true; $('toolsWrap').hidden=true; $('projects').hidden=true; $('install').hidden=true; $('gate').hidden=false; $('gate').innerHTML=html; }
 function authScreen(mode,msg,cls){
   const T={login:'Anmelden',signup:'Konto anlegen',reset:'Passwort zurücksetzen',newpw:'Neues Passwort festlegen'}[mode];
   showGate(`<div class="auth"><h2>${T}</h2><p class="sub">${mode==='newpw'?'Bitte ein neues Passwort wählen.':nextTarget()?'Bitte anmelden, um das Tool zu öffnen.':'Die Riedel-Tools sind nur für freigeschaltete Personen zugänglich.'}</p>
@@ -252,7 +261,7 @@ async function afterLogin(){
   if(!data) return blockScreen();
   rolle=data;
   const n=nextTarget(); if(n){ location.replace(n); return; }
-  ready=true; $('gate').hidden=true; $('tools').hidden=false; $('acct').hidden=false; installHint();
+  ready=true; $('gate').hidden=true; $('toolsWrap').hidden=false; renderProjects(); $('acct').hidden=false; installHint();
   $('whoMail').textContent=me.email; $('btnTeam').hidden=rolle!=='admin';
 }
 function blockScreen(err){
@@ -275,6 +284,11 @@ async function setupScreen(){
 async function logout(){ await sb.auth.signOut(); history.replaceState(null,'',base); authScreen('login','Abgemeldet.','ok'); }
 $('btnLogout').onclick=logout;
 $('btnReload').onclick=()=>location.reload();
+
+// ---------- Projekte (Liste in projekte/projekte.js) ----------
+function renderProjects(){ const P=(window.RB_PROJEKTE&&RB_PROJEKTE.PROJEKTE)||[];
+  $('projCards').innerHTML=P.map(p=>`<a class="tool proj" href="projekte/?p=${encodeURIComponent(p.id)}"><h2>${esc(p.name)}</h2><p>${esc(p.sub)}</p><span>Projektablage öffnen →</span></a>`).join('');
+  $('projects').hidden=!P.length; }
 
 // ---------- Als App installieren (Handy, iPad, PC) ----------
 const SHARE='<svg class="ios-share" viewBox="0 0 16 18" fill="none" stroke="currentColor" stroke-width="1.6" aria-label="Teilen"><path d="M8 11V1.5M4.5 4.5 8 1l3.5 3.5M5 7H2.5v9.5h11V7H11"/></svg>';

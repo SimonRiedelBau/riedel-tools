@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="rb-tool" content="Aushub 3D · Ostermeier Taufkirchen">
+<script src="../../assets/auth-gate.js"></script>
+<meta name="robots" content="noindex,nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Aushub 3D – 26-24_OST Ostermeier Taufkirchen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --scene:#d9e0e5; --panel:#fbfcfd; --ink:#1c2830; --muted:#5d6b75; --line:#d3dae0;
+  --red:#ff0000; --hover:#eef2f5; --chip:#e9eef2; --edit:#fff4f2;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  font-family:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif; color:var(--ink);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--scene:#283139;--panel:#1b2228;--ink:#e6ecf0;--muted:#97a5af;--line:#33404a;--hover:#242e35;--chip:#2a353e;--edit:#2c2222}}
+:root[data-theme="dark"]{--scene:#283139;--panel:#1b2228;--ink:#e6ecf0;--muted:#97a5af;--line:#33404a;--hover:#242e35;--chip:#2a353e;--edit:#2c2222}
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px);display:flex;flex-direction:column;overflow:hidden}
+body{margin:0;flex:1;min-height:0;background:var(--scene);overflow:hidden}
+.app{display:grid;grid-template-columns:1fr 380px;height:100%}
+#view{position:relative;min-width:0;min-height:0}
+#view canvas{display:block;width:100%;height:100%;touch-action:none}
+aside{background:var(--panel);border-left:1px solid var(--line);overflow-y:auto;padding:20px 20px 28px}
+.brand{display:flex;gap:12px;align-items:flex-start;margin-bottom:18px}
+.mark{width:34px;height:34px;background:var(--red);flex:none;display:grid;place-items:center;color:#fff;font-weight:700;font-size:13px}
+h1{font-size:1.25rem;line-height:1.2;margin:0;font-weight:700}
+.sub{color:var(--muted);font-size:.85rem;margin-top:3px;line-height:1.35}
+.total{border-top:2px solid var(--ink);border-bottom:1px solid var(--line);padding:12px 0 14px;margin-bottom:16px}
+.total .n{font-family:"Barlow Semi Condensed",sans-serif;font-size:2.4rem;font-weight:600;line-height:1;font-variant-numeric:tabular-nums}
+.total .n small{font-size:1rem;font-weight:500;color:var(--muted);margin-left:4px}
+.total .l{font-size:.85rem;color:var(--muted);margin-top:4px}
+.total .loose{margin-top:8px;font-size:.95rem}
+.ctrl{display:grid;grid-template-columns:1fr auto;gap:6px 10px;align-items:center;margin-bottom:12px;font-size:.9rem}
+.ctrl label{font-weight:500}
+.ctrl .hint{grid-column:1/-1;color:var(--muted);font-size:.78rem;margin-top:-2px}
+input[type=number]{width:92px;font:inherit;padding:5px 7px;border:1px solid var(--line);background:var(--panel);color:var(--ink);text-align:right;font-variant-numeric:tabular-nums}
+.ctrl input[type=range]{grid-column:1/-1;width:100%;accent-color:var(--ink)}
+.out{font-variant-numeric:tabular-nums;color:var(--muted)}
+.views{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 16px}
+button{font:inherit;font-size:.85rem;font-weight:500;padding:6px 11px;border:1px solid var(--line);background:var(--chip);color:var(--ink);cursor:pointer}
+button:hover{border-color:var(--muted)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,input:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+.seg{display:flex;margin:0 0 12px}
+.seg button{flex:1;padding:7px 8px}
+.seg button+button{border-left:none}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.segl{font-size:.9rem;font-weight:500;margin-bottom:5px}
+.toggles{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.88rem;margin-bottom:18px}
+.toggles label{display:flex;gap:6px;align-items:center;cursor:pointer}
+h2{font-size:.95rem;margin:18px 0 8px;font-weight:600}
+.edit{background:var(--edit);border-left:3px solid var(--red);padding:12px 12px 10px;margin:0 0 16px;font-size:.88rem}
+.edit .empty{color:var(--muted)}
+.edit .rn{font-weight:600;font-size:.95rem}
+.edit .rs{color:var(--muted);font-size:.8rem;margin:2px 0 10px}
+.edit .row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.edit .btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.chg{font-size:.82rem;margin-top:10px;border-top:1px solid var(--line);padding-top:8px}
+.chg a{color:var(--ink);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.chg ul{margin:4px 0 6px;padding-left:16px;max-height:120px;overflow:auto}
+.exp{display:flex;gap:6px;flex-wrap:wrap}
+.exp button{flex:1}
+.expnote{font-size:.78rem;color:var(--muted);margin-top:6px;line-height:1.4}
+table{width:100%;border-collapse:collapse;font-size:.84rem;font-variant-numeric:tabular-nums}
+th{text-align:right;font-weight:500;color:var(--muted);padding:4px;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+td{padding:5px 4px;border-bottom:1px solid var(--line);text-align:right}
+.sw{display:inline-block;width:11px;height:11px;margin-right:7px;vertical-align:-1px;border:1px solid rgba(0,0,0,.25)}
+.nm{display:block;color:var(--muted);font-size:.74rem;margin-left:18px}
+tfoot td{font-weight:600;border-bottom:none;border-top:2px solid var(--ink)}
+.note{font-size:.78rem;color:var(--muted);line-height:1.45;margin-top:16px}
+#tip{position:absolute;pointer-events:none;background:var(--panel);color:var(--ink);border:1px solid var(--line);padding:8px 10px;font-size:.8rem;line-height:1.4;box-shadow:0 2px 10px rgba(0,0,0,.15);display:none;max-width:250px;font-variant-numeric:tabular-nums}
+#tip b{font-size:.9rem}
+#status{position:absolute;left:12px;bottom:10px;font-size:.78rem;color:var(--muted)}
+#busy{position:absolute;right:12px;top:10px;font-size:.8rem;background:var(--panel);border:1px solid var(--line);padding:4px 9px;display:none}
+@media (max-width:820px){.app{grid-template-columns:1fr;grid-template-rows:55% 45%}aside{border-left:none;border-top:1px solid var(--line)}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div id="view"><div id="tip"></div><div id="busy">Berechne …</div><div id="status">Klick auf eine Fläche: Bereich bearbeiten. Ziehen: drehen, Rechtsklick: verschieben, Mausrad: zoomen</div></div>
+  <aside>
+    <div class="brand"><div class="mark">RB</div><div>
+      <h1>Aushub 3D – Neubau Firmensitz Ostermeier</h1>
+      <div class="sub">Grundlage Plan 26-24_OST_AH_V00, Vorabzug 30.09.2026<br>±0,00 = 566,10 m ü NHN</div>
+    </div></div>
+
+    <div class="total">
+      <div class="n" id="vTot">–<small>m³</small></div>
+      <div class="l" id="vDesc"></div>
+      <div class="loose" id="vLoose"></div>
+    </div>
+
+    <div class="edit" id="edit"></div>
+
+    <div class="segl">Darstellung</div>
+    <div class="seg" id="segMode">
+      <button data-m="pit" aria-pressed="true">Baugrube</button>
+      <button data-m="body" aria-pressed="false">Aushubkörper gesamt</button>
+    </div>
+    <div class="segl">Böschung 45°</div>
+    <div class="seg" id="segSlope">
+      <button data-s="all" aria-pressed="true">An allen Sohlsprüngen</button>
+      <button data-s="out" aria-pressed="false">Nur Baugrubenrand</button>
+    </div>
+    <div class="segl">Berechnungsraster</div>
+    <div class="seg" id="segRes">
+      <button data-r="0.1" aria-pressed="true">10 cm</button>
+      <button data-r="0.05" aria-pressed="false">5 cm, fein</button>
+    </div>
+    <div class="ctrl">
+      <label for="g">Gelände (OK) relativ zu ±0,00</label>
+      <input id="g" type="number" step="0.05" min="-0.2" max="1" value="0.00">
+      <div class="hint" id="gNhn"></div>
+    </div>
+    <div class="ctrl">
+      <label for="af">Auflockerungsfaktor</label>
+      <input id="af" type="number" step="0.05" min="1" value="1.20">
+    </div>
+    <div class="ctrl">
+      <label for="ex">Überhöhung</label><span class="out" id="exOut"></span>
+      <input id="ex" type="range" min="1" max="6" step="0.5" value="3">
+    </div>
+    <div class="ctrl">
+      <label for="cut">Querschnitt bei Achse</label><span class="out" id="cutOut"></span>
+      <input id="cut" type="range" min="0" max="102" step="0.25" value="102">
+    </div>
+    <div class="views">
+      <button data-v="iso">Isometrie</button><button data-v="top">Draufsicht</button>
+      <button data-v="south">Ansicht Süd</button><button data-v="under">Von unten</button>
+    </div>
+    <div class="toggles">
+      <label><input type="checkbox" id="tGrid" checked> Achsraster</label>
+      <label><input type="checkbox" id="tEdges" checked> Kanten und Verschneidungen</label>
+      <label><input type="checkbox" id="tCont"> Höhenlinien 0,25 m</label>
+    </div>
+
+    <h2>Export</h2>
+    <div class="exp">
+      <button id="bPdf">PDF-Plan (A3)</button>
+      <button id="bDxf">CAD (DXF im ZIP)</button>
+    </div>
+    <div class="expnote" id="expNote">Exportiert den aktuellen Stand inklusive geänderter Höhen. Die DXF enthält das Geländemodell als 3D-Flächen, alle Kanten, Höhenlinien und Achsen in m ü NHN und lässt sich in AutoCAD oder BricsCAD direkt als DWG speichern.</div>
+
+    <h2>Aushub nach Sohltiefe</h2>
+    <table>
+      <thead><tr><th>UK Aushub</th><th>Sohle m²</th><th>Tiefe m</th><th>m³ fest</th></tr></thead>
+      <tbody id="tb"></tbody>
+      <tfoot><tr><td>Summe</td><td id="sA"></td><td></td><td id="sV"></td></tr></tfoot>
+    </table>
+    <p class="note">Ein zusammenhängendes Geländemodell: An jedem Punkt gilt die tiefste Höhe aus Sohle oder 45°-Böschung (1:1) eines Bereichs. Wo sich Böschungen schneiden, entstehen Grate, wo eine Böschung auf eine höhere Sohle trifft, die innere Böschungsoberkante. „Nur Baugrubenrand“ setzt innen senkrechte Wände an (nach DIN 4124 bis 1,25 m Tiefe ohne Verbau zulässig). Geänderte Höhen werden in diesem Browser gespeichert. Die Geländeoberkante steht nicht im Plan, bitte mit dem Bestandsaufmaß abgleichen. Arbeitsräume und Rampen sind nicht enthalten.</p>
+  </aside>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+const D = {"regions":[{"uk":-1.57,"n":"Grube","c":"#e66900","r":[[[25.545,84.763],[25.545,81.263],[22.205,81.263],[22.205,84.763]]],"id":1},{"uk":-0.62,"n":"Sauberkeitsschicht Anbau","c":"#a8ff00","r":[[[29.555,80.043],[3.055,80.043],[3.055,81.343],[0.775,81.343],[0.775,94.143],[-0.745,94.143],[-0.745,95.143],[0.775,95.143],[0.775,95.133],[8.87,95.133],[8.87,100.363],[22.87,100.363],[22.87,95.134],[31.615,95.134],[31.615,88.928],[29.555,88.928],[29.555,87.128],[31.615,87.128],[31.615,81.463],[29.555,81.463]],[[25.545,81.263],[25.545,84.763],[22.205,84.763],[22.205,81.263]]],"id":2},{"uk":-1.05,"n":"Sauberkeitsschicht Anbau","c":"#00e699","r":[[[43.535,79.863],[29.555,79.863],[29.555,81.463],[36.725,81.463],[36.725,84.208],[34.775,84.208],[34.775,87.128],[29.555,87.128],[29.555,88.928],[45.135,88.928],[45.135,76.043],[43.535,76.043]],[[38.325,81.463],[43.51,81.463],[43.51,87.228],[38.325,87.228]]],"id":3},{"uk":-1.23,"n":"Magerbetonplombe","c":"#e6e600","r":[[[20.715,73.343],[20.715,75.943],[23.715,75.943],[23.715,73.343]]],"id":4},{"uk":-1.23,"n":"Magerbetonplombe","c":"#e6e600","r":[[[20.715,67.143],[20.715,69.743],[23.715,69.743],[23.715,67.143]]],"id":5},{"uk":-1.23,"n":"Magerbetonplombe","c":"#e6e600","r":[[[20.715,60.943],[20.715,63.543],[23.715,63.543],[23.715,60.943]]],"id":6},{"uk":-1.23,"n":"Magerbetonplombe","c":"#e6e600","r":[[[20.815,54.443],[20.815,57.643],[23.615,57.643],[23.615,54.443]]],"id":7},{"uk":-1.23,"n":"Magerbetonplombe","c":"#e6e600","r":[[[28.225,54.543],[28.225,57.543],[30.825,57.543],[30.825,54.543]]],"id":8},{"uk":-1.23,"n":"Magerbetonplombe","c":"#e6e600","r":[[[35.535,54.543],[35.535,57.543],[38.135,57.543],[38.135,54.543]]],"id":9},{"uk":-1.23,"n":"Magerbetonplombe","c":"#e6e600","r":[[[42.705,54.543],[42.705,57.543],[45.705,57.543],[45.705,54.543]]],"id":10},{"uk":-1.23,"n":"Magerbetonplombe","c":"#e6e600","r":[[[42.605,60.843],[42.605,63.643],[45.805,63.643],[45.805,60.843]]],"id":11},{"uk":-1.23,"n":"Magerbetonplombe","c":"#e6e600","r":[[[42.605,67.043],[42.605,69.843],[45.805,69.843],[45.805,67.043]]],"id":12},{"uk":-1.23,"n":"Magerbetonplombe","c":"#e6e600","r":[[[42.605,73.243],[42.605,76.043],[45.805,76.043],[45.805,73.243]]],"id":13},{"uk":-1.23,"n":"Magerbetonplombe","c":"#e6e600","r":[[[6.295,54.543],[6.295,57.543],[8.895,57.543],[8.895,54.543]]],"id":14},{"uk":-1.23,"n":"Magerbetonplombe","c":"#e6e600","r":[[[13.605,54.543],[13.605,57.543],[16.205,57.543],[16.205,54.543]]],"id":15},{"uk":-2.13,"n":"Magerbetonplombe","c":"#e60000","r":[[[-1.375,76.043],[1.825,76.043],[1.825,73.243],[-1.375,73.243]]],"id":16},{"uk":-2.13,"n":"Magerbetonplombe","c":"#e60000","r":[[[-1.375,69.843],[1.825,69.843],[1.825,67.043],[-1.375,67.043]]],"id":17},{"uk":-2.13,"n":"Magerbetonplombe","c":"#e60000","r":[[[-1.375,63.643],[1.825,63.643],[1.825,60.843],[-1.375,60.843]]],"id":18},{"uk":-2.13,"n":"Magerbetonplombe","c":"#e60000","r":[[[-1.275,57.543],[1.725,57.543],[1.725,54.543],[-1.275,54.543]]],"id":19},{"uk":-1.13,"n":"Magerbetonplombe innen","c":"#69e600","r":[[[2.255,75.943],[4.855,75.943],[4.855,73.343],[2.255,73.343]]],"id":20},{"uk":-1.13,"n":"Magerbetonplombe innen","c":"#69e600","r":[[[4.655,64.143],[2.455,64.143],[2.455,66.343],[4.655,66.343]]],"id":21},{"uk":-1.23,"n":"Magerbetonplombe","c":"#e6e600","r":[[[20.615,51.243],[23.815,51.243],[23.815,48.443],[20.615,48.443]]],"id":22},{"uk":-1.23,"n":"Magerbetonplombe","c":"#e6e600","r":[[[-1.375,17.443],[-1.375,20.243],[1.825,20.243],[1.825,17.443]]],"id":23},{"uk":-1.23,"n":"Magerbetonplombe","c":"#e6e600","r":[[[-1.375,11.243],[-1.375,14.043],[1.825,14.043],[1.825,11.243]]],"id":24},{"uk":-1.23,"n":"Magerbetonplombe","c":"#e6e600","r":[[[-1.375,5.043],[-1.375,7.843],[1.825,7.843],[1.825,5.043]]],"id":25},{"uk":-1.23,"n":"Magerbetonplombe","c":"#e6e600","r":[[[-1.175,-1.207],[-1.175,1.593],[1.625,1.593],[1.625,-1.207]]],"id":26},{"uk":-2.13,"n":"Magerbetonplombe","c":"#e60000","r":[[[1.825,48.443],[-1.375,48.443],[-1.375,51.243],[1.825,51.243]]],"id":27},{"uk":-2.13,"n":"Magerbetonplombe","c":"#e60000","r":[[[1.825,42.243],[-1.375,42.243],[-1.375,45.043],[1.825,45.043]]],"id":28},{"uk":-1.73,"n":"Magerbetonplombe","c":"#ff7300","r":[[[-1.375,38.843],[1.825,38.843],[1.825,36.043],[-1.375,36.043]]],"id":29},{"uk":-1.73,"n":"Magerbetonplombe","c":"#ff7300","r":[[[-1.375,32.643],[1.825,32.643],[1.825,29.843],[-1.375,29.843]]],"id":30},{"uk":-1.73,"n":"Magerbetonplombe","c":"#ff7300","r":[[[-1.375,26.443],[1.825,26.443],[1.825,23.643],[-1.375,23.643]]],"id":31},{"uk":-1.23,"n":"Magerbetonplombe","c":"#e6e600","r":[[[23.815,38.843],[23.815,36.043],[20.615,36.043],[20.615,38.843]]],"id":32},{"uk":-1.23,"n":"Magerbetonplombe","c":"#e6e600","r":[[[23.815,26.443],[23.815,23.643],[20.615,23.643],[20.615,26.443]]],"id":33},{"uk":-1.23,"n":"Magerbetonplombe","c":"#e6e600","r":[[[23.815,14.043],[23.815,11.243],[20.615,11.243],[20.615,14.043]]],"id":34},{"uk":-1.13,"n":"Magerbetonplombe innen","c":"#69e600","r":[[[30.675,49.283],[28.275,49.283],[28.275,51.683],[30.675,51.683]]],"id":35},{"uk":-1.13,"n":"Magerbetonplombe innen","c":"#69e600","r":[[[38.75,42.443],[36.35,42.443],[36.35,44.843],[38.75,44.843]]],"id":36},{"uk":-1.13,"n":"Magerbetonplombe innen","c":"#69e600","r":[[[38.75,36.243],[36.35,36.243],[36.35,38.643],[38.75,38.643]]],"id":37},{"uk":-1.13,"n":"Magerbetonplombe innen","c":"#69e600","r":[[[38.75,23.843],[36.35,23.843],[36.35,32.443],[38.75,32.443]]],"id":38},{"uk":-1.13,"n":"Magerbetonplombe innen","c":"#69e600","r":[[[38.75,17.643],[36.35,17.643],[36.35,20.043],[38.75,20.043]]],"id":39},{"uk":-2.13,"n":"Magerbetonplombe","c":"#e60000","r":[[[42.605,42.243],[42.605,45.043],[45.805,45.043],[45.805,42.243]]],"id":40},{"uk":-2.13,"n":"Magerbetonplombe","c":"#e60000","r":[[[42.605,36.043],[42.605,38.843],[45.805,38.843],[45.805,36.043]]],"id":41},{"uk":-2.13,"n":"Magerbetonplombe","c":"#e60000","r":[[[42.605,29.843],[42.605,32.643],[45.805,32.643],[45.805,29.843]]],"id":42},{"uk":-2.13,"n":"Magerbetonplombe","c":"#e60000","r":[[[42.605,23.643],[42.605,26.443],[45.805,26.443],[45.805,23.643]]],"id":43},{"uk":-2.13,"n":"Magerbetonplombe","c":"#e60000","r":[[[42.605,48.443],[42.605,51.243],[45.805,51.243],[45.805,48.443]]],"id":44},{"uk":-1.23,"n":"Magerbetonplombe","c":"#e6e600","r":[[[35.435,-1.507],[35.435,1.893],[38.235,1.893],[38.235,-1.507]]],"id":45},{"uk":-1.23,"n":"Magerbetonplombe","c":"#e6e600","r":[[[30.925,1.893],[30.925,-1.507],[28.125,-1.507],[28.125,1.893]]],"id":46},{"uk":-1.23,"n":"Magerbetonplombe","c":"#e6e600","r":[[[23.715,1.993],[23.715,-1.607],[20.715,-1.607],[20.715,1.993]]],"id":47},{"uk":-1.23,"n":"Magerbetonplombe","c":"#e6e600","r":[[[6.195,-1.507],[6.195,1.893],[8.995,1.893],[8.995,-1.507]]],"id":48},{"uk":-1.23,"n":"Magerbetonplombe","c":"#e6e600","r":[[[13.505,-1.507],[13.505,1.893],[16.305,1.893],[16.305,-1.507]]],"id":49},{"uk":-2.43,"n":"Magerbetonplombe","c":"#7300ff","r":[[[42.605,17.443],[42.605,20.243],[45.805,20.243],[45.805,17.443]]],"id":50},{"uk":-2.43,"n":"Magerbetonplombe","c":"#7300ff","r":[[[42.605,11.243],[42.605,14.043],[45.805,14.043],[45.805,11.243]]],"id":51},{"uk":-2.43,"n":"Magerbetonplombe","c":"#7300ff","r":[[[42.605,5.043],[42.605,7.843],[45.805,7.843],[45.805,5.043]]],"id":52},{"uk":-2.43,"n":"Magerbetonplombe","c":"#7300ff","r":[[[42.805,-1.207],[42.805,1.593],[45.605,1.593],[45.605,-1.207]]],"id":53},{"uk":-0.35,"n":"Sauberkeitsschicht","c":"#00ff00","r":[[[43.51,87.228],[43.51,81.463],[38.325,81.463],[38.325,87.228]]],"id":54},{"uk":-0.35,"n":"Sauberkeitsschicht","c":"#00ff00","r":[[[31.615,81.463],[31.615,87.128],[34.775,87.128],[34.775,84.208],[36.725,84.208],[36.725,81.463]]],"id":55},{"uk":-1.9,"n":"Fundament","c":"#ff00ff","r":[[[3.055,80.043],[-0.745,80.043],[-0.745,94.143],[0.775,94.143],[0.775,81.343],[3.055,81.343]]],"id":56},{"uk":-0.95,"n":"Sauberkeitsschicht Frostsch\u00fcrze","c":"#00ffd6","r":[[[1.725,55.293],[1.725,56.793],[6.295,56.793],[6.295,55.293]]],"id":57},{"uk":-0.95,"n":"Sauberkeitsschicht Frostsch\u00fcrze","c":"#00ffd6","r":[[[8.895,55.293],[8.895,56.793],[13.605,56.793],[13.605,55.293]]],"id":58},{"uk":-0.95,"n":"Sauberkeitsschicht Frostsch\u00fcrze","c":"#00ffd6","r":[[[16.205,55.293],[16.205,56.793],[20.815,56.793],[20.815,55.293]]],"id":59},{"uk":-0.95,"n":"Sauberkeitsschicht Frostsch\u00fcrze","c":"#00ffd6","r":[[[23.615,55.293],[23.615,56.793],[28.225,56.793],[28.225,55.293]]],"id":60},{"uk":-0.95,"n":"Sauberkeitsschicht Frostsch\u00fcrze","c":"#00ffd6","r":[[[30.825,55.293],[30.825,56.793],[35.535,56.793],[35.535,55.293]]],"id":61},{"uk":-0.95,"n":"Sauberkeitsschicht Frostsch\u00fcrze","c":"#00ffd6","r":[[[30.415,13.483],[30.415,1.893],[28.815,1.893],[28.815,15.083],[43.635,15.083],[43.635,14.043],[42.605,14.043],[42.605,13.483]]],"id":62},{"uk":-1.85,"n":"Fundament","c":"#e600c2","r":[[[42.805,1.133],[41.405,1.133],[41.405,5.753],[42.605,5.753],[42.605,5.043],[43.635,5.043],[43.635,1.593],[42.805,1.593]]],"id":63},{"uk":-1.85,"n":"Fundament","c":"#e600c2","r":[[[42.605,7.133],[41.405,7.133],[41.405,11.753],[42.605,11.753],[42.605,11.243],[43.635,11.243],[43.635,7.843],[42.605,7.843]]],"id":64},{"uk":-0.37,"n":"Sauberkeitsschicht Randstreifen","c":"#a8ebff","r":[[[42.805,0.765],[38.235,0.765],[38.235,1.893],[35.435,1.893],[35.435,0.813],[30.925,0.813],[30.925,1.893],[30.415,1.893],[30.415,5.163],[39.235,5.163],[39.235,13.483],[42.605,13.483],[42.605,11.753],[41.405,11.753],[41.405,7.133],[42.605,7.133],[42.605,5.753],[41.405,5.753],[41.405,1.133],[42.805,1.133]]],"id":65},{"uk":-0.37,"n":"Sauberkeitsschicht Randstreifen","c":"#a8ebff","r":[[[20.715,0.813],[16.305,0.813],[16.305,1.893],[13.505,1.893],[13.505,0.813],[8.995,0.813],[8.995,1.893],[6.195,1.893],[6.195,0.813],[1.625,0.813],[1.625,1.593],[0.845,1.593],[0.845,5.043],[1.825,5.043],[1.825,7.843],[0.845,7.843],[0.845,11.243],[1.825,11.243],[1.825,14.043],[1.295,14.043],[1.295,17.443],[1.825,17.443],[1.825,20.243],[1.295,20.243],[1.295,23.643],[1.825,23.643],[1.825,26.443],[1.295,26.443],[1.295,29.843],[1.825,29.843],[1.825,32.643],[1.295,32.643],[1.295,36.043],[1.825,36.043],[1.825,38.843],[1.295,38.843],[1.295,42.243],[1.825,42.243],[1.825,45.043],[1.295,45.043],[1.295,48.443],[1.825,48.443],[1.825,51.243],[1.295,51.243],[1.295,54.543],[1.725,54.543],[1.725,55.293],[5.195,55.293],[5.195,5.163],[28.815,5.163],[28.815,1.893],[28.125,1.893],[28.125,0.765],[23.715,0.765],[23.715,1.993],[20.715,1.993]]],"id":66},{"uk":-0.37,"n":"Sauberkeitsschicht Randstreifen","c":"#a8ebff","r":[[[4.789,61.167],[2.13,63.826],[1.825,63.521],[1.825,63.643],[0.345,63.643],[0.345,67.043],[1.825,67.043],[1.825,69.843],[0.345,69.843],[0.345,73.243],[1.825,73.243],[1.825,76.043],[0.845,76.043],[0.845,80.043],[5.195,80.043],[5.195,56.793],[2.175,56.793],[4.499,59.116],[3.618,59.997]],[[2.455,64.143],[4.655,64.143],[4.655,66.343],[2.455,66.343]],[[4.855,69.743],[2.255,69.743],[2.255,67.143],[4.855,67.143]],[[2.255,73.343],[4.855,73.343],[4.855,75.943],[2.255,75.943]]],"id":67},{"uk":-0.37,"n":"Sauberkeitsschicht Randstreifen","c":"#a8ebff","r":[[[39.235,15.083],[39.235,46.043],[43.635,46.043],[43.635,45.043],[42.605,45.043],[42.605,42.243],[43.635,42.243],[43.635,38.843],[42.605,38.843],[42.605,36.043],[43.635,36.043],[43.635,32.643],[42.605,32.643],[42.605,29.843],[43.635,29.843],[43.635,26.443],[42.605,26.443],[42.605,23.643],[43.635,23.643],[43.635,20.243],[42.605,20.243],[42.605,17.443],[43.635,17.443],[43.635,15.083]]],"id":68},{"uk":-0.37,"n":"Sauberkeitsschicht Randstreifen","c":"#a8ebff","r":[[[42.705,56.793],[39.235,56.793],[39.235,79.863],[43.535,79.863],[43.535,76.043],[42.605,76.043],[42.605,73.243],[43.635,73.243],[43.635,69.843],[42.605,69.843],[42.605,67.043],[43.635,67.043],[43.635,63.643],[42.605,63.643],[42.605,60.843],[43.635,60.843],[43.635,57.543],[42.705,57.543]]],"id":69},{"uk":-1.13,"n":"Magerbetonplombe innen","c":"#69e600","r":[[[4.855,67.143],[2.255,67.143],[2.255,69.743],[4.855,69.743]]],"id":70},{"uk":-1.95,"n":"Unterfahrt","c":"#ffa8eb","r":[[[-0.655,76.043],[-0.655,80.043],[0.845,80.043],[0.845,76.043]]],"id":71},{"uk":-1.95,"n":"Unterfahrt","c":"#ffa8eb","r":[[[2.175,56.793],[1.721,56.793],[1.725,57.543],[-0.045,57.543],[1.529,59.116],[-0.224,60.843],[1.825,60.843],[1.825,61.79],[4.499,59.116]]],"id":72},{"uk":-2.13,"n":"Unterbau Au\u00dfenwand","c":"#e60000","r":[[[1.295,69.843],[-0.655,69.843],[-0.655,73.243],[1.295,73.243]]],"id":73},{"uk":-2.13,"n":"Unterbau Au\u00dfenwand","c":"#e60000","r":[[[1.295,67.043],[1.295,63.643],[-0.655,63.643],[-0.655,67.043]]],"id":74},{"uk":-1.23,"n":"Unterbau Au\u00dfenwand","c":"#e6e600","r":[[[43.635,73.243],[45.035,73.243],[45.035,69.843],[43.635,69.843]]],"id":75},{"uk":-1.23,"n":"Unterbau Au\u00dfenwand","c":"#e6e600","r":[[[43.635,67.043],[45.035,67.043],[45.035,63.643],[43.635,63.643]]],"id":76},{"uk":-1.23,"n":"Unterbau Au\u00dfenwand","c":"#e6e600","r":[[[43.635,60.843],[45.035,60.843],[45.035,57.543],[43.635,57.543]]],"id":77},{"uk":-2.13,"n":"Unterbau Au\u00dfenwand","c":"#e60000","r":[[[1.295,54.543],[1.295,51.243],[-0.655,51.243],[-0.655,54.543]]],"id":78},{"uk":-2.13,"n":"Unterbau Au\u00dfenwand","c":"#e60000","r":[[[1.295,48.443],[1.295,45.043],[-0.655,45.043],[-0.655,48.443]]],"id":79},{"uk":-2.13,"n":"Unterbau Au\u00dfenwand","c":"#e60000","r":[[[1.295,42.243],[1.295,38.843],[-0.655,38.843],[-0.655,42.243]]],"id":80},{"uk":-1.73,"n":"Unterbau Au\u00dfenwand","c":"#ff7300","r":[[[1.295,36.043],[1.295,32.643],[-0.655,32.643],[-0.655,36.043]]],"id":81},{"uk":-1.73,"n":"Unterbau Au\u00dfenwand","c":"#ff7300","r":[[[1.295,29.843],[1.295,26.443],[-0.655,26.443],[-0.655,29.843]]],"id":82},{"uk":-1.73,"n":"Unterbau Au\u00dfenwand","c":"#ff7300","r":[[[1.295,23.643],[1.295,20.243],[-0.655,20.243],[-0.655,23.643]]],"id":83},{"uk":-1.23,"n":"Unterbau Au\u00dfenwand","c":"#e6e600","r":[[[1.295,17.443],[1.295,14.043],[-0.655,14.043],[-0.655,17.443]]],"id":84},{"uk":-1.23,"n":"Unterbau Au\u00dfenwand","c":"#e6e600","r":[[[0.845,11.243],[0.845,7.843],[-0.655,7.843],[-0.655,11.243]]],"id":85},{"uk":-1.23,"n":"Unterbau Au\u00dfenwand","c":"#e6e600","r":[[[0.845,5.043],[0.845,1.593],[-0.655,1.593],[-0.655,5.043]]],"id":86},{"uk":-1.23,"n":"Unterbau Au\u00dfenwand","c":"#e6e600","r":[[[1.625,0.813],[6.195,0.813],[6.195,-0.687],[1.625,-0.687]]],"id":87},{"uk":-1.23,"n":"Unterbau Au\u00dfenwand","c":"#e6e600","r":[[[8.995,0.813],[13.505,0.813],[13.505,-0.687],[8.995,-0.687]]],"id":88},{"uk":-1.23,"n":"Unterbau Au\u00dfenwand","c":"#e6e600","r":[[[16.305,0.813],[20.715,0.813],[20.715,-0.687],[16.305,-0.687]]],"id":89},{"uk":-1.23,"n":"Unterbau Au\u00dfenwand","c":"#e6e600","r":[[[30.925,0.813],[35.435,0.813],[35.435,-0.687],[30.925,-0.687]]],"id":90},{"uk":-1.23,"n":"Unterbau Au\u00dfenwand","c":"#e6e600","r":[[[23.715,-0.687],[23.715,0.765],[28.125,0.765],[28.125,-0.687]]],"id":91},{"uk":-2.43,"n":"Magerbetonplombe","c":"#7300ff","r":[[[41.765,0.765],[42.805,0.765],[42.805,-0.687],[41.765,-0.687]]],"id":92},{"uk":-1.23,"n":"Unterbau Au\u00dfenwand","c":"#e6e600","r":[[[38.235,0.765],[41.765,0.765],[41.765,-0.687],[38.235,-0.687]]],"id":93},{"uk":-2.43,"n":"Unterbau Au\u00dfenwand","c":"#7300ff","r":[[[43.635,1.593],[43.635,5.043],[45.035,5.043],[45.035,1.593]]],"id":94},{"uk":-2.43,"n":"Unterbau Au\u00dfenwand","c":"#7300ff","r":[[[43.635,7.843],[43.635,11.243],[45.035,11.243],[45.035,7.843]]],"id":95},{"uk":-2.43,"n":"Unterbau Au\u00dfenwand","c":"#7300ff","r":[[[43.635,14.043],[43.635,17.443],[45.035,17.443],[45.035,14.043]]],"id":96},{"uk":-2.43,"n":"Unterbau Au\u00dfenwand","c":"#7300ff","r":[[[43.635,20.243],[43.635,23.643],[45.035,23.643],[45.035,20.243]]],"id":97},{"uk":-1.8,"n":"Fundament","c":"#ff0073","r":[[[43.135,54.543],[45.035,54.543],[45.035,51.243],[43.135,51.243]]],"id":98},{"uk":-0.95,"n":"Sauberkeitsschicht Frostsch\u00fcrze","c":"#00ffd6","r":[[[36.775,46.043],[36.775,54.543],[38.135,54.543],[38.135,56.793],[42.705,56.793],[42.705,54.543],[43.135,54.543],[43.135,51.243],[42.605,51.243],[42.605,49.103],[38.325,49.103],[38.325,47.593],[43.635,47.593],[43.635,46.043]]],"id":99},{"uk":-0.37,"n":"Sauberkeitsschicht Randstreifen","c":"#a8ebff","r":[[[43.635,47.593],[38.325,47.593],[38.325,49.113],[42.605,49.113],[42.605,48.443],[43.635,48.443]]],"id":100},{"uk":-2.13,"n":"Unterbau Au\u00dfenwand","c":"#e60000","r":[[[43.635,48.443],[45.035,48.443],[45.035,45.043],[43.635,45.043]]],"id":101},{"uk":-2.13,"n":"Unterbau Au\u00dfenwand","c":"#e60000","r":[[[43.635,42.243],[45.035,42.243],[45.035,38.843],[43.635,38.843]]],"id":102},{"uk":-2.13,"n":"Unterbau Au\u00dfenwand","c":"#e60000","r":[[[43.635,36.043],[45.035,36.043],[45.035,32.643],[43.635,32.643]]],"id":103},{"uk":-2.13,"n":"Unterbau Au\u00dfenwand","c":"#e60000","r":[[[43.635,29.843],[45.035,29.843],[45.035,26.443],[43.635,26.443]]],"id":104},{"uk":-1.38,"n":"Unterfahrtwand","c":"#0073ff","r":[[[4.789,61.167],[3.618,59.997],[1.825,61.79],[1.825,63.521],[2.13,63.826]]],"id":105},{"uk":-1.22,"n":"Frostfreier Unterbau","c":"#9f9f9f","r":[[[29.115,88.153],[29.115,92.633],[20.37,92.633],[20.37,97.863],[11.37,97.863],[11.37,92.633],[0.755,92.633],[0.755,93.413],[-0.245,93.413],[-0.245,94.633],[9.37,94.633],[9.37,99.863],[22.37,99.863],[22.37,94.633],[31.115,94.633],[31.115,88.153]]],"id":106},{"uk":-1.22,"n":"Frostfreier Unterbau","c":"#9f9f9f","r":[[[43.985,75.543],[43.985,81.013],[43.96,81.013],[43.96,87.678],[37.875,87.678],[37.875,87.578],[30.055,87.578],[30.055,88.153],[31.115,88.153],[31.115,88.478],[37.875,88.478],[37.875,88.378],[44.66,88.378],[44.66,81.013],[44.685,81.013],[44.685,75.543]]],"id":107},{"uk":-0.25,"n":"Sauberkeitsschicht Halle","c":"#e3ecf2","r":[[[45.05,-0.67],[45.05,80.045],[-0.67,80.045],[-0.67,-0.67]]],"id":108}],"axX":{"A":0.0,"B":7.585,"C":14.887,"D":22.225,"E":29.528,"F":36.83,"G":44.45},"axY":{"1":0.0,"2":6.491,"3":12.7,"4":18.874,"5":25.083,"6":31.291,"7":37.5,"8":43.674,"9":49.883,"10":56.092,"11":62.301,"12":68.474,"13":74.683,"14":80.574,"15":88.194,"16":93.451,"17":98.213}};
+const NHN0 = 566.10, CAPD = 0.3;
+const STORE = 'aushub-26-24-OST-hoehen-v1';
+const fmt=(v,d=2)=>v.toLocaleString('de-DE',{minimumFractionDigits:d,maximumFractionDigits:d});
+const lvl=u=>(u<0?'▲−':'▲+')+fmt(Math.abs(u));
+const lvlP=u=>(u<0?'-':'+')+fmt(Math.abs(u));
+const $=id=>document.getElementById(id);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const isDark=()=>css('--panel')<'#8';
+
+// ---------- regions (editable areas) ----------
+let edits={};try{edits=JSON.parse(localStorage.getItem(STORE)||'{}')||{}}catch(e){edits={}}
+const AX=Object.entries(D.axX),AY=Object.entries(D.axY);
+function nearAx(arr,v){let b=arr[0];for(const a of arr)if(Math.abs(a[1]-v)<Math.abs(b[1]-v))b=a;const o=v-b[1];return b[0]+(Math.abs(o)<0.6?'':(o>0?'+':'−')+fmt(Math.abs(o),1))}
+const REG=D.regions.map((r,i)=>{
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9,A=0,cx=0,cy=0;
+  r.r.forEach((ring,ri)=>{let a=0,sx=0,sy=0;for(let k=0;k<ring.length;k++){const p=ring[k],q=ring[(k+1)%ring.length];
+    x0=Math.min(x0,p[0]);y0=Math.min(y0,p[1]);x1=Math.max(x1,p[0]);y1=Math.max(y1,p[1]);const c=p[0]*q[1]-q[0]*p[1];a+=c;sx+=(p[0]+q[0])*c;sy+=(p[1]+q[1])*c}
+    a/=2;if(ri===0){A+=Math.abs(a);cx=sx/(6*a);cy=sy/(6*a)}else A-=Math.abs(a)});
+  const col=new THREE.Color(r.c).lerp(new THREE.Color('#ffffff'),0.18);
+  return {i,id:r.id,uk0:r.uk,uk:edits[r.id]!=null?edits[r.id]:r.uk,name:r.n,rings:r.r,bb:[x0,y0,x1,y1],area:A,cx,cy,col,hex:r.c,
+          ax:'Achse '+nearAx(AX,cx)+' / '+nearAx(AY,cy)};
+});
+const EDG=[];REG.forEach(R=>R.rings.forEach(ring=>{for(let k=0;k<ring.length;k++){const p=ring[k],q=ring[(k+1)%ring.length];EDG.push({r:R.i,ax:p[0],ay:p[1],bx:q[0],by:q[1]})}}));
+function inRegion(R,x,y){let c=false;for(const ring of R.rings)for(let k=0,n=ring.length,j=n-1;k<n;j=k++){const a=ring[k],b=ring[j];
+  if((a[1]>y)!==(b[1]>y)&&x<(b[0]-a[0])*(y-a[1])/(b[1]-a[1])+a[0])c=!c}return c}
+function segDist(e,x,y){const dx=e.bx-e.ax,dy=e.by-e.ay;let t=((x-e.ax)*dx+(y-e.ay)*dy)/(dx*dx+dy*dy);t=t<0?0:t>1?1:t;
+  const qx=e.ax+t*dx,qy=e.ay+t*dy;return[Math.hypot(x-qx,y-qy),qx,qy]}
+function regionDist(R,x,y){if(inRegion(R,x,y))return 0;let m=1e9;for(const e of EDG)if(e.r===R.i)m=Math.min(m,segDist(e,x,y)[0]);return m}
+
+// ---------- state ----------
+const state={G:0,ex:3,af:1.2,mode:'pit',slope:'all',res:0.1,cut:null,lines:true,cont:false,sel:null};
+let S=null; // computed surface
+
+// ---------- surface computation ----------
+function compute(){
+  const G=state.G,r=state.res;
+  let minUK=Infinity,bx0=1e9,by0=1e9,bx1=-1e9,by1=-1e9;
+  for(const R of REG){minUK=Math.min(minUK,R.uk);bx0=Math.min(bx0,R.bb[0]);by0=Math.min(by0,R.bb[1]);bx1=Math.max(bx1,R.bb[2]);by1=Math.max(by1,R.bb[3])}
+  const M=Math.max(1,G-minUK+CAPD+0.3);
+  const x0=bx0-M,y0=by0-M,nx=Math.ceil((bx1-bx0+2*M)/r)+1,ny=Math.ceil((by1-by0+2*M)/r)+1,N=nx*ny;
+  const ins=new Float32Array(N).fill(1e9),insId=new Int32Array(N).fill(-1);
+  for(const R of REG){
+    const j0=Math.max(0,Math.ceil((R.bb[1]-y0)/r-1e-9)),j1=Math.min(ny-1,Math.floor((R.bb[3]-y0)/r+1e-9));
+    for(let j=j0;j<=j1;j++){const y=y0+j*r,xs=[];
+      for(const ring of R.rings)for(let k=0,n=ring.length;k<n;k++){const p=ring[k],q=ring[(k+1)%n];
+        if((p[1]<=y&&q[1]>y)||(q[1]<=y&&p[1]>y))xs.push(p[0]+(y-p[1])/(q[1]-p[1])*(q[0]-p[0]))}
+      xs.sort((a,b)=>a-b);
+      for(let m=0;m+1<xs.length;m+=2){const i0=Math.max(0,Math.ceil((xs[m]-x0)/r-1e-6)),i1=Math.min(nx-1,Math.floor((xs[m+1]-x0)/r+1e-6));
+        for(let i=i0;i<=i1;i++){const k=j*nx+i;if(R.uk<ins[k]){ins[k]=R.uk;insId[k]=R.i}}}
+    }
+  }
+  const sl=new Float32Array(N).fill(G+CAPD),sId=new Int32Array(N).fill(-1);
+  EDG.forEach((e,ei)=>{
+    const uk=REG[e.r].uk,rr=G+CAPD-uk;if(rr<=0)return;
+    const i0=Math.max(0,Math.floor((Math.min(e.ax,e.bx)-rr-x0)/r)),i1=Math.min(nx-1,Math.ceil((Math.max(e.ax,e.bx)+rr-x0)/r));
+    const j0=Math.max(0,Math.floor((Math.min(e.ay,e.by)-rr-y0)/r)),j1=Math.min(ny-1,Math.ceil((Math.max(e.ay,e.by)+rr-y0)/r));
+    const dx=e.bx-e.ax,dy=e.by-e.ay,L2=dx*dx+dy*dy||1e-12;
+    for(let j=j0;j<=j1;j++){const py=y0+j*r,row=j*nx;
+      for(let i=i0;i<=i1;i++){const px=x0+i*r;let t=((px-e.ax)*dx+(py-e.ay)*dy)/L2;t=t<0?0:t>1?1:t;
+        const f=uk+Math.hypot(px-e.ax-t*dx,py-e.ay-t*dy);const k=row+i;if(f<sl[k]){sl[k]=f;sId[k]=ei}}}
+  });
+  const F=new Float32Array(N),LAB=new Int32Array(N);
+  const out=state.slope==='out';
+  for(let k=0;k<N;k++){
+    if(out?insId[k]>=0:ins[k]<=sl[k]){F[k]=ins[k];LAB[k]=-(insId[k]+1)}
+    else{F[k]=sl[k];LAB[k]=sId[k]>=0?sId[k]:-999999}
+  }
+  S={x0,y0,nx,ny,N,r,F,LAB,G};
+}
+// source value / gradient for kink & diagonal logic
+function srcVal(l,x,y,signed){
+  if(l<0){const R=REG[-l-1];return R.uk}
+  const e=EDG[l],uk=REG[e.r].uk;let[d]=segDist(e,x,y);
+  if(signed&&inRegion(REG[e.r],x,y))d=-d;return uk+d;
+}
+function srcGrad(l,x,y){if(l<0)return[0,0];const[d,qx,qy]=segDist(EDG[l],x,y);return d<1e-9?[0,0]:[(x-qx)/d,(y-qy)/d]}
+function srcCenter(l,x,y){if(l<0){const R=REG[-l-1];return R.uk+regionDist(R,x,y)}return REG[EDG[l].r].uk+segDist(EDG[l],x,y)[0]}
+
+// ---------- kink lines, crest, contours ----------
+function kinkSegments(){
+  const{x0,y0,nx,ny,r,F,LAB,G}=S,out=state.slope==='out',cache=new Map(),segs=[];
+  const crossing=(a,b,key)=>{
+    if(cache.has(key))return cache.get(key);
+    let res=null;const la=LAB[a],lb=LAB[b];
+    if(la!==lb&&la!==-999999&&lb!==-999999&&F[a]<G+CAPD-1e-4&&F[b]<G+CAPD-1e-4){
+      const xa=x0+(a%nx)*r,ya=y0+Math.floor(a/nx)*r,xb=x0+(b%nx)*r,yb=y0+Math.floor(b/nx)*r;
+      if(la<0&&lb<0){ // two sohle areas
+        const ua=REG[-la-1].uk,ub=REG[-lb-1].uk;
+        if(out&&Math.abs(ua-ub)>1e-4){const xm=(xa+xb)/2,ym=(ya+yb)/2;res={wall:true,p:[xm,ym],z1:ua,z2:ub}}
+      }else{
+        const ga=srcVal(la,xa,ya,1)-srcVal(lb,xa,ya,1),gb=srcVal(la,xb,yb,1)-srcVal(lb,xb,yb,1);
+        let t=(ga-gb)===0?0.5:ga/(ga-gb);t=t<0?0:t>1?1:t;
+        const x=xa+t*(xb-xa),y=ya+t*(yb-ya);
+        const g1=srcGrad(la,xa,ya),g2=srcGrad(lb,xb,yb);
+        if(Math.hypot(g1[0]-g2[0],g1[1]-g2[1])>=0.35){const z1=srcVal(la,x,y,1),z2=srcVal(lb,x,y,1);res={p:[x,y],z:Math.min(z1,z2)}}
+      }
+    }
+    cache.set(key,res);return res;
+  };
+  for(let j=0;j<ny-1;j++)for(let i=0;i<nx-1;i++){
+    const a=j*nx+i,b=a+1,c=a+nx,d=c+1;
+    if(LAB[a]===LAB[b]&&LAB[a]===LAB[c]&&LAB[a]===LAB[d])continue;
+    const pts=[crossing(a,b,'h'+a),crossing(c,d,'h'+c),crossing(a,c,'v'+a),crossing(b,d,'v'+b)].filter(Boolean);
+    const k=pts.filter(p=>!p.wall),w=pts.filter(p=>p.wall);
+    if(k.length===2)segs.push([k[0].p[0],k[0].p[1],k[0].z,k[1].p[0],k[1].p[1],k[1].z]);
+    else if(k.length>2){let mx=0,my=0,mz=0;k.forEach(p=>{mx+=p.p[0];my+=p.p[1];mz+=p.z});mx/=k.length;my/=k.length;mz/=k.length;k.forEach(p=>segs.push([p.p[0],p.p[1],p.z,mx,my,mz]))}
+    if(w.length===2){const lo=(p)=>Math.min(p.z1,p.z2),hi=(p)=>Math.max(p.z1,p.z2);
+      segs.push([w[0].p[0],w[0].p[1],lo(w[0]),w[1].p[0],w[1].p[1],lo(w[1])],[w[0].p[0],w[0].p[1],hi(w[0]),w[1].p[0],w[1].p[1],hi(w[1])])}
+  }
+  // clip at terrain level
+  const outS=[];
+  for(let[x1,y1,z1,x2,y2,z2]of segs){const A=z1<G-0.003,B=z2<G-0.003;if(!A&&!B)continue;
+    if(!A||!B){const t=(G-z1)/(z2-z1);const xm=x1+t*(x2-x1),ym=y1+t*(y2-y1);if(!A){x1=xm;y1=ym;z1=G}else{x2=xm;y2=ym;z2=G}}
+    outS.push([x1,y1,Math.min(z1,G),x2,y2,Math.min(z2,G)])}
+  return outS;
+}
+function isoSegments(level){
+  const{x0,y0,nx,ny,r,F}=S,segs=[];const L=level;
+  const ip=(a,b)=>{const t=(L-F[a])/(F[b]-F[a]);const xa=x0+(a%nx)*r,ya=y0+Math.floor(a/nx)*r,xb=x0+(b%nx)*r,yb=y0+Math.floor(b/nx)*r;return[xa+t*(xb-xa),ya+t*(yb-ya)]};
+  for(let j=0;j<ny-1;j++)for(let i=0;i<nx-1;i++){const a=j*nx+i,b=a+1,c=a+nx,d=c+1;
+    const A=F[a]<L,B=F[b]<L,C=F[c]<L,Dd=F[d]<L;if(A===B&&B===C&&C===Dd)continue;
+    const p=[];if(A!==B)p.push(ip(a,b));if(B!==Dd)p.push(ip(b,d));if(Dd!==C)p.push(ip(d,c));if(C!==A)p.push(ip(c,a));
+    for(let q=0;q+1<p.length;q+=2)segs.push([p[q][0],p[q][1],L,p[q+1][0],p[q+1][1],L]);
+  }
+  return segs;
+}
+function contourSegments(){
+  const G=state.G;let mn=G;for(let k=0;k<S.N;k++)if(S.F[k]<mn)mn=S.F[k];
+  const out=[];for(let L=Math.ceil(mn*4)/4;L<G-0.01;L+=0.25){const l=L+1e-4;isoSegments(l).forEach(s=>out.push(s))}
+  return out;
+}
+function volumes(){
+  const{F,LAB,N,r,G}=S,cell=r*r;let tot=0;const byUK=new Map();
+  for(let k=0;k<N;k++){const f=F[k];if(f<G){tot+=G-f;const l=LAB[k];if(l<0&&l!==-999999){const R=REG[-l-1];if(f<=R.uk+1e-4){const e=byUK.get(R.uk)||{a:0,names:new Set()};e.a+=cell;e.names.add(R.name);byUK.set(R.uk,e)}}}}
+  tot*=cell;const rows=[...byUK.entries()].sort((a,b)=>a[0]-b[0]).map(([uk,e])=>({uk,area:e.a,depth:G-uk,vol:e.a*(G-uk),names:[...e.names]}));
+  const vert=rows.reduce((s,x)=>s+x.vol,0);
+  return{tot,rows,slope:Math.max(0,tot-vert)};
+}
+
+// ---------- scene ----------
+const view=$('view');
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,3));
+renderer.localClippingEnabled=true;
+view.appendChild(renderer.domElement);
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(40,1,0.5,2000);
+const controls=new THREE.OrbitControls(camera,renderer.domElement);
+controls.enableDamping=true;controls.dampingFactor=0.08;
+scene.add(new THREE.HemisphereLight(0xffffff,0x8899aa,0.7));
+const sun=new THREE.DirectionalLight(0xffffff,0.6);sun.position.set(-40,90,-30);scene.add(sun);
+const sun2=new THREE.DirectionalLight(0xffffff,0.25);sun2.position.set(60,-40,80);scene.add(sun2);
+const clip=new THREE.Plane(new THREE.Vector3(0,0,-1),1e4);
+const root=new THREE.Group();scene.add(root);
+const gridG=new THREE.Group();scene.add(gridG);
+const CX=22.2,CZ=50;
+function sceneBg(){scene.background=new THREE.Color(css('--scene')||'#d9e0e5')}
+sceneBg();
+
+const tMat=new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide,clippingPlanes:[clip],polygonOffset:true,polygonOffsetFactor:1,polygonOffsetUnits:2});
+const capMat=new THREE.MeshBasicMaterial({color:0xc29a62,transparent:true,opacity:0.32,depthWrite:false,side:THREE.DoubleSide,clippingPlanes:[clip]});
+const kinkMat=new THREE.LineBasicMaterial({color:0x1c2830,transparent:true,opacity:0.8,clippingPlanes:[clip]});
+const crestMat=new THREE.LineBasicMaterial({color:0x111111,clippingPlanes:[clip]});
+const contMat=new THREE.LineBasicMaterial({color:0x7a5532,transparent:true,opacity:0.55,clippingPlanes:[clip]});
+const redMat=new THREE.LineBasicMaterial({color:0xff0000,depthTest:false});
+let terrain=null,cap=null,kinkL=null,crestL=null,contL=null,cutL=null,selL=null;
+const slopeA=new THREE.Color('#b8925f'),slopeB=new THREE.Color('#6b4529');
+
+function drop(o){if(o){root.remove(o);o.geometry.dispose()}return null}
+function lineObj(segs,mat,ro=2){
+  const a=new Float32Array(segs.length*6);segs.forEach((s,i)=>{a.set([s[0],s[2],s[1],s[3],s[5],s[4]],i*6)});
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(a,3));
+  const l=new THREE.LineSegments(g,mat);l.renderOrder=ro;root.add(l);return l;
+}
+function buildMesh(){
+  terrain=drop(terrain);cap=drop(cap);
+  const{x0,y0,nx,ny,N,r,F,LAB,G}=S,all=state.slope==='all';
+  const pos=new Float32Array(N*3),col=new Float32Array(N*3),cpos=new Float32Array(N*3);
+  const gc=new THREE.Color(isDark()?'#5d5546':'#d6ccb4'),c=new THREE.Color();
+  for(let j=0,k=0;j<ny;j++)for(let i=0;i<nx;i++,k++){
+    const x=x0+i*r,z=y0+j*r,f=F[k];pos[k*3]=cpos[k*3]=x;pos[k*3+2]=cpos[k*3+2]=z;pos[k*3+1]=Math.min(G,f);cpos[k*3+1]=G;
+    const l=LAB[k];
+    if(f>=G-1e-4)c.copy(gc);
+    else if(l<0&&l!==-999999&&f<=REG[-l-1].uk+0.003)c.copy(REG[-l-1].col);
+    else c.copy(slopeA).lerp(slopeB,Math.min(1,(G-f)/2.6));
+    col[k*3]=c.r;col[k*3+1]=c.g;col[k*3+2]=c.b;
+  }
+  const ind=new Uint32Array((nx-1)*(ny-1)*6),cind=[];let n=0;
+  for(let j=0;j<ny-1;j++)for(let i=0;i<nx-1;i++){
+    const a=j*nx+i,b=a+1,cc=a+nx,d=cc+1;let flip=false;
+    const la=LAB[a],lb=LAB[b],lc=LAB[cc],ld=LAB[d];
+    if(!(la===lb&&la===lc&&la===ld)){
+      if(all){const px=x0+(i+.5)*r,py=y0+(j+.5)*r;let fc=G+CAPD;
+        for(const l of new Set([la,lb,lc,ld]))if(l!==-999999)fc=Math.min(fc,srcCenter(l,px,py));
+        fc=Math.min(fc,G);const h=k=>Math.min(G,F[k]);
+        flip=Math.abs((h(b)+h(cc))/2-fc)<Math.abs((h(a)+h(d))/2-fc)-1e-6;
+      }else flip=(la!==ld&&lb===lc);
+    }
+    if(flip){ind[n++]=a;ind[n++]=cc;ind[n++]=b;ind[n++]=b;ind[n++]=cc;ind[n++]=d}
+    else{ind[n++]=a;ind[n++]=cc;ind[n++]=d;ind[n++]=a;ind[n++]=d;ind[n++]=b}
+    if(F[a]<G||F[b]<G||F[cc]<G||F[d]<G)cind.push(a,cc,b,b,cc,d);
+  }
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));g.setAttribute('color',new THREE.BufferAttribute(col,3));
+  g.setIndex(new THREE.BufferAttribute(ind,1));g.computeVertexNormals();
+  terrain=new THREE.Mesh(g,tMat);root.add(terrain);
+  const cg=new THREE.BufferGeometry();cg.setAttribute('position',new THREE.BufferAttribute(cpos,3));cg.setIndex(cind);
+  cap=new THREE.Mesh(cg,capMat);cap.visible=state.mode==='body';root.add(cap);
+}
+let KINK=[],CREST=[],CONT=null;
+function buildLines(){
+  kinkL=drop(kinkL);crestL=drop(crestL);contL=drop(contL);
+  KINK=kinkSegments();CREST=isoSegments(state.G-1e-4).map(s=>[s[0],s[1],state.G,s[3],s[4],state.G]);CONT=null;
+  kinkL=lineObj(KINK,kinkMat);crestL=lineObj(CREST,crestMat);
+  kinkL.visible=crestL.visible=state.lines;
+  if(state.cont){CONT=contourSegments();contL=lineObj(CONT,contMat,1)}
+}
+function profile(z){
+  const{x0,y0,nx,ny,r,F,G}=S;const j=Math.floor((z-y0)/r),t=(z-y0)/r-j;if(j<0||j>=ny-1)return[];
+  const p=[];for(let i=0;i<nx;i++){const f=(1-t)*F[j*nx+i]+t*F[(j+1)*nx+i];p.push([x0+i*r,Math.min(G,f)])}return p;
+}
+function buildCut(){
+  cutL=drop(cutL);if(state.cut===null)return;
+  const p=profile(state.cut),a=new Float32Array(p.length*3);p.forEach((q,i)=>a.set([q[0],q[1],state.cut],i*3));
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(a,3));
+  cutL=new THREE.Line(g,redMat);cutL.renderOrder=5;root.add(cutL);
+}
+function buildSel(){
+  selL=drop(selL);if(state.sel===null)return;const R=REG[state.sel],segs=[];
+  const grp=$('grp')&&$('grp').checked?REG.filter(x=>x.uk0===R.uk0):[R];
+  for(const Q of grp)for(const ring of Q.rings)for(let k=0;k<ring.length;k++){const p=ring[k],q=ring[(k+1)%ring.length];segs.push([p[0],p[1],Q.uk,q[0],q[1],Q.uk])}
+  selL=lineObj(segs,redMat,6);
+}
+// axis grid
+function label(txt,size=1.8){
+  const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d');const dk=isDark();
+  x.fillStyle=dk?'#1b2228':'#ffffff';x.strokeStyle=dk?'#e6ecf0':'#1c2830';x.lineWidth=6;
+  x.beginPath();x.arc(64,64,56,0,Math.PI*2);x.fill();x.stroke();
+  x.fillStyle=dk?'#e6ecf0':'#1c2830';x.font='600 '+(txt.length>1?50:62)+'px Barlow, sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText(txt,64,68);
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),depthTest:false}));sp.scale.set(size,size,1);sp.renderOrder=10;return sp;
+}
+function buildGrid(){
+  gridG.clear();
+  const mat=new THREE.LineDashedMaterial({color:isDark()?0xaab6bf:0x44525c,dashSize:0.8,gapSize:0.5,transparent:true,opacity:0.6});
+  const z0=-5,z1=105,x0=-5,x1=49.5,pts=[];
+  AX.forEach(([k,x])=>{pts.push(new THREE.Vector3(x,0,z0),new THREE.Vector3(x,0,z1));const a=label(k);a.position.set(x,0,z0-1.2);gridG.add(a);const b=label(k);b.position.set(x,0,z1+1.2);gridG.add(b)});
+  AY.forEach(([k,z])=>{pts.push(new THREE.Vector3(x0,0,z),new THREE.Vector3(x1,0,z));const a=label(k);a.position.set(x0-1.2,0,z);gridG.add(a);const b=label(k);b.position.set(x1+1.2,0,z);gridG.add(b)});
+  const ls=new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts),mat);ls.computeLineDistances();gridG.add(ls);
+  gridG.visible=$('tGrid').checked;gridG.position.y=state.G*state.ex+0.03;
+}
+
+// ---------- table & edit panel ----------
+let VOL=null;
+function updateTable(){
+  VOL=volumes();const tb=$('tb');tb.innerHTML='';let sA=0;
+  VOL.rows.forEach(x=>{sA+=x.area;const R=REG.find(r=>r.uk===x.uk);const tr=document.createElement('tr');
+    tr.innerHTML=`<td><span class="sw" style="background:${R?R.hex:'#ccc'}"></span>${lvl(x.uk)}<span class="nm">${x.names.join(', ')}</span></td><td>${fmt(x.area,1)}</td><td>${fmt(x.depth)}</td><td>${fmt(x.vol,1)}</td>`;tb.appendChild(tr)});
+  const trb=document.createElement('tr');
+  trb.innerHTML=`<td><span class="sw" style="background:#9a7350"></span>Böschung 45°, verschnitten<span class="nm">${state.slope==='all'?'an allen Sohlsprüngen':'nur Baugrubenrand'}</span></td><td></td><td></td><td>${fmt(VOL.slope,1)}</td>`;tb.appendChild(trb);
+  $('sA').textContent=fmt(sA,1);$('sV').textContent=fmt(VOL.tot,1);
+  $('vTot').innerHTML=fmt(VOL.tot,0)+'<small>m³</small>';
+  $('vLoose').textContent='≈ '+fmt(VOL.tot*state.af,0)+' m³ lose bei Faktor '+fmt(state.af,2);
+  $('gNhn').textContent='entspricht '+fmt(NHN0+state.G)+' m ü NHN';
+  const nE=Object.keys(edits).length;
+  $('vDesc').textContent='Gesamtaushub fest, Böschungen 45° '+(state.slope==='all'?'an allen Sohlsprüngen':'am Baugrubenrand')+' verschnitten, ohne Arbeitsraum'+(nE?`, ${nE} Bereich${nE>1?'e':''} geändert`:'');
+}
+function saveEdits(){try{localStorage.setItem(STORE,JSON.stringify(edits))}catch(e){}}
+function setUK(R,v){R.uk=v;if(Math.abs(v-R.uk0)<1e-6)delete edits[R.id];else edits[R.id]=v}
+function renderEdit(){
+  const box=$('edit');let h='';
+  if(state.sel===null)h=`<div class="empty">Klick im Modell auf eine Sohle oder Böschung, um die Höhe dieses Bereichs zu ändern. Modell und Mengen passen sich sofort an.</div>`;
+  else{const R=REG[state.sel],same=REG.filter(x=>x.uk0===R.uk0).length;
+    h=`<div class="rn">${R.name}</div><div class="rs">${R.ax}, Fläche ${fmt(R.area,1)} m², laut Plan UK ${lvl(R.uk0)}</div>
+    <div class="row"><label for="ukIn">UK Aushub relativ zu ±0,00</label><input id="ukIn" type="number" step="0.05" value="${R.uk.toFixed(2)}"></div>
+    <div class="row" style="font-size:.8rem;color:var(--muted)"><span id="ukNhn">entspricht ${fmt(NHN0+R.uk)} m ü NHN</span></div>
+    ${same>1?`<label style="display:flex;gap:6px;align-items:center;font-size:.85rem"><input type="checkbox" id="grp"> Alle ${same} Bereiche mit Plan-UK ${lvl(R.uk0)} mitändern</label>`:''}
+    <div class="btns"><button id="bReset">Auf Planwert</button><button id="bDesel">Auswahl aufheben</button></div>`}
+  box.innerHTML=h+'<div id="editChg"></div>';renderChanges();
+  const inp=$('ukIn');if(!inp)return;
+  const group=()=>{const R=REG[state.sel];return $('grp')&&$('grp').checked?REG.filter(x=>x.uk0===R.uk0):[R]};
+  inp.addEventListener('input',()=>{const v=parseFloat(String(inp.value).replace(',','.'));if(isNaN(v)||v<-8||v>2)return;
+    group().forEach(Q=>setUK(Q,v));saveEdits();$('ukNhn').textContent='entspricht '+fmt(NHN0+v)+' m ü NHN';schedule(true)});
+  const g=$('grp');if(g)g.onchange=()=>buildSel();
+  $('bReset').onclick=()=>{group().forEach(Q=>setUK(Q,Q.uk0));saveEdits();schedule()};
+  $('bDesel').onclick=()=>{state.sel=null;renderEdit();buildSel()};
+}
+function renderChanges(){
+  const c=$('editChg');if(!c)return;const changed=REG.filter(R=>edits[R.id]!=null);
+  if(!changed.length){c.innerHTML='';return}
+  c.innerHTML=`<div class="chg"><b>Geänderte Bereiche (${changed.length})</b><ul>${changed.map(R=>`<li><a data-sel="${R.i}">${R.name}, ${R.ax}</a>: ${lvl(R.uk0)} → ${lvl(R.uk)}</li>`).join('')}</ul><a id="bResetAll">Alle auf Planwerte zurücksetzen</a></div>`;
+  c.querySelectorAll('[data-sel]').forEach(a=>a.onclick=()=>{state.sel=+a.dataset.sel;renderEdit();buildSel()});
+  $('bResetAll').onclick=()=>{REG.forEach(R=>setUK(R,R.uk0));saveEdits();schedule()};
+}
+
+// ---------- recompute scheduling ----------
+let timer=null;
+function refresh(){
+  compute();buildMesh();buildLines();buildCut();buildSel();updateTable();
+  gridG.position.y=state.G*state.ex+0.03;$('busy').style.display='none';
+}
+function schedule(keepPanel){
+  $('busy').style.display='block';clearTimeout(timer);
+  timer=setTimeout(()=>{refresh();if(keepPanel)renderChanges();else renderEdit()},120);
+}
+
+// ---------- controls ----------
+$('g').addEventListener('input',e=>{let v=parseFloat(String(e.target.value).replace(',','.'));if(isNaN(v))return;state.G=Math.max(-0.2,Math.min(1,v));schedule()});
+$('af').addEventListener('input',e=>{const v=parseFloat(String(e.target.value).replace(',','.'));if(!isNaN(v)&&v>=1){state.af=v;updateTable()}});
+$('ex').addEventListener('input',e=>{state.ex=parseFloat(e.target.value);$('exOut').textContent=fmt(state.ex,1)+'-fach';root.scale.y=state.ex;gridG.position.y=state.G*state.ex+0.03});
+$('exOut').textContent=fmt(state.ex,1)+'-fach';
+function cutText(z){if(z===null)return 'aus';let b=AY[0];for(const a of AY)if(Math.abs(a[1]-z)<Math.abs(b[1]-z))b=a;const o=z-b[1];return 'Achse '+b[0]+(Math.abs(o)<0.13?'':(o>0?' + ':' − ')+fmt(Math.abs(o))+' m')}
+$('cut').addEventListener('input',e=>{const z=parseFloat(e.target.value);state.cut=z>=101.9?null:z;clip.constant=state.cut===null?1e4:state.cut;$('cutOut').textContent=cutText(state.cut);buildCut()});
+$('cutOut').textContent=cutText(null);
+$('tGrid').onchange=e=>gridG.visible=e.target.checked;
+$('tEdges').onchange=e=>{state.lines=e.target.checked;kinkL.visible=crestL.visible=state.lines};
+$('tCont').onchange=e=>{state.cont=e.target.checked;contL=drop(contL);if(state.cont){CONT=contourSegments();contL=lineObj(CONT,contMat,1)}};
+function seg(id,attr,fn){document.querySelectorAll('#'+id+' button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#'+id+' button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));fn(b.dataset[attr])})}
+seg('segMode','m',m=>{state.mode=m;if(cap)cap.visible=m==='body'});
+seg('segSlope','s',s=>{state.slope=s;schedule()});
+seg('segRes','r',v=>{state.res=parseFloat(v);schedule()});
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{sceneBg();buildGrid();buildMesh()});
+const VIEWS={iso:[[-38,55,125],[CX,-2,CZ]],top:[[CX,150,CZ+0.01],[CX,0,CZ]],south:[[CX,6,165],[CX,-3,CZ]],under:[[-30,-60,115],[CX,-3,CZ]]};
+let anim=null;
+function go(v,instant){const[p,t]=VIEWS[v];const P=new THREE.Vector3(...p),T=new THREE.Vector3(...t);
+  if(instant||matchMedia('(prefers-reduced-motion: reduce)').matches){camera.position.copy(P);controls.target.copy(T);controls.update();return}
+  anim={p0:camera.position.clone(),t0:controls.target.clone(),P,T,s:performance.now()}}
+document.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>go(b.dataset.v));
+
+// ---------- hover & pick ----------
+const tip=$('tip'),ray=new THREE.Raycaster(),mouse=new THREE.Vector2();
+function hitInfo(ev){
+  const r=renderer.domElement.getBoundingClientRect();
+  mouse.set(((ev.clientX-r.left)/r.width)*2-1,-((ev.clientY-r.top)/r.height)*2+1);ray.setFromCamera(mouse,camera);
+  if(!terrain)return null;const h=ray.intersectObject(terrain,false).filter(h=>state.cut===null||h.point.z<=state.cut);
+  if(!h.length)return null;const p=h[0].point,{x0,y0,nx,ny,r:res,F,LAB,G}=S;
+  const i=Math.max(0,Math.min(nx-1,Math.round((p.x-x0)/res))),j=Math.max(0,Math.min(ny-1,Math.round((p.z-y0)/res))),k=j*nx+i;
+  const l=LAB[k],f=F[k];let reg=null,kind;
+  if(f>=G-1e-4)kind='Gelände, kein Aushub';
+  else if(l<0&&l!==-999999&&f<=REG[-l-1].uk+0.003){reg=REG[-l-1];kind='Sohle'}
+  else{kind='Böschung 45°';if(l>=0)reg=REG[EDG[l].r];else if(l<0&&l!==-999999)reg=REG[-l-1]}
+  return{reg,kind,h:Math.min(G,f),r};
+}
+renderer.domElement.addEventListener('pointermove',ev=>{
+  const H=hitInfo(ev);if(!H){tip.style.display='none';return}
+  tip.innerHTML=`<b>${H.kind}</b>${H.reg?`<br>${H.kind==='Sohle'?'':'von '}${H.reg.name}, ${H.reg.ax}`:''}<br>Höhe ${lvl(H.h)} = ${fmt(NHN0+H.h)} m ü NHN<br>Tiefe ab Gelände ${fmt(state.G-H.h)} m`;
+  tip.style.display='block';const r=H.r;let x=ev.clientX-r.left+14,y=ev.clientY-r.top+14;if(x+260>r.width)x-=280;if(y+100>r.height)y-=110;tip.style.left=x+'px';tip.style.top=y+'px';
+});
+renderer.domElement.addEventListener('pointerleave',()=>tip.style.display='none');
+let down=null;
+renderer.domElement.addEventListener('pointerdown',e=>down=[e.clientX,e.clientY]);
+renderer.domElement.addEventListener('pointerup',e=>{if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>5)return;
+  const H=hitInfo(e);state.sel=H&&H.reg?H.reg.i:null;renderEdit();buildSel();});
+
+function resize(){const w=view.clientWidth,h=view.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/Math.max(h,1);camera.updateProjectionMatrix()}
+new ResizeObserver(resize).observe(view);resize();
+root.scale.y=state.ex;buildGrid();refresh();renderEdit();go('iso',true);
+(function loop(t){
+  if(anim){const k=Math.min(1,(t-anim.s)/700),e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;camera.position.lerpVectors(anim.p0,anim.P,e);controls.target.lerpVectors(anim.t0,anim.T,e);if(k>=1)anim=null}
+  controls.update();renderer.render(scene,camera);requestAnimationFrame(loop)})(0);
+
+// ---------- export ----------
+let DL=null;
+(async()=>{try{if(window.claude&&typeof window.claude.use==='function')DL=await window.claude.use('downloads')}catch(e){DL=null}
+  if(!DL)DL={save:async({filename,data})=>{const u=URL.createObjectURL(data),a=document.createElement('a');a.href=u;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),60000)}}})();
+const today=()=>new Date().toLocaleDateString('de-DE');
+const fname=ext=>`26-24_OST_Aushub_${state.slope==='all'?'Boeschung-alle':'Boeschung-Rand'}_GOK${(state.G>=0?'+':'')+state.G.toFixed(2)}.${ext}`;
+async function offer(filename,blob,btn){
+  const old=btn.textContent;btn.textContent='Wird erstellt …';btn.disabled=true;
+  try{await DL.save({filename,data:blob})}
+  catch(e){if(!e||e.code!=='declined')$('expNote').textContent='Speichern nicht möglich ('+(e&&e.code||'Fehler')+').'}
+  finally{btn.textContent=old;btn.disabled=false}
+}
+const hexRGB=(h,mix=0)=>{const c=new THREE.Color(h).lerp(new THREE.Color('#ffffff'),mix);return[c.r*255,c.g*255,c.b*255]};
+const txt=s=>s.replace(/−/g,'-').replace(/▲/g,'').replace(/≈/g,'ca.');
+
+function exportPDF(){
+  const{jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a3'});
+  const sc=1000/300,X=py=>22+(py+6)*sc,Y=px=>16+(51-px)*sc,G=state.G;
+  // regions (shallow first, deep on top)
+  [...REG].sort((a,b)=>b.uk-a.uk).forEach(R=>{
+    doc.setFillColor(...hexRGB(R.hex,0.45));doc.setDrawColor(150);doc.setLineWidth(0.05);
+    const ring=R.rings[0];const pts=ring.map(p=>[X(p[1]),Y(p[0])]);
+    doc.lines(pts.slice(1).map((p,i)=>[p[0]-pts[i][0],p[1]-pts[i][1]]),pts[0][0],pts[0][1],[1,1],'FD',true);
+  });
+  // contours, kinks, crest
+  const L=(segs,w,rgb)=>{doc.setLineWidth(w);doc.setDrawColor(...rgb);segs.forEach(s=>doc.line(X(s[1]),Y(s[0]),X(s[4]),Y(s[3])))};
+  L(CONT||contourSegments(),0.08,[150,105,60]);
+  L(KINK,0.18,[30,40,48]);L(CREST,0.4,[0,0,0]);
+  // axes
+  doc.setLineDashPattern([3,1.2],0);doc.setLineWidth(0.12);doc.setDrawColor(90);
+  AX.forEach(([k,x])=>doc.line(X(-5),Y(x),X(104),Y(x)));AY.forEach(([k,y])=>doc.line(X(y),Y(-5),X(y),Y(50)));
+  doc.setLineDashPattern([],0);doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(30);
+  const bub=(x,y,t)=>{doc.setFillColor(255);doc.setDrawColor(30);doc.setLineWidth(0.2);doc.circle(x,y,2.4,'FD');doc.text(t,x,y+0.9,{align:'center'})};
+  AX.forEach(([k,x])=>{bub(X(-7.6),Y(x),k);bub(X(106.6)-1,Y(x),k)});AY.forEach(([k,y])=>{bub(X(y),Y(52.4),k);bub(X(y),Y(-7.4),k)});
+  // Koten
+  doc.setFont('helvetica','normal');doc.setFontSize(4.6);
+  REG.forEach(R=>{if(R.area<2.2)return;const ed=edits[R.id]!=null;doc.setTextColor(ed?220:40,ed?0:40,ed?0:40);
+    doc.text('UK '+lvlP(R.uk),X(R.cy),Y(R.cx)+0.6,{align:'center'})});
+  // legend
+  doc.setTextColor(30);doc.setFont('helvetica','bold');doc.setFontSize(9);doc.text('Legende',16,222);
+  doc.setFont('helvetica','normal');doc.setFontSize(6.5);
+  const ul=[...new Map(REG.map(R=>[R.uk,R])).values()].sort((a,b)=>a.uk-b.uk);
+  ul.forEach((R,i)=>{const col=Math.floor(i/11),row=i%11,x=16+col*62,y=227+row*4.6;doc.setFillColor(...hexRGB(R.hex,0.45));doc.setDrawColor(120);doc.setLineWidth(0.1);doc.rect(x,y-2.6,5,3,'FD');
+    const names=[...new Set(REG.filter(Q=>Q.uk===R.uk).map(Q=>Q.name))].join(', ');doc.text(txt(`UK ${lvlP(R.uk)}  ${names}`).slice(0,48),x+7,y)});
+  const ly=227+11*4.6;doc.setLineWidth(0.4);doc.setDrawColor(0);doc.line(16,ly,26,ly);doc.text('Böschungsoberkante am Gelände',28,ly+0.8);
+  doc.setLineWidth(0.18);doc.setDrawColor(30,40,48);doc.line(80,ly,90,ly);doc.text('Sohlkante, Grat, innere Böschungsoberkante',92,ly+0.8);
+  doc.setLineWidth(0.08);doc.setDrawColor(150,105,60);doc.line(160,ly,170,ly);doc.text('Höhenlinie 0,25 m',172,ly+0.8);
+  // scale bar
+  doc.setDrawColor(0);doc.setLineWidth(0.2);for(let i=0;i<5;i++){doc.setFillColor(i%2?255:0);doc.rect(205+i*2*sc,222,2*sc,1.5,'FD')}
+  doc.setFontSize(6);[0,5,10].forEach(m=>doc.text(m+' m',205+m*sc,227,{align:'center'}));
+  // title block
+  const tx=262,ty=214,tw=144,th=72;doc.setLineWidth(0.3);doc.setDrawColor(0);doc.rect(tx,ty,tw,th);
+  doc.setFillColor(255,0,0);doc.rect(tx+tw-16,ty+3,13,13,'F');doc.setTextColor(255);doc.setFont('helvetica','bold');doc.setFontSize(7);doc.text('RIEDEL',tx+tw-9.5,ty+8.6,{align:'center'});doc.text('BAU',tx+tw-9.5,ty+12,{align:'center'});
+  doc.setTextColor(20);doc.setFontSize(11);doc.text('Aushubplan mit Böschungen 45°',tx+4,ty+8);
+  doc.setFont('helvetica','normal');doc.setFontSize(7.5);
+  const nE=Object.keys(edits).length;
+  const lines=[
+    'Neubau Firmensitz Ostermeier GmbH, Im Unterfeld, 82024 Taufkirchen, Projekt 26-24_OST',
+    'Grundlage: Grundriss Aushub 26-24_OST_AH_V00 (KFK Architekten, Vorabzug 30.09.2026)',
+    `Gelände OK ${lvlP(G)} = ${fmt(NHN0+G)} m ü NHN (Annahme), ±0,00 = 566,10 m ü NHN`,
+    `Böschung 45° ${state.slope==='all'?'an allen Sohlsprüngen':'nur am Baugrubenrand, innen senkrecht'}, verschnitten`,
+    nE?`${nE} Bereich${nE>1?'e':''} gegenüber Plan in der Höhe geändert (rote Koten)`:'Sohlhöhen wie Plan',
+    `Aushub fest ca. ${fmt(VOL.tot,0)} m³, davon Böschung ca. ${fmt(VOL.slope,0)} m³`,
+    `lose ca. ${fmt(VOL.tot*state.af,0)} m³ bei Auflockerungsfaktor ${fmt(state.af,2)}`,
+    'ohne Arbeitsraum und Rampe, Geländeoberkante vor Ort prüfen',
+  ];
+  lines.forEach((l,i)=>doc.text(txt(l),tx+4,ty+15+i*5.2));
+  doc.setLineWidth(0.15);doc.line(tx,ty+th-12,tx+tw,ty+th-12);
+  doc.text('Maßstab 1:300 (A3), Achse 1 links',tx+4,ty+th-5);doc.text('Riedel Bau AG, Bauleitung',tx+62,ty+th-5);doc.text('Stand '+today(),tx+tw-4,ty+th-5,{align:'right'});
+  // ---- page 2: 3D view, quantities, section
+  doc.addPage('a3','landscape');
+  renderer.render(scene,camera);const img=renderer.domElement.toDataURL('image/jpeg',0.92);
+  const cw=renderer.domElement.width,ch=renderer.domElement.height;let iw=250,ih=iw*ch/cw;if(ih>165){ih=165;iw=ih*cw/ch}
+  doc.addImage(img,'JPEG',14,14,iw,ih);
+  doc.setFont('helvetica','bold');doc.setFontSize(11);doc.text('Mengen',278,20);
+  doc.setFontSize(7.5);let y=28;const cols=[278,330,352,374,404];
+  [['UK Aushub',278,0],['Bereiche',296,0],['Sohle m²',370,1],['Tiefe m',388,1],['m³ fest',406,1]].forEach(([h,x,r])=>doc.text(h,x,y,r?{align:'right'}:{}));
+  doc.setFont('helvetica','normal');y+=2;doc.setLineWidth(0.2);doc.line(278,y,406,y);y+=4;
+  VOL.rows.forEach(r=>{doc.text('UK '+lvlP(r.uk),278,y);doc.text(txt(r.names.join(', ')).slice(0,24),296,y);doc.text(fmt(r.area,1),370,y,{align:'right'});doc.text(fmt(r.depth),388,y,{align:'right'});doc.text(fmt(r.vol,1),406,y,{align:'right'});y+=4.3});
+  doc.text('Böschung 45°, verschnitten',278,y);doc.text(fmt(VOL.slope,1),406,y,{align:'right'});y+=2;doc.setLineWidth(0.4);doc.line(278,y,406,y);y+=4.5;
+  doc.setFont('helvetica','bold');doc.text('Summe fest',278,y);doc.text(fmt(VOL.tot,1),406,y,{align:'right'});y+=4.5;
+  doc.setFont('helvetica','normal');doc.text('lose (Faktor '+fmt(state.af,2)+')',278,y);doc.text(fmt(VOL.tot*state.af,1),406,y,{align:'right'});y+=8;
+  const ch2=REG.filter(R=>edits[R.id]!=null);
+  if(ch2.length){doc.setFont('helvetica','bold');doc.text('Geänderte Bereiche',278,y);y+=4.5;doc.setFont('helvetica','normal');
+    ch2.slice(0,14).forEach(R=>{doc.text(txt(`${R.name}, ${R.ax}: UK ${lvlP(R.uk0)} -> ${lvlP(R.uk)}`).slice(0,70),278,y);y+=4.1});if(ch2.length>14)doc.text(`… und ${ch2.length-14} weitere`,278,y)}
+  if(state.cut!==null){
+    const p=profile(state.cut),hs=5,vs=20,bx=24,by=200,base=G;  // 1:200 horizontal, 1:50 vertical
+    const PX=x=>bx+(x+6)*hs,PY=z=>by+(base-z)*vs;
+    doc.setFont('helvetica','bold');doc.setFontSize(10);doc.text(txt('Querschnitt bei '+cutText(state.cut)+'  (Längen 1:200, Höhen 1:50)'),14,192);
+    doc.setLineWidth(0.12);doc.setDrawColor(150);doc.setLineDashPattern([2,1],0);doc.line(PX(-6),PY(G),PX(51),PY(G));doc.setLineDashPattern([],0);
+    let mn=G;p.forEach(q=>mn=Math.min(mn,q[1]));
+    for(let z=Math.ceil(mn*2)/2;z<=G+0.01;z+=0.5){doc.setDrawColor(220);doc.line(PX(-6),PY(z),PX(51),PY(z));doc.setFontSize(6);doc.setFont('helvetica','normal');doc.setTextColor(90);doc.text(fmt(z),PX(-6)-1,PY(z)+0.8,{align:'right'})}
+    doc.setDrawColor(255,0,0);doc.setLineWidth(0.35);for(let i=1;i<p.length;i++){if(p[i][0]<-6||p[i][0]>51)continue;doc.line(PX(p[i-1][0]),PY(p[i-1][1]),PX(p[i][0]),PY(p[i][1]))}
+    doc.setTextColor(30);doc.setFontSize(7);AX.forEach(([k,x])=>{doc.setDrawColor(120);doc.setLineWidth(0.1);doc.line(PX(x),PY(G)-3,PX(x),PY(mn)+3);bub(PX(x),PY(G)-6,k)});
+  }
+  doc.setFontSize(7);doc.setTextColor(90);doc.text(txt('3D-Ansicht '+(state.ex>1?fmt(state.ex,1)+'-fach überhöht':'unverzerrt')+', Stand '+today()),14,ih+19);
+  return doc.output('blob');
+}
+
+function exportDXF(){
+  const o=[],P=(...a)=>{for(const v of a)o.push(String(v))},f3=v=>v.toFixed(3);
+  const Z=z=>f3(NHN0+z),XY=(x,y)=>[f3(x),f3(-y)];
+  const layers=[['DGM_SOHLE',3],['DGM_BOESCHUNG',30],['KANTEN',7],['BOESCHUNGSOBERKANTE',1],['HOEHENLINIEN',32],['BEREICHE',8],['ACHSEN',9],['KOTEN',2]];
+  P(0,'SECTION',2,'HEADER',9,'$ACADVER',1,'AC1009',9,'$EXTMIN',10,-10,20,-110,30,560,9,'$EXTMAX',10,60,20,10,30,570,0,'ENDSEC');
+  P(0,'SECTION',2,'TABLES',0,'TABLE',2,'LTYPE',70,1,0,'LTYPE',2,'CONTINUOUS',70,0,3,'Solid line',72,65,73,0,40,'0.0',0,'ENDTAB');
+  P(0,'TABLE',2,'LAYER',70,layers.length);layers.forEach(([n,c])=>P(0,'LAYER',2,n,70,0,62,c,6,'CONTINUOUS'));P(0,'ENDTAB',0,'ENDSEC');
+  P(0,'SECTION',2,'ENTITIES');
+  const face=(L,p)=>{const q=p.length===3?[...p,p[2]]:p;P(0,'3DFACE',8,L);q.forEach((v,i)=>{const[x,y]=XY(v[0],v[1]);P(10+i,x,20+i,y,30+i,Z(v[2]))})};
+  const line=(L,s)=>{const[a,b]=XY(s[0],s[1]),[c,d]=XY(s[3],s[4]);P(0,'LINE',8,L,10,a,20,b,30,Z(s[2]),11,c,21,d,31,Z(s[5]))};
+  // DGM (about 20 cm), flat runs merged
+  const{x0,y0,nx,ny,r,F,G}=S,st=Math.max(1,Math.round(0.2/r)),H=(i,j)=>Math.min(G,F[j*nx+i]);
+  for(let j=0;j+st<ny;j+=st){let i=0;
+    while(i+st<nx){const a=H(i,j),b=H(i+st,j),c=H(i,j+st),d=H(i+st,j+st);
+      if(a>=G-1e-4&&b>=G-1e-4&&c>=G-1e-4&&d>=G-1e-4){i+=st;continue}
+      const flat=Math.max(a,b,c,d)-Math.min(a,b,c,d)<1e-3;
+      if(flat){let e=i+st;while(e+st<nx){const b2=H(e+st,j),d2=H(e+st,j+st);if(Math.abs(b2-a)<1e-3&&Math.abs(d2-a)<1e-3)e+=st;else break}
+        const xa=x0+i*r,xe=x0+e*r,ya=y0+j*r,yb=y0+(j+st)*r;face('DGM_SOHLE',[[xa,ya,a],[xe,ya,a],[xe,yb,a],[xa,yb,a]]);i=e;continue}
+      const xa=x0+i*r,xb=x0+(i+st)*r,ya=y0+j*r,yb=y0+(j+st)*r;
+      face('DGM_BOESCHUNG',[[xa,ya,a],[xb,ya,b],[xb,yb,d]]);face('DGM_BOESCHUNG',[[xa,ya,a],[xb,yb,d],[xa,yb,c]]);i+=st}}
+  KINK.forEach(s=>line('KANTEN',s));CREST.forEach(s=>line('BOESCHUNGSOBERKANTE',s));(CONT||contourSegments()).forEach(s=>line('HOEHENLINIEN',s));
+  REG.forEach(R=>R.rings.forEach(ring=>ring.forEach((p,k)=>{const q=ring[(k+1)%ring.length];line('BEREICHE',[p[0],p[1],R.uk,q[0],q[1],R.uk])})));
+  const text=(L,x,y,z,h,t)=>{const[a,b]=XY(x,y);P(0,'TEXT',8,L,10,a,20,b,30,Z(z),40,h,1,t)};
+  AX.forEach(([k,x])=>{line('ACHSEN',[x,-5,G,x,105,G]);text('ACHSEN',x-0.4,-6.5,G,1,k)});
+  AY.forEach(([k,y])=>{line('ACHSEN',[-5,y,G,49.5,y,G]);text('ACHSEN',-7,y+0.4,G,1,k)});
+  REG.forEach(R=>{if(R.area>=1.5)text('KOTEN',R.cx-0.9,R.cy+0.15,R.uk,0.3,'UK '+lvlP(R.uk).replace(',','.')+' / '+(NHN0+R.uk).toFixed(2))});
+  P(0,'ENDSEC',0,'EOF');
+  return o.join('\r\n');
+}
+function quantitiesCSV(){
+  const rows=[['UK relativ','UK m ü NHN','Bereiche','Sohlfläche m²','Tiefe m','Volumen fest m³']];
+  VOL.rows.forEach(r=>rows.push([r.uk.toFixed(2),(NHN0+r.uk).toFixed(2),r.names.join(' / '),r.area.toFixed(1),r.depth.toFixed(2),r.vol.toFixed(1)]));
+  rows.push(['Böschung 45°','','','','',VOL.slope.toFixed(1)]);rows.push(['Summe fest','','','','',VOL.tot.toFixed(1)]);
+  rows.push(['Summe lose (Faktor '+state.af.toFixed(2)+')','','','','',(VOL.tot*state.af).toFixed(1)]);
+  rows.push([]);rows.push(['Geänderte Bereiche','Achsbezug','UK Plan','UK neu']);
+  REG.filter(R=>edits[R.id]!=null).forEach(R=>rows.push([R.name,R.ax,R.uk0.toFixed(2),R.uk.toFixed(2)]));
+  return '\ufeff'+rows.map(r=>r.map(v=>{v=String(v);return /^-?\d+\.\d+$/.test(v)?v.replace('.',','):v}).join(';')).join('\r\n');
+}
+$('bPdf').onclick=async()=>{if(!DL)return;const b=$('bPdf');b.textContent='Wird erstellt …';await new Promise(r=>setTimeout(r,30));let blob;try{blob=exportPDF()}catch(e){b.textContent='PDF-Plan (A3)';$('expNote').textContent='PDF konnte nicht erstellt werden: '+e.message;return}b.textContent='PDF-Plan (A3)';offer(fname('pdf'),blob,b)};
+$('bDxf').onclick=async()=>{if(!DL)return;const b=$('bDxf');b.textContent='Wird erstellt …';await new Promise(r=>setTimeout(r,30));
+  try{const zip=new JSZip();zip.file(fname('dxf'),exportDXF());zip.file('Mengen.csv',quantitiesCSV());
+    zip.file('LIESMICH.txt','DXF (AutoCAD R12), Einheiten Meter, Höhen in m ü NHN 2016, ±0,00 = 566,10.\r\nX = Planachse A->G, Y = Planachse 1->17 (negativ), Lage lokal bezogen auf Achse A/1.\r\nLayer: DGM_SOHLE, DGM_BOESCHUNG (3D-Flächen ca. 20 cm), KANTEN, BOESCHUNGSOBERKANTE, HOEHENLINIEN, BEREICHE, ACHSEN, KOTEN.\r\nIn AutoCAD/BricsCAD öffnen und mit "Speichern unter" als DWG ablegen.\r\n');
+    const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});b.textContent='CAD (DXF im ZIP)';offer(fname('zip'),blob,b)}
+  catch(e){b.textContent='CAD (DXF im ZIP)';$('expNote').textContent='DXF konnte nicht erstellt werden: '+e.message}};
+
+</script>
+</body>
+</html>
