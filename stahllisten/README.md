@@ -49,20 +49,21 @@ z. B. Bewehrungsplan `BFS_88160_B_T_5_BP_U1_2233_01`, Stahlliste `BFS_88160_B_T_
 - `vendor/exceljs.min.js` (ExcelJS 4.4) wird erst beim Export geladen.
 
 ## Datenbank und Zugriffsschutz
-Die Daten liegen im eigenen Supabase-Projekt **riedel-stahllisten** (`sazhfayopozqcluvmqqu`):
-- Tabelle `stahl_objekte` – Projekte, Pläne, Stahllisten, Bestellungen
+Die Daten liegen im gemeinsamen Supabase-Projekt der Riedel-Tools **riedel-stahllisten** (`sazhfayopozqcluvmqqu`):
+- Tabelle `stahl_objekte` – Projekte, Pläne, Stahllisten, Bestellungen; jede Zeile trägt die **Kostenstelle** ihres Projekts
 - privater Storage-Bucket `stahllisten` – Plan- und Listendateien (max. 50 MB je Datei), geöffnet nur über 5 Minuten gültige Links
-- Tabelle `stahl_zugang` – Freigabeliste
 
-Zugriff hat nur, wer **angemeldet**, **E-Mail bestätigt** und in `stahl_zugang` **freigeschaltet** ist. Das prüft die Datenbank per Row Level Security – ein eigenes Konto allein reicht nicht. Freigeschaltet wird das bestehende Konto (nicht nur die E-Mail-Adresse), damit sich niemand nachträglich mit einer fremden Adresse registrieren kann.
+Anmeldung und Freischaltung laufen wie bei allen Riedel-Tools über die Startseite (`tools_zugang`). Jedes Projekt gehört zu einer
+**Kostenstelle**; man sieht nur Projekte (und deren Dateien) der Kostenstellen, für die man freigeschaltet ist (`kostenstellen_zugang`).
+Admins sehen alle. Das prüft die Datenbank per Row Level Security. Die frühere eigene Freigabeliste `stahl_zugang` wird nicht mehr benutzt.
 
 ### Einmalige Einrichtung
-1. Tool öffnen, **Konto anlegen**, E-Mail bestätigen, anmelden.
-2. Das Tool zeigt „Datenbank einrichten“ mit dem fertigen SQL (inkl. dir als erstem Admin). **SQL kopieren**, im Supabase SQL Editor ausführen, **Erneut prüfen**.
-   Das Skript liegt auch als `supabase-setup.sql` im Ordner und kann gefahrlos erneut ausgeführt werden.
-3. Kollegen legen sich ein Konto an; du schaltest sie unter **Zugänge** frei (Rolle *Mitglied* oder *Admin*).
+1. Im Supabase SQL Editor nacheinander ausführen: `../zugang-setup.sql`, `supabase-setup.sql`, `../bautagebuch/supabase-setup.sql`
+   (das Tool zeigt das SQL zum Kopieren an, solange es fehlt). Bestehende Projekte bekommen dabei die Kostenstelle aus ihrem Feld „Kostenstelle“.
+2. Auf der Startseite unter **Zugänge → Kostenstellen** die Personen den Kostenstellen zuordnen.
+3. Projekte ohne Kostenstelle sehen nur Admins – im Projekt unter „Bearbeiten“ eine Kostenstelle wählen.
 
-Alle Freigeschalteten sehen alle Projekte. Änderungen anderer werden beim Wechsel ins Fenster und jede Minute nachgeladen.
+Änderungen anderer werden beim Wechsel ins Fenster und jede Minute nachgeladen.
 Der Punkt neben der E-Mail oben zeigt den Speicherstatus (grün gespeichert, orange speichert, rot Fehler – wird beim nächsten Speichern erneut gesendet).
 
 Daten aus der früheren rein lokalen Version bietet das Tool nach der Anmeldung zur Übernahme an.

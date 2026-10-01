@@ -82,6 +82,21 @@ table{border-collapse:collapse;width:100%;font-size:14px}
 th,td{padding:7px 10px;text-align:left;border-bottom:1px solid var(--rule);white-space:nowrap}
 th{font:600 13px/1.2 var(--sans);color:var(--muted);background:var(--soft)}
 .scroll{overflow-x:auto}
+.tabsx{display:flex;gap:4px;padding:0 18px;border-bottom:1px solid var(--rule)}
+.tabsx button{background:none;border:0;border-bottom:3px solid transparent;padding:10px 12px 8px;font:600 15px/1 var(--sans);color:var(--muted);cursor:pointer}
+.tabsx button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--red)}
+.klist{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.kst{border:1px solid var(--rule);background:var(--surface);padding:12px 14px}
+.kst .kh{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline}
+.kst .kh b{font:700 19px/1.1 var(--cond)}
+.kst .kh span{color:var(--muted);font-size:13.5px}
+.kst .kh .row{margin-left:auto}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 8px}
+.chipx{display:inline-flex;align-items:center;gap:6px;padding:4px 4px 4px 10px;background:var(--soft);font-size:13.5px}
+.chipx button{background:none;border:0;cursor:pointer;color:var(--muted);font-size:16px;line-height:1;padding:2px 6px}
+.chipx button:hover{color:var(--red-ink)}
+.kst .add{display:flex;gap:8px;flex-wrap:wrap}
+.kst .add select{flex:1 1 220px}
 .install{margin-top:22px;background:var(--surface);border:1px solid var(--rule);border-left:4px solid var(--ink);padding:14px 16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
 .install img{width:48px;height:48px;flex:none;border-radius:11px}
 .install div{flex:1 1 220px;min-width:0}
@@ -139,7 +154,7 @@ a,button{-webkit-tap-highlight-color:transparent}
   </a>
   <a class="tool" href="bautagebuch/">
     <h2>Bautagebuch</h2>
-    <p>Digitales Bautagebuch mit KI-Unterstützung und PDF-Export der Tagesberichte.</p>
+    <p>Tagesberichte für die Baustelle: Wetter automatisch, Personal und Geräte per Plus/Minus, Diktieren, Fotos und PDF.</p>
     <span>Öffnen →</span>
   </a>
   <a class="tool" href="abdichtungsassistent/">
@@ -170,16 +185,27 @@ a,button{-webkit-tap-highlight-color:transparent}
 <!-- Zugänge -->
 <dialog id="dlgTeam"><form method="dialog">
   <div class="dh"><h2>Zugänge</h2><button class="linkbtn" value="cancel">Schließen</button></div>
-  <div class="db">
-    <p class="sub">Freigeschaltete Personen dürfen die Tools öffnen. Die Person muss sich vorher hier ein Konto angelegt und die E-Mail bestätigt haben. Für die Daten von Stahllisten und Doka-Mietrechnungen braucht es zusätzlich die Freigabe im jeweiligen Tool.</p>
+  <div class="tabsx" role="tablist"><button type="button" role="tab" data-tab="pers" aria-selected="true">Personen</button><button type="button" role="tab" data-tab="kst" aria-selected="false">Kostenstellen</button></div>
+  <div class="db" id="tabPers">
+    <p class="sub">Freigeschaltete Personen dürfen die Riedel-Tools öffnen. Die Person muss sich vorher hier ein Konto angelegt und die E-Mail bestätigt haben. Stahllisten und Bautagebuch zeigen nur die Kostenstellen, für die jemand unter „Kostenstellen“ freigeschaltet ist (Admins sehen alle).</p>
     <div class="grid">
       <label>E-Mail<input id="tMail" type="email" autocomplete="off"></label>
       <label>Name<input id="tName" autocomplete="off"></label>
-      <label>Rolle<select id="tRole"><option value="mitglied">Mitglied</option><option value="admin">Admin (darf Zugänge verwalten)</option></select></label>
+      <label>Rolle<select id="tRole"><option value="mitglied">Mitglied</option><option value="admin">Admin (verwaltet Zugänge, sieht alle Kostenstellen)</option></select></label>
       <div style="display:flex;align-items:end"><button class="btn" type="button" id="tAdd">Freischalten</button></div>
     </div>
     <p class="msg" id="tMsg" style="margin-top:8px"></p>
-    <div class="scroll" style="margin-top:12px"><table><thead><tr><th>E-Mail</th><th>Name</th><th>Rolle</th><th>seit</th><th></th></tr></thead><tbody id="tRows"></tbody></table></div>
+    <div class="scroll" style="margin-top:12px"><table><thead><tr><th>E-Mail</th><th>Name</th><th>Rolle</th><th>Kostenstellen</th><th></th></tr></thead><tbody id="tRows"></tbody></table></div>
+  </div>
+  <div class="db" id="tabKst" hidden>
+    <p class="sub">Eine Kostenstelle ist ein Projekt in Stahllisten und Bautagebuch. Personen hier zuordnen – nur sie sehen die Daten dieser Kostenstelle.</p>
+    <div class="grid">
+      <label>Kostenstelle (Nr.)<input id="kNr" autocomplete="off" placeholder="z. B. 7421341"></label>
+      <label>Bezeichnung / BVH<input id="kName" autocomplete="off" placeholder="z. B. BV Wohnanlage Freising"></label>
+      <div style="display:flex;align-items:end"><button class="btn" type="button" id="kAdd">Kostenstelle anlegen</button></div>
+    </div>
+    <p class="msg" id="kMsg" style="margin-top:8px"></p>
+    <div id="kList" class="klist"></div>
   </div>
   <div class="df"><button class="btn sec" value="cancel">Schließen</button></div>
 </form></dialog>
@@ -254,6 +280,8 @@ async function afterLogin(){
   const n=nextTarget(); if(n){ location.replace(n); return; }
   ready=true; $('gate').hidden=true; $('tools').hidden=false; $('acct').hidden=false; installHint();
   $('whoMail').textContent=me.email; $('btnTeam').hidden=rolle!=='admin';
+  // Link „Kostenstellen & Freigaben“ aus den Tools: Zugänge direkt auf dem Reiter Kostenstellen öffnen
+  if(location.hash==='#zugaenge'&&rolle==='admin'){ history.replaceState(null,'',base); $('btnTeam').click(); document.querySelector('#dlgTeam [data-tab="kst"]').click(); }
 }
 function blockScreen(err){
   showGate(`<div class="auth"><h2>${err?'Fehler':'Noch kein Zugang'}</h2><div class="panel">
@@ -289,21 +317,71 @@ $('installBtn').onclick=async()=>{ if(await RiedelApp.install()) toast('Riedel-T
 $('installHide').onclick=()=>{ lsSet('riedel-install-hide',true); $('install').hidden=true; };
 
 // ---------- Zugänge (nur Admin) ----------
+let team=[], ksts=[], kzug=[], kstFehlt=false;
+const kstMissing=e=>e&&(e.code==='PGRST205'||e.code==='42P01'||/kostenstellen/.test(e.message||'')&&/does not exist|could not find/i.test(e.message||''));
 async function loadTeam(){
-  const {data,error}=await sb.from('tools_zugang').select('email,name,rolle,angelegt_am').order('email');
-  if(error){ $('tRows').innerHTML=`<tr><td colspan="5" class="msg bad">${esc(errMsg(error))}</td></tr>`; return; }
-  $('tRows').innerHTML=data.map(z=>`<tr><td>${esc(z.email)}</td><td>${esc(z.name||'')}</td><td>${z.rolle==='admin'?'Admin':'Mitglied'}</td><td>${dDE((z.angelegt_am||'').slice(0,10))}</td><td>${z.email===me.email.toLowerCase()?'<small style="color:var(--muted)">du</small>':`<button class="linkbtn" type="button" data-rm="${esc(z.email)}">Zugang entziehen</button>`}</td></tr>`).join('');
+  const [t,k,z]=await Promise.all([
+    sb.from('tools_zugang').select('email,name,rolle,angelegt_am').order('email'),
+    sb.from('kostenstellen').select('nr,name,ort,aktiv').order('nr'),
+    sb.from('kostenstellen_zugang').select('kostenstelle,email')]);
+  if(t.error){ $('tRows').innerHTML=`<tr><td colspan="5" class="msg bad">${esc(errMsg(t.error))}</td></tr>`; return; }
+  team=t.data; kstFehlt=kstMissing(k.error); ksts=k.error?[]:k.data; kzug=z.error?[]:z.data;
+  const kOf=mail=>kzug.filter(x=>x.email===mail).map(x=>x.kostenstelle);
+  $('tRows').innerHTML=team.map(p=>`<tr><td>${esc(p.email)}</td><td>${esc(p.name||'')}</td><td>${p.rolle==='admin'?'Admin':'Mitglied'}</td>
+    <td style="white-space:normal">${p.rolle==='admin'?'<small style="color:var(--muted)">alle</small>':esc(kOf(p.email).join(', '))||'<small style="color:var(--muted)">keine</small>'}</td>
+    <td>${p.email===me.email.toLowerCase()?'<small style="color:var(--muted)">du</small>':`<button class="linkbtn" type="button" data-rm="${esc(p.email)}">Zugang entziehen</button>`}</td></tr>`).join('');
+  renderKst(k.error&&!kstFehlt?k.error:null);
 }
-$('btnTeam').onclick=()=>{ $('tMsg').textContent=''; $('tMail').value=''; $('tName').value=''; $('tRole').value='mitglied'; $('dlgTeam').showModal(); loadTeam(); };
+function renderKst(err){
+  const L=$('kList');
+  if(kstFehlt){ L.innerHTML=`<div class="panel"><p class="msg bad">Die Tabellen für Kostenstellen fehlen noch in der Datenbank.</p><p class="sub">Einmalig im Supabase SQL Editor ausführen: <b>zugang-setup.sql</b>, danach <b>stahllisten/supabase-setup.sql</b> und <b>bautagebuch/supabase-setup.sql</b>.</p><button class="btn sm" type="button" id="kSql">SQL kopieren</button></div>`;
+    $('kSql').onclick=copySetupSql; return; }
+  if(err){ L.innerHTML=`<p class="msg bad">${esc(errMsg(err))}</p>`; return; }
+  if(!ksts.length){ L.innerHTML='<p class="sub">Noch keine Kostenstellen angelegt.</p>'; return; }
+  const mitglieder=team.filter(p=>p.rolle!=='admin');
+  L.innerHTML=ksts.map(k=>{ const pers=kzug.filter(x=>x.kostenstelle===k.nr).map(x=>x.email);
+    const frei=mitglieder.filter(p=>!pers.includes(p.email));
+    return `<div class="kst" data-k="${esc(k.nr)}"><div class="kh"><b>${esc(k.nr)}</b><span>${esc(k.name)}${k.ort?' · '+esc(k.ort):''}${k.aktiv?'':' · inaktiv'}</span>
+      <span class="row"><button class="linkbtn" type="button" data-kedit>Umbenennen</button> <button class="linkbtn" type="button" data-kdel>Löschen</button></span></div>
+      <div class="chips">${pers.length?pers.map(m=>{ const p=team.find(x=>x.email===m); return `<span class="chipx">${esc(p&&p.name||m)}<button type="button" data-krm="${esc(m)}" aria-label="${esc(m)} entfernen" title="Freigabe entfernen">×</button></span>`; }).join(''):'<small style="color:var(--muted)">Noch niemand freigeschaltet (nur Admins sehen sie).</small>'}</div>
+      ${frei.length?`<div class="add"><select data-ksel><option value="">Person hinzufügen …</option>${frei.map(p=>`<option value="${esc(p.email)}">${esc(p.name?p.name+' ('+p.email+')':p.email)}</option>`).join('')}</select><button class="btn sm" type="button" data-kadd>Freischalten</button></div>`:''}
+    </div>`; }).join('');
+}
+async function copySetupSql(){
+  let sql=''; for(const f of ['zugang-setup.sql','stahllisten/supabase-setup.sql','bautagebuch/supabase-setup.sql']){ try{ sql+=await (await fetch(f,{cache:'no-cache'})).text()+'\n\n'; }catch(e){} }
+  try{ await navigator.clipboard.writeText(sql); toast('SQL kopiert – im Supabase SQL Editor einfügen und „Run“'); }catch(e){ toast('Kopieren nicht möglich – Dateien im Repo öffnen'); }
+}
+document.querySelectorAll('#dlgTeam [data-tab]').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#dlgTeam [data-tab]').forEach(x=>x.setAttribute('aria-selected',String(x===b)));
+  $('tabPers').hidden=b.dataset.tab!=='pers'; $('tabKst').hidden=b.dataset.tab!=='kst'; });
+$('btnTeam').onclick=()=>{ $('tMsg').textContent=''; $('kMsg').textContent=''; $('tMail').value=''; $('tName').value=''; $('tRole').value='mitglied'; $('dlgTeam').showModal(); loadTeam(); };
 $('tAdd').onclick=async()=>{ const email=$('tMail').value.trim().toLowerCase(), m=$('tMsg');
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ m.className='msg bad'; m.textContent='Bitte eine gültige E-Mail eingeben.'; return; }
   const {error}=await sb.from('tools_zugang').upsert({email,name:$('tName').value.trim()||null,rolle:$('tRole').value});
   if(error){ m.className='msg bad'; m.textContent=errMsg(error); return; }
-  m.className='msg ok'; m.textContent=email+' ist freigeschaltet.'; $('tMail').value=''; $('tName').value=''; loadTeam(); };
+  m.className='msg ok'; m.textContent=email+' ist freigeschaltet. Unter „Kostenstellen“ die Projekte zuordnen.'; $('tMail').value=''; $('tName').value=''; loadTeam(); };
 $('tRows').onclick=async e=>{ const b=e.target.closest('[data-rm]'); if(!b) return;
-  if(!confirm(`Zugang für ${b.dataset.rm} entziehen?`)) return;
+  if(!confirm(`Zugang für ${b.dataset.rm} entziehen? Die Person verliert auch alle Kostenstellen-Freigaben.`)) return;
   const {error}=await sb.from('tools_zugang').delete().eq('email',b.dataset.rm);
   if(error){ $('tMsg').className='msg bad'; $('tMsg').textContent=errMsg(error); } else loadTeam(); };
+$('kAdd').onclick=async()=>{ const nr=$('kNr').value.trim(), name=$('kName').value.trim(), m=$('kMsg');
+  if(!nr||!name){ m.className='msg bad'; m.textContent='Bitte Nummer und Bezeichnung eingeben.'; return; }
+  const {error}=await sb.from('kostenstellen').insert({nr,name});
+  if(error){ m.className='msg bad'; m.textContent=/duplicate|already exists/i.test(errMsg(error))?'Diese Kostenstelle gibt es schon.':errMsg(error); return; }
+  m.className='msg ok'; m.textContent='Kostenstelle '+nr+' angelegt.'; $('kNr').value=''; $('kName').value=''; loadTeam(); };
+$('kList').onclick=async e=>{ const box=e.target.closest('[data-k]'); if(!box) return; const k=box.dataset.k, m=$('kMsg'); let r=null;
+  if(e.target.closest('[data-kadd]')){ const email=box.querySelector('[data-ksel]').value; if(!email) return;
+    r=await sb.from('kostenstellen_zugang').insert({kostenstelle:k,email}); }
+  else if(e.target.closest('[data-krm]')){ const email=e.target.closest('[data-krm]').dataset.krm;
+    if(!confirm(`Freigabe für ${email} auf Kostenstelle ${k} entfernen?`)) return;
+    r=await sb.from('kostenstellen_zugang').delete().eq('kostenstelle',k).eq('email',email); }
+  else if(e.target.closest('[data-kedit]')){ const cur=ksts.find(x=>x.nr===k); const n=prompt('Bezeichnung der Kostenstelle '+k+':',cur?cur.name:''); if(!n||!n.trim()) return;
+    r=await sb.from('kostenstellen').update({name:n.trim()}).eq('nr',k); }
+  else if(e.target.closest('[data-kdel]')){ if(prompt(`Kostenstelle ${k} löschen? Alle Bautagebuch-Berichte dieser Kostenstelle werden mit gelöscht, Stahllisten-Projekte sehen danach nur noch Admins.\n\nZum Bestätigen die Nummer ${k} eingeben:`)!==k) return;
+    r=await sb.from('kostenstellen').delete().eq('nr',k); }
+  else return;
+  if(r&&r.error){ m.className='msg bad'; m.textContent=errMsg(r.error); return; }
+  m.textContent=''; loadTeam(); };
 
 // ---------- Start ----------
 (async()=>{

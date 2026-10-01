@@ -2,8 +2,9 @@
 -- Riedel-Tools – Zugang zur Startseite und allen Tools (Supabase)
 -- Läuft im Supabase-Projekt riedel-stahllisten, eigene Tabelle
 -- tools_zugang. Wer hier freigeschaltet ist, darf die Tools öffnen.
--- Für die Daten von Stahllisten und Doka gilt zusätzlich die jeweils
--- eigene Freigabeliste (stahl_zugang, doka_zugang).
+-- Projektbezogene Daten (Stahllisten, Bautagebuch) sieht man nur für
+-- die Kostenstellen, für die man freigeschaltet ist (unten).
+-- Doka-Mietrechnungen haben weiterhin eine eigene Freigabeliste.
 --
 -- Einmalig im Supabase SQL Editor ausführen. Das Skript kann
 -- gefahrlos erneut ausgeführt werden.
@@ -81,3 +82,77 @@ grant select, insert, update, delete on public.tools_zugang to authenticated;
 -- insert into public.tools_zugang (email, name, rolle)
 -- values ('vorname.nachname@firma.de', 'Vorname Nachname', 'admin')
 -- on conflict (email) do update set rolle = 'admin';
+
+-- ============================================================
+-- Kostenstellen – Freigabe für projektbezogene Tools
+-- (Stahllisten, Bautagebuch). Admins legen Kostenstellen an und
+-- schalten Personen je Kostenstelle frei. Admins sehen alle.
+-- ============================================================
+create table if not exists public.kostenstellen (
+  nr              text primary key check (nr = trim(nr) and nr <> ''),
+  name            text not null,
+  ort             text,
+  lat             double precision,
+  lon             double precision,
+  telegram_chat_id text unique,
+  aktiv           boolean not null default true,
+  angelegt_am     timestamptz not null default now()
+);
+
+create table if not exists public.kostenstellen_zugang (
+  kostenstelle text not null references public.kostenstellen(nr) on update cascade on delete cascade,
+  email        text not null references public.tools_zugang(email) on update cascade on delete cascade,
+  angelegt_am  timestamptz not null default now(),
+  primary key (kostenstelle, email)
+);
+
+-- Darf der angemeldete Nutzer diese Kostenstelle sehen und bearbeiten?
+-- Ohne Kostenstelle (null) nur Admins.
+create or replace function public.tools_darf_kst(k text)
+returns boolean
+language sql stable security definer
+set search_path = public, auth
+as $$
+  select public.tools_ist_admin()
+      or (k is not null and public.tools_berechtigt() and exists (
+            select 1 from public.kostenstellen_zugang z
+            join public.tools_zugang t on t.email = z.email
+            where z.kostenstelle = k and t.user_id = auth.uid()))
+$$;
+revoke all on function public.tools_darf_kst(text) from public, anon;
+grant execute on function public.tools_darf_kst(text) to authenticated;
+
+-- Ort einer Kostenstelle (für das Wetter im Bautagebuch) – darf jede freigeschaltete Person setzen
+create or replace function public.kst_ort_setzen(k text, p_ort text, p_lat double precision, p_lon double precision)
+returns void
+language plpgsql security definer
+set search_path = public, auth
+as $$
+begin
+  if not public.tools_darf_kst(k) then
+    raise exception 'Keine Freigabe für Kostenstelle %', k using errcode = '42501';
+  end if;
+  update public.kostenstellen set ort = nullif(trim(p_ort), ''), lat = p_lat, lon = p_lon where nr = k;
+end $$;
+revoke all on function public.kst_ort_setzen(text, text, double precision, double precision) from public, anon;
+grant execute on function public.kst_ort_setzen(text, text, double precision, double precision) to authenticated;
+
+alter table public.kostenstellen enable row level security;
+drop policy if exists "kst lesen" on public.kostenstellen;
+drop policy if exists "kst admin" on public.kostenstellen;
+create policy "kst lesen" on public.kostenstellen
+  for select to authenticated using (public.tools_darf_kst(nr));
+create policy "kst admin" on public.kostenstellen
+  for all to authenticated using (public.tools_ist_admin()) with check (public.tools_ist_admin());
+revoke all on public.kostenstellen from anon;
+grant select, insert, update, delete on public.kostenstellen to authenticated;
+
+alter table public.kostenstellen_zugang enable row level security;
+drop policy if exists "kst zugang lesen" on public.kostenstellen_zugang;
+drop policy if exists "kst zugang admin" on public.kostenstellen_zugang;
+create policy "kst zugang lesen" on public.kostenstellen_zugang
+  for select to authenticated using (public.tools_darf_kst(kostenstelle));
+create policy "kst zugang admin" on public.kostenstellen_zugang
+  for all to authenticated using (public.tools_ist_admin()) with check (public.tools_ist_admin());
+revoke all on public.kostenstellen_zugang from anon;
+grant select, insert, update, delete on public.kostenstellen_zugang to authenticated;
