@@ -180,7 +180,7 @@ header.top > .logo-riedel, header.top > .mark, #whoMail, #btnLogout{display:none
   <div><h1>Stahllisten</h1><p>Bewehrungsbedarf je Projekt: Pläne, Stahllisten und Bestellungen im Überblick.</p></div>
   <div class="right" id="hdrRight" hidden>
     <span class="who"><span id="syncState" class="sync ok" title="Speicherstatus"></span><span id="whoMail"></span></span>
-    <button class="btn sec sm" id="btnTeam" type="button" hidden>Zugänge</button>
+    <a class="btn sec sm" id="btnTeam" href="../#zugaenge" hidden title="Personen und Kostenstellen verwalten">Zugänge</a>
     <button class="btn sec sm" id="btnExport" type="button">Sicherung speichern</button>
     <label class="btn sec sm" style="flex-direction:row" tabindex="0">Sicherung laden<input type="file" id="importFile" accept="application/json,.json" hidden></label>
     <button class="btn sec sm" id="btnLogout" type="button">Abmelden</button>
@@ -201,7 +201,7 @@ header.top > .logo-riedel, header.top > .mark, #whoMail, #btnLogout{display:none
   <div class="db"><div class="grid">
     <label class="wide">Projektname<input id="pName" required placeholder="z. B. BfS Oberschleißheim"></label>
     <label>Projekt-Nr.<input id="pNr"></label>
-    <label>Kostenstelle<input id="pKst"></label>
+    <label>Kostenstelle<select id="pKst" required></select></label>
     <label>Kalkulierter Stahlbedarf gesamt (t)<input id="pKalk" inputmode="decimal" placeholder="optional"></label>
     <label>Biegebetrieb / Lieferant<input id="pLief" placeholder="optional"></label>
     <label class="wide">Notiz<textarea id="pNote" rows="2"></textarea></label>
@@ -281,22 +281,7 @@ header.top > .logo-riedel, header.top > .mark, #whoMail, #btnLogout{display:none
   <div class="df"><button class="btn sec left" id="oDel" type="button" hidden>Bestellung löschen</button><button class="btn sec" value="cancel">Abbrechen</button><button class="btn" value="ok">Speichern</button></div>
 </form></dialog>
 
-<!-- Zugänge -->
-<dialog id="dlgTeam"><form method="dialog">
-  <div class="dh"><h2>Zugänge</h2><button class="linkbtn" value="cancel">Schließen</button></div>
-  <div class="db">
-    <p class="sub">Nur freigeschaltete Personen sehen die Stahllisten-Daten. Die Person muss sich vorher im Tool ein Konto angelegt und die E-Mail bestätigt haben.</p>
-    <div class="grid">
-      <label>E-Mail<input id="tMail" type="email" autocomplete="off"></label>
-      <label>Name<input id="tName" autocomplete="off"></label>
-      <label>Rolle<select id="tRole"><option value="mitglied">Mitglied</option><option value="admin">Admin (darf Zugänge verwalten)</option></select></label>
-      <div style="display:flex;align-items:end"><button class="btn" type="button" id="tAdd">Freischalten</button></div>
-    </div>
-    <p class="msg" id="tMsg" style="margin-top:8px"></p>
-    <div class="tbl scroll" style="margin-top:12px"><table><thead><tr><th>E-Mail</th><th>Name</th><th>Rolle</th><th>seit</th><th></th></tr></thead><tbody id="tRows"></tbody></table></div>
-  </div>
-  <div class="df"><button class="btn sec" value="cancel">Schließen</button></div>
-</form></dialog>
+
 
 <script>
 (function(){
@@ -334,24 +319,28 @@ const KIND={projects:'projekt',plans:'plan',lists:'liste',orders:'bestellung'};
 const EMPTY=()=>({version:1,projects:[],plans:[],lists:[],orders:[]});
 let S=EMPTY(), sb=null, me=null, rolle=null, ready=false;
 let synced=new Map(); // id -> JSON des zuletzt gespeicherten Stands
+let syncedKst=new Map(); // id -> gespeicherte Kostenstelle der Zeile
+let KST=[]; // Kostenstellen, für die man freigeschaltet ist (Admins: alle)
 const lsGet=(k,d)=>{ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):d; }catch(e){ return d; } };
 const lsSet=(k,v)=>{ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} };
 const cfg=()=>({...SB_DEFAULT,...lsGet(LS_CFG,{})});
 const errMsg=e=>(e&&(e.message||e.error_description||e.msg))||String(e);
 function setSync(st,title){ const el=$('syncState'); if(!el) return; el.className='sync '+st; el.title=title||({ok:'Alles gespeichert',busy:'Speichert …',err:'Nicht gespeichert – wird erneut versucht'}[st]); }
 
-function rowsFromState(){ const m=new Map();
-  for(const [k,art] of Object.entries(KIND)) for(const o of S[k]) m.set(o.id,{id:o.id,art,projekt_id:art==='projekt'?o.id:o.projectId,data:o});
+// Jede Zeile trägt die Kostenstelle ihres Projekts – danach richtet sich in der Datenbank, wer sie sehen darf
+function rowsFromState(){ const m=new Map(), kstOf=new Map(S.projects.map(p=>[p.id,(p.kst||'').trim()||null]));
+  for(const [k,art] of Object.entries(KIND)) for(const o of S[k]){ const pid=art==='projekt'?o.id:o.projectId;
+    m.set(o.id,{id:o.id,art,projekt_id:pid,kostenstelle:kstOf.get(pid)||null,data:o}); }
   return m; }
 function pending(){ const cur=rowsFromState(), up=[];
-  for(const [id,r] of cur) if(synced.get(id)!==JSON.stringify(r.data)) up.push(r);
+  for(const [id,r] of cur) if(synced.get(id)!==JSON.stringify(r.data)||(syncedKst.get(id)||null)!==r.kostenstelle) up.push(r);
   return {up,del:[...synced.keys()].filter(id=>!cur.has(id))}; }
 async function fetchAll(){ const rows=[]; for(let from=0;;from+=1000){
-    const {data,error}=await sb.from(TABLE).select('id,art,data').order('id').range(from,from+999); if(error) throw error;
+    const {data,error}=await sb.from(TABLE).select('id,art,data,kostenstelle').order('id').range(from,from+999); if(error) throw error;
     rows.push(...data); if(data.length<1000) break; }
   return rows; }
 function applyRows(rows){ const n=EMPTY(), inv=Object.fromEntries(Object.entries(KIND).map(([k,a])=>[a,k]));
-  synced=new Map(); rows.forEach(r=>{ const k=inv[r.art]; if(k){ n[k].push(r.data); synced.set(r.id,JSON.stringify(r.data)); } }); S=n; }
+  synced=new Map(); syncedKst=new Map(); rows.forEach(r=>{ const k=inv[r.art]; if(k){ n[k].push(r.data); synced.set(r.id,JSON.stringify(r.data)); syncedKst.set(r.id,r.kostenstelle||null); } }); S=n; }
 async function load(){ applyRows(await fetchAll()); }
 let saveChain=Promise.resolve();
 function save(){ saveChain=saveChain.then(doSave,doSave); return saveChain; }
@@ -407,8 +396,8 @@ async function doSave(){
   setSync('busy');
   try{
     for(let i=0;i<up.length;i+=200){ const chunk=up.slice(i,i+200); const {error}=await sb.from(TABLE).upsert(chunk); if(error) throw error;
-      chunk.forEach(r=>synced.set(r.id,JSON.stringify(r.data))); }
-    if(del.length){ const {error}=await sb.from(TABLE).delete().in('id',del); if(error) throw error; del.forEach(id=>synced.delete(id)); }
+      chunk.forEach(r=>{ synced.set(r.id,JSON.stringify(r.data)); syncedKst.set(r.id,r.kostenstelle); }); }
+    if(del.length){ const {error}=await sb.from(TABLE).delete().in('id',del); if(error) throw error; del.forEach(id=>{ synced.delete(id); syncedKst.delete(id); }); }
     setSync('ok');
   }catch(e){ console.error(e); setSync('err'); toast('Speichern fehlgeschlagen: '+errMsg(e)+'. Die Änderung bleibt vorgemerkt und wird beim nächsten Speichern erneut gesendet.'); }
 }
@@ -416,7 +405,7 @@ async function doSave(){
 async function refresh(){
   if(!ready||document.hidden||document.querySelector('dialog[open]')) return;
   const p=pending(); if(p.up.length||p.del.length){ save(); return; }
-  try{ const rows=await fetchAll(); const same=rows.length===synced.size&&rows.every(r=>synced.get(r.id)===JSON.stringify(r.data));
+  try{ const rows=await fetchAll(); const same=rows.length===synced.size&&rows.every(r=>synced.get(r.id)===JSON.stringify(r.data)&&(syncedKst.get(r.id)||null)===(r.kostenstelle||null));
     if(!same&&!document.querySelector('dialog[open]')){ applyRows(rows); route(false); } setSync('ok'); }
   catch(e){ setSync('err','Keine Verbindung zur Datenbank'); }
 }
@@ -473,9 +462,12 @@ function renderHome(){
   document.title='Stahllisten';
   const ps=S.projects.slice().sort((a,b)=>a.name.localeCompare(b.name,'de'));
   let h=`<p class="crumb"><a href="../">← Riedel-Tools</a></p>`;
-  h+=`<div class="toolbar"><div class="grow"><h2>Laufende Projekte</h2></div><button class="btn red" id="newProj" type="button">+ Neues Projekt</button></div>`;
+  h+=`<div class="toolbar"><div class="grow"><h2>Laufende Projekte</h2></div>${KST.length?'<button class="btn red" id="newProj" type="button">+ Neues Projekt</button>':''}</div>`;
+  if(!KST.length) h+=`<div class="banner"><p>${rolle==='admin'?'Es gibt noch keine Kostenstellen. Lege sie auf der <a href="../">Startseite unter „Zugänge“ → „Kostenstellen“</a> an – jedes Projekt gehört zu einer Kostenstelle.':'Du bist noch für keine Kostenstelle freigeschaltet. Bitte einen Admin, dich für deine Projekte freizuschalten.'}</p></div>`;
+  const ohne=ps.filter(p=>!(p.kst||'').trim()||!KST.some(k=>k.nr===(p.kst||'').trim()));
+  if(rolle==='admin'&&ohne.length) h+=`<div class="banner"><p>${ohne.length} Projekt${ohne.length>1?'e haben':' hat'} keine gültige Kostenstelle und ${ohne.length>1?'sind':'ist'} nur für Admins sichtbar: ${ohne.map(p=>esc(p.name)).join(', ')}. Im Projekt unter „Bearbeiten“ eine Kostenstelle wählen.</p></div>`;
   if(!ps.length){
-    h+=`<div class="empty"><h3>Noch kein Projekt angelegt</h3><p>Lege für jede Baustelle ein Projekt an. Danach lädst du die erhaltenen Bewehrungspläne und die dazugehörigen Stahllisten hoch und erfasst die Bestellungen beim Biegebetrieb. Das Dashboard zeigt dann Bedarf, bestellte Menge und was noch zu bestellen ist.</p><button class="btn red" type="button" onclick="document.getElementById('newProj').click()">Erstes Projekt anlegen</button></div>`;
+    h+=`<div class="empty"><h3>Noch kein Projekt angelegt</h3><p>Lege für jede Baustelle ein Projekt an. Danach lädst du die erhaltenen Bewehrungspläne und die dazugehörigen Stahllisten hoch und erfasst die Bestellungen beim Biegebetrieb. Das Dashboard zeigt dann Bedarf, bestellte Menge und was noch zu bestellen ist.</p>${KST.length?`<button class="btn red" type="button" onclick="document.getElementById('newProj').click()">Erstes Projekt anlegen</button>`:''}</div>`;
   } else {
     const all=ps.map(p=>({p,c:calc(p.id)}));
     const T={b:sum(all,x=>x.c.tot.b),o:sum(all,x=>x.c.tot.o),r:sum(all,x=>x.c.tot.rest)};
@@ -486,7 +478,7 @@ function renderHome(){
       <small style="color:var(--muted)">${S.plans.filter(x=>x.projectId===p.id).length} Pläne · ${c.lists.length} Stahllisten · ${c.openLists.length} noch nicht bestellt</small></a>`).join('')+`</div>`;
   }
   $('app').innerHTML=h;
-  $('newProj').onclick=()=>editProject(null);
+  if($('newProj')) $('newProj').onclick=()=>editProject(null);
 }
 function meterSegs(tot){ const base=Math.max(tot.b,tot.o,1);
   return `<i class="c-lief" style="width:${Math.min(tot.g,tot.b)/base*100}%" title="Geliefert"></i><i class="c-best" style="width:${Math.max(0,Math.min(tot.o,tot.b)-Math.min(tot.g,tot.b))/base*100}%" title="Bestellt"></i><i class="c-open" style="width:${tot.rest/base*100}%" title="Noch zu bestellen"></i>`; }
@@ -812,13 +804,17 @@ function requireValid(d){ const f=d.querySelector('form'); f.onsubmit=e=>{ if(e.
 
 function editProject(p){
   $('dpTitle').textContent=p?'Projekt bearbeiten':'Neues Projekt';
-  $('pName').value=p?.name||''; $('pNr').value=p?.nr||''; $('pKst').value=p?.kst||''; $('pKalk').value=p?.kalkT!=null?String(p.kalkT).replace('.',','):''; $('pLief').value=p?.lief||''; $('pNote').value=p?.note||'';
+  const cur=(p?.kst||'').trim(), opts=KST.slice();
+  if(cur&&!opts.some(k=>k.nr===cur)) opts.unshift({nr:cur,name:'(nicht freigeschaltet)'});
+  $('pKst').innerHTML=(cur?'':'<option value="">Bitte wählen …</option>')+opts.map(k=>`<option value="${esc(k.nr)}">${esc(k.nr+' – '+k.name)}</option>`).join('');
+  $('pName').value=p?.name||''; $('pNr').value=p?.nr||''; $('pKst').value=cur; $('pKalk').value=p?.kalkT!=null?String(p.kalkT).replace('.',','):''; $('pLief').value=p?.lief||''; $('pNote').value=p?.note||'';
   $('pDel').hidden=!p;
   $('pDel').onclick=async()=>{ if(!confirm(`Projekt „${p.name}“ mit allen Plänen, Stahllisten und Bestellungen löschen?`)) return;
     const fids=[...S.plans,...S.lists].filter(x=>x.projectId===p.id).map(x=>x.fileId).filter(Boolean);
     for(const id of fids) await delFile(id);
     ['plans','lists','orders'].forEach(k=>S[k]=S[k].filter(x=>x.projectId!==p.id)); S.projects=S.projects.filter(x=>x.id!==p.id);
     await save(); $('dlgProject').close(); location.hash='#/'; };
+  $('pKst').onchange=()=>{ const k=KST.find(x=>x.nr===$('pKst').value); if(k&&!$('pName').value.trim()) $('pName').value=k.name; };
   dlg('dlgProject',async()=>{ const k=num($('pKalk').value);
     const v={name:$('pName').value.trim(),nr:$('pNr').value.trim(),kst:$('pKst').value.trim(),kalkT:isNaN(k)?null:k,lief:$('pLief').value.trim(),note:$('pNote').value.trim()};
     if(p) Object.assign(p,v); else { p={id:uid(),created:today(),...v}; S.projects.push(p); tab='uebersicht'; }
@@ -1201,10 +1197,17 @@ function authScreen(mode,msg,cls){
 async function afterLogin(){
   const {data:{session}}=await sb.auth.getSession(); if(!session){ authScreen('login'); return; }
   me=session.user; $('app').innerHTML='<p class="sub" style="margin-top:26px">Daten werden geladen …</p>';
-  const {data,error}=await sb.rpc('stahl_meine_rolle');
-  if(error){ if(error.code==='PGRST202'||error.code==='42883'||/could not find the function/i.test(error.message)) return setupScreen(); return blockScreen('Fehler beim Prüfen des Zugangs: '+errMsg(error)); }
+  const {data,error}=await sb.rpc('tools_meine_rolle');
+  if(error) return blockScreen('Fehler beim Prüfen des Zugangs: '+errMsg(error));
   if(!data) return blockScreen();
   rolle=data;
+  // Kostenstellen (Freigabe je Projekt) – fehlen Tabellen/Spalten, muss die Datenbank erst eingerichtet werden
+  const kr=await sb.from('kostenstellen').select('nr,name').order('nr');
+  const cr=kr.error?null:await sb.from(TABLE).select('kostenstelle').limit(1);
+  const fehlt=e=>e&&(e.code==='PGRST205'||e.code==='42P01'||e.code==='42703'||e.code==='PGRST204'||/does not exist|could not find/i.test(e.message||''));
+  if(fehlt(kr.error)||(cr&&fehlt(cr.error))) return setupScreen();
+  if(kr.error) return blockScreen('Kostenstellen konnten nicht geladen werden: '+errMsg(kr.error));
+  KST=kr.data;
   try{ await load(); }catch(e){ return blockScreen('Daten konnten nicht geladen werden: '+errMsg(e)); }
   ready=true; $('hdrRight').hidden=false; $('whoMail').textContent=me.email; $('btnTeam').hidden=rolle!=='admin'; setSync('ok');
   route(); offerMigration();
@@ -1212,16 +1215,16 @@ async function afterLogin(){
 function blockScreen(err){
   ready=false; $('hdrRight').hidden=true;
   $('app').innerHTML=`<div class="auth"><h2>${err?'Fehler':'Noch kein Zugang'}</h2><div class="panel">
-    <p class="msg ${err?'bad':''}">${err?esc(err):`Du bist als <b>${esc(me.email)}</b> angemeldet, aber noch nicht für die Stahllisten freigeschaltet. Bitte einen Admin, dich unter „Zugänge“ freizuschalten.`}</p>
+    <p class="msg ${err?'bad':''}">${err?esc(err):`Du bist als <b>${esc(me.email)}</b> angemeldet, aber noch nicht für die Riedel-Tools freigeschaltet. Bitte einen Admin, dich auf der Startseite unter „Zugänge“ freizuschalten.`}</p>
     <div class="row"><button class="btn" type="button" id="bRetry">Erneut prüfen</button><button class="btn sec" type="button" id="bOut">Abmelden</button></div></div></div>`;
   $('bRetry').onclick=afterLogin; $('bOut').onclick=logout;
 }
 async function setupScreen(){
   ready=false; $('hdrRight').hidden=true;
-  let sql=''; try{ sql=await (await fetch('supabase-setup.sql',{cache:'no-cache'})).text(); }catch(e){ sql='-- supabase-setup.sql konnte nicht geladen werden. Datei im Repo unter stahllisten/ öffnen.'; }
-  sql+=`\n-- Dich (${me.email}) als ersten Admin freischalten:\ninsert into public.stahl_zugang (email, rolle) values ('${me.email.toLowerCase().replace(/'/g,"''")}', 'admin')\non conflict (email) do update set rolle = 'admin';\n`;
+  let sql=''; for(const f of ['../zugang-setup.sql','supabase-setup.sql','../bautagebuch/supabase-setup.sql']){
+    try{ sql+=await (await fetch(f,{cache:'no-cache'})).text()+'\n\n'; }catch(e){ sql+='-- '+f+' konnte nicht geladen werden. Datei im Repo öffnen.\n\n'; } }
   const ref=(cfg().url.match(/^https:\/\/([^.]+)\.supabase\.co/)||[])[1];
-  $('app').innerHTML=`<section><h2>Datenbank einrichten</h2><p class="sub">Die Tabellen für die Stahllisten fehlen noch in der Datenbank. Einmalig im Supabase SQL Editor ausführen – danach „Erneut prüfen“.</p>
+  $('app').innerHTML=`<section><h2>Datenbank einrichten</h2><p class="sub">Die Datenbank ist noch nicht auf die Freigabe über Kostenstellen umgestellt. Ein Admin muss das folgende SQL einmalig ausführen (Riedel-Tools-Zugang, Kostenstellen, Stahllisten und Bautagebuch). Einmalig im Supabase SQL Editor ausführen – danach „Erneut prüfen“.</p>
     <ol class="sub"><li>SQL kopieren</li><li>${ref?`<a href="https://supabase.com/dashboard/project/${esc(ref)}/sql/new" target="_blank" rel="noopener">Supabase SQL Editor öffnen</a>`:'Supabase SQL Editor öffnen'}, einfügen und „Run“ klicken</li><li>Hier „Erneut prüfen“</li></ol>
     <div class="row" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px"><button class="btn red" type="button" id="sCopy">SQL kopieren</button><button class="btn" type="button" id="sRetry">Erneut prüfen</button><button class="btn sec" type="button" id="sOut">Abmelden</button></div>
     <pre class="sql" id="sSql">${esc(sql)}</pre></section>`;
@@ -1231,23 +1234,6 @@ async function setupScreen(){
 async function logout(){ const p=pending(); if(ready&&(p.up.length||p.del.length)){ await save(); }
   ready=false; S=EMPTY(); synced=new Map(); await sb.auth.signOut(); authScreen('login','Abgemeldet.','ok'); }
 $('btnLogout').onclick=logout;
-
-// ---------- Zugänge (nur Admin) ----------
-async function loadTeam(){
-  const {data,error}=await sb.from('stahl_zugang').select('email,name,rolle,angelegt_am').order('email');
-  if(error){ $('tRows').innerHTML=`<tr><td colspan="5" class="msg bad">${esc(errMsg(error))}</td></tr>`; return; }
-  $('tRows').innerHTML=data.map(z=>`<tr><td>${esc(z.email)}</td><td>${esc(z.name||'')}</td><td>${z.rolle==='admin'?'Admin':'Mitglied'}</td><td>${dDE((z.angelegt_am||'').slice(0,10))}</td><td>${z.email===me.email.toLowerCase()?'<small style="color:var(--muted)">du</small>':`<button class="linkbtn" type="button" data-rm="${esc(z.email)}">Zugang entziehen</button>`}</td></tr>`).join('');
-}
-$('btnTeam').onclick=()=>{ $('tMsg').textContent=''; $('tMail').value=''; $('tName').value=''; $('tRole').value='mitglied'; $('dlgTeam').showModal(); loadTeam(); };
-$('tAdd').onclick=async()=>{ const email=$('tMail').value.trim().toLowerCase(), m=$('tMsg');
-  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ m.className='msg bad'; m.textContent='Bitte eine gültige E-Mail eingeben.'; return; }
-  const {error}=await sb.from('stahl_zugang').upsert({email,name:$('tName').value.trim()||null,rolle:$('tRole').value});
-  if(error){ m.className='msg bad'; m.textContent=errMsg(error); return; }
-  m.className='msg ok'; m.textContent=email+' ist freigeschaltet.'; $('tMail').value=''; $('tName').value=''; loadTeam(); };
-$('tRows').onclick=async e=>{ const b=e.target.closest('[data-rm]'); if(!b) return;
-  if(!confirm(`Zugang für ${b.dataset.rm} entziehen?`)) return;
-  const {error}=await sb.from('stahl_zugang').delete().eq('email',b.dataset.rm);
-  if(error){ $('tMsg').className='msg bad'; $('tMsg').textContent=errMsg(error); } else loadTeam(); };
 
 // ---------- Logo ----------
 document.querySelectorAll('img[data-src]').forEach(img=>{ const srcs=img.dataset.src.split('|'); let i=0;

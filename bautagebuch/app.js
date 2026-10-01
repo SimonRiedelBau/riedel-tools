@@ -1,59 +1,48 @@
 // Bautagebuch – Oberfläche (ohne Framework).
-// Daten: eigenes Supabase-Projekt (Tabellen projekte, berichte, profiles) – unverändert gegenüber der alten Version.
+// Daten: gemeinsames Supabase-Projekt der Riedel-Tools (Tabellen kostenstellen, bt_berichte), Anmeldung über die Startseite.
 // PDF und Formular-Vorlage: pdf.js (mkForm, buildPDFDoc, pruefeFehlend, parseLokal, getN, getW, todayStr).
 (function () {
   'use strict';
 
-  // ---------- Datenbank ----------
-  var SB_URL = 'https://dlypbcdoxlfyyavmrhlr.supabase.co';
-  var SB_KEY = 'sb_publishable_VI2Oei75votfVOgtuVIcmw_K5-lAeLi';
+  // ---------- Datenbank: gemeinsames Supabase-Projekt der Riedel-Tools, gemeinsame Anmeldung ----------
+  // Die Anmeldung kommt von der Startseite (assets/auth-gate.js, Speicher „riedel-auth“). Sichtbar sind nur
+  // Berichte der Kostenstellen, für die man freigeschaltet ist – das prüft die Datenbank (Row Level Security).
+  var SB_URL = 'https://sazhfayopozqcluvmqqu.supabase.co';
+  var SB_KEY = 'sb_publishable_ZXiMVG3_xnblRTtMfJuJtA_kDgPuFLU';
   var LS = {
     get: function (k, d) { try { var v = localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } },
     getJ: function (k, d) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
     set: function (k, v) { try { localStorage.setItem(k, typeof v === 'string' ? v : JSON.stringify(v)); } catch (e) {} },
     del: function (k) { try { localStorage.removeItem(k); } catch (e) {} }
   };
-
-  function headers(token, extra) {
-    var h = { 'Content-Type': 'application/json', apikey: SB_KEY, Authorization: 'Bearer ' + (token || SB_KEY) };
+  var sbc = null;
+  function client() {
+    if (!sbc) sbc = window.supabase.createClient(SB_URL, SB_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: 'riedel-auth' } });
+    return sbc;
+  }
+  async function token() {
+    var r = await client().auth.getSession();
+    var s = r.data && r.data.session;
+    if (!s) { location.replace('../?next=' + encodeURIComponent(location.pathname + location.hash)); throw new Error('Nicht angemeldet'); }
+    return s.access_token;
+  }
+  function headers(tok, extra) {
+    var h = { 'Content-Type': 'application/json', apikey: SB_KEY, Authorization: 'Bearer ' + tok };
     for (var k in extra || {}) h[k] = extra[k];
     return h;
   }
-  async function refreshToken() {
-    var rt = LS.get('sb_refresh');
-    if (!rt) return null;
-    try {
-      var r = await fetch(SB_URL + '/auth/v1/token?grant_type=refresh_token', { method: 'POST', headers: headers(null), body: JSON.stringify({ refresh_token: rt }) });
-      var d = await r.json();
-      if (d.access_token) {
-        LS.set('sb_token', d.access_token);
-        if (d.refresh_token) LS.set('sb_refresh', d.refresh_token);
-        if (d.user) LS.set('sb_user', d.user);
-        return d.access_token;
-      }
-    } catch (e) {}
-    return null;
-  }
-  // REST-Aufruf mit automatischer Verlängerung der Anmeldung
-  async function api(method, path, body, retried) {
-    var tok = LS.get('sb_token');
+  async function api(method, path, body) {
     var r = await fetch(SB_URL + '/rest/v1/' + path, {
       method: method,
-      headers: headers(tok, method === 'GET' ? {} : { Prefer: 'return=representation' }),
+      headers: headers(await token(), method === 'GET' ? {} : { Prefer: 'return=representation' }),
       body: body === undefined ? undefined : JSON.stringify(body)
     });
-    var txt = await r.text();
-    var d = null;
+    var txt = await r.text(), d = null;
     try { d = txt ? JSON.parse(txt) : null; } catch (e) {}
     if (!r.ok) {
-      var msg = (d && (d.message || d.error_description || d.error)) || ('Fehler ' + r.status);
-      if (!retried && (r.status === 401 || /jwt|token|expired/i.test(msg))) {
-        var nt = await refreshToken();
-        if (nt) return api(method, path, body, true);
-        sessionEnded();
-        throw new Error('Sitzung abgelaufen – bitte neu anmelden.');
-      }
-      throw new Error(msg);
+      var err = new Error((d && (d.message || d.error_description || d.error)) || ('Fehler ' + r.status));
+      err.code = d && d.code; err.status = r.status;
+      throw err;
     }
     return d;
   }
@@ -61,15 +50,11 @@
     select: function (t, q) { return api('GET', t + '?' + q).then(function (d) { return Array.isArray(d) ? d : []; }); },
     insert: function (t, row) { return api('POST', t, row).then(function (d) { return Array.isArray(d) ? d[0] : d; }); },
     update: function (t, q, row) { return api('PATCH', t + '?' + q, row).then(function (d) { return Array.isArray(d) ? d[0] : d; }); },
-    remove: function (t, q) { return api('DELETE', t + '?' + q); }
+    remove: function (t, q) { return api('DELETE', t + '?' + q); },
+    rpc: function (fn, args) { return api('POST', 'rpc/' + fn, args || {}); }
   };
-  async function authCall(path, body) {
-    var r = await fetch(SB_URL + '/auth/v1/' + path, { method: 'POST', headers: headers(null), body: JSON.stringify(body) });
-    var d = {};
-    try { d = await r.json(); } catch (e) {}
-    if (!r.ok) throw new Error(d.error_description || d.msg || d.message || d.error || ('Fehler ' + r.status));
-    return d;
-  }
+  // Tabelle/Spalte fehlt → Datenbank ist noch nicht eingerichtet
+  function missing(e) { return !!e && (e.code === 'PGRST205' || e.code === '42P01' || e.code === '42703' || e.code === 'PGRST202' || /does not exist|could not find/i.test(e.message || '')); }
 
   // ---------- Entwürfe auf dem Gerät (IndexedDB, damit auch Fotos Platz haben) ----------
   var idb = (function () {
@@ -145,8 +130,8 @@
 
   // ---------- Zustand ----------
   var S = {
-    user: LS.getJ('sb_user', null),
-    profil: null,
+    user: null, rolle: null, name: '',
+    profil: null, setupFehlt: false,
     projekte: [], hidden: [],
     pid: LS.get('btb_projekt', null),
     form: null, blatt: 1, editId: null, editStatus: null, draftAt: null, restored: false,
@@ -172,7 +157,7 @@
   function toRow(f, status) {
     var a = f.arbeitskraefte, g = f.geraete;
     var row = {
-      projekt_id: S.pid, blatt_nr: S.blatt,
+      kostenstelle: S.pid, blatt_nr: S.blatt,
       datum: deToIso(f.datum) || new Date().toISOString().slice(0, 10),
       arbeitszeit: f.arbeitszeit, temp_7h: f.temp7, temp_12h: f.temp12, temp_16h: f.temp16, temp_max: f.tempMax, temp_min: f.tempMin,
       niederschlag: f.niederschlag, luftbewegung: f.luftbewegung,
@@ -201,7 +186,7 @@
     return f;
   }
   function pdfFor(b) {
-    var p = S.projekte.concat(S.hidden).find(function (x) { return x.id === b.projekt_id; }) || {};
+    var p = S.projekte.concat(S.hidden).find(function (x) { return x.id === b.kostenstelle; }) || {};
     return buildPDFDoc(fromRow(b), p.name || '', p.bau_nr || '', b.blatt_nr || 1);
   }
   function pdfName(name, blatt, datumDe) {
@@ -217,31 +202,51 @@
     document.addEventListener('keydown', onKey);
     window.addEventListener('hashchange', function () { render(); if (view() === 'archiv') loadArchiv(); });
     document.addEventListener('toggle', function (e) { var d = e.target; if (d.dataset && d.dataset.sec) S.collapsed[d.dataset.sec] = !d.open; }, true);
-    if (!LS.get('sb_token') || !S.user) return renderLogin();
     start();
   }
   async function start() {
-    $('#app').innerHTML = '<p class="loading">Projekte werden geladen …</p>';
-    loadProfil();
-    try { await loadProjekte(); }
-    catch (e) { $('#app').innerHTML = '<div class="login"><div class="banner warn"><p>' + esc(errText(e)) + '</p><button class="btn sm" data-act="retry">Erneut versuchen</button></div></div>'; return; }
+    $('#app').innerHTML = '<p class="loading">Kostenstellen werden geladen …</p>';
+    if (!window.supabase) { $('#app').innerHTML = '<div class="login"><div class="banner warn"><p>Die Anmelde-Bibliothek konnte nicht geladen werden. Bitte Seite neu laden.</p></div></div>'; return; }
+    try {
+      var ses = (await client().auth.getSession()).data.session;
+      if (!ses) { await token(); return; }
+      S.user = ses.user;
+      S.rolle = await db.rpc('tools_meine_rolle').catch(function () { return null; });
+      try { var z = await db.select('tools_zugang', 'select=name&user_id=eq.' + S.user.id); S.name = (z[0] && z[0].name) || ''; } catch (e) {}
+      await loadProjekte();
+      await db.select('bt_berichte', 'select=id&limit=1');
+      S.setupFehlt = false;
+    } catch (e) {
+      if (missing(e)) { S.setupFehlt = true; return renderSetup(); }
+      $('#app').innerHTML = '<div class="login"><div class="banner warn"><p>' + esc(errText(e)) + '</p><button class="btn sm" data-act="retry">Erneut versuchen</button></div></div>'; return;
+    }
     await openProjekt(S.pid, true);
     if (view() === 'archiv') loadArchiv();
   }
-  async function loadProfil() {
-    var u = S.user || {};
-    S.profil = { name: (u.user_metadata && u.user_metadata.full_name) || u.email || '', email: u.email, rolle: '' };
-    try { var d = await db.select('profiles', 'id=eq.' + u.id); if (d[0]) S.profil = d[0]; } catch (e) {}
-  }
+  // Projekte im Bautagebuch = Kostenstellen, für die man freigeschaltet ist (Admins: alle)
   async function loadProjekte() {
-    var all = await db.select('projekte', 'select=*&order=erstellt_am.desc');
-    S.projekte = all.filter(function (p) { return p.status !== 'archiviert'; });
-    S.hidden = all.filter(function (p) { return p.status === 'archiviert'; });
+    var all = await db.select('kostenstellen', 'select=nr,name,ort,lat,lon,aktiv&order=nr');
+    all = all.map(function (k) { return { id: k.nr, name: k.name, bau_nr: k.nr, ort: k.ort, lat: k.lat, lon: k.lon, aktiv: k.aktiv !== false }; });
+    S.projekte = all.filter(function (p) { return p.aktiv; });
+    S.hidden = all.filter(function (p) { return !p.aktiv; });
     if (!projekt()) S.pid = S.projekte[0] ? S.projekte[0].id : null;
     LS.set('btb_projekt', S.pid || '');
   }
+  async function renderSetup() {
+    var sql = '';
+    for (var f of ['../zugang-setup.sql', '../stahllisten/supabase-setup.sql', 'supabase-setup.sql']) {
+      try { sql += await (await fetch(f, { cache: 'no-cache' })).text() + '\n\n'; } catch (e) { sql += '-- ' + f + ' konnte nicht geladen werden\n\n'; }
+    }
+    S._sql = sql;
+    $('#app').innerHTML = '<div class="login" style="max-width:760px"><h1>Datenbank einrichten</h1>' +
+      '<p class="hint">Das Bautagebuch nutzt jetzt dieselbe Anmeldung und Datenbank wie alle Riedel-Tools. Projekte sind Kostenstellen – jede Person sieht nur die Kostenstellen, für die sie freigeschaltet ist.</p>' +
+      (S.rolle === 'admin' || S.rolle == null ? '<ol class="hint"><li>SQL kopieren</li><li><a href="https://supabase.com/dashboard/project/sazhfayopozqcluvmqqu/sql/new" target="_blank" rel="noopener">Supabase SQL Editor öffnen</a>, einfügen und „Run“ klicken</li><li>Hier „Erneut prüfen“</li></ol>' +
+        '<div class="row" style="margin-bottom:12px"><button class="btn red" data-act="copySql">SQL kopieren</button><button class="btn sec" data-act="retry">Erneut prüfen</button></div>' +
+        '<pre style="max-height:320px;overflow:auto;background:var(--rb-surface);border:1px solid var(--rb-rule);padding:10px;font-size:12px;white-space:pre-wrap">' + esc(sql) + '</pre>'
+        : '<div class="banner warn"><p>Ein Admin muss die Datenbank einmalig einrichten. Bitte Bescheid geben.</p><button class="btn sm" data-act="retry">Erneut prüfen</button></div>') + '</div>';
+  }
   async function nextBlatt(pid) {
-    try { var d = await db.select('berichte', 'select=blatt_nr&projekt_id=eq.' + pid + '&order=blatt_nr.desc&limit=1'); return d[0] ? (+d[0].blatt_nr || 0) + 1 : 1; }
+    try { var d = await db.select('bt_berichte', 'select=blatt_nr&kostenstelle=eq.' + pid + '&order=blatt_nr.desc&limit=1'); return d[0] ? (+d[0].blatt_nr || 0) + 1 : 1; }
     catch (e) { return null; }
   }
   // Projekt öffnen: gespeicherten Entwurf vom Gerät holen oder neuen Bericht anlegen
@@ -286,72 +291,13 @@
       var el = $('#draftInfo'); if (el) el.innerHTML = draftInfo();
     }, 400);
   }
-  function sessionEnded() {
-    LS.del('sb_token'); LS.del('sb_user');
-    setTimeout(function () { renderLogin('Deine Anmeldung ist abgelaufen. Bitte erneut anmelden – deine Entwürfe bleiben auf dem Gerät erhalten.'); }, 0);
-  }
-
-  // ---------- Anmeldung ----------
-  function renderLogin(msg, mode) {
-    mode = mode || 'login';
-    var sign = mode === 'signup', reset = mode === 'reset';
-    $('#app').innerHTML = '<div class="login">' +
-      '<img class="logo" src="../assets/logo-riedel.png" alt="Riedel Bau">' +
-      '<h1>Bautagebuch</h1><p class="hint">Tagesberichte für die Baustelle – mit Wetter, Personal, Geräten, Fotos und PDF.</p>' +
-      '<form class="card" id="loginForm" data-mode="' + mode + '" novalidate>' +
-      (reset ? '' : '<div class="tabs2" role="tablist"><button type="button" role="tab" aria-selected="' + !sign + '" data-act="loginmode" data-mode="login">Anmelden</button><button type="button" role="tab" aria-selected="' + sign + '" data-act="loginmode" data-mode="signup">Konto anlegen</button></div>') +
-      (reset ? '<h2 style="font:700 22px/1.1 var(--rb-cond);margin:0 0 10px">Passwort zurücksetzen</h2>' : '') +
-      (msg ? '<p class="msg ' + (/angelegt|E-Mail mit/.test(msg) ? 'ok' : 'bad') + '">' + esc(msg) + '</p>' : '') +
-      (sign ? '<label class="f"><span>Name</span><input type="text" name="name" autocomplete="name" required></label>' : '') +
-      '<label class="f"><span>E-Mail</span><input type="email" name="email" autocomplete="username" required value="' + esc(LS.get('btb_mail', '')) + '"></label>' +
-      (reset ? '' : '<label class="f"><span>Passwort</span><input type="password" name="pw" autocomplete="' + (sign ? 'new-password' : 'current-password') + '" required></label>') +
-      '<button class="btn red block" type="submit">' + (sign ? 'Konto anlegen' : reset ? 'Link zum Zurücksetzen senden' : 'Anmelden') + '</button>' +
-      '<p class="hint sm" style="margin:12px 0 0">' + (reset ? '<button type="button" class="link" data-act="loginmode" data-mode="login">Zurück zur Anmeldung</button>' :
-        sign ? 'Nach dem Anlegen kommt eine Bestätigungs-Mail. Die Rolle vergibt der Projektleiter.' :
-        '<button type="button" class="link" data-act="loginmode" data-mode="reset">Passwort vergessen?</button>') + '</p>' +
-      '</form><p class="hint sm">Das Bautagebuch hat eine eigene Anmeldung (eigene Datenbank) – unabhängig von der Anmeldung bei den Riedel-Tools.</p></div>';
-  }
-  async function doLogin(form) {
-    var mode = form.dataset.mode, fd = new FormData(form);
-    var email = String(fd.get('email') || '').trim(), pw = String(fd.get('pw') || ''), name = String(fd.get('name') || '').trim();
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return renderLogin('Bitte eine gültige E-Mail eingeben.', mode);
-    LS.set('btb_mail', email);
-    var btn = form.querySelector('[type=submit]'); btn.disabled = true; btn.textContent = 'Bitte warten …';
-    try {
-      if (mode === 'reset') {
-        await authCall('recover', { email: email });
-        return renderLogin('Falls es ein Konto gibt, kommt gleich eine E-Mail mit einem Link zum Zurücksetzen.', 'login');
-      }
-      if (!pw) return renderLogin('Bitte das Passwort eingeben.', mode);
-      if (mode === 'signup') {
-        if (!name) return renderLogin('Bitte deinen Namen eingeben.', mode);
-        var s = await authCall('signup', { email: email, password: pw, data: { full_name: name } });
-        if (!s.access_token) return renderLogin('Konto angelegt. Bitte den Link in der Bestätigungs-Mail öffnen und dann anmelden.', 'login');
-        return loggedIn(s);
-      }
-      loggedIn(await authCall('token?grant_type=password', { email: email, password: pw }));
-    } catch (e) {
-      var t = errText(e);
-      renderLogin(/invalid login/i.test(t) ? 'E-Mail oder Passwort falsch.' : /not confirmed/i.test(t) ? 'E-Mail noch nicht bestätigt – bitte den Link in der Bestätigungs-Mail öffnen.' : t, mode);
-    }
-  }
-  function loggedIn(d) {
-    LS.set('sb_token', d.access_token); if (d.refresh_token) LS.set('sb_refresh', d.refresh_token); LS.set('sb_user', d.user);
-    S.user = d.user; start();
-  }
-  async function logout() {
-    try { await fetch(SB_URL + '/auth/v1/logout', { method: 'POST', headers: headers(LS.get('sb_token')) }); } catch (e) {}
-    LS.del('sb_token'); LS.del('sb_refresh'); LS.del('sb_user'); S.user = null;
-    closeDlg(); renderLogin('', 'login');
-  }
-
   // ---------- Grundgerüst ----------
   function render() {
-    if (!S.user) return renderLogin();
+    if (!S.user) return;
     var v = view(), p = projekt();
-    var ini = String((S.profil && S.profil.name) || (S.user && S.user.email) || '?').split(/[\s.@]+/).filter(Boolean).slice(0, 2).map(function (s) { return s[0].toUpperCase(); }).join('');
+    var ini = String(S.name || (S.user && S.user.email) || '?').split(/[\s.@]+/).filter(Boolean).slice(0, 2).map(function (s) { return s[0].toUpperCase(); }).join('');
     var html = '<header class="head"><div class="head-in">' +
-      '<button class="pick" data-act="pickProjekt" aria-label="Projekt wechseln"><span class="pk-txt"><small>Projekt' + (p && p.bau_nr ? ' · Bau-Nr. ' + esc(p.bau_nr) : '') + '</small><b>' + esc(p ? p.name : 'Kein Projekt') + '</b></span><span class="chev">' + icon('chev') + '</span></button>' +
+      '<button class="pick" data-act="pickProjekt" aria-label="Projekt wechseln"><span class="pk-txt"><small>' + (p ? 'Kostenstelle ' + esc(p.id) : 'Projekt') + '</small><b>' + esc(p ? p.name : 'Kein Projekt') + '</b></span><span class="chev">' + icon('chev') + '</span></button>' +
       '<button class="me" data-act="me" title="Mein Konto" aria-label="Mein Konto">' + esc(ini) + '</button></div>' +
       '<nav class="nav" aria-label="Bereiche">' +
       '<a href="#bericht"' + (v === 'bericht' ? ' aria-current="page"' : '') + '>Tagesbericht</a>' +
@@ -377,7 +323,7 @@
   function berichtHTML() {
     var p = projekt();
     if (p && !S.form) return '<p class="loading">Bericht wird geladen …</p>';
-    if (!p) return '<div class="empty"><b>Noch kein Projekt</b>Lege zuerst ein Projekt an – danach kannst du Tagesberichte schreiben.<div style="margin-top:14px"><button class="btn red" data-act="newProjekt">+ Projekt anlegen</button></div></div>';
+    if (!p) return '<div class="empty"><b>Keine Kostenstelle freigeschaltet</b>' + (S.rolle === 'admin' ? 'Lege auf der <a href="' + ADMIN_LINK + '">Startseite unter „Zugänge“ → „Kostenstellen“</a> eine Kostenstelle an und schalte die Personen frei.' : 'Bitte einen Admin, dich für deine Kostenstellen (Projekte) freizuschalten. Danach erscheinen sie hier.') + '</div>';
     var f = S.form;
     var editing = !!S.editId;
     var h = '<div class="rhead"><h1>Blatt ' + esc(S.blatt) + '</h1>' +
@@ -566,9 +512,9 @@
     var b = $('#dictBtn'); if (b) b.innerHTML = '<span class="rec"><span class="dot"></span>Stopp</span>';
   }
   async function fromLast() {
-    var q = 'select=*&projekt_id=eq.' + S.pid + '&order=blatt_nr.desc&limit=2';
+    var q = 'select=*&kostenstelle=eq.' + S.pid + '&order=blatt_nr.desc&limit=2';
     try {
-      var rows = (await db.select('berichte', q)).filter(function (b) { return b.id !== S.editId; });
+      var rows = (await db.select('bt_berichte', q)).filter(function (b) { return b.id !== S.editId; });
       if (!rows[0]) { toast('Für dieses Projekt gibt es noch keinen Bericht.'); return; }
       var l = fromRow(rows[0]), f = S.form;
       f.arbeitszeit = l.arbeitszeit; f.arbeitskraefte = l.arbeitskraefte; f.geraete = l.geraete;
@@ -607,7 +553,7 @@
     }
     if (!S.editId) {
       try {
-        var dup = await db.select('berichte', 'select=id&projekt_id=eq.' + S.pid + '&blatt_nr=eq.' + S.blatt);
+        var dup = await db.select('bt_berichte', 'select=id&kostenstelle=eq.' + S.pid + '&blatt_nr=eq.' + S.blatt);
         if (dup.length && !confirm('Blatt ' + S.blatt + ' gibt es in diesem Projekt schon. Trotzdem als weiteres Blatt ' + S.blatt + ' speichern?')) return;
       } catch (e) {}
     }
@@ -616,8 +562,8 @@
     var status = bestaetigen || S.editStatus === 'bestaetigt' ? 'bestaetigt' : 'entwurf';
     try {
       var row = toRow(f, status), saved;
-      if (S.editId) saved = await db.update('berichte', 'id=eq.' + S.editId, row);
-      else saved = await db.insert('berichte', row);
+      if (S.editId) saved = await db.update('bt_berichte', 'id=eq.' + S.editId, row);
+      else saved = await db.insert('bt_berichte', row);
       if (saved && saved.id) S.editId = saved.id;
       S.editStatus = status; S.lastSaved = new Date().toISOString();
       LS.set('btb_sig_' + S.pid, f.besuche); LS.set('btb_az_' + S.pid, f.arbeitszeit);
@@ -653,15 +599,15 @@
   async function loadArchiv(force) {
     if (S.archivLoad || (S.archiv && !force)) { if (view() === 'archiv') render(); return; }
     S.archivLoad = true; if (view() === 'archiv') render();
-    try { S.archiv = await db.select('berichte', 'select=*&order=datum.desc,blatt_nr.desc'); S.archivErr = ''; }
+    try { S.archiv = await db.select('bt_berichte', 'select=*&order=datum.desc,blatt_nr.desc'); S.archivErr = ''; }
     catch (e) { S.archivErr = errText(e); }
     S.archivLoad = false; if (view() === 'archiv') render();
   }
   function filtered() {
     var F = S.filt, all = S.archiv || [];
     return all.filter(function (b) {
-      if (F.projekt === 'aktiv' && b.projekt_id !== S.pid) return false;
-      if (F.projekt && F.projekt !== 'aktiv' && F.projekt !== 'alle' && b.projekt_id !== F.projekt) return false;
+      if (F.projekt === 'aktiv' && b.kostenstelle !== S.pid) return false;
+      if (F.projekt && F.projekt !== 'aktiv' && F.projekt !== 'alle' && b.kostenstelle !== F.projekt) return false;
       if (F.jahr && String(b.datum || '').slice(0, 4) !== F.jahr) return false;
       if (F.status && (b.status === 'bestaetigt' ? 'bestaetigt' : 'entwurf') !== F.status) return false;
       if (F.q) { var q = F.q.toLowerCase(); if ((b.ausgefuehrte_arbeiten + ' ' + b.sonstiges + ' ' + b.nachunternehmer + ' ' + b.blatt_nr).toLowerCase().indexOf(q) < 0) return false; }
@@ -676,7 +622,7 @@
       '<div class="filters">' +
       '<label class="wide">Suchen<input type="search" data-filt="q" value="' + esc(F.q) + '" placeholder="Text oder Blatt-Nr."></label>' +
       '<label class="wide">Projekt<select data-filt="projekt"><option value="aktiv"' + (F.projekt === 'aktiv' ? ' selected' : '') + '>Aktuelles Projekt</option><option value="alle"' + (F.projekt === 'alle' ? ' selected' : '') + '>Alle Projekte</option>' +
-      S.projekte.concat(S.hidden).map(function (p) { return '<option value="' + esc(p.id) + '"' + (F.projekt === p.id ? ' selected' : '') + '>' + esc(p.name) + (p.status === 'archiviert' ? ' (ausgeblendet)' : '') + '</option>'; }).join('') + '</select></label>' +
+      S.projekte.concat(S.hidden).map(function (p) { return '<option value="' + esc(p.id) + '"' + (F.projekt === p.id ? ' selected' : '') + '>' + esc(p.name) + (p.aktiv ? '' : ' (inaktiv)') + '</option>'; }).join('') + '</select></label>' +
       '<label>Jahr<select data-filt="jahr"><option value="">Alle</option>' + jahre.map(function (j) { return '<option' + (F.jahr === j ? ' selected' : '') + '>' + j + '</option>'; }).join('') + '</select></label>' +
       '<label>Status<select data-filt="status"><option value="">Alle</option><option value="entwurf"' + (F.status === 'entwurf' ? ' selected' : '') + '>Entwürfe</option><option value="bestaetigt"' + (F.status === 'bestaetigt' ? ' selected' : '') + '>Bestätigt</option></select></label>' +
       '<label>Gruppieren<select data-filt="gruppe"><option value="kw"' + (F.gruppe !== 'monat' ? ' selected' : '') + '>Woche</option><option value="monat"' + (F.gruppe === 'monat' ? ' selected' : '') + '>Monat</option></select></label></div>';
@@ -699,7 +645,7 @@
         '<button class="btn sm sec" data-act="zip" data-key="' + esc(g.key) + '" title="Alle PDFs dieser Gruppe als ZIP">' + icon('dl') + 'ZIP</button></div>' +
         g.items.map(function (b) {
           var ok = b.status === 'bestaetigt';
-          return '<article class="item' + (ok ? '' : ' draft') + '"><div class="t"><b>Blatt ' + esc(b.blatt_nr) + '</b><span class="d">' + esc(niceDate(b.datum)) + (showP ? ' · ' + esc(pname(b.projekt_id)) : '') + '</span>' +
+          return '<article class="item' + (ok ? '' : ' draft') + '"><div class="t"><b>Blatt ' + esc(b.blatt_nr) + '</b><span class="d">' + esc(niceDate(b.datum)) + (showP ? ' · ' + esc(pname(b.kostenstelle)) : '') + '</span>' +
             '<span class="badge ' + (ok ? 'ok' : 'warn') + '">' + (ok ? 'Bestätigt' : 'Entwurf') + '</span></div>' +
             '<p>' + esc(b.ausgefuehrte_arbeiten || '– keine Arbeiten eingetragen –') + '</p>' +
             '<div class="row"><button class="btn sm sec" data-act="pdf" data-id="' + esc(b.id) + '">' + icon('dl') + 'PDF</button>' +
@@ -717,19 +663,19 @@
     });
     if (!items.length || !window.JSZip) return;
     var zip = new JSZip();
-    items.forEach(function (b) { zip.file(pdfName(pname(b.projekt_id), b.blatt_nr, isoToDe(b.datum)), pdfFor(b).output('arraybuffer')); });
+    items.forEach(function (b) { zip.file(pdfName(pname(b.kostenstelle), b.blatt_nr, isoToDe(b.datum)), pdfFor(b).output('arraybuffer')); });
     var blob = await zip.generateAsync({ type: 'blob' });
     var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'Bautagebuch_' + key + '.zip';
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
   }
   async function editBericht(id) {
     var b = (S.archiv || []).find(function (x) { return x.id === id; }); if (!b) return;
-    if (!S.projekte.some(function (p) { return p.id === b.projekt_id; })) { toast('Das Projekt dieses Berichts ist ausgeblendet. Bitte zuerst unter „Projekte“ wiederherstellen.', true); return; }
+    if (!S.projekte.some(function (p) { return p.id === b.kostenstelle; })) { toast('Diese Kostenstelle ist inaktiv – Berichte können nur noch als PDF geladen werden.', true); return; }
     // Ungespeicherter neuer Bericht im Zielprojekt? Dann erst nachfragen.
-    var dr = b.projekt_id === S.pid ? { form: S.form, editId: S.editId, blatt: S.blatt } : await idb.get('draft:' + b.projekt_id);
+    var dr = b.kostenstelle === S.pid ? { form: S.form, editId: S.editId, blatt: S.blatt } : await idb.get('draft:' + b.kostenstelle);
     if (dr && dr.form && !dr.editId && hasContent(dr.form) &&
       !confirm('Im Projekt gibt es einen noch nicht gespeicherten Bericht (Blatt ' + dr.blatt + '). Er wird durch Blatt ' + b.blatt_nr + ' ersetzt. Fortfahren?')) return;
-    S.pid = b.projekt_id; LS.set('btb_projekt', S.pid);
+    S.pid = b.kostenstelle; LS.set('btb_projekt', S.pid);
     S.form = fromRow(b); S.blatt = b.blatt_nr; S.editId = b.id; S.editStatus = b.status; S.lastSaved = null; S.quickResult = ''; S.restored = false;
     saveDraft();
     location.hash = '#bericht'; window.scrollTo(0, 0); render();
@@ -738,42 +684,45 @@
     var b = (S.archiv || []).find(function (x) { return x.id === id; }); if (!b) return;
     if (!confirm('Blatt ' + b.blatt_nr + ' vom ' + isoToDe(b.datum) + ' wirklich löschen? Das kann nicht rückgängig gemacht werden.')) return;
     try {
-      await db.remove('berichte', 'id=eq.' + id);
+      await db.remove('bt_berichte', 'id=eq.' + id);
       S.archiv = S.archiv.filter(function (x) { return x.id !== id; });
       if (S.editId === id) { S.editId = null; S.editStatus = null; saveDraft(); }
       render(); toast('Blatt ' + b.blatt_nr + ' gelöscht.');
     } catch (e) { toast(errText(e), true); }
   }
 
-  // ---------- Projekte ----------
+  // ---------- Projekte (= Kostenstellen) ----------
+  var ADMIN_LINK = '../#zugaenge';
   function projekteHTML() {
-    var h = '<div class="sec-h"><h1>Projekte</h1><button class="btn red" data-act="newProjekt">+ Neues Projekt</button></div>';
-    if (!S.projekte.length) h += '<div class="empty"><b>Noch keine Projekte</b>Lege dein erstes Projekt an.</div>';
+    var admin = S.rolle === 'admin';
+    var h = '<div class="sec-h"><h1>Projekte</h1>' + (admin ? '<a class="btn sm sec" href="' + ADMIN_LINK + '">Kostenstellen & Freigaben</a>' : '') + '</div>' +
+      '<p class="hint">Jedes Projekt ist eine Kostenstelle. Du siehst ' + (admin ? 'als Admin alle Kostenstellen.' : 'die Kostenstellen, für die du freigeschaltet bist. Neue Kostenstellen und Freigaben vergibt ein Admin auf der Startseite unter „Zugänge“.') + '</p>';
+    if (!S.projekte.length) h += '<div class="empty"><b>Keine Kostenstelle freigeschaltet</b>' + (admin ? 'Lege auf der <a href="' + ADMIN_LINK + '">Startseite unter „Zugänge“ → „Kostenstellen“</a> die erste Kostenstelle an.' : 'Bitte einen Admin, dich für deine Kostenstellen freizuschalten.') + '</div>';
     h += S.projekte.map(function (p) {
       var cur = p.id === S.pid;
       return '<div class="proj' + (cur ? ' cur' : '') + '"><div class="pt"><b>' + esc(p.name) + '</b><span>' +
-        [p.bau_nr ? 'Bau-Nr. ' + esc(p.bau_nr) : '', p.ort ? esc(p.ort) : '', p.lat ? 'Wetter automatisch' : 'kein Ort – Wetter manuell'].filter(Boolean).join(' · ') + '</span></div>' +
+        ['Kostenstelle ' + esc(p.id), p.ort ? esc(p.ort) : '', p.lat ? 'Wetter automatisch' : 'kein Ort – Wetter von Hand'].filter(Boolean).join(' · ') + '</span></div>' +
         '<div class="row">' + (cur ? '<span class="badge ok">Ausgewählt</span>' : '<button class="btn sm" data-act="selectProjekt" data-id="' + esc(p.id) + '">Auswählen</button>') +
-        '<button class="btn sm sec" data-act="editProjekt" data-id="' + esc(p.id) + '">Bearbeiten</button></div></div>';
+        '<button class="btn sm sec" data-act="editProjekt" data-id="' + esc(p.id) + '">Ort für Wetter</button></div></div>';
     }).join('');
-    if (S.hidden.length) {
-      h += '<h2 style="font:700 20px/1.1 var(--rb-cond);margin:24px 0 10px">Ausgeblendete Projekte</h2>' + S.hidden.map(function (p) {
-        return '<div class="proj"><div class="pt"><b>' + esc(p.name) + '</b><span>' + esc(p.bau_nr ? 'Bau-Nr. ' + p.bau_nr : '') + '</span></div><div class="row"><button class="btn sm sec" data-act="restoreProjekt" data-id="' + esc(p.id) + '">Wiederherstellen</button></div></div>';
-      }).join('');
-    }
+    if (S.hidden.length) h += '<h2 style="font:700 20px/1.1 var(--rb-cond);margin:24px 0 10px">Inaktive Kostenstellen</h2>' + S.hidden.map(function (p) {
+      return '<div class="proj"><div class="pt"><b>' + esc(p.name) + '</b><span>Kostenstelle ' + esc(p.id) + ' – Berichte bleiben unter „Berichte“ sichtbar</span></div></div>';
+    }).join('');
+    if (admin) h += '<div class="card" style="margin-top:24px"><div class="ch"><h2>Daten aus dem alten Bautagebuch übernehmen</h2></div><div class="cb">' +
+      '<p class="hint">Das frühere Bautagebuch hatte eine eigene Datenbank und Anmeldung. Hier einmalig mit dem alten Konto anmelden, die alten Projekte den Kostenstellen zuordnen und die Berichte übernehmen.</p>' +
+      '<button class="btn sec" data-act="migStart">Alte Daten übernehmen …</button></div></div>';
     return h;
   }
   function projektDlg(p) {
-    var neu = !p; p = p || {};
-    S._geo = { lat: p.lat || null, lon: p.lon || null, id: p.id || null };
-    dlg(neu ? 'Neues Projekt' : 'Projekt bearbeiten',
-      '<label class="f"><span>Projektname / BVH <b>*</b></span><input type="text" id="pjName" value="' + esc(p.name) + '" required></label>' +
-      '<label class="f"><span>Bau-Nr.</span><input type="text" id="pjNr" value="' + esc(p.bau_nr) + '" placeholder="z. B. 7421341"></label>' +
-      '<label class="f"><span>Ort der Baustelle (für automatisches Wetter)</span><input type="search" id="pjOrt" value="' + esc(p.ort) + '" placeholder="z. B. Freising" autocomplete="off"></label>' +
+    if (!p) return;
+    S._geo = { lat: p.lat || null, lon: p.lon || null, id: p.id };
+    dlg('Ort für das Wetter',
+      '<p class="hint">' + esc(p.name) + ' · Kostenstelle ' + esc(p.id) + '</p>' +
+      '<label class="f"><span>Ort der Baustelle</span><input type="search" id="pjOrt" value="' + esc(p.ort) + '" placeholder="z. B. Freising" autocomplete="off"></label>' +
       '<div class="geo" id="pjGeo" hidden></div><p class="okline" id="pjGeoOk"' + (p.lat ? '' : ' hidden') + '>Ort gefunden – das Wetter wird automatisch geladen.</p>' +
-      (neu ? '' : '<div class="danger-zone"><p class="hint sm">Ausblenden: Projekt verschwindet aus der Liste, Berichte bleiben erhalten.</p><div class="row"><button type="button" class="btn sm sec" data-act="hideProjekt" data-id="' + esc(p.id) + '">Ausblenden</button><button type="button" class="btn sm danger" data-act="killProjekt" data-id="' + esc(p.id) + '">Endgültig löschen</button></div></div>'),
-      '<button class="btn sec" value="close">Abbrechen</button><button class="btn red" data-act="saveProjekt" value="save">' + (neu ? 'Projekt anlegen' : 'Speichern') + '</button>');
-    setTimeout(function () { var n = $('#pjName'); if (n && neu) n.focus(); }, 50);
+      '<p class="hint sm">Ort eintippen und aus der Liste wählen. Danach lädt der Tagesbericht Temperatur, Niederschlag und Wind automatisch.</p>',
+      '<button class="btn sec" value="close">Abbrechen</button><button class="btn red" data-act="saveProjekt" value="save">Speichern</button>');
+    setTimeout(function () { var n = $('#pjOrt'); if (n) n.focus(); }, 50);
   }
   var geoTimer = null;
   function geoSearch(q) {
@@ -792,46 +741,90 @@
     }, 300);
   }
   async function saveProjekt() {
-    var name = $('#pjName').value.trim();
-    if (!name) { $('#pjName').classList.add('miss'); $('#pjName').focus(); return; }
-    var row = { name: name, bau_nr: $('#pjNr').value.trim() || null, ort: $('#pjOrt').value.trim() || null, lat: S._geo.lat, lon: S._geo.lon };
+    var ort = $('#pjOrt').value.trim();
+    if (ort && !S._geo.lat) { toast('Bitte den Ort aus der Liste wählen.', true); return; }
     try {
-      if (S._geo.id) { await db.update('projekte', 'id=eq.' + S._geo.id, row); }
-      else { row.status = 'aktiv'; var n = await db.insert('projekte', row); if (n && n.id) S.pid = n.id; }
-      closeDlg();
-      await loadProjekte();
-      if (!S._geo.id) { await openProjekt(S.pid); location.hash = '#bericht'; toast('Projekt „' + name + '“ angelegt.'); }
-      else { render(); toast('Projekt gespeichert.'); }
+      await db.rpc('kst_ort_setzen', { k: S._geo.id, p_ort: ort, p_lat: S._geo.lat, p_lon: S._geo.lon });
+      closeDlg(); await loadProjekte(); render(); toast('Ort gespeichert.');
+      if (S._geo.id === S.pid && S._geo.lat) loadWetter(true);
     } catch (e) { toast(errText(e), true); }
   }
-  async function setStatus(id, status) {
-    try {
-      await db.update('projekte', 'id=eq.' + id, { status: status });
-      closeDlg(); await loadProjekte();
-      if (status === 'archiviert' && id === S.pid) await openProjekt(null); else render();
-      toast(status === 'archiviert' ? 'Projekt ausgeblendet.' : 'Projekt wiederhergestellt.');
-    } catch (e) { toast(errText(e), true); }
+
+  // ---------- Übernahme aus dem alten Bautagebuch (eigene Datenbank, nur Admins) ----------
+  var OLD = { url: 'https://dlypbcdoxlfyyavmrhlr.supabase.co', key: 'sb_publishable_VI2Oei75votfVOgtuVIcmw_K5-lAeLi' };
+  var COLS = ['blatt_nr', 'datum', 'arbeitszeit', 'temp_7h', 'temp_12h', 'temp_16h', 'temp_max', 'temp_min', 'niederschlag', 'luftbewegung',
+    'ak_polier', 'ak_werkpolier', 'ak_vorarbeiter', 'ak_maurer', 'ak_zimmerer', 'ak_betonbauer', 'ak_helfer', 'ak_maschinenpersonal', 'ak_azubis',
+    'g_raupen', 'g_raupen_anzahl', 'g_bagger', 'g_bagger_anzahl', 'g_kraene', 'g_kraene_anzahl', 'g_kompressor', 'g_kompressor_anzahl',
+    'g_verd_geraete', 'g_verd_geraete_anzahl', 'g_lkw', 'g_lkw_anzahl', 'g_betonstahl', 'g_betonstahl_anzahl', 'g_beton', 'g_beton_anzahl',
+    'nachunternehmer', 'ausgefuehrte_arbeiten', 'sonstiges', 'besuche_text', 'polier_name', 'bauleiter_name', 'bauherr_name', 'status', 'bestaetigt_am', 'fehlende_felder'];
+  function migStart(msg) {
+    dlg('Alte Daten übernehmen',
+      '<p class="hint">Mit dem Konto des <b>alten</b> Bautagebuchs anmelden (nur für diese Übernahme, wird nicht gespeichert).</p>' +
+      (msg ? '<p class="msg bad">' + esc(msg) + '</p>' : '') +
+      '<label class="f"><span>E-Mail (altes Bautagebuch)</span><input type="email" id="migMail" autocomplete="off"></label>' +
+      '<label class="f"><span>Passwort</span><input type="password" id="migPw" autocomplete="off"></label>',
+      '<button class="btn sec" value="close">Abbrechen</button><button class="btn red" data-act="migLogin" value="go">Anmelden und laden</button>');
   }
-  async function killProjekt(id) {
-    var p = S.projekte.find(function (x) { return x.id === id; }); if (!p) return;
-    var t = prompt('Projekt „' + p.name + '“ und ALLE Berichte endgültig löschen?\nDas kann nicht rückgängig gemacht werden.\n\nZum Bestätigen LÖSCHEN eingeben:');
-    if (t == null) return;
-    if (t.trim().toUpperCase() !== 'LÖSCHEN' && t.trim().toUpperCase() !== 'LOESCHEN') { toast('Nicht gelöscht – Eingabe stimmte nicht.', true); return; }
+  async function migLogin() {
+    var mail = $('#migMail').value.trim(), pw = $('#migPw').value;
+    if (!mail || !pw) return;
     try {
-      await db.remove('berichte', 'projekt_id=eq.' + id);
-      await db.remove('projekte', 'id=eq.' + id);
-      await idb.del('draft:' + id);
-      closeDlg(); S.archiv = null; await loadProjekte();
-      if (id === S.pid) await openProjekt(null); else render();
-      toast('Projekt gelöscht.');
-    } catch (e) { toast(errText(e), true); }
+      var r = await fetch(OLD.url + '/auth/v1/token?grant_type=password', { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: OLD.key }, body: JSON.stringify({ email: mail, password: pw }) });
+      var d = await r.json(); if (!d.access_token) throw new Error(d.error_description || d.msg || 'Anmeldung fehlgeschlagen');
+      var h = { apikey: OLD.key, Authorization: 'Bearer ' + d.access_token };
+      var pr = await (await fetch(OLD.url + '/rest/v1/projekte?select=*&order=name', { headers: h })).json();
+      var br = await (await fetch(OLD.url + '/rest/v1/berichte?select=*&order=blatt_nr', { headers: h })).json();
+      if (!Array.isArray(pr) || !Array.isArray(br)) throw new Error('Alte Daten konnten nicht gelesen werden.');
+      S._mig = { projekte: pr, berichte: br };
+      migMap();
+    } catch (e) { migStart(errText(e)); }
+  }
+  function migMap() {
+    var M = S._mig, all = S.projekte.concat(S.hidden);
+    var opts = function (sel) { return '<option value="">nicht übernehmen</option>' + all.map(function (k) { return '<option value="' + esc(k.id) + '"' + (k.id === sel ? ' selected' : '') + '>' + esc(k.id + ' – ' + k.name) + '</option>'; }).join(''); };
+    dlg('Alte Projekte zuordnen',
+      '<p class="hint">' + M.berichte.length + ' Berichte in ' + M.projekte.length + ' Projekten gefunden. Für jedes alte Projekt die Kostenstelle wählen. Fehlt eine Kostenstelle, zuerst auf der Startseite anlegen.</p>' +
+      M.projekte.map(function (p, i) {
+        var n = M.berichte.filter(function (b) { return b.projekt_id === p.id; }).length;
+        var guess = all.find(function (k) { return k.id === String(p.bau_nr || '').trim(); });
+        return '<label class="f"><span><b style="color:var(--rb-ink)">' + esc(p.name) + '</b> · ' + (p.bau_nr ? 'Bau-Nr. ' + esc(p.bau_nr) + ' · ' : '') + n + ' Berichte</span><select data-mig="' + i + '">' + opts(guess ? guess.id : '') + '</select></label>';
+      }).join(''),
+      '<button class="btn sec" value="close">Abbrechen</button><button class="btn red" data-act="migGo" value="go">Berichte übernehmen</button>');
+  }
+  async function migGo() {
+    var M = S._mig, map = {};
+    $$('[data-mig]').forEach(function (sel) { if (sel.value) map[M.projekte[+sel.dataset.mig].id] = sel.value; });
+    var rows = M.berichte.filter(function (b) { return map[b.projekt_id]; });
+    if (!rows.length) { toast('Keine Projekte zugeordnet – nichts übernommen.'); return; }
+    var btn = $('[data-act="migGo"]'); btn.disabled = true; btn.textContent = 'Übernehme …';
+    try {
+      // schon übernommene Blätter (gleiche Kostenstelle, Blatt-Nr. und Datum) überspringen
+      var ziel = Array.from(new Set(rows.map(function (b) { return map[b.projekt_id]; })));
+      var vorh = await db.select('bt_berichte', 'select=kostenstelle,blatt_nr,datum&kostenstelle=in.(' + ziel.map(encodeURIComponent).join(',') + ')');
+      var key = function (k, n, d) { return k + '|' + n + '|' + String(d || '').slice(0, 10); };
+      var have = new Set(vorh.map(function (v) { return key(v.kostenstelle, v.blatt_nr, v.datum); }));
+      var neu = rows.filter(function (b) { return !have.has(key(map[b.projekt_id], b.blatt_nr, b.datum)); }).map(function (b) {
+        var r = { kostenstelle: map[b.projekt_id], quelle: 'uebernahme' };
+        COLS.forEach(function (c) { if (b[c] !== undefined) r[c] = b[c]; });
+        if (!r.datum) r.datum = (b.erstellt_am || new Date().toISOString()).slice(0, 10);
+        if (r.status !== 'bestaetigt') r.status = 'entwurf';
+        if (r.fehlende_felder != null && typeof r.fehlende_felder === 'string') { try { r.fehlende_felder = JSON.parse(r.fehlende_felder); } catch (e) { r.fehlende_felder = null; } }
+        AK.forEach(function (k) { var v = r['ak_' + k[0]]; if (v != null) r['ak_' + k[0]] = String(v); });
+        return r;
+      });
+      for (var i = 0; i < neu.length; i += 100) await api('POST', 'bt_berichte', neu.slice(i, i + 100));
+      closeDlg(); S.archiv = null; S._mig = null;
+      toast(neu.length + ' Berichte übernommen' + (rows.length - neu.length ? ', ' + (rows.length - neu.length) + ' waren schon da' : '') + '.');
+      if (S.pid) { var n = await nextBlatt(S.pid); if (n && !S.editId && n > S.blatt) { S.blatt = n; saveDraft(); } }
+      render();
+    } catch (e) { btn.disabled = false; btn.textContent = 'Berichte übernehmen'; toast('Übernahme fehlgeschlagen: ' + errText(e), true); }
   }
   function pickProjekt() {
     dlg('Projekt wählen',
       (S.projekte.length ? '<div class="plist">' + S.projekte.map(function (p) {
-        return '<button type="button" data-act="selectProjekt" data-id="' + esc(p.id) + '"' + (p.id === S.pid ? ' aria-current="true"' : '') + '><span><b>' + esc(p.name) + '</b><small>' + esc([p.bau_nr ? 'Bau-Nr. ' + p.bau_nr : '', p.ort].filter(Boolean).join(' · ')) + '</small></span></button>';
+        return '<button type="button" data-act="selectProjekt" data-id="' + esc(p.id) + '"' + (p.id === S.pid ? ' aria-current="true"' : '') + '><span><b>' + esc(p.name) + '</b><small>' + esc(['Kostenstelle ' + p.id, p.ort].filter(Boolean).join(' · ')) + '</small></span></button>';
       }).join('') + '</div>' : '<p>Noch keine Projekte.</p>'),
-      '<button type="button" class="btn sec" data-act="gotoProjekte">Projekte verwalten</button><button type="button" class="btn red" data-act="newProjekt">+ Neues Projekt</button>');
+      '<button type="button" class="btn sec" data-act="gotoProjekte">Alle Projekte</button>');
   }
   async function selectProjekt(id) {
     closeDlg();
@@ -841,12 +834,11 @@
     toast('Projekt: ' + (projekt() ? projekt().name : ''));
   }
   function meDlg() {
-    var pr = S.profil || {};
     dlg('Mein Konto',
-      '<p style="margin:0 0 4px"><b>' + esc(pr.name || '') + '</b></p><p class="hint" style="margin:0 0 4px">' + esc((S.user && S.user.email) || '') + '</p>' +
-      '<p class="hint">Rolle: ' + esc(pr.rolle || 'wird vom Projektleiter vergeben') + '</p>' +
-      '<p class="hint sm">Das Bautagebuch hat eine eigene Anmeldung. „Abmelden“ meldet dich nur hier ab, nicht bei den Riedel-Tools.</p>',
-      '<button class="btn sec" value="close">Schließen</button><button type="button" class="btn danger" data-act="logout">Vom Bautagebuch abmelden</button>');
+      '<p style="margin:0 0 4px"><b>' + esc(S.name || '') + '</b></p><p class="hint" style="margin:0 0 4px">' + esc((S.user && S.user.email) || '') + '</p>' +
+      '<p class="hint">' + (S.rolle === 'admin' ? 'Admin – sieht alle Kostenstellen.' : 'Freigeschaltet für ' + S.projekte.length + (S.projekte.length === 1 ? ' Kostenstelle.' : ' Kostenstellen.')) + '</p>' +
+      '<p class="hint sm">Anmeldung und Abmeldung laufen über die Riedel-Tools (oben rechts „Abmelden“).</p>',
+      '<button class="btn sec" value="close">Schließen</button>');
   }
 
   // ---------- Dialog ----------
@@ -866,7 +858,7 @@
     }
   }
   function onSubmit(e) {
-    if (e.target.id === 'loginForm') { e.preventDefault(); doLogin(e.target); }
+    void e;
   }
   function onClick(e) {
     var t = e.target.closest('[data-act],[data-chip],[data-step]');
@@ -885,14 +877,13 @@
     }
     var a = t.dataset.act;
     if (t.tagName === 'INPUT') return; // Datei-Auswahl läuft über change
-    if (t.closest('#dlgForm') && !['saveProjekt', 'hideProjekt', 'killProjekt', 'geoPick', 'selectProjekt', 'gotoProjekte', 'newProjekt', 'logout', 'forceConfirm', 'fixMissing', 'dlPreview'].includes(a)) return;
+    if (t.closest('#dlgForm') && !['saveProjekt', 'geoPick', 'selectProjekt', 'gotoProjekte', 'forceConfirm', 'fixMissing', 'dlPreview', 'migLogin', 'migGo'].includes(a)) return;
     e.preventDefault();
     switch (a) {
       case 'retry': start(); break;
-      case 'loginmode': renderLogin('', t.dataset.mode); break;
+      case 'copySql': navigator.clipboard.writeText(S._sql || '').then(function () { toast('SQL kopiert'); }, function () { toast('Kopieren nicht möglich – Text markieren und kopieren.', true); }); break;
       case 'pickProjekt': pickProjekt(); break;
       case 'me': meDlg(); break;
-      case 'logout': logout(); break;
       case 'newBericht':
         if (!S.editId && hasContent(S.form) && !confirm('Der aktuelle Bericht (Blatt ' + S.blatt + ') ist noch nicht gespeichert und wird verworfen. Neuen Bericht beginnen?')) return;
         newBericht(); break;
@@ -910,15 +901,14 @@
       case 'fixMissing': closeDlg(); gotoMissing(); break;
       case 'reloadArchiv': loadArchiv(true); break;
       case 'zip': zipGroup(t.dataset.key); break;
-      case 'pdf': var b = (S.archiv || []).find(function (x) { return x.id === t.dataset.id; }); if (b) pdfFor(b).save(pdfName(pname(b.projekt_id), b.blatt_nr, isoToDe(b.datum))); break;
+      case 'pdf': var b = (S.archiv || []).find(function (x) { return x.id === t.dataset.id; }); if (b) pdfFor(b).save(pdfName(pname(b.kostenstelle), b.blatt_nr, isoToDe(b.datum))); break;
       case 'edit': editBericht(t.dataset.id); break;
       case 'del': delBericht(t.dataset.id); break;
-      case 'newProjekt': projektDlg(null); break;
+      case 'migStart': migStart(); break;
+      case 'migLogin': migLogin(); break;
+      case 'migGo': migGo(); break;
       case 'editProjekt': projektDlg(S.projekte.find(function (p) { return p.id === t.dataset.id; })); break;
       case 'saveProjekt': saveProjekt(); break;
-      case 'hideProjekt': if (confirm('Projekt ausblenden? Die Berichte bleiben erhalten, du kannst es jederzeit wiederherstellen.')) setStatus(t.dataset.id, 'archiviert'); break;
-      case 'restoreProjekt': setStatus(t.dataset.id, 'aktiv'); break;
-      case 'killProjekt': killProjekt(t.dataset.id); break;
       case 'geoPick':
         S._geo.lat = +t.dataset.lat; S._geo.lon = +t.dataset.lon; $('#pjOrt').value = t.dataset.name;
         $('#pjGeo').hidden = true; $('#pjGeoOk').hidden = false; break;
