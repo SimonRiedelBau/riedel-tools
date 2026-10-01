@@ -17,6 +17,11 @@
   hide.textContent = 'html{visibility:hidden!important}';
   document.head.appendChild(hide);
 
+  // App-Funktionen (Service Worker, App-Symbol, Manifest) – siehe assets/app.js
+  var app = document.createElement('script');
+  app.src = new URL('app.js', me.src).href;
+  document.head.appendChild(app);
+
   var css = document.createElement('link');
   css.rel = 'stylesheet';
   css.href = new URL('riedel.css', me.src).href;
@@ -43,10 +48,13 @@
       '<span class="rb-back">← Riedel-Tools</span></a>' +
       '<span class="rb-sep" aria-hidden="true">/</span><span class="rb-tool">' + esc(name) + '</span>' +
       '<span class="rb-right"><span class="rb-who">' + esc(session && session.user && session.user.email) + '</span>' +
+      '<button class="rb-reload" type="button" title="Seite neu laden" aria-label="Seite neu laden">↻</button>' +
       '<button class="rb-out" type="button">Abmelden</button></span>';
     el.querySelector('.rb-logo').onerror = function () {
       var s = document.createElement('span'); s.className = 'rb-mark'; s.textContent = 'RB'; this.replaceWith(s);
     };
+    // In der installierten App gibt es keine Browser-Leiste – deshalb hier ein eigener Neu-laden-Knopf
+    el.querySelector('.rb-reload').onclick = function () { location.reload(); };
     el.querySelector('.rb-out').onclick = function () {
       this.disabled = true;
       sb.auth.signOut().then(toStart, toStart);

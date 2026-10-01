@@ -152,7 +152,7 @@
 
   /* ── NORM TABLE ── */
   .norm-row {
-    display: grid; grid-template-columns: 130px 1fr auto;
+    display: grid; grid-template-columns: 130px minmax(0,1fr) auto;
     gap: 10px; align-items: start;
     padding: 10px 0;
     border-bottom: 1px solid var(--border);
@@ -468,6 +468,9 @@
     .nav-btn { width: auto; white-space: nowrap; flex: none; }
     main { padding: 20px 16px; max-width: none; min-width: 0; }
     h1 { font-size: 25px; }
+    table.kw-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table.kw-table th, table.kw-table td { min-width: 110px; }
+    .check-ref { white-space: normal; flex-shrink: 1; text-align: right; }
   }
 </style>
 </head>

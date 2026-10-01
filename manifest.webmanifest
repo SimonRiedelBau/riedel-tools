@@ -1,0 +1,25 @@
+{
+  "id": "./",
+  "name": "Riedel-Tools",
+  "short_name": "Riedel-Tools",
+  "description": "Digitale Werkzeuge von Riedel Bau für Planung, Ausführung und Abrechnung auf der Baustelle.",
+  "lang": "de",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#ECEDEB",
+  "theme_color": "#FF0000",
+  "icons": [
+    { "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "assets/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Stahllisten", "url": "stahllisten/", "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Bautagebuch", "url": "bautagebuch/", "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Doka-Mietrechnungen", "url": "doka-miete-bfs/", "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Gerüstmengen-Kalkulator", "url": "geruest-mengenkalkulator/", "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

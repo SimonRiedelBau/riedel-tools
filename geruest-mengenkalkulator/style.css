@@ -447,6 +447,22 @@ td input[type="text"], td input[type="number"] {
   touch-action: none;
 }
 
+/* Riedel-Tools: Handy und Tablet */
+@media (max-width: 640px) {
+  .app { padding: 16px 12px 48px; }
+  .panel { padding: 16px 14px; }
+  .inline-label { flex-direction: row; flex-wrap: wrap; align-items: center; }
+  .story-controls { align-items: stretch; gap: 10px; margin-bottom: 14px; }
+  .story-controls > label { width: 100%; }
+  .story-controls .inline-label input[type="text"] { flex: 1 1 160px; width: auto; }
+  .story-controls > button { flex: 1 1 calc(50% - 10px); }
+  input, select { font-size: 16px; } /* verhindert das automatische Hineinzoomen auf dem iPhone */
+  #view3d-canvas { height: 340px; }
+}
+@media (pointer: coarse) {
+  button, .story-tab { min-height: 40px; }
+}
+
 @media print {
   .actions-panel, #stories-panel, #settings-panel, #sections-panel, #plan-panel, .view3d-wrap, .disclaimer {
     display: none !important;
