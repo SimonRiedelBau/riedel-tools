@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="rb-tool" content="Projekte">
+<script src="../assets/vendor/supabase.js"></script>
+<script src="../assets/auth-gate.js"></script>
+<script src="projekte.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Projekte – Riedel-Tools</title>
+<style>
+:root{
+  --bg:var(--rb-bg,#ECEDEB); --surface:var(--rb-surface,#F8F8F6); --soft:var(--rb-soft,#DFE1DF); --rule:var(--rb-rule,#CDD0CF);
+  --ink:var(--rb-ink,#1D2124); --muted:var(--rb-muted,#5F666B); --red:var(--rb-red,#FF0000); --red-ink:var(--rb-red-ink,#C4000B);
+  --ok:var(--rb-ok,#2E7D4F);
+  --sans:var(--rb-sans,"Barlow",system-ui,sans-serif); --cond:var(--rb-cond,"Barlow Condensed","Arial Narrow",sans-serif);
+  box-sizing:border-box;
+}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.5 var(--sans)}
+.wrap{max-width:1180px;margin:0 auto;padding:22px 20px 60px}
+[hidden]{display:none!important}
+h1{font:700 30px/1.05 var(--cond);margin:0}
+.lead{color:var(--muted);margin:4px 0 0;max-width:70ch}
+.head{border-bottom:3px solid var(--ink);padding-bottom:14px;margin-bottom:22px}
+.back{display:inline-block;color:var(--red-ink);text-decoration:none;font-weight:600;font-size:14px;margin-bottom:8px}
+.back:hover{text-decoration:underline}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(280px,100%),1fr));gap:16px}
+.card{background:var(--surface);border:1px solid var(--rule);border-left:4px solid var(--red);padding:18px 20px;text-decoration:none;color:inherit;display:flex;flex-direction:column;gap:8px}
+.card:hover{background:var(--soft)}
+.card h2{font:600 22px/1.15 var(--cond);margin:0}
+.card p{margin:0;color:var(--muted);font-size:13.5px;line-height:1.45;flex:1}
+.card span{font:600 12.5px/1 var(--sans);color:var(--red-ink)}
+.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+.btn{font:600 15px/1 var(--sans);padding:10px 16px;border:2px solid var(--ink);background:var(--ink);color:var(--bg);cursor:pointer}
+.btn.sec{background:transparent;color:var(--ink)}
+.btn.red{background:var(--red);border-color:var(--red);color:#fff}
+.btn.sm{font-size:13px;padding:7px 11px}
+.btn:disabled{opacity:.45;cursor:default}
+.btn:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+.drop{font-size:13px;color:var(--muted)}
+.panel{background:var(--surface);border:1px solid var(--rule);padding:16px 18px;margin-bottom:18px}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form label{font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+.form .full{grid-column:1/-1}
+.form input,.form select{font:inherit;font-size:14px;color:var(--ink);background:var(--bg);border:1px solid var(--rule);padding:7px 9px;min-width:0}
+.form .act{grid-column:1/-1;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.hint{grid-column:1/-1;font-size:13px;color:var(--muted);margin:0}
+.msg{font-size:14px;margin:0 0 14px}
+.msg.bad{color:var(--red-ink)}.msg.ok{color:var(--ok)}
+.cat{margin-bottom:24px}
+.cat h3{font:600 13px/1.2 var(--sans);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 8px}
+.doc{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;background:var(--surface);border:1px solid var(--rule);padding:11px 14px;margin-bottom:6px}
+.badge{font:700 11px/1 var(--sans);letter-spacing:.04em;width:50px;text-align:center;padding:7px 0;background:var(--soft);color:var(--ink)}
+.badge.tool{background:var(--red);color:#fff}
+.doc .t{color:var(--ink);font-weight:600;text-decoration:none;background:none;border:0;padding:0;font:inherit;font-weight:600;cursor:pointer;text-align:left}
+.doc .t:hover{text-decoration:underline;color:var(--red-ink)}
+.doc .meta{font-size:12.5px;color:var(--muted);margin-top:2px}
+.doc .note{font-size:13.5px;color:var(--muted);margin-top:2px}
+.linkbtn{background:none;border:0;color:var(--red-ink);cursor:pointer;font:inherit;font-size:13px;text-decoration:underline;padding:0}
+.empty{color:var(--muted);padding:26px;border:1px dashed var(--rule);text-align:center}
+pre.sql{max-height:320px;overflow:auto;background:var(--bg);border:1px solid var(--rule);padding:10px;font-size:12px;white-space:pre-wrap}
+body.dragging .wrap{outline:3px dashed var(--red);outline-offset:-6px}
+@media (max-width:640px){.wrap{padding:16px 16px 48px}h1{font-size:27px}.form{grid-template-columns:1fr}
+  .doc{grid-template-columns:auto 1fr}.doc .ops{grid-column:1/-1;text-align:right}}
+@media (pointer:coarse){.form input,.form select{font-size:16px;padding:9px 10px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <!-- Übersicht -->
+  <section id="home" hidden>
+    <div class="head"><h1>Projekte</h1><p class="lead">Ablage je Projekt für Pläne, 3D-Modelle, Mengen, Protokolle und Fotos.</p></div>
+    <div class="cards" id="cards"></div>
+  </section>
+
+  <!-- Projektablage -->
+  <section id="proj" hidden>
+    <div class="head"><a class="back" href="./">← Alle Projekte</a><h1 id="pName"></h1><p class="lead" id="pSub"></p></div>
+    <div class="bar" id="pBar">
+      <button class="btn red" type="button" id="bFile">Datei hochladen</button>
+      <button class="btn sec" type="button" id="bLink">Link ablegen</button>
+      <span class="drop">oder Dateien hierher ziehen</span>
+      <input type="file" id="fileIn" hidden multiple>
+    </div>
+    <p class="msg" id="msg" role="status"></p>
+    <form class="panel form" id="fForm" hidden novalidate>
+      <label class="full" id="lTitle">Titel<input id="fTitle" maxlength="200" autocomplete="off"></label>
+      <label class="full" id="lUrl">Link (z. B. Claude-Artifact, SharePoint, OneDrive)<input id="fUrl" type="url" placeholder="https://" autocomplete="off"></label>
+      <label>Rubrik<select id="fCat"></select></label>
+      <label>Notiz (optional)<input id="fNote" maxlength="300" autocomplete="off"></label>
+      <p class="hint" id="fHint"></p>
+      <div class="act"><button type="button" class="btn sec" id="fCancel">Abbrechen</button><button type="submit" class="btn" id="fSave">Ablegen</button></div>
+    </form>
+    <div id="setup" hidden></div>
+    <div id="docs"></div>
+  </section>
+</div>
+
+<script>
+(function(){
+'use strict';
+const CFG=window.RB_PROJEKTE||{RUBRIKEN:['Sonstiges'],PROJEKTE:[]};
+const RUB=CFG.RUBRIKEN, PROJ=CFG.PROJEKTE;
+const BUCKET='projektablage', MAX=50*1048576;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const errMsg=e=>(e&&(e.message||e.error_description||e.msg))||String(e);
+const fmtSize=b=>b>=1048576?(b/1048576).toLocaleString('de-DE',{maximumFractionDigits:1})+' MB':Math.max(1,Math.round(b/1024))+' kB';
+const fmtDate=t=>{ if(!t) return ''; const d=new Date(t); return isNaN(d)?'':d.toLocaleDateString('de-DE'); };
+const ext=n=>(String(n).split('.').pop()||'').toLowerCase();
+const BADGE={pdf:'PDF',png:'BILD',jpg:'BILD',jpeg:'BILD',webp:'BILD',gif:'BILD',heic:'BILD',svg:'SVG',dwg:'DWG',dxf:'DXF',ifc:'IFC',
+  xlsx:'EXCEL',xls:'EXCEL',xlsm:'EXCEL',csv:'CSV',docx:'WORD',doc:'WORD',pptx:'PPT',zip:'ZIP',txt:'TXT',md:'TXT',json:'JSON',
+  mp4:'VIDEO',mov:'VIDEO',webm:'VIDEO',x83:'GAEB',x84:'GAEB',d83:'GAEB',d84:'GAEB',msg:'MAIL',eml:'MAIL'};
+// Im Browser anzeigen statt herunterladen
+const VIEW=new Set(['pdf','png','jpg','jpeg','webp','gif','svg','txt','md','json','csv','mp4','webm','mov']);
+const isRubrik=r=>RUB.includes(r)?r:'Sonstiges';
+
+let sb=null, current=null, rows=[], pending=null, dbState='ok', isAdmin=false;
+
+function msg(t,cls){ const m=$('msg'); m.className='msg '+(cls||''); m.textContent=t||''; }
+function hostOf(u){ try{ const h=new URL(u).hostname; return h.endsWith('claude.ai')?'Claude Artifact':h.replace(/^www\./,''); }catch(e){ return ''; } }
+
+// ---------- Übersicht ----------
+async function renderHome(){
+  $('home').hidden=false; $('proj').hidden=true; document.title='Projekte – Riedel-Tools';
+  const counts={};
+  if(sb){ const {data,error}=await sb.from('projekt_dokumente').select('projekt'); if(!error) data.forEach(r=>counts[r.projekt]=(counts[r.projekt]||0)+1); }
+  $('cards').innerHTML=PROJ.map(p=>{ const n=(p.docs||[]).length+(counts[p.id]||0);
+    return `<a class="card" href="?p=${encodeURIComponent(p.id)}"><h2>${esc(p.name)}</h2><p>${esc(p.sub)}</p>
+      <span>${n?n+' Dokument'+(n===1?'':'e'):'Ablage öffnen'} →</span></a>`; }).join('');
+}
+
+// ---------- Projekt ----------
+async function openProject(p){
+  current=p; $('home').hidden=true; $('proj').hidden=false;
+  document.title=p.name+' – Projekte – Riedel-Tools';
+  $('pName').textContent=p.name; $('pSub').textContent=p.sub||'';
+  await loadDocs();
+}
+async function loadDocs(){
+  rows=[]; dbState='ok'; $('setup').hidden=true;
+  if(sb){
+    const {data,error}=await sb.from('projekt_dokumente').select('*').eq('projekt',current.id).order('angelegt_am',{ascending:false});
+    if(error){
+      dbState=(error.code==='42P01'||error.code==='PGRST205'||/does not exist|could not find the table/i.test(error.message))?'setup':'error';
+      if(dbState==='setup') setupPanel(); else msg('Ablage konnte nicht geladen werden: '+errMsg(error),'bad');
+    } else rows=data;
+  } else dbState='error';
+  $('pBar').hidden=dbState!=='ok';
+  renderDocs();
+}
+function renderDocs(){
+  const repo=(current.docs||[]).map(d=>({...d,_repo:true,rubrik:isRubrik(d.rubrik)}));
+  const all=[...repo,...rows.map(r=>({...r,rubrik:isRubrik(r.rubrik)}))];
+  if(!all.length){ $('docs').innerHTML='<div class="empty">Noch nichts abgelegt. Lade Pläne, Fotos oder Listen hoch oder lege Links zu Modellen und Tools ab.</div>'; return; }
+  let h='';
+  for(const c of RUB){ const items=all.filter(d=>d.rubrik===c); if(!items.length) continue;
+    h+=`<div class="cat"><h3>${esc(c)} (${items.length})</h3>`+items.map(d=>{
+      let badge,meta,open,ops='';
+      if(d._repo){ badge=d.art||BADGE[ext(d.href)]||'DATEI'; meta=[fmtDate(d.datum),'in den Riedel-Tools']; open=`<a class="t" href="${esc(d.href)}">${esc(d.titel)}</a>`; }
+      else if(d.art==='link'){ badge='LINK'; meta=[fmtDate(d.angelegt_am),hostOf(d.url),d.angelegt_mail]; open=`<a class="t" href="${esc(d.url)}" target="_blank" rel="noopener">${esc(d.titel)}</a>`; }
+      else { badge=BADGE[ext(d.dateiname)]||'DATEI'; meta=[fmtDate(d.angelegt_am),d.groesse?fmtSize(d.groesse):'',d.dateiname,d.angelegt_mail]; open=`<button class="t" type="button" data-open="${esc(d.id)}">${esc(d.titel)}</button>`; }
+      if(!d._repo) ops=`<button class="linkbtn" type="button" data-del="${esc(d.id)}">Löschen</button>`;
+      return `<div class="doc"><span class="badge${badge==='TOOL'?' tool':''}">${esc(badge)}</span><div>${open}
+        <div class="meta">${esc(meta.filter(Boolean).join(' · '))}</div>${d.notiz?`<div class="note">${esc(d.notiz)}</div>`:''}</div>
+        <div class="ops">${ops}</div></div>`; }).join('')+'</div>'; }
+  $('docs').innerHTML=h;
+}
+$('docs').addEventListener('click',async e=>{
+  const o=e.target.closest('[data-open]'), del=e.target.closest('[data-del]');
+  if(o){ const d=rows.find(r=>r.id===o.dataset.open); if(!d) return;
+    const view=VIEW.has(ext(d.dateiname));
+    const w=view?window.open('','_blank'):null; // vor dem await öffnen, sonst blockt der Popup-Blocker
+    const {data,error}=await sb.storage.from(BUCKET).createSignedUrl(d.pfad,300,view?undefined:{download:d.dateiname||true});
+    if(error){ if(w) w.close(); msg('Datei konnte nicht geöffnet werden: '+errMsg(error),'bad'); return; }
+    if(w) w.location.href=data.signedUrl; else location.href=data.signedUrl; }
+  if(del){ const d=rows.find(r=>r.id===del.dataset.del); if(!d) return;
+    if(!confirm(`„${d.titel}“ aus der Ablage löschen?`)) return;
+    const {error}=await sb.from('projekt_dokumente').delete().eq('id',d.id);
+    if(error){ msg('Löschen nicht möglich: '+errMsg(error),'bad'); return; }
+    if(d.art==='datei'&&d.pfad){ try{ await sb.storage.from(BUCKET).remove([d.pfad]); }catch(err){} }
+    msg('Gelöscht.','ok'); loadDocs(); }
+});
+
+// ---------- Einrichtung (einmalig) ----------
+async function setupPanel(){
+  const box=$('setup'); box.hidden=false;
+  if(!isAdmin){ box.innerHTML='<div class="panel"><p class="msg" style="margin:0">Die Ablage ist noch nicht eingerichtet. Ein Admin der Riedel-Tools muss sie einmalig in der Datenbank anlegen. Dokumente aus dem Repo sind trotzdem unten aufgeführt.</p></div>'; return; }
+  let sql=''; try{ sql=await (await fetch('supabase-setup.sql',{cache:'no-cache'})).text(); }catch(e){ sql='-- supabase-setup.sql konnte nicht geladen werden. Datei im Repo unter projekte/ öffnen.'; }
+  const ref=((window.RIEDEL_AUTH&&window.RIEDEL_AUTH.url||'').match(/^https:\/\/([^.]+)\.supabase\.co/)||[])[1]||'';
+  box.innerHTML=`<div class="panel"><h3 style="font:700 22px/1.1 var(--cond);margin:0 0 6px">Ablage einrichten</h3>
+    <p class="lead" style="margin:0 0 10px">Die Tabelle für die Projektablage fehlt noch. Einmalig im Supabase SQL Editor ausführen, danach „Erneut prüfen“.</p>
+    <div class="bar"><button class="btn red sm" type="button" id="sCopy">SQL kopieren</button>
+      <a class="btn sec sm" style="text-decoration:none" href="https://supabase.com/dashboard/project/${esc(ref)}/sql/new" target="_blank" rel="noopener">SQL Editor öffnen</a>
+      <button class="btn sm" type="button" id="sRetry">Erneut prüfen</button></div>
+    <pre class="sql" id="sSql">${esc(sql)}</pre></div>`;
+  $('sCopy').onclick=async()=>{ try{ await navigator.clipboard.writeText(sql); msg('SQL kopiert.','ok'); }catch(e){ const r=document.createRange(); r.selectNodeContents($('sSql')); getSelection().removeAllRanges(); getSelection().addRange(r); msg('Text markiert – mit Strg+C kopieren.'); } };
+  $('sRetry').onclick=()=>{ msg(''); loadDocs(); };
+}
+
+// ---------- Ablegen ----------
+function openForm(kind,files){
+  pending={kind,files}; msg('');
+  const multi=kind==='datei'&&files.length>1;
+  const guess=kind==='link'?'3D-Modelle & Tools':(files.every(f=>/^(png|jpe?g|webp|gif|heic)$/.test(ext(f.name)))?'Fotos':/^(xlsx?|xlsm|csv|x8\d|d8\d)$/.test(ext(files[0].name))?'Mengen & Abrechnung':/^(msg|eml|docx?)$/.test(ext(files[0].name))?'Protokolle & Schriftverkehr':'Pläne');
+  $('fCat').innerHTML=RUB.map(c=>`<option${c===guess?' selected':''}>${esc(c)}</option>`).join('');
+  $('lUrl').hidden=kind!=='link'; $('fUrl').value=''; $('fNote').value='';
+  $('lTitle').hidden=multi; $('fTitle').value=kind==='datei'&&!multi?files[0].name.replace(/\.[^.]+$/,''):'';
+  $('fHint').textContent=kind==='datei'?(multi?`${files.length} Dateien, ${fmtSize(files.reduce((s,f)=>s+f.size,0))}. Sie werden mit ihrem Dateinamen als Titel abgelegt.`:`${files[0].name}, ${fmtSize(files[0].size)}`)
+    :'Für Claude-Artifacts den Link aus „Teilen“ kopieren. Große Dateien (über 50 MB) in SharePoint oder OneDrive ablegen und hier verlinken.';
+  $('fForm').hidden=false; (kind==='link'||!multi?$('fTitle'):$('fCat')).focus();
+}
+function closeForm(){ $('fForm').hidden=true; pending=null; $('fileIn').value=''; }
+function takeFiles(list){
+  const files=[...list]; if(!files.length) return;
+  const html=files.filter(f=>/^html?$/.test(ext(f.name)));
+  const big=files.filter(f=>f.size>MAX);
+  if(html.length){ msg(`${html.map(f=>f.name).join(', ')}: HTML-Tools (z. B. Claude-Artifacts) bitte als Link ablegen oder im Repo unter projekte/${current.id}/ einchecken.`,'bad'); return; }
+  if(big.length){ msg(`${big.map(f=>f.name).join(', ')}: größer als 50 MB. Bitte in SharePoint oder OneDrive ablegen und als Link speichern.`,'bad'); return; }
+  openForm('datei',files);
+}
+$('bLink').onclick=()=>openForm('link');
+$('bFile').onclick=()=>$('fileIn').click();
+$('fileIn').onchange=e=>takeFiles(e.target.files);
+$('fCancel').onclick=()=>{ closeForm(); msg(''); };
+const safeName=n=>n.normalize('NFKD').replace(/[̀-ͯ]/g,'').replace(/ß/g,'ss').replace(/[^A-Za-z0-9._-]+/g,'_').replace(/^_+|_+$/g,'').slice(-120)||'datei';
+$('fForm').onsubmit=async e=>{
+  e.preventDefault(); if(!pending||!current||!sb) return;
+  const base={projekt:current.id,rubrik:$('fCat').value,notiz:$('fNote').value.trim()||null};
+  const title=$('fTitle').value.trim();
+  if(pending.kind==='link'){
+    const url=$('fUrl').value.trim();
+    if(!/^https?:\/\/\S+$/i.test(url)){ msg('Bitte einen vollständigen Link mit https:// eingeben.','bad'); $('fUrl').focus(); return; }
+    if(!title){ msg('Bitte einen Titel eingeben.','bad'); $('fTitle').focus(); return; }
+  } else if(pending.files.length===1&&!title){ msg('Bitte einen Titel eingeben.','bad'); $('fTitle').focus(); return; }
+  const btn=$('fSave'); btn.disabled=true; btn.textContent='Wird abgelegt …'; msg('');
+  try{
+    if(pending.kind==='link'){
+      const {error}=await sb.from('projekt_dokumente').insert({...base,art:'link',titel:title,url:$('fUrl').value.trim()}); if(error) throw error;
+    } else {
+      const multi=pending.files.length>1; let i=0;
+      for(const f of pending.files){ i++; if(multi) btn.textContent=`Lädt ${i} von ${pending.files.length} …`;
+        const pfad=`${current.id}/${crypto.randomUUID?crypto.randomUUID():Date.now()+'-'+i}-${safeName(f.name)}`;
+        const up=await sb.storage.from(BUCKET).upload(pfad,f,{contentType:f.type||'application/octet-stream',upsert:false}); if(up.error) throw up.error;
+        const {error}=await sb.from('projekt_dokumente').insert({...base,art:'datei',titel:multi?f.name.replace(/\.[^.]+$/,''):title,
+          pfad,dateiname:f.name,typ:f.type||null,groesse:f.size});
+        if(error){ try{ await sb.storage.from(BUCKET).remove([pfad]); }catch(x){} throw error; } }
+    }
+    closeForm(); msg('Abgelegt.','ok'); await loadDocs();
+  }catch(err){ const t=errMsg(err);
+    msg(/bucket not found/i.test(t)?'Der Speicher für Dateien fehlt noch. Ein Admin muss projekte/supabase-setup.sql ausführen.'
+      :/exceeded|too large|payload/i.test(t)?'Die Datei ist zu groß (max. 50 MB).':/row-level security|permission/i.test(t)?'Keine Berechtigung zum Ablegen.':'Ablegen fehlgeschlagen: '+t,'bad');
+  }finally{ btn.disabled=false; btn.textContent='Ablegen'; }
+};
+// Dateien per Ziehen ablegen
+let dragN=0;
+const canDrop=()=>current&&dbState==='ok';
+addEventListener('dragenter',e=>{ if(!canDrop()||!e.dataTransfer||![...e.dataTransfer.types].includes('Files')) return; dragN++; document.body.classList.add('dragging'); });
+addEventListener('dragleave',()=>{ if(dragN&&--dragN===0) document.body.classList.remove('dragging'); });
+addEventListener('dragover',e=>{ if(canDrop()) e.preventDefault(); });
+addEventListener('drop',e=>{ if(!canDrop()) return; e.preventDefault(); dragN=0; document.body.classList.remove('dragging'); takeFiles(e.dataTransfer.files); });
+
+// ---------- Start ----------
+(async()=>{
+  const A=window.RIEDEL_AUTH;
+  if(window.supabase&&A){
+    sb=window.supabase.createClient(A.url,A.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:A.storageKey}});
+    try{ const {data}=await sb.rpc('tools_meine_rolle'); isAdmin=data==='admin'; }catch(e){}
+  }
+  const id=new URLSearchParams(location.search).get('p');
+  const p=PROJ.find(x=>x.id===id);
+  if(p) openProject(p); else renderHome();
+})();
+})();
+</script>
+</body>
+</html>
