@@ -20,6 +20,8 @@ const Model3DPlanner = (() => {
 
   let raw = null; // { positions, defaultUp, fileName }
   let result = null;
+  let planPositions = null; // Modell in Plan-Koordinaten (Meter, z oben) der letzten Auswertung
+  let appliedModel = null; // für die 3D-Ansicht: { positions, ref, ground }
 
   const setStatus = (el, text) => { if (el) el.textContent = text; };
   const fmt = (n, d = 2) => n.toLocaleString("de-DE", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -96,6 +98,7 @@ const Model3DPlanner = (() => {
     await nextFrame();
     try {
       const plan = ModelScaffold.toPlanCoords(raw.positions, up, scale);
+      planPositions = plan;
       const t0 = performance.now();
       result = ModelScaffold.analyze(plan, opts.analyze);
       const unitName = { 1: "m", 0.01: "cm", 0.001: "mm" }[scale] || `Faktor ${scale}`;
@@ -294,6 +297,9 @@ const Model3DPlanner = (() => {
       return;
     }
     const stories = ModelScaffold.toToolStories(result, idx);
+    // Bezugspunkt der Geschoss-Lagen (siehe toToolStories) für die 3D-Ansicht
+    const ref = ModelScaffold.referencePoint(result, idx);
+    appliedModel = { positions: planPositions, ref, ground: result.ground };
     window.dispatchEvent(new CustomEvent("model-stories-apply", { detail: { stories } }));
     const n = stories.reduce((sum, s) => sum + s.sections.length, 0);
     setStatus(applyStatus, `${stories.length} Geschossebene(n) mit ${n} Abschnitten übernommen und berechnet.`);
@@ -310,5 +316,5 @@ const Model3DPlanner = (() => {
     if (result && !resultBox.classList.contains("hidden")) drawPreview();
   });
 
-  return { loadFile, runAnalysis };
+  return { loadFile, runAnalysis, getAppliedModel: () => appliedModel };
 })();

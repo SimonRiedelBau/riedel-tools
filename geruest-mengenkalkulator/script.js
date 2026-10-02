@@ -28,7 +28,7 @@ let stories = [];
 let activeStoryIndex = 0;
 
 function defaultSection(name) {
-  return { name: name || "Fassade 1", length: "", height: "", opening: 0, angle: 90, konsole: false, konsolenbreite: 0.3 };
+  return { name: name || "Fassade 1", length: "", start: "", height: "", opening: 0, angle: 90, konsole: false, konsolenbreite: 0.3 };
 }
 
 function createStory(name) {
@@ -42,6 +42,16 @@ function createStory(name) {
   };
 }
 
+// Starthöhe (Gerüstfuß) und Endhöhe (Oberkante) je Abschnitt in m über
+// Gelände. Ein leerer Start bedeutet "auf Sockelhöhe des Geschosses";
+// gespeichert wird der Start nur, wenn er davon abweicht.
+function currentSockel() {
+  return parseFloat(document.getElementById("story-sockelhoehe").value) || 0;
+}
+function round2(n) {
+  return Math.round(n * 100) / 100;
+}
+
 function addSectionRow(data) {
   sectionRowId += 1;
   const id = sectionRowId;
@@ -50,6 +60,8 @@ function addSectionRow(data) {
   tr.innerHTML = `
     <td><input type="text" class="s-name" placeholder="z. B. Nordfassade" value="${data?.name ?? ""}"></td>
     <td><input type="number" class="s-length" min="0" step="0.01" value="${data?.length ?? ""}"></td>
+    <td><input type="number" class="s-start" step="0.01" title="Gerüstfuß in m über Gelände (Standard: Sockelhöhe des Geschosses)"></td>
+    <td><input type="number" class="s-end" step="0.01" title="Oberkante Gerüst in m über Gelände"></td>
     <td><input type="number" class="s-height" min="0" step="0.01" value="${data?.height ?? ""}"></td>
     <td><input type="number" class="s-opening" min="0" step="0.01" value="${data?.opening ?? 0}"></td>
     <td><input type="number" class="s-angle" step="1" value="${data?.angle ?? 90}"></td>
@@ -60,6 +72,28 @@ function addSectionRow(data) {
   tr.querySelector(".row-remove-btn").addEventListener("click", () => {
     tr.remove();
     saveState();
+  });
+  const startInput = tr.querySelector(".s-start");
+  const endInput = tr.querySelector(".s-end");
+  const heightInput = tr.querySelector(".s-height");
+  const hasStart = data && data.start !== "" && data.start !== undefined && data.start !== null && !isNaN(parseFloat(data.start));
+  startInput.value = hasStart ? round2(parseFloat(data.start)) : round2(currentSockel());
+  const syncEnd = () => {
+    const h = parseFloat(heightInput.value);
+    endInput.value = isNaN(h) ? "" : round2((parseFloat(startInput.value) || 0) + h);
+  };
+  const syncHeight = () => {
+    const e = parseFloat(endInput.value);
+    if (isNaN(e)) return;
+    heightInput.value = round2(Math.max(0, e - (parseFloat(startInput.value) || 0)));
+  };
+  syncEnd();
+  heightInput.addEventListener("input", syncEnd);
+  endInput.addEventListener("input", syncHeight);
+  // Start ändern: Oberkante bleibt, die Höhe passt sich an
+  startInput.addEventListener("input", () => {
+    if (endInput.value !== "") syncHeight();
+    else syncEnd();
   });
   const konsoleCheckbox = tr.querySelector(".s-konsole");
   const konsolenbreiteInput = tr.querySelector(".s-konsolenbreite");
@@ -87,11 +121,18 @@ cornersConnectedEl.addEventListener("change", () => {
 });
 cornersClosedEl.addEventListener("change", saveState);
 
+function readStartFromRow(tr) {
+  const v = parseFloat(tr.querySelector(".s-start").value);
+  if (isNaN(v) || Math.abs(v - currentSockel()) < 0.005) return "";
+  return String(round2(v));
+}
+
 function readSectionsFromDom() {
   const rows = [...sectionsBody.querySelectorAll("tr")];
   return rows.map((tr) => ({
     name: tr.querySelector(".s-name").value.trim() || "Abschnitt",
     length: tr.querySelector(".s-length").value,
+    start: readStartFromRow(tr),
     height: tr.querySelector(".s-height").value,
     opening: tr.querySelector(".s-opening").value,
     angle: tr.querySelector(".s-angle").value,
@@ -109,6 +150,7 @@ function serializeActiveStoryFromDom() {
 }
 
 function loadStoryIntoDom(story) {
+  document.getElementById("story-sockelhoehe").value = story.sockelhoehe ?? 0;
   sectionsBody.innerHTML = "";
   (story.sections.length ? story.sections : [defaultSection("Fassade 1")]).forEach((s) => addSectionRow(s));
   cornersConnectedEl.checked = Boolean(story.cornersConnected);
@@ -189,16 +231,31 @@ document.getElementById("story-name").addEventListener("input", (e) => {
   saveState();
 });
 
+function moveDefaultStarts(oldSockel, newSockel) {
+  sectionsBody.querySelectorAll("tr").forEach((tr) => {
+    const st = tr.querySelector(".s-start");
+    if (Math.abs((parseFloat(st.value) || 0) - oldSockel) < 0.005) {
+      st.value = round2(newSockel);
+      const h = parseFloat(tr.querySelector(".s-height").value);
+      tr.querySelector(".s-end").value = isNaN(h) ? "" : round2(newSockel + h);
+    }
+  });
+}
+
 document.getElementById("story-sockelhoehe").addEventListener("input", (e) => {
+  const oldSockel = stories[activeStoryIndex].sockelhoehe || 0;
   stories[activeStoryIndex].sockelhoehe = parseFloat(e.target.value) || 0;
+  moveDefaultStarts(oldSockel, stories[activeStoryIndex].sockelhoehe);
   saveState();
 });
 
 document.getElementById("story-sockelhoehe-auto-btn").addEventListener("click", () => {
   serializeActiveStoryFromDom();
   const auto = computeAutoSockelhoehe(activeStoryIndex);
+  const oldSockel = stories[activeStoryIndex].sockelhoehe || 0;
   stories[activeStoryIndex].sockelhoehe = auto;
   document.getElementById("story-sockelhoehe").value = auto;
+  moveDefaultStarts(oldSockel, auto);
   saveState();
 });
 
@@ -243,6 +300,7 @@ function normalizeSections(rawSections) {
     .map((s) => ({
       name: (s.name || "Abschnitt").trim() || "Abschnitt",
       length: parseFloat(s.length) || 0,
+      start: s.start === "" || s.start === undefined || s.start === null || isNaN(parseFloat(s.start)) ? null : parseFloat(s.start),
       height: parseFloat(s.height) || 0,
       opening: parseFloat(s.opening) || 0,
       angle: parseFloat(s.angle),
@@ -412,9 +470,12 @@ function calculateAllStories() {
 
   let cumulative = 0;
   storyResults.forEach((sr) => {
-    const maxHeight = Math.max(...sr.result.perSection.map((s) => s.height));
     sr.sockelhoehe = sr.story.sockelhoehe || 0;
-    cumulative = Math.max(cumulative, sr.sockelhoehe + maxHeight);
+    sr.result.perSection.forEach((s) => {
+      s.startAbs = s.start === null ? sr.sockelhoehe : s.start;
+      s.endAbs = s.startAbs + s.height;
+      cumulative = Math.max(cumulative, s.endAbs);
+    });
   });
 
   const grandTotals = storyResults.reduce(
@@ -461,6 +522,7 @@ function renderResultsBody(result, prefix) {
       <tr>
         <td>${escapeHtml(s.name)}</td>
         <td>${fmt(s.length, 2)}</td>
+        <td>${fmt(s.startAbs, 2)} – ${fmt(s.endAbs, 2)}</td>
         <td>${fmt(s.height, 2)}</td>
         <td>${fmt(s.flaeche, 1)}</td>
         <td>${s.felder}</td>
@@ -503,7 +565,7 @@ function renderPerStoryBlock(sr, idx) {
         <table class="results-subtable">
           <thead>
             <tr>
-              <th>Abschnitt</th><th>Länge (m)</th><th>Höhe (m)</th><th>Fläche (m²)</th>
+              <th>Abschnitt</th><th>Länge (m)</th><th>Start – Ende (m ü. Gel.)</th><th>Höhe (m)</th><th>Fläche (m²)</th>
               <th>Felder</th><th>Lagen</th><th>Anker</th><th>Konsole</th><th>Ausladung (m)</th>
             </tr>
           </thead>
@@ -706,10 +768,10 @@ document.getElementById("export-csv-btn").addEventListener("click", () => {
   storyResults.forEach((sr) => {
     lines.push("");
     lines.push(`Geschoss;${sr.story.name};Sockelhoehe (m);${fmt(sr.sockelhoehe, 2)}`);
-    lines.push("Abschnitt;Laenge (m);Hoehe (m);Flaeche (m2);Felder;Lagen;Anker;Konsole;Konsolenbreite (m);Ausladung (m)");
+    lines.push("Abschnitt;Laenge (m);Start (m ue. Gelaende);Ende (m ue. Gelaende);Hoehe (m);Flaeche (m2);Felder;Lagen;Anker;Konsole;Konsolenbreite (m);Ausladung (m)");
     sr.result.perSection.forEach((s) => {
       lines.push(
-        `${s.name};${fmt(s.length, 2)};${fmt(s.height, 2)};${fmt(s.flaeche, 1)};${s.felder};${s.lagen};${s.anker};${s.konsole ? "ja" : "nein"};${fmt(s.konsolenbreite, 2)};${fmt(s.ausladung, 2)}`
+        `${s.name};${fmt(s.length, 2)};${fmt(s.startAbs, 2)};${fmt(s.endAbs, 2)};${fmt(s.height, 2)};${fmt(s.flaeche, 1)};${s.felder};${s.lagen};${s.anker};${s.konsole ? "ja" : "nein"};${fmt(s.konsolenbreite, 2)};${fmt(s.ausladung, 2)}`
       );
     });
     lines.push(`Zwischensumme;${fmt(sr.result.totals.laenge, 2)};;${fmt(sr.result.totals.flaeche, 1)};;;${sr.result.totals.anker}`);

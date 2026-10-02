@@ -21,6 +21,7 @@ Web-Tool zur überschlägigen Mengenermittlung für Fassadengerüste – inklusi
 2. Geschoss auswählen/anlegen (siehe unten), falls das Gebäude aus mehreren Abschnitten mit unterschiedlichem Grundriss besteht.
 3. Fassadenabschnitte des aktiven Geschosses eintragen (z. B. Nord-, Ost-, Süd-, Westfassade) – Reihenfolge = Rundgang um das Gebäude:
    - Länge, Höhe, optionale Aussparungsfläche
+   - Start/Ende: Gerüstfuß und Oberkante in m über Gelände. Der Start ist standardmäßig die Sockelhöhe des Geschosses und kann je Abschnitt abweichen (z. B. Gerüst steht auf einem Vordach). Start oder Ende ändern → Höhe wird angepasst; Höhe ändern → Ende wird verschoben
    - Winkel zur nächsten Seite (° – 90° = rechtwinklige Ecke), für Lageplan/3D
    - Konsole ja/nein + Konsolenbreite: verbreitert den Belag an dieser Seite und rückt die Außenkante des Gerüsts dort entsprechend nach außen
 4. Bei mehreren Abschnitten „Abschnitte bilden zusammenhängenden Rundgang“ aktivieren, damit gemeinsame Eckständer/-spindeln an den Gebäudeecken nicht doppelt gezählt werden (plus „Geschlossener Umlauf“, falls der letzte Abschnitt wieder an den ersten anschließt). Das aktiviert außerdem den automatischen Lageplan und die 3D-Ansicht für dieses Geschoss.
@@ -41,7 +42,7 @@ Ganz oben im Tool: ein 3D-Gebäudemodell laden, das Gerüst wird automatisch gep
 - Nischen/Rücksprünge schmaler als 1,0 m (einstellbar) werden überbrückt, kleine Aufbauten wie Schornsteine, Attiken und schmale Gauben ignoriert.
 - Hochachse (Y/Z), Einheit (m/cm/mm) und Geländehöhe werden automatisch bestimmt und lassen sich unter „Einstellungen der automatischen Planung“ überschreiben (Modelle mit Keller: Gelände wird bei ±0,00 angenommen). Bei IFC werden Räume, Öffnungen, Gelände (IfcSite) und Möbel ignoriert.
 
-**Ablauf:** Datei wählen → Vorschau (Draufsicht, Norden oben) und Liste der erkannten Geschossebenen prüfen, ggf. einzelne abwählen → „Übernehmen und berechnen“. Danach stehen alle Geschossebenen und Abschnitte ganz normal in den Tabellen und können weiter bearbeitet werden. Die Geschossebenen behalten ihre Lage zueinander, so dass Lageplan und 3D-Ansicht das Gebäude richtig zusammengesetzt zeigen.
+**Ablauf:** Datei wählen → Vorschau (Draufsicht, Norden oben) und Liste der erkannten Geschossebenen prüfen, ggf. einzelne abwählen → „Übernehmen und berechnen“. Danach stehen alle Geschossebenen und Abschnitte ganz normal in den Tabellen und können weiter bearbeitet werden. Die Geschossebenen behalten ihre Lage zueinander, so dass Lageplan und 3D-Ansicht das Gebäude richtig zusammengesetzt zeigen. In der 3D-Ansicht wird das eingelesene Modell selbst mit dem schematischen Gerüst drumherum angezeigt (per Häkchen ausblendbar; das Modell wird nicht gespeichert – nach Neuladen der Seite die Datei erneut einlesen, um es wieder zu sehen).
 
 **Grenzen:** Der Vorschlag ist eine Auswertung der Modellgeometrie auf einem Raster (Standard 10 cm) – Längen sind auf wenige Zentimeter genau, aber kein Aufmaß. Sehr unsaubere Modelle (z. B. Gelände als Teil des Gebäudes, offene Wandflächen) können zu falschen Umrissen führen; die Vorschau zeigt das sofort.
 
