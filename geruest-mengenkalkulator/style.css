@@ -422,6 +422,60 @@ td input[type="text"], td input[type="number"] {
   touch-action: none;
 }
 
+/* 3D-Modell → automatische Gerüstplanung */
+.m3d-options {
+  margin: 12px 0;
+  border: 1px solid var(--border);
+  padding: 10px 14px;
+}
+
+.m3d-options summary,
+.m3d-story-details summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.m3d-options[open] summary {
+  margin-bottom: 12px;
+}
+
+.m3d-preview-wrap {
+  border: 1px solid var(--border);
+  background: var(--paper);
+  overflow: hidden;
+}
+
+#m3d-canvas {
+  display: block;
+  max-width: 100%;
+}
+
+.m3d-notes {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  padding-left: 18px;
+}
+
+.m3d-notes li {
+  margin: 4px 0;
+}
+
+.m3d-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
+  vertical-align: baseline;
+}
+
+.m3d-story-details {
+  margin: 8px 0;
+}
+
+#m3d-apply-btn {
+  margin-top: 12px;
+}
+
 .plan2d-wrap {
   border: 1px solid var(--border);
   border-radius: 0;
@@ -464,7 +518,7 @@ td input[type="text"], td input[type="number"] {
 }
 
 @media print {
-  .actions-panel, #stories-panel, #settings-panel, #sections-panel, #plan-panel, .view3d-wrap, .disclaimer {
+  .actions-panel, #model3d-panel, #stories-panel, #settings-panel, #sections-panel, #plan-panel, .view3d-wrap, .disclaimer {
     display: none !important;
   }
   body {
