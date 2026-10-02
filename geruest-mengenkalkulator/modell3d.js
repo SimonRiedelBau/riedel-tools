@@ -21,7 +21,51 @@ const Model3DPlanner = (() => {
   let raw = null; // { positions, defaultUp, fileName }
   let result = null;
   let planPositions = null; // Modell in Plan-Koordinaten (Meter, z oben) der letzten Auswertung
-  let appliedModel = null; // für die 3D-Ansicht: { positions, ref, ground }
+  let appliedModel = null; // für die 3D-Ansicht: { local: Float32Array (x, y, z relativ zu Bezugspunkt/Gelände) }
+
+  // Das übernommene Modell wird im Browser (IndexedDB) gespeichert, damit es
+  // nach dem Neuladen der Seite wieder in der 3D-Ansicht erscheint.
+  const DB_NAME = "geruest-kalkulator-modell";
+  function openDb() {
+    return new Promise((resolve, reject) => {
+      if (typeof indexedDB === "undefined") { reject(new Error("kein IndexedDB")); return; }
+      const req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = () => req.result.createObjectStore("model");
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  async function storeModel(model) {
+    try {
+      const db = await openDb();
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction("model", "readwrite");
+        tx.objectStore("model").put(model, "applied");
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error);
+      });
+      db.close();
+    } catch (e) {
+      /* Speichern nicht möglich (privates Fenster o. ä.) – Modell bleibt bis zum Neuladen sichtbar */
+    }
+  }
+  async function restoreModel() {
+    try {
+      const db = await openDb();
+      const model = await new Promise((resolve, reject) => {
+        const req = db.transaction("model", "readonly").objectStore("model").get("applied");
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => reject(req.error);
+      });
+      db.close();
+      if (model && model.local && !appliedModel) {
+        appliedModel = model;
+        if (typeof View3D !== "undefined" && View3D.refresh) View3D.refresh();
+      }
+    } catch (e) {
+      /* nichts gespeichert */
+    }
+  }
 
   const setStatus = (el, text) => { if (el) el.textContent = text; };
   const fmt = (n, d = 2) => n.toLocaleString("de-DE", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -299,7 +343,14 @@ const Model3DPlanner = (() => {
     const stories = ModelScaffold.toToolStories(result, idx);
     // Bezugspunkt der Geschoss-Lagen (siehe toToolStories) für die 3D-Ansicht
     const ref = ModelScaffold.referencePoint(result, idx);
-    appliedModel = { positions: planPositions, ref, ground: result.ground };
+    const local = new Float32Array(planPositions.length);
+    for (let i = 0; i < planPositions.length; i += 3) {
+      local[i] = planPositions[i] - ref.x;
+      local[i + 1] = planPositions[i + 1] - ref.y;
+      local[i + 2] = planPositions[i + 2] - result.ground;
+    }
+    appliedModel = { local, fileName: raw.fileName };
+    storeModel(appliedModel);
     window.dispatchEvent(new CustomEvent("model-stories-apply", { detail: { stories } }));
     const n = stories.reduce((sum, s) => sum + s.sections.length, 0);
     setStatus(applyStatus, `${stories.length} Geschossebene(n) mit ${n} Abschnitten übernommen und berechnet.`);
@@ -315,6 +366,8 @@ const Model3DPlanner = (() => {
   window.addEventListener("resize", () => {
     if (result && !resultBox.classList.contains("hidden")) drawPreview();
   });
+
+  restoreModel();
 
   return { loadFile, runAnalysis, getAppliedModel: () => appliedModel };
 })();
