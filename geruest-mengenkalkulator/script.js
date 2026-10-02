@@ -297,7 +297,8 @@ function fillFields(length, rasterLengths) {
 
 function normalizeSections(rawSections) {
   return rawSections
-    .map((s) => ({
+    .map((s, srcIndex) => ({
+      srcIndex, // Zeile in der Abschnittstabelle (für die Bearbeitung in 3D)
       name: (s.name || "Abschnitt").trim() || "Abschnitt",
       length: parseFloat(s.length) || 0,
       start: s.start === "" || s.start === undefined || s.start === null || isNaN(parseFloat(s.start)) ? null : parseFloat(s.start),
@@ -745,15 +746,78 @@ document.getElementById("plan2d-story-select").addEventListener("change", (e) =>
 // Actions
 // ---------------------------------------------------------------------
 
-document.getElementById("calc-btn").addEventListener("click", () => {
+function runCalculation(opts) {
   const calcResult = calculateAllStories();
-  if (!calcResult) return;
+  if (!calcResult) return null;
   lastCalcResult = calcResult;
   renderResults(calcResult);
   renderPlan2DStorySelect(calcResult);
-  if (typeof View3D !== "undefined") View3D.renderStories(calcResult.storyResults, calcResult.globalSettings);
+  if (typeof View3D !== "undefined") View3D.renderStories(calcResult.storyResults, calcResult.globalSettings, opts);
   saveState();
-});
+  return calcResult;
+}
+
+document.getElementById("calc-btn").addEventListener("click", () => runCalculation());
+
+// ---------------------------------------------------------------------
+// Bearbeitung direkt in der 3D-Ansicht (editor3d.js): Abschnitte und
+// Geschosse werden hier geändert, damit Tabelle, Speicher und Berechnung
+// immer denselben Stand haben.
+// ---------------------------------------------------------------------
+const ScaffoldData = {
+  getStory(storyId) {
+    serializeActiveStoryFromDom();
+    return stories.find((st) => st.id === storyId) || null;
+  },
+  // patch: { length, start, end, height, angle, konsole, konsolenbreite }
+  // start/end in m über Gelände; end ändert die Höhe, start lässt das Ende stehen
+  updateSection(storyId, srcIndex, patch) {
+    serializeActiveStoryFromDom();
+    const story = stories.find((st) => st.id === storyId);
+    const sec = story && story.sections[srcIndex];
+    if (!sec) return;
+    const sockel = story.sockelhoehe || 0;
+    let start = sec.start === "" || sec.start === undefined || isNaN(parseFloat(sec.start)) ? sockel : parseFloat(sec.start);
+    let height = parseFloat(sec.height) || 0;
+    let end = start + height;
+    if (patch.start !== undefined) start = Math.max(0, patch.start);
+    if (patch.end !== undefined) end = patch.end;
+    if (patch.height !== undefined) end = start + patch.height;
+    height = Math.max(0.1, end - start);
+    sec.start = Math.abs(start - sockel) < 0.005 ? "" : String(round2(start));
+    sec.height = String(round2(height));
+    if (patch.length !== undefined) sec.length = String(round2(Math.max(0.1, patch.length)));
+    if (patch.angle !== undefined) sec.angle = Math.round(patch.angle * 10) / 10;
+    if (patch.konsole !== undefined) sec.konsole = Boolean(patch.konsole);
+    if (patch.konsolenbreite !== undefined) sec.konsolenbreite = String(round2(Math.max(0, patch.konsolenbreite)));
+    this.commit(story);
+  },
+  // patch: { sockelhoehe, x, y, heading } – Lage/Drehung im Lageplan
+  updateStory(storyId, patch) {
+    serializeActiveStoryFromDom();
+    const story = stories.find((st) => st.id === storyId);
+    if (!story) return;
+    if (patch.sockelhoehe !== undefined) {
+      const next = Math.max(0, round2(patch.sockelhoehe));
+      story.sockelhoehe = next;
+    }
+    if (patch.x !== undefined || patch.y !== undefined || patch.heading !== undefined) {
+      const pl = story.placement || { x: 0, y: 0, heading: 0 };
+      story.placement = {
+        x: patch.x !== undefined ? Math.round(patch.x * 1000) / 1000 : pl.x,
+        y: patch.y !== undefined ? Math.round(patch.y * 1000) / 1000 : pl.y,
+        heading: patch.heading !== undefined ? Math.round((((patch.heading % 360) + 540) % 360 - 180) * 100) / 100 : pl.heading,
+      };
+    }
+    this.commit(story);
+  },
+  commit(story) {
+    // aktives Geschoss in der Tabelle neu anzeigen, ohne es vorher erneut einzulesen
+    if (stories[activeStoryIndex] === story) loadStoryIntoDom(story);
+    saveState();
+    runCalculation({ keepCamera: true });
+  },
+};
 
 document.getElementById("print-btn").addEventListener("click", () => {
   window.print();
