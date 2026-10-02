@@ -344,6 +344,7 @@ const View3D = (() => {
     const staenderFrames = Geometry.edgeFrames(geometry.staenderRing, closed);
     const baseOuterFrames = Geometry.edgeFrames(geometry.baseOuterRing, closed);
     const outerFrames = Geometry.edgeFrames(geometry.outerRing, closed);
+    const consoleFrames = Geometry.edgeFrames(geometry.consoleRing || geometry.outerRing, closed);
 
     const maxHeight = Math.max(...perSection.map((s) => (s.endAbs ?? sockel + s.height) - sockel), 1);
     const vol = showVolume ? buildingVolume(geometry.ring, closed, maxHeight) : null;
@@ -355,7 +356,7 @@ const View3D = (() => {
       if (overBudget()) return;
       const innerFrame = staenderFrames[i];
       const outerFrame = baseOuterFrames[i];
-      const konsoleFrame = outerFrames[i];
+      const konsoleFrame = consoleFrames[i] || outerFrames[i];
       if (!innerFrame || !outerFrame) return;
       const totalHeight = s.lagen * lagenhoehe;
       const baseY = (s.startAbs ?? sockel) - sockel;
@@ -399,10 +400,12 @@ const View3D = (() => {
         budget.count += 1;
 
         if (s.konsole && konsoleFrame) {
+          // Außenkonsole hängt an der äußeren, Innenkonsole an der inneren Ständerreihe
+          const attach = s.konsoleSeite === "innen" ? midInner : midOuter;
           const midKonsole = lerp(konsoleFrame.a, konsoleFrame.b, 0.5);
-          const konsoleWidth = Math.hypot(midKonsole.x - midOuter.x, midKonsole.y - midOuter.y);
+          const konsoleWidth = Math.hypot(midKonsole.x - attach.x, midKonsole.y - attach.y);
           if (konsoleWidth > 0.01) {
-            const konsoleCenter = lerp(midOuter, midKonsole, 0.5);
+            const konsoleCenter = lerp(attach, midKonsole, 0.5);
             const shelf = box(innerFrame.length, 0.04, konsoleWidth, 0xe08e45);
             shelf.rotation.y = angle;
             shelf.position.copy(toWorld(konsoleCenter, y));

@@ -678,6 +678,7 @@ const ModelScaffold = (() => {
     minArea: 6, // min. Grundfläche eines Baukörpers (m²)
     wallReach: 2.5, // Wände müssen bis so nah ans Gelände reichen (m)
     maxCells: 6e6,
+    scaffoldStart: 0, // Starthöhe des Gerüsts an den Außenfassaden (m über Gelände)
   };
 
   const COMPASS = ["Nord", "Nordost", "Ost", "Südost", "Süd", "Südwest", "West", "Nordwest"];
@@ -1220,6 +1221,20 @@ const ModelScaffold = (() => {
       });
     }
 
+    // Starthöhe der Außenfassaden (z. B. Gerüst steht auf Sockel/Terrasse):
+    // Gerüstfuß anheben, Oberkante bleibt
+    const startH = Math.max(0, o.scaffoldStart || 0);
+    if (startH > 0) {
+      stories.filter((st) => st.kind === "base").forEach((st) => {
+        st.sockelhoehe = startH;
+        st.sections.forEach((x) => {
+          const end = x.startAbs + x.height;
+          x.startAbs = startH;
+          x.height = Math.max(0.5, end - startH);
+        });
+      });
+    }
+
     stories.forEach((st, i) => {
       updateTotals(st);
       st.take = true;
@@ -1329,8 +1344,9 @@ const ModelScaffold = (() => {
           start: s.startAbs !== undefined && Math.abs(s.startAbs - st.sockelhoehe) >= 0.005 ? s.startAbs.toFixed(2) : "",
           opening: 0,
           angle: Math.round(s.angle * 10) / 10,
-          konsole: false,
-          konsolenbreite: 0.3,
+          konsole: Boolean(s.konsole),
+          konsolenbreite: s.konsolenbreite !== undefined ? s.konsolenbreite : 0.3,
+          konsoleSeite: s.konsoleSeite === "innen" ? "innen" : "aussen",
         })),
       }));
   }

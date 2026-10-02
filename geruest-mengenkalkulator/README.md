@@ -23,7 +23,7 @@ Web-Tool zur überschlägigen Mengenermittlung für Fassadengerüste – inklusi
    - Länge, Höhe, optionale Aussparungsfläche
    - Start/Ende: Gerüstfuß und Oberkante in m über Gelände. Der Start ist standardmäßig die Sockelhöhe des Geschosses und kann je Abschnitt abweichen (z. B. Gerüst steht auf einem Vordach). Start oder Ende ändern → Höhe wird angepasst; Höhe ändern → Ende wird verschoben
    - Winkel zur nächsten Seite (° – 90° = rechtwinklige Ecke), für Lageplan/3D
-   - Konsole ja/nein + Konsolenbreite: verbreitert den Belag an dieser Seite und rückt die Außenkante des Gerüsts dort entsprechend nach außen
+   - Konsole ja/nein + Konsolenbreite + **Konsolenseite**: „außen“ verbreitert den Belag nach außen (Außenkante rückt nach außen); „innen (Wandseite)“ setzt die Konsole zwischen Wand und Gerüst – der ganze Gerüstabschnitt (Ständerachse und Außenkante) rückt automatisch um die Konsolenbreite von der Wand weg. Lageplan und 3D zeigen das entsprechend
 4. Bei mehreren Abschnitten „Abschnitte bilden zusammenhängenden Rundgang“ aktivieren, damit gemeinsame Eckständer/-spindeln an den Gebäudeecken nicht doppelt gezählt werden (plus „Geschlossener Umlauf“, falls der letzte Abschnitt wieder an den ersten anschließt). Das aktiviert außerdem den automatischen Lageplan und die 3D-Ansicht für dieses Geschoss.
 5. Optional: Grundriss zeichnen/einlesen (siehe unten), statt die Abschnittstabelle von Hand zu füllen.
 6. **Berechnen** klicken.
@@ -40,6 +40,7 @@ Ganz oben im Tool: ein 3D-Gebäudemodell laden, das Gerüst wird automatisch gep
 - **Giebel und Seiten mit wechselnder Höhe** werden in Teilabschnitte (1a, 1b, …) abgetreppt (Höhenstufe einstellbar, abschaltbar).
 - **Staffelgeschosse / höhere Gebäudeteile** neben niedrigeren Dächern werden als eigene Geschossebene mit passender Sockelhöhe angelegt (Gerüst steht auf der darunterliegenden Dachfläche); **Innenhöfe** ebenso.
 - Nischen/Rücksprünge schmaler als 1,0 m (einstellbar) werden überbrückt, kleine Aufbauten wie Schornsteine, Attiken und schmale Gauben ignoriert.
+- **Starthöhe des Gerüsts** (Einstellungen der automatischen Planung): Gerüstfuß der Außenfassaden, z. B. 0,50 m bei Sockel oder Terrasse – die Oberkante bleibt, die Höhe verringert sich entsprechend. Je Abschnitt in Vorschau, Tabelle und 3D-Ansicht änderbar.
 - Hochachse (Y/Z), Einheit (m/cm/mm) und Geländehöhe werden automatisch bestimmt und lassen sich unter „Einstellungen der automatischen Planung“ überschreiben (Modelle mit Keller: Gelände wird bei ±0,00 angenommen). Bei IFC werden Räume, Öffnungen, Gelände (IfcSite) und Möbel ignoriert.
 
 **Ablauf:** Datei wählen → Vorschau (Draufsicht, Norden oben) und Liste der erkannten Geschossebenen prüfen, ggf. einzelne abwählen → „Übernehmen und berechnen“. Danach stehen alle Geschossebenen und Abschnitte ganz normal in den Tabellen und können weiter bearbeitet werden. Die Geschossebenen behalten ihre Lage zueinander, so dass Lageplan und 3D-Ansicht das Gebäude richtig zusammengesetzt zeigen. In der 3D-Ansicht wird das eingelesene Modell selbst mit dem schematischen Gerüst drumherum angezeigt (per Häkchen ausblendbar). Das Modell wird im Browser gespeichert (IndexedDB) und erscheint auch nach dem Neuladen der Seite wieder, sobald „Berechnen“ geklickt wird.
@@ -70,7 +71,7 @@ Für Gebäude, bei denen nicht jeder Bauabschnitt denselben Grundriss hat (Staff
 - **Geschoss-Reiter** oben wechseln zwischen den Geschossen; die Tabelle „Fassadenabschnitte“ und „Grundriss zeichnen/einlesen“ zeigen immer das gerade ausgewählte Geschoss (Badge neben der Überschrift).
 - **+ Geschoss hinzufügen** legt ein neues, leeres Geschoss an.
 - **Geschoss duplizieren** kopiert den aktuellen Grundriss als Ausgangspunkt für ein ähnliches Obergeschoss.
-- **Sockelhöhe**: Starthöhe des Geschosses über Gelände, für die Stapelung in der 3D-Ansicht. „Auto“ setzt sie auf die Höhe des größten Abschnitts im darunterliegenden Geschoss (üblicher Fall); bei Rücksprüngen/Sonderfällen von Hand überschreibbar.
+- **Starthöhe Gerüst / Sockel**: Starthöhe des Geschosses über Gelände (gilt für alle Abschnitte, die keine eigene Starthöhe haben; „Alle Abschnitte auf diese Starthöhe“ setzt abweichende Abschnitte zurück, deren Oberkante bleibt dabei stehen), für die Stapelung in der 3D-Ansicht. „Auto“ setzt sie auf die Höhe des größten Abschnitts im darunterliegenden Geschoss (üblicher Fall); bei Rücksprüngen/Sonderfällen von Hand überschreibbar.
 - Für ein normales, durchgehendes Gebäude reicht ein einziges Geschoss – dann verhält sich das Tool wie zuvor.
 
 ## Ergebnis

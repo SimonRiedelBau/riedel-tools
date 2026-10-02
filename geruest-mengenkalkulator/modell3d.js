@@ -128,6 +128,7 @@ const Model3DPlanner = (() => {
         res: Math.max(0.03, num("m3d-res") ?? 0.1),
         stepGable: document.getElementById("m3d-step-gable").checked,
         detectUpper: document.getElementById("m3d-detect-upper").checked,
+        scaffoldStart: Math.max(0, num("m3d-start") ?? 0),
       },
     };
   }
@@ -667,6 +668,11 @@ const Model3DPlanner = (() => {
       ed("m3d-ed-end").value = r2(s.startAbs + s.height);
       ed("m3d-ed-height").value = r2(s.height);
       ed("m3d-ed-length").value = r2(s.length);
+      ed("m3d-ed-konsole").checked = Boolean(s.konsole);
+      ed("m3d-ed-konsolenbreite").value = r2(s.konsolenbreite !== undefined ? s.konsolenbreite : 0.3);
+      ed("m3d-ed-konsolenbreite").disabled = !s.konsole;
+      ed("m3d-ed-konsole-seite").value = s.konsoleSeite === "innen" ? "innen" : "aussen";
+      ed("m3d-ed-konsole-seite").disabled = !s.konsole;
     } else {
       ed("m3d-ed-title").textContent = `${st.name} – Ecke ${sel.j + 1}`;
     }
@@ -713,6 +719,28 @@ const Model3DPlanner = (() => {
       st.sockelhoehe = Math.max(0, v);
       // Abschnitte, die auf der alten Sockelhöhe standen, gehen mit
       st.sections.forEach((s) => { if (Math.abs(s.startAbs - old) < 0.005) s.startAbs = st.sockelhoehe; });
+      changed(st);
+    });
+    ed("m3d-ed-konsole").addEventListener("change", () => editSection((s) => {
+      s.konsole = ed("m3d-ed-konsole").checked;
+      if (s.konsolenbreite === undefined) s.konsolenbreite = 0.3;
+    }));
+    ed("m3d-ed-konsolenbreite").addEventListener("change", () => {
+      const v = numVal("m3d-ed-konsolenbreite");
+      if (!isNaN(v)) editSection((s) => { s.konsolenbreite = Math.max(0, v); });
+    });
+    ed("m3d-ed-konsole-seite").addEventListener("change", () => editSection((s) => {
+      s.konsoleSeite = ed("m3d-ed-konsole-seite").value;
+    }));
+    ed("m3d-ed-start-reset").addEventListener("click", () => {
+      const st = sel && result.stories[sel.si];
+      if (!st) return;
+      snapshot();
+      st.sections.forEach((s) => {
+        const end = s.startAbs + s.height;
+        s.startAbs = st.sockelhoehe;
+        s.height = Math.max(0.1, end - s.startAbs);
+      });
       changed(st);
     });
     ed("m3d-ed-split").addEventListener("click", () => sel && sel.kind === "section" && splitSection(sel.si, sel.i, 0.5));
