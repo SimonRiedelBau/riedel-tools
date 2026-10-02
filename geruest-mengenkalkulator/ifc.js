@@ -30,12 +30,21 @@ const IfcImport = (() => {
     // .ifc file is actually chosen, not on every page load.
   }
 
-  async function ensureApi() {
-    if (ifcApi) return ifcApi;
-    ifcApi = new WebIFC.IfcAPI();
-    ifcApi.SetWasmPath("vendor/", true);
-    await ifcApi.Init(undefined, true); // forceSingleThread: no COOP/COEP headers required
-    return ifcApi;
+  let apiPromise = null;
+  function ensureApi() {
+    if (!apiPromise) {
+      apiPromise = (async () => {
+        const api = new WebIFC.IfcAPI();
+        api.SetWasmPath("vendor/", true);
+        await api.Init(undefined, true); // forceSingleThread: no COOP/COEP headers required
+        ifcApi = api;
+        return api;
+      })().catch((e) => {
+        apiPromise = null; // erneuter Versuch beim nächsten Aufruf möglich
+        throw e;
+      });
+    }
+    return apiPromise;
   }
 
   function setStatus(el, text) {
@@ -94,7 +103,9 @@ const IfcImport = (() => {
       const geom = ifcApi.GetGeometry(modelID, pg.geometryExpressID);
       const vData = ifcApi.GetVertexArray(geom.GetVertexData(), geom.GetVertexDataSize());
       for (let v = 0; v < vData.length; v += 6) {
-        pts.push(applyMat4(pg.flatTransformation, { x: vData[v], y: vData[v + 1], z: vData[v + 2] }));
+        const w = applyMat4(pg.flatTransformation, { x: vData[v], y: vData[v + 1], z: vData[v + 2] });
+        // web-ifc liefert Y nach oben (wie three.js) → Plan: x, y = -z (Norden), Höhe = y
+        pts.push({ x: w.x, y: -w.z, z: w.y });
       }
     }
     return pts;
@@ -374,5 +385,11 @@ const IfcImport = (() => {
     setStatus(roofStatus, `Wandabstand um ${fmtNum(suggestedOverhang)} m auf ${wandabstandInput.value} m erhöht (Einstellungen oben).`);
   });
 
-  return { handleFile };
+  // gemeinsame web-ifc-Instanz, auch für die automatische Gerüstplanung (modell3d.js)
+  function getApi() {
+    if (!available) return Promise.reject(new Error("web-ifc nicht geladen"));
+    return ensureApi();
+  }
+
+  return { handleFile, getApi };
 })();

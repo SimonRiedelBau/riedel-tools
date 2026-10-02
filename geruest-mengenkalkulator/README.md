@@ -1,6 +1,6 @@
 # Gerüstmengen-Kalkulator
 
-Web-Tool zur überschlägigen Mengenermittlung für Fassadengerüste – inklusive Konsolen, Geschossebenen, automatischem 2D-Lageplan, schematischer 3D-Ansicht und Grundriss-Erfassung per Zeichnen, Bild/PDF, DXF oder IFC (BIM-Modell). Läuft komplett im Browser, keine Build-Tools, keine Server-Abhängigkeit (alle Bibliotheken liegen unter `vendor/` bei, siehe unten).
+Web-Tool zur überschlägigen Mengenermittlung für Fassadengerüste – inklusive automatischer Gerüstplanung aus 3D-Modellen (IFC/OBJ/STL/GLB), Konsolen, Geschossebenen, automatischem 2D-Lageplan, schematischer 3D-Ansicht und Grundriss-Erfassung per Zeichnen, Bild/PDF, DXF oder IFC (BIM-Modell). Läuft komplett im Browser, keine Build-Tools, keine Server-Abhängigkeit (alle Bibliotheken liegen unter `vendor/` bei, siehe unten).
 
 ## Nutzung
 
@@ -26,6 +26,24 @@ Web-Tool zur überschlägigen Mengenermittlung für Fassadengerüste – inklusi
 4. Bei mehreren Abschnitten „Abschnitte bilden zusammenhängenden Rundgang“ aktivieren, damit gemeinsame Eckständer/-spindeln an den Gebäudeecken nicht doppelt gezählt werden (plus „Geschlossener Umlauf“, falls der letzte Abschnitt wieder an den ersten anschließt). Das aktiviert außerdem den automatischen Lageplan und die 3D-Ansicht für dieses Geschoss.
 5. Optional: Grundriss zeichnen/einlesen (siehe unten), statt die Abschnittstabelle von Hand zu füllen.
 6. **Berechnen** klicken.
+
+## 3D-Modell → Gerüst automatisch planen
+
+Ganz oben im Tool: ein 3D-Gebäudemodell laden, das Gerüst wird automatisch geplant – ohne Abklicken oder Abmessen.
+
+**Formate:** IFC (BIM, z. B. aus Revit, ArchiCAD, Allplan, Vectorworks), OBJ, STL, GLB/glTF (z. B. aus SketchUp, Rhino, Blender). Die Datei wird nur lokal im Browser ausgewertet. IFC braucht wie beim Grundriss-Import einen Server bzw. die gehostete Version (siehe Hinweis oben); OBJ/STL/GLB funktionieren auch per Doppelklick.
+
+**Was erkannt wird:**
+- **Gebäudeumriss** aus den Außenwänden (senkrechte Flächen, die bis in Bodennähe reichen). Dachüberstände und Balkone liegen damit außerhalb des Umrisses und werden je Seite als „Dachüberstand“ ausgewiesen. Lassen sich keine geschlossenen Außenwände finden, folgt der Umriss der Dachkante (mit Hinweis).
+- **Fassadenhöhe je Seite** aus dem höchsten Punkt direkt hinter der Wand (Traufe/Attika), zuzüglich „Gerüst über Traufe/Attika hinaus“ (Standard 1,00 m Seitenschutz).
+- **Giebel und Seiten mit wechselnder Höhe** werden in Teilabschnitte (1a, 1b, …) abgetreppt (Höhenstufe einstellbar, abschaltbar).
+- **Staffelgeschosse / höhere Gebäudeteile** neben niedrigeren Dächern werden als eigene Geschossebene mit passender Sockelhöhe angelegt (Gerüst steht auf der darunterliegenden Dachfläche); **Innenhöfe** ebenso.
+- Nischen/Rücksprünge schmaler als 1,0 m (einstellbar) werden überbrückt, kleine Aufbauten wie Schornsteine, Attiken und schmale Gauben ignoriert.
+- Hochachse (Y/Z), Einheit (m/cm/mm) und Geländehöhe werden automatisch bestimmt und lassen sich unter „Einstellungen der automatischen Planung“ überschreiben (Modelle mit Keller: Gelände wird bei ±0,00 angenommen). Bei IFC werden Räume, Öffnungen, Gelände (IfcSite) und Möbel ignoriert.
+
+**Ablauf:** Datei wählen → Vorschau (Draufsicht, Norden oben) und Liste der erkannten Geschossebenen prüfen, ggf. einzelne abwählen → „Übernehmen und berechnen“. Danach stehen alle Geschossebenen und Abschnitte ganz normal in den Tabellen und können weiter bearbeitet werden. Die Geschossebenen behalten ihre Lage zueinander, so dass Lageplan und 3D-Ansicht das Gebäude richtig zusammengesetzt zeigen.
+
+**Grenzen:** Der Vorschlag ist eine Auswertung der Modellgeometrie auf einem Raster (Standard 10 cm) – Längen sind auf wenige Zentimeter genau, aber kein Aufmaß. Sehr unsaubere Modelle (z. B. Gelände als Teil des Gebäudes, offene Wandflächen) können zu falschen Umrissen führen; die Vorschau zeigt das sofort.
 
 ## Geschossebenen
 

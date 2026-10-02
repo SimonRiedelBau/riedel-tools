@@ -28,6 +28,111 @@
 
   <main>
 
+    <section class="panel" id="model3d-panel">
+      <h2>3D-Modell → Gerüst automatisch planen</h2>
+      <p class="hint">
+        3D-Gebäudemodell laden – das Tool erkennt Gebäudeumriss, Fassadenhöhen, Giebel, Dachüberstände,
+        Staffelgeschosse/höhere Gebäudeteile und Innenhöfe und legt daraus Geschossebenen und Fassadenabschnitte an.
+        Formate: <strong>IFC</strong> (BIM, z. B. aus Revit/ArchiCAD/Allplan), <strong>OBJ</strong>, <strong>STL</strong>,
+        <strong>GLB/glTF</strong> (z. B. aus SketchUp, Rhino, Blender). Die Datei wird nur lokal im Browser gelesen –
+        nichts wird hochgeladen.
+      </p>
+      <div class="plan-upload-row">
+        <label class="file-label">
+          3D-Modell (IFC, OBJ, STL, GLB/glTF)
+          <input type="file" id="m3d-file" accept=".ifc,.obj,.stl,.glb,.gltf">
+        </label>
+        <button type="button" id="m3d-run-btn" class="btn-secondary" disabled>Neu planen (mit Einstellungen unten)</button>
+      </div>
+      <p class="hint" id="m3d-status"></p>
+
+      <details class="m3d-options">
+        <summary>Einstellungen der automatischen Planung</summary>
+        <div class="grid settings-grid">
+          <label>
+            Hochachse des Modells
+            <select id="m3d-up">
+              <option value="auto" selected>Automatisch</option>
+              <option value="y">Y nach oben (glTF, IFC, meist OBJ)</option>
+              <option value="z">Z nach oben (meist STL, CAD)</option>
+            </select>
+          </label>
+          <label>
+            Einheit des Modells
+            <select id="m3d-unit">
+              <option value="auto" selected>Automatisch</option>
+              <option value="1">Meter</option>
+              <option value="0.01">Zentimeter</option>
+              <option value="0.001">Millimeter</option>
+            </select>
+          </label>
+          <label>
+            Geländehöhe (m im Modell, leer = automatisch)
+            <input type="number" id="m3d-ground" step="0.01" placeholder="automatisch">
+          </label>
+          <label>
+            Gerüst über Traufe/Attika hinaus (m)
+            <input type="number" id="m3d-top-extra" step="0.05" min="0" value="1.00">
+          </label>
+          <label>
+            Nischen/Rücksprünge überbrücken bis Breite (m)
+            <input type="number" id="m3d-bridge" step="0.1" min="0" value="1.0">
+          </label>
+          <label>
+            Höhenstufe beim Abtreppen von Giebeln (m)
+            <input type="number" id="m3d-step-tol" step="0.1" min="0.2" value="1.0">
+          </label>
+          <label>
+            Mindesthöhe einer Rücksprung-Fassade (m)
+            <input type="number" id="m3d-min-step" step="0.1" min="0.5" value="2.0">
+          </label>
+          <label>
+            Rasterweite der Auswertung (m)
+            <input type="number" id="m3d-res" step="0.01" min="0.03" value="0.10">
+          </label>
+        </div>
+        <div class="checkbox-row">
+          <label class="checkbox-label">
+            <input type="checkbox" id="m3d-step-gable" checked>
+            Giebel/schräge Oberkanten in Teilabschnitte abtreppen (sonst volle Firsthöhe je Seite)
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="m3d-detect-upper" checked>
+            Staffelgeschosse, höhere Gebäudeteile und Innenhöfe als eigene Geschossebenen anlegen
+          </label>
+        </div>
+      </details>
+
+      <div id="m3d-result" class="hidden">
+        <h3>Vorschau (Draufsicht, Norden oben)</h3>
+        <p class="hint">Grau = Gebäude (dunkler = höher). Farbige Linien = geplante Gerüstseiten, Nummern = Abschnitte.</p>
+        <div class="m3d-preview-wrap">
+          <canvas id="m3d-canvas"></canvas>
+        </div>
+        <ul class="m3d-notes" id="m3d-notes"></ul>
+        <h3>Erkannte Geschossebenen</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Übernehmen</th>
+                <th>Geschossebene</th>
+                <th>Sockelhöhe (m)</th>
+                <th>Abschnitte</th>
+                <th>Gerüstlänge (m)</th>
+                <th>Max. Gerüsthöhe (m)</th>
+                <th>Dachüberstand (m)</th>
+              </tr>
+            </thead>
+            <tbody id="m3d-stories-body"></tbody>
+          </table>
+        </div>
+        <div id="m3d-details"></div>
+        <button type="button" id="m3d-apply-btn" class="btn-primary">Übernehmen und berechnen (ersetzt alle Geschosse)</button>
+        <p class="hint" id="m3d-apply-status"></p>
+      </div>
+    </section>
+
     <section class="panel" id="stories-panel">
       <h2>Geschossebenen</h2>
       <p class="hint">Für Gebäude, bei denen nicht jeder Abschnitt den gleichen Grundriss hat (z. B. Rücksprünge, Staffelgeschoss, angebauter niedrigerer Trakt): jedes Geschoss bekommt seinen eigenen Grundriss (eigene Fassadenabschnitte weiter unten). Alle Geschosse teilen sich die Einstellungen oben. Für ein normales, durchgehendes Gebäude reicht ein einziges Geschoss.</p>
@@ -337,5 +442,7 @@
 <script src="ifc.js"></script>
 <script src="view3d.js"></script>
 <script src="script.js"></script>
+<script src="modell3d-core.js"></script>
+<script src="modell3d.js"></script>
 </body>
 </html>

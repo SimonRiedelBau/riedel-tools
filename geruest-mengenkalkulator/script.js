@@ -267,7 +267,10 @@ function getGlobalSettings() {
 
 // Calculates one story's quantities from its own sections + corner settings.
 // Global settings (Lagenhöhe, Gerüstbreite, ...) are shared across stories.
-function calculateStory(rawSections, cornersConnected, cornersClosed, globalSettings) {
+// placement (optional, aus der 3D-Modell-Planung): Startpunkt und Richtung
+// der ersten Seite im Lageplan, damit mehrere Geschossebenen zueinander
+// richtig liegen. Ohne placement beginnt jeder Umriss im Ursprung.
+function calculateStory(rawSections, cornersConnected, cornersClosed, globalSettings, placement) {
   const { lagenhoehe, geruestbreite, belagbreite, ankerraster, diagonalraster, wandabstand, rasterLengths } = globalSettings;
   const bohlenProFeld = Math.max(1, Math.ceil(geruestbreite / belagbreite));
 
@@ -355,6 +358,12 @@ function calculateStory(rawSections, cornersConnected, cornersClosed, globalSett
   if (cornersConnected && perSection.length >= 1) {
     const edges = perSection.map((s) => ({ length: s.length, angle: s.angle }));
     const walk = Geometry.turtlePolygon(edges, cornersClosed);
+    if (placement) {
+      const rad = ((parseFloat(placement.heading) || 0) * Math.PI) / 180;
+      const c = Math.cos(rad), si = Math.sin(rad);
+      const px = parseFloat(placement.x) || 0, py = parseFloat(placement.y) || 0;
+      walk.ring = walk.ring.map((p) => ({ x: px + c * p.x - si * p.y, y: py + si * p.x + c * p.y }));
+    }
     const wandDist = perSection.map(() => wandabstand);
     const outerDist = perSection.map((s) => wandabstand + geruestbreite + (s.konsole ? s.konsolenbreite : 0));
     const baseOuterDist = perSection.map(() => wandabstand + geruestbreite);
@@ -384,7 +393,7 @@ function calculateAllStories() {
   const storyResults = [];
   const missing = [];
   for (const story of stories) {
-    const result = calculateStory(story.sections, story.cornersConnected, story.cornersClosed, globalSettings);
+    const result = calculateStory(story.sections, story.cornersConnected, story.cornersClosed, globalSettings, story.placement);
     if (!result) {
       missing.push(story.name);
       continue;
@@ -815,6 +824,31 @@ window.addEventListener("plan-segments-apply", (evt) => {
   cornersClosedEl.checked = closed;
   saveState();
   document.getElementById("sections-panel").scrollIntoView({ behavior: "smooth", block: "start" });
+});
+
+// Automatische Gerüstplanung aus 3D-Modell (modell3d.js): ersetzt alle
+// Geschosse durch die erkannten Geschossebenen und rechnet sofort.
+window.addEventListener("model-stories-apply", (evt) => {
+  const incoming = evt.detail?.stories || [];
+  if (!incoming.length) return;
+  serializeActiveStoryFromDom();
+  const hasData = stories.some((st) => st.sections.some((s) => parseFloat(s.length) > 0));
+  if (hasData && !confirm("Vorhandene Geschosse und Fassadenabschnitte werden durch die Planung aus dem 3D-Modell ersetzt. Fortfahren?")) return;
+  stories = incoming.map((data) => {
+    const story = createStory(data.name);
+    story.sockelhoehe = data.sockelhoehe || 0;
+    story.sections = data.sections;
+    story.cornersConnected = data.cornersConnected;
+    story.cornersClosed = data.cornersClosed;
+    if (data.placement) story.placement = data.placement;
+    return story;
+  });
+  activeStoryIndex = 0;
+  loadStoryIntoDom(stories[0]);
+  renderStoryTabs();
+  saveState();
+  document.getElementById("calc-btn").click();
+  document.getElementById("results-panel").scrollIntoView({ behavior: "smooth", block: "start" });
 });
 
 // Auto-save on any input change within the settings/sections panels.
