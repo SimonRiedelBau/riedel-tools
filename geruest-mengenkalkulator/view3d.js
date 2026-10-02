@@ -119,15 +119,15 @@ const View3D = (() => {
   let lastArgs = null;
 
   function buildModelObject(model) {
-    const src = model.positions;
+    // model.local: Plan-Koordinaten relativ zu Bezugspunkt/Gelände
+    // (x Ost, y Nord, z oben) → three.js (x, z oben, -y)
+    const src = model.local;
     const n = src.length / 3;
     const pos = new Float32Array(src.length);
     for (let i = 0; i < n; i += 1) {
-      // Plan (x Ost, y Nord, z oben) → three.js (x, z oben, -y), relativ zum
-      // Bezugspunkt der übernommenen Geschossebenen und zur Geländehöhe
-      pos[i * 3] = src[i * 3] - model.ref.x;
-      pos[i * 3 + 1] = src[i * 3 + 2] - model.ground;
-      pos[i * 3 + 2] = -(src[i * 3 + 1] - model.ref.y);
+      pos[i * 3] = src[i * 3];
+      pos[i * 3 + 1] = src[i * 3 + 2];
+      pos[i * 3 + 2] = -src[i * 3 + 1];
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
@@ -193,7 +193,9 @@ const View3D = (() => {
 
   function buildingVolume(ring, closed, heightM) {
     if (!closed || ring.length < 3) return null;
-    const shape = new THREE.Shape(ring.map((p) => new THREE.Vector2(p.x, -p.y)));
+    // Nach rotateX(-90°) wird Shape-y zu Welt -z – passend zu toWorld (z = -y).
+    // (Früher stand hier -p.y; dadurch lag der Körper gespiegelt neben dem Gerüst.)
+    const shape = new THREE.Shape(ring.map((p) => new THREE.Vector2(p.x, p.y)));
     const geo = new THREE.ExtrudeGeometry(shape, { depth: heightM, bevelEnabled: false });
     geo.rotateX(-Math.PI / 2);
     const mat = new THREE.MeshLambertMaterial({ color: 0xb9c2cc, transparent: true, opacity: 0.35 });
@@ -290,6 +292,10 @@ const View3D = (() => {
     const model = currentModel();
     const placed = storyResults.some((sr) => sr.story.placement);
     if (modelToggleLabel) modelToggleLabel.classList.toggle("hidden", !(model && placed));
+    if (placed && !model && statusEl) {
+      statusEl.textContent =
+        "Das 3D-Modell zu diesem Gerüst ist in diesem Browser nicht gespeichert – oben unter „3D-Modell → Gerüst automatisch planen“ die Datei erneut einlesen und übernehmen, dann wird das Gerüst im echten Modell angezeigt.";
+    }
     const showModel = Boolean(model && placed && (!modelToggle || modelToggle.checked));
     if (showModel) {
       if (modelSource !== model) {
@@ -335,5 +341,10 @@ const View3D = (() => {
     }
   }
 
-  return { renderStories };
+  // erneut zeichnen (z. B. wenn das gespeicherte 3D-Modell nachgeladen wurde)
+  function refresh() {
+    if (lastArgs) renderStories(...lastArgs);
+  }
+
+  return { renderStories, refresh };
 })();
