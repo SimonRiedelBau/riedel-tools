@@ -355,7 +355,9 @@ const Model3DPlanner = (() => {
         // Nummer außen neben dem Abschnitt (Gebäude rechts der Laufrichtung,
         // auf dem Bildschirm ist "außen" damit rechts)
         const len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
-        const nx = (b.y - a.y) / len, ny = -(b.x - a.x) / len;
+        // Nummer auf der Seite gegenüber dem Gerüst-Pfeil
+        const sgn = s.flip ? 1 : -1;
+        const nx = (sgn * (b.y - a.y)) / len, ny = (-sgn * (b.x - a.x)) / len;
         const mx = (a.x + b.x) / 2 + nx * 11, my = (a.y + b.y) / 2 + ny * 11;
         const label = s.name.split(" ")[0];
         if (len > 12 || isSel) {
@@ -365,6 +367,25 @@ const Model3DPlanner = (() => {
           ctx.fillStyle = color;
           ctx.fillText(label, mx, my);
         }
+      });
+      // Pfeil: Seite, auf der das Gerüst steht (Standard = außen, also links
+      // der Laufrichtung im Plan; auf dem Bildschirm rechts)
+      st.sections.forEach((s) => {
+        const arr = sideArrow(s);
+        if (!arr) return;
+        ctx.strokeStyle = "#e07a00";
+        ctx.fillStyle = "#e07a00";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(arr.m.x, arr.m.y);
+        ctx.lineTo(arr.tip.x, arr.tip.y);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(arr.tip.x, arr.tip.y);
+        ctx.lineTo(arr.w1.x, arr.w1.y);
+        ctx.lineTo(arr.w2.x, arr.w2.y);
+        ctx.closePath();
+        ctx.fill();
       });
       // Ecken als Anfasser
       for (let j = 0; j < vertexCount(st); j += 1) {
@@ -457,8 +478,36 @@ const Model3DPlanner = (() => {
     if (j === n) st.sections[n - 1].p1 = { x: p.x, y: p.y };
   }
 
+  // Bildschirm-Geometrie des Seitenpfeils eines Abschnitts
+  function sideArrow(s) {
+    const a = toScreen(toPlan(s.p0)), b = toScreen(toPlan(s.p1));
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    if (len < 14) return null;
+    const sgn = s.flip ? -1 : 1;
+    const nx = (sgn * (b.y - a.y)) / len, ny = (-sgn * (b.x - a.x)) / len;
+    const m = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    const tip = { x: m.x + nx * 20, y: m.y + ny * 20 };
+    const bx = m.x + nx * 11, by = m.y + ny * 11;
+    return {
+      m, tip,
+      w1: { x: bx + ny * 5, y: by - nx * 5 },
+      w2: { x: bx - ny * 5, y: by + nx * 5 },
+      hit: { x: m.x + nx * 14, y: m.y + ny * 14 },
+    };
+  }
+
   function hitTest(q) {
     let best = null;
+    // Seitenpfeile
+    result.stories.forEach((st, si) => {
+      st.sections.forEach((s, i) => {
+        const arr = sideArrow(s);
+        if (!arr) return;
+        const d = Math.hypot(arr.hit.x - q.x, arr.hit.y - q.y);
+        if (d < 10 && (!best || d < best.d)) best = { kind: "arrow", si, i, d };
+      });
+    });
+    if (best) return best;
     // Ecken zuerst (Radius 9 px)
     result.stories.forEach((st, si) => {
       for (let j = 0; j < vertexCount(st); j += 1) {
@@ -507,6 +556,15 @@ const Model3DPlanner = (() => {
     const q = canvasPos(e);
     const hit = hitTest(q);
     canvas.setPointerCapture(e.pointerId);
+    if (hit && hit.kind === "arrow" && e.button === 0) {
+      const st = result.stories[hit.si];
+      snapshot();
+      st.sections[hit.i].flip = !st.sections[hit.i].flip;
+      sel = { kind: "section", si: hit.si, i: hit.i };
+      drag = null;
+      changed(st);
+      return;
+    }
     if (hit && hit.kind === "vertex" && e.button === 0) {
       snapshot();
       drag = { kind: "vertex", si: hit.si, j: hit.j, moved: false, start: q };
@@ -524,6 +582,7 @@ const Model3DPlanner = (() => {
     if (!drag) {
       const hit = result && hitTest(canvasPos(e));
       canvas.style.cursor = hit ? (hit.kind === "vertex" ? "move" : "pointer") : "grab";
+      canvas.title = hit && hit.kind === "arrow" ? "Gerüst auf die andere Seite der Linie setzen" : "";
       return;
     }
     const q = canvasPos(e);
@@ -588,6 +647,7 @@ const Model3DPlanner = (() => {
     const tt = Math.min(0.9, Math.max(0.1, t));
     const m = { x: s.p0.x + (s.p1.x - s.p0.x) * tt, y: s.p0.y + (s.p1.y - s.p0.y) * tt };
     const second = { ...s, p0: { ...m }, p1: { ...s.p1 } };
+    if (s.customName) second.name = `${s.name} (2)`;
     s.p1 = { ...m };
     st.sections.splice(i + 1, 0, second);
     sel = { kind: "vertex", si, j: i + 1 };
@@ -658,6 +718,7 @@ const Model3DPlanner = (() => {
     }
     editBox.classList.remove("hidden");
     ed("m3d-ed-sockel").value = r2(st.sockelhoehe);
+    ed("m3d-ed-story-name").value = st.name;
     const isSec = sel.kind === "section";
     editBox.querySelectorAll(".m3d-ed-sec").forEach((el) => el.classList.toggle("hidden", !isSec));
     editBox.querySelectorAll(".m3d-ed-vtx").forEach((el) => el.classList.toggle("hidden", isSec));
@@ -668,6 +729,8 @@ const Model3DPlanner = (() => {
       ed("m3d-ed-end").value = r2(s.startAbs + s.height);
       ed("m3d-ed-height").value = r2(s.height);
       ed("m3d-ed-length").value = r2(s.length);
+      ed("m3d-ed-name").value = s.name;
+      ed("m3d-ed-flip").value = s.flip ? "1" : "";
       ed("m3d-ed-konsole").checked = Boolean(s.konsole);
       ed("m3d-ed-konsolenbreite").value = r2(s.konsolenbreite !== undefined ? s.konsolenbreite : 0.3);
       ed("m3d-ed-konsolenbreite").disabled = !s.konsole;
@@ -719,6 +782,19 @@ const Model3DPlanner = (() => {
       st.sockelhoehe = Math.max(0, v);
       // Abschnitte, die auf der alten Sockelhöhe standen, gehen mit
       st.sections.forEach((s) => { if (Math.abs(s.startAbs - old) < 0.005) s.startAbs = st.sockelhoehe; });
+      changed(st);
+    });
+    ed("m3d-ed-name").addEventListener("change", () => {
+      const v = ed("m3d-ed-name").value.trim();
+      if (v) editSection((s) => { s.name = v; s.customName = true; });
+    });
+    ed("m3d-ed-flip").addEventListener("change", () => editSection((s) => { s.flip = ed("m3d-ed-flip").value === "1"; }));
+    ed("m3d-ed-story-name").addEventListener("change", () => {
+      const v = ed("m3d-ed-story-name").value.trim();
+      const st = sel && result.stories[sel.si];
+      if (!v || !st) return;
+      snapshot();
+      st.name = v;
       changed(st);
     });
     ed("m3d-ed-konsole").addEventListener("change", () => editSection((s) => {

@@ -53,6 +53,11 @@ Ganz oben im Tool: ein 3D-Gebäudemodell laden, das Gerüst wird automatisch gep
 
 **Grenzen:** Der Vorschlag ist eine Auswertung der Modellgeometrie auf einem Raster (Standard 10 cm) – Längen sind auf wenige Zentimeter genau, aber kein Aufmaß. Sehr unsaubere Modelle (z. B. Gelände als Teil des Gebäudes, offene Wandflächen) können zu falschen Umrissen führen; die Vorschau zeigt das sofort.
 
+## Gerüstseite und Bezeichnungen
+
+- **Gerüstseite per Pfeil:** In der Vorschau der 3D-Planung und im 2D-Lageplan zeigt an jeder Linie ein orangefarbener Pfeil, auf welcher Seite das Gerüst steht. Pfeil anklicken = Gerüst auf die andere Seite der Linie setzen (Ständerachse, Außenkante und Konsole werden gespiegelt; Lageplan und 3D folgen). Auch über die Spalte „Gerüstseite“ (Standard außen / Gegenseite) und im 3D-Bearbeitungsfeld einstellbar – praktisch z. B. bei offenen Zügen oder Innenhöfen.
+- **Bezeichnungen:** Abschnitte und Geschossebenen lassen sich in der Vorschau, im 3D-Bearbeitungsfeld, in der Abschnittstabelle und im Geschossfeld umbenennen. Selbst vergebene Namen bleiben beim Verschieben von Ecken erhalten.
+
 ## Bearbeiten direkt in der 3D-Ansicht
 
 Statt zwischen Tabelle und 3D-Ansicht hin- und herzuspringen, lässt sich das Gerüst direkt im 3D-Bild anpassen:

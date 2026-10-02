@@ -80,7 +80,7 @@ const Geometry = (() => {
       const pt = lineIntersect(prev.pOffsetA, prev.dir, curr.pOffsetA, curr.dir);
       const fallback = { x: (fallbackA.x + fallbackB.x) / 2, y: (fallbackA.y + fallbackB.y) / 2 };
       if (!pt) return fallback;
-      const maxDist = 10 * Math.max(prev.dist, curr.dist, 0.1);
+      const maxDist = 10 * Math.max(Math.abs(prev.dist), Math.abs(curr.dist), 0.1);
       const d = Math.hypot(pt.x - fallbackA.x, pt.y - fallbackA.y);
       return d > maxDist ? fallback : pt;
     }
