@@ -19,6 +19,7 @@ const Editor3D = (() => {
     angle: $("ed-angle"),
     konsole: $("ed-konsole"),
     konsolenbreite: $("ed-konsolenbreite"),
+    konsoleSeite: $("ed-konsole-seite"),
     sockel: $("ed-sockel"),
     x: $("ed-x"),
     y: $("ed-y"),
@@ -57,6 +58,8 @@ const Editor3D = (() => {
     fields.konsole.checked = sec.konsole;
     fields.konsolenbreite.value = r2(sec.konsolenbreite || 0.3);
     fields.konsolenbreite.disabled = !sec.konsole;
+    fields.konsoleSeite.value = sec.konsoleSeite === "innen" ? "innen" : "aussen";
+    fields.konsoleSeite.disabled = !sec.konsole;
     fields.sockel.value = r2(sr.sockelhoehe || 0);
     fields.x.value = r2(pl.x || 0);
     fields.y.value = r2(pl.y || 0);
@@ -83,6 +86,11 @@ const Editor3D = (() => {
   onChange(fields.angle, (v) => section({ angle: v }));
   onChange(fields.konsolenbreite, (v) => section({ konsolenbreite: v }));
   fields.konsole.addEventListener("change", () => section({ konsole: fields.konsole.checked }));
+  fields.konsoleSeite.addEventListener("change", () => section({ konsoleSeite: fields.konsoleSeite.value }));
+  $("ed-start-reset").addEventListener("click", () => {
+    const c = current();
+    if (c) ScaffoldData.resetStarts(c.sel.storyId);
+  });
   onChange(fields.sockel, (v) => story({ sockelhoehe: v }));
   onChange(fields.x, (v) => story({ x: v }));
   onChange(fields.y, (v) => story({ y: v }));

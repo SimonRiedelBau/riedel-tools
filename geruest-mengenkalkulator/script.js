@@ -28,7 +28,7 @@ let stories = [];
 let activeStoryIndex = 0;
 
 function defaultSection(name) {
-  return { name: name || "Fassade 1", length: "", start: "", height: "", opening: 0, angle: 90, konsole: false, konsolenbreite: 0.3 };
+  return { name: name || "Fassade 1", length: "", start: "", height: "", opening: 0, angle: 90, konsole: false, konsolenbreite: 0.3, konsoleSeite: "aussen" };
 }
 
 function createStory(name) {
@@ -67,6 +67,12 @@ function addSectionRow(data) {
     <td><input type="number" class="s-angle" step="1" value="${data?.angle ?? 90}"></td>
     <td><input type="checkbox" class="s-konsole" ${data?.konsole ? "checked" : ""}></td>
     <td><input type="number" class="s-konsolenbreite" min="0" step="0.01" value="${data?.konsolenbreite ?? 0.30}" ${data?.konsole ? "" : "disabled"}></td>
+    <td>
+      <select class="s-konsole-seite" title="Außen: Belag nach außen verbreitert. Innen: Konsole zur Wand hin, Gerüst rückt um die Konsolenbreite nach außen." ${data?.konsole ? "" : "disabled"}>
+        <option value="aussen" ${data?.konsoleSeite === "innen" ? "" : "selected"}>außen</option>
+        <option value="innen" ${data?.konsoleSeite === "innen" ? "selected" : ""}>innen (Wandseite)</option>
+      </select>
+    </td>
     <td><button type="button" class="row-remove-btn" title="Zeile entfernen">✕</button></td>
   `;
   tr.querySelector(".row-remove-btn").addEventListener("click", () => {
@@ -97,8 +103,11 @@ function addSectionRow(data) {
   });
   const konsoleCheckbox = tr.querySelector(".s-konsole");
   const konsolenbreiteInput = tr.querySelector(".s-konsolenbreite");
+  const konsoleSeiteSelect = tr.querySelector(".s-konsole-seite");
+  konsoleSeiteSelect.addEventListener("change", saveState);
   konsoleCheckbox.addEventListener("change", () => {
     konsolenbreiteInput.disabled = !konsoleCheckbox.checked;
+    konsoleSeiteSelect.disabled = !konsoleCheckbox.checked;
     saveState();
   });
   sectionsBody.appendChild(tr);
@@ -138,6 +147,7 @@ function readSectionsFromDom() {
     angle: tr.querySelector(".s-angle").value,
     konsole: tr.querySelector(".s-konsole").checked,
     konsolenbreite: tr.querySelector(".s-konsolenbreite").value,
+    konsoleSeite: tr.querySelector(".s-konsole-seite").value,
   }));
 }
 
@@ -224,6 +234,10 @@ document.getElementById("story-delete-btn").addEventListener("click", () => {
   saveState();
 });
 
+document.getElementById("story-start-reset-btn").addEventListener("click", () => {
+  ScaffoldData.resetStarts(stories[activeStoryIndex].id);
+});
+
 document.getElementById("story-name").addEventListener("input", (e) => {
   stories[activeStoryIndex].name = e.target.value.trim() || `Geschoss ${activeStoryIndex + 1}`;
   renderStoryTabs();
@@ -307,6 +321,7 @@ function normalizeSections(rawSections) {
       angle: parseFloat(s.angle),
       konsole: Boolean(s.konsole),
       konsolenbreite: parseFloat(s.konsolenbreite) || 0,
+      konsoleSeite: s.konsoleSeite === "innen" ? "innen" : "aussen",
     }))
     .filter((s) => s.length > 0 && s.height > 0)
     .map((s) => ({ ...s, angle: isNaN(s.angle) ? 90 : s.angle }));
@@ -423,9 +438,15 @@ function calculateStory(rawSections, cornersConnected, cornersClosed, globalSett
       const px = parseFloat(placement.x) || 0, py = parseFloat(placement.y) || 0;
       walk.ring = walk.ring.map((p) => ({ x: px + c * p.x - si * p.y, y: py + si * p.x + c * p.y }));
     }
-    const wandDist = perSection.map(() => wandabstand);
-    const outerDist = perSection.map((s) => wandabstand + geruestbreite + (s.konsole ? s.konsolenbreite : 0));
-    const baseOuterDist = perSection.map(() => wandabstand + geruestbreite);
+    // Innenkonsole: Konsole liegt zwischen Wand und Gerüst → Ständer rücken
+    // um die Konsolenbreite nach außen. Außenkonsole: Belag nach außen.
+    const innen = (s) => s.konsole && s.konsoleSeite === "innen";
+    const aussen = (s) => s.konsole && s.konsoleSeite !== "innen";
+    const wandDist = perSection.map((s) => wandabstand + (innen(s) ? s.konsolenbreite : 0));
+    const baseOuterDist = perSection.map((s, i) => wandDist[i] + geruestbreite);
+    const outerDist = perSection.map((s, i) => baseOuterDist[i] + (aussen(s) ? s.konsolenbreite : 0));
+    // Kante der Konsole, die nicht am Gerüst liegt (innen: wandseitig, außen: Außenkante)
+    const consoleDist = perSection.map((s, i) => (innen(s) ? wandabstand : outerDist[i]));
     geometry = {
       ring: walk.ring,
       closed: cornersClosed,
@@ -433,6 +454,7 @@ function calculateStory(rawSections, cornersConnected, cornersClosed, globalSett
       staenderRing: Geometry.offsetPolygonEdges(walk.ring, cornersClosed, wandDist),
       outerRing: Geometry.offsetPolygonEdges(walk.ring, cornersClosed, outerDist),
       baseOuterRing: Geometry.offsetPolygonEdges(walk.ring, cornersClosed, baseOuterDist),
+      consoleRing: Geometry.offsetPolygonEdges(walk.ring, cornersClosed, consoleDist),
     };
   }
 
@@ -529,7 +551,7 @@ function renderResultsBody(result, prefix) {
         <td>${s.felder}</td>
         <td>${s.lagen}</td>
         <td>${s.anker}</td>
-        <td>${s.konsole ? `ja (${fmt(s.konsolenbreite, 2)} m)` : "–"}</td>
+        <td>${s.konsole ? `${s.konsoleSeite === "innen" ? "innen" : "außen"} (${fmt(s.konsolenbreite, 2)} m)` : "–"}</td>
         <td>${fmt(s.ausladung, 2)}</td>
       </tr>`
     )
@@ -673,11 +695,18 @@ function renderPlan2D(result) {
   addPath(ringToPath(geometry.baseOuterRing, geometry.closed), { fill: "none", stroke: "#1a73e8", "stroke-width": sw * 1.6 });
   const hasKonsole = result.perSection.some((s) => s.konsole);
   if (hasKonsole) {
-    addPath(ringToPath(geometry.outerRing, geometry.closed), {
-      fill: "none",
-      stroke: "#C4000B",
-      "stroke-width": sw * 1.2,
-      "stroke-dasharray": `${sw * 2.5},${sw * 1.5}`,
+    // Konsolenkante nur an Abschnitten mit Konsole (außen bzw. wandseitig)
+    const cr = geometry.consoleRing || geometry.outerRing;
+    const cn = cr.length;
+    result.perSection.forEach((s, i) => {
+      if (!s.konsole || (!geometry.closed && i >= cn - 1)) return;
+      const a = toSvg(cr[i]), b = toSvg(cr[(i + 1) % cn]);
+      addPath(`M${a.x},${a.y} L${b.x},${b.y}`, {
+        fill: "none",
+        stroke: "#C4000B",
+        "stroke-width": sw * 1.2,
+        "stroke-dasharray": `${sw * 2.5},${sw * 1.5}`,
+      });
     });
   }
 
@@ -725,7 +754,7 @@ function renderPlan2D(result) {
       ? ` Hinweis: Schlussfehler des Rundgangs ${fmt(geometry.closingError, 2)} m – Längen/Winkel prüfen.`
       : "";
   note.textContent = `Schwarz = Gebäudelinie, grau gestrichelt = Ständerachse, blau = Gerüst-Außenkante${
-    hasKonsole ? ", orange gestrichelt = Außenkante inkl. Konsole" : ""
+    hasKonsole ? ", rot gestrichelt = Konsolenkante (außen bzw. bei Innenkonsole wandseitig)" : ""
   }.${closingNote}`;
 }
 
@@ -790,6 +819,7 @@ const ScaffoldData = {
     if (patch.angle !== undefined) sec.angle = Math.round(patch.angle * 10) / 10;
     if (patch.konsole !== undefined) sec.konsole = Boolean(patch.konsole);
     if (patch.konsolenbreite !== undefined) sec.konsolenbreite = String(round2(Math.max(0, patch.konsolenbreite)));
+    if (patch.konsoleSeite !== undefined) sec.konsoleSeite = patch.konsoleSeite === "innen" ? "innen" : "aussen";
     this.commit(story);
   },
   // patch: { sockelhoehe, x, y, heading } – Lage/Drehung im Lageplan
@@ -809,6 +839,22 @@ const ScaffoldData = {
         heading: patch.heading !== undefined ? Math.round((((patch.heading % 360) + 540) % 360 - 180) * 100) / 100 : pl.heading,
       };
     }
+    this.commit(story);
+  },
+  // Abweichende Starthöhen entfernen: alle Abschnitte beginnen auf der
+  // Starthöhe/Sockel des Geschosses, die Oberkante bleibt stehen.
+  resetStarts(storyId) {
+    serializeActiveStoryFromDom();
+    const story = stories.find((st) => st.id === storyId);
+    if (!story) return;
+    const sockel = story.sockelhoehe || 0;
+    story.sections.forEach((sec) => {
+      const h = parseFloat(sec.height);
+      if (sec.start === "" || sec.start === undefined || isNaN(h)) return;
+      const end = (parseFloat(sec.start) || 0) + h;
+      sec.start = "";
+      sec.height = String(round2(Math.max(0.1, end - sockel)));
+    });
     this.commit(story);
   },
   commit(story) {
@@ -832,10 +878,10 @@ document.getElementById("export-csv-btn").addEventListener("click", () => {
   storyResults.forEach((sr) => {
     lines.push("");
     lines.push(`Geschoss;${sr.story.name};Sockelhoehe (m);${fmt(sr.sockelhoehe, 2)}`);
-    lines.push("Abschnitt;Laenge (m);Start (m ue. Gelaende);Ende (m ue. Gelaende);Hoehe (m);Flaeche (m2);Felder;Lagen;Anker;Konsole;Konsolenbreite (m);Ausladung (m)");
+    lines.push("Abschnitt;Laenge (m);Start (m ue. Gelaende);Ende (m ue. Gelaende);Hoehe (m);Flaeche (m2);Felder;Lagen;Anker;Konsole (Seite);Konsolenbreite (m);Ausladung (m)");
     sr.result.perSection.forEach((s) => {
       lines.push(
-        `${s.name};${fmt(s.length, 2)};${fmt(s.startAbs, 2)};${fmt(s.endAbs, 2)};${fmt(s.height, 2)};${fmt(s.flaeche, 1)};${s.felder};${s.lagen};${s.anker};${s.konsole ? "ja" : "nein"};${fmt(s.konsolenbreite, 2)};${fmt(s.ausladung, 2)}`
+        `${s.name};${fmt(s.length, 2)};${fmt(s.startAbs, 2)};${fmt(s.endAbs, 2)};${fmt(s.height, 2)};${fmt(s.flaeche, 1)};${s.felder};${s.lagen};${s.anker};${s.konsole ? (s.konsoleSeite === "innen" ? "innen" : "aussen") : "nein"};${fmt(s.konsolenbreite, 2)};${fmt(s.ausladung, 2)}`
       );
     });
     lines.push(`Zwischensumme;${fmt(sr.result.totals.laenge, 2)};;${fmt(sr.result.totals.flaeche, 1)};;;${sr.result.totals.anker}`);

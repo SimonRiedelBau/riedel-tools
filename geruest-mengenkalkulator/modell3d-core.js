@@ -678,6 +678,7 @@ const ModelScaffold = (() => {
     minArea: 6, // min. Grundfläche eines Baukörpers (m²)
     wallReach: 2.5, // Wände müssen bis so nah ans Gelände reichen (m)
     maxCells: 6e6,
+    scaffoldStart: 0, // Starthöhe des Gerüsts an den Außenfassaden (m über Gelände)
   };
 
   const COMPASS = ["Nord", "Nordost", "Ost", "Südost", "Süd", "Südwest", "West", "Nordwest"];
@@ -1064,6 +1065,7 @@ const ModelScaffold = (() => {
             length: r.to - r.from,
             facadeHeight: hFac,
             height: Math.max(0.5, hFac + o.topExtra),
+            startAbs: Math.max(0, base - g), // Gerüstfuß, m über Gelände
             angle: k < runs.length - 1 ? 0 : angle,
             overhang,
             stepped: runs.length > 1,
@@ -1219,10 +1221,23 @@ const ModelScaffold = (() => {
       });
     }
 
+    // Starthöhe der Außenfassaden (z. B. Gerüst steht auf Sockel/Terrasse):
+    // Gerüstfuß anheben, Oberkante bleibt
+    const startH = Math.max(0, o.scaffoldStart || 0);
+    if (startH > 0) {
+      stories.filter((st) => st.kind === "base").forEach((st) => {
+        st.sockelhoehe = startH;
+        st.sections.forEach((x) => {
+          const end = x.startAbs + x.height;
+          x.startAbs = startH;
+          x.height = Math.max(0.5, end - startH);
+        });
+      });
+    }
+
     stories.forEach((st, i) => {
-      st.totalLength = st.sections.reduce((sum, x) => sum + x.length, 0);
-      st.maxHeight = Math.max(...st.sections.map((x) => x.height));
-      st.maxOverhang = Math.max(0, ...st.sections.map((x) => x.overhang || 0));
+      updateTotals(st);
+      st.take = true;
       if (stories.filter((s2) => s2.name === st.name).length > 1) st.name = `${st.name} (${i + 1})`;
     });
 
@@ -1238,6 +1253,58 @@ const ModelScaffold = (() => {
       grid: { w, h, res, minX, minY, H, footprint: Pfilled },
       triangleCount: nTri,
     };
+  }
+
+  function updateTotals(st) {
+    st.totalLength = st.sections.reduce((sum, x) => sum + x.length, 0);
+    st.maxHeight = Math.max(...st.sections.map((x) => x.height));
+    st.maxOverhang = Math.max(0, ...st.sections.map((x) => x.overhang || 0));
+  }
+
+  // Nach Bearbeitung in der Vorschau: Längen, Winkel, Namen und Summen
+  // einer Geschossebene aus den Punkten (p0/p1) neu bestimmen. Gerade
+  // durchlaufende Teilstücke (Winkel ≈ 0) behalten eine gemeinsame Nummer
+  // mit a, b, c …
+  function recomputeStory(result, st) {
+    const c = Math.cos(result.theta), sn = Math.sin(result.theta);
+    const secs = st.sections;
+    const n = secs.length;
+    secs.forEach((x) => {
+      x.length = Math.hypot(x.p1.x - x.p0.x, x.p1.y - x.p0.y);
+    });
+    secs.forEach((x, i) => {
+      const last = i === n - 1;
+      if (last && !st.closed) { x.angle = 90; return; }
+      const y = secs[(i + 1) % n];
+      const d1 = { x: x.p1.x - x.p0.x, y: x.p1.y - x.p0.y };
+      const d2 = { x: y.p1.x - y.p0.x, y: y.p1.y - y.p0.y };
+      const cross = d1.x * d2.y - d1.y * d2.x;
+      const dot = d1.x * d2.x + d1.y * d2.y;
+      x.angle = (-Math.atan2(cross, dot) * 180) / Math.PI;
+      if (Math.abs(x.angle) < 0.05) x.angle = 0;
+    });
+    // Nummerierung
+    let no = 0;
+    let i = 0;
+    while (i < n) {
+      let j = i;
+      while (j < n - 1 && Math.abs(secs[j].angle) < 2) j += 1;
+      no += 1;
+      for (let k = i; k <= j; k += 1) {
+        const x = secs[k];
+        const len = x.length || 1;
+        // außen = links der Laufrichtung (Gebäude rechts), in Plan-Koordinaten
+        const ox = -(x.p1.y - x.p0.y) / len, oy = (x.p1.x - x.p0.x) / len;
+        const dir = compassName(c * ox - sn * oy, sn * ox + c * oy);
+        const suffix = j > i ? String.fromCharCode(97 + k - i) : "";
+        x.edgeNo = no;
+        x.stepped = j > i;
+        x.name = `${no}${suffix} ${dir}`;
+      }
+      i = j + 1;
+    }
+    st.ring = secs.map((x) => x.p0).concat(st.closed ? [] : [secs[n - 1].p1]);
+    updateTotals(st);
   }
 
   // Analyse-Ergebnis → Geschoss-Daten für die Abschnittstabelle
@@ -1273,10 +1340,13 @@ const ModelScaffold = (() => {
           name: s.name,
           length: s.length.toFixed(2),
           height: s.height.toFixed(2),
+          // abweichender Gerüstfuß (in der Vorschau geändert) – sonst Sockelhöhe
+          start: s.startAbs !== undefined && Math.abs(s.startAbs - st.sockelhoehe) >= 0.005 ? s.startAbs.toFixed(2) : "",
           opening: 0,
           angle: Math.round(s.angle * 10) / 10,
-          konsole: false,
-          konsolenbreite: 0.3,
+          konsole: Boolean(s.konsole),
+          konsolenbreite: s.konsolenbreite !== undefined ? s.konsolenbreite : 0.3,
+          konsoleSeite: s.konsoleSeite === "innen" ? "innen" : "aussen",
         })),
       }));
   }
@@ -1294,6 +1364,7 @@ const ModelScaffold = (() => {
     analyze,
     toToolStories,
     referencePoint,
+    recomputeStory,
     TriBuffer,
     DEFAULTS,
   };

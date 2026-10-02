@@ -71,6 +71,10 @@
             <input type="number" id="m3d-ground" step="0.01" placeholder="automatisch">
           </label>
           <label>
+            Starthöhe des Gerüsts (m über Gelände)
+            <input type="number" id="m3d-start" step="0.05" min="0" value="0.00" title="Gerüstfuß der Außenfassaden, z. B. 0,50 bei Sockel/Terrasse; je Abschnitt später änderbar">
+          </label>
+          <label>
             Gerüst über Traufe/Attika hinaus (m)
             <input type="number" id="m3d-top-extra" step="0.05" min="0" value="1.00">
           </label>
@@ -105,9 +109,55 @@
 
       <div id="m3d-result" class="hidden">
         <h3>Vorschau (Draufsicht, Norden oben)</h3>
-        <p class="hint">Grau = Gebäude (dunkler = höher). Farbige Linien = geplante Gerüstseiten, Nummern = Abschnitte.</p>
+        <p class="hint">Grau = Gebäude (dunkler = höher). Farbige Linien = geplante Gerüstseiten, Nummern = Abschnitte.
+          <strong>Hier schon anpassen:</strong> Ecke ziehen = Lage ändern (rastet rechtwinklig ein, Alt = frei) ·
+          Linie anklicken = Abschnitt bearbeiten · Doppelklick auf Linie = Ecke einfügen · Rechtsklick auf Ecke = entfernen ·
+          Mausrad = zoomen, leere Fläche ziehen = verschieben.</p>
+        <div class="m3d-toolbar">
+          <button type="button" id="m3d-fit-btn" class="btn-secondary">Einpassen</button>
+          <button type="button" id="m3d-undo-btn" class="btn-secondary" disabled>Rückgängig</button>
+        </div>
         <div class="m3d-preview-wrap">
           <canvas id="m3d-canvas"></canvas>
+        </div>
+        <div class="editor3d hidden" id="m3d-edit">
+          <div class="editor3d-head">
+            <strong id="m3d-ed-title"></strong>
+            <button type="button" class="row-remove-btn" id="m3d-ed-close" title="Auswahl aufheben">✕</button>
+          </div>
+          <div class="editor3d-cols">
+            <fieldset class="m3d-ed-sec">
+              <legend>Abschnitt</legend>
+              <label class="inline-label">Länge (m) <input type="number" id="m3d-ed-length" step="0.01" min="0.1"></label>
+              <label class="inline-label">Start (m ü. Gel.) <input type="number" id="m3d-ed-start" step="0.05" min="0"></label>
+              <label class="inline-label">Ende (m ü. Gel.) <input type="number" id="m3d-ed-end" step="0.05" min="0"></label>
+              <label class="inline-label">Gerüsthöhe (m) <input type="number" id="m3d-ed-height" step="0.05" min="0.1"></label>
+              <label class="inline-label"><input type="checkbox" id="m3d-ed-konsole"> Konsole, Breite (m) <input type="number" id="m3d-ed-konsolenbreite" step="0.05" min="0" value="0.30"></label>
+              <label class="inline-label">Konsolenseite
+                <select id="m3d-ed-konsole-seite">
+                  <option value="aussen">außen</option>
+                  <option value="innen">innen (Wandseite, Gerüst rückt nach außen)</option>
+                </select>
+              </label>
+              <div class="editor3d-row">
+                <button type="button" class="btn-secondary" id="m3d-ed-split">In der Mitte teilen</button>
+                <button type="button" class="btn-danger-outline" id="m3d-ed-remove">Abschnitt entfernen</button>
+              </div>
+            </fieldset>
+            <fieldset class="m3d-ed-vtx hidden">
+              <legend>Ecke</legend>
+              <p class="hint">Ecke mit der Maus ziehen, um die angrenzenden Seiten zu verlängern/verkürzen.</p>
+              <div class="editor3d-row">
+                <button type="button" class="btn-danger-outline" id="m3d-ed-remove-vtx">Ecke entfernen (Seiten zusammenfassen)</button>
+              </div>
+            </fieldset>
+            <fieldset>
+              <legend>Geschossebene</legend>
+              <label class="inline-label">Starthöhe Gerüst / Sockel (m) <input type="number" id="m3d-ed-sockel" step="0.05" min="0"></label>
+              <button type="button" class="btn-secondary" id="m3d-ed-start-reset">Alle Abschnitte auf diese Starthöhe</button>
+              <p class="hint">Weglassen der ganzen Ebene: Häkchen „Übernehmen“ in der Tabelle unten entfernen.</p>
+            </fieldset>
+          </div>
         </div>
         <ul class="m3d-notes" id="m3d-notes"></ul>
         <h3>Erkannte Geschossebenen</h3>
@@ -143,9 +193,10 @@
           <input type="text" id="story-name" value="Geschoss 1">
         </label>
         <label class="inline-label">
-          Sockelhöhe (m, Start über Gelände)
+          Starthöhe Gerüst / Sockel (m über Gelände)
           <input type="number" id="story-sockelhoehe" step="0.01" min="0" value="0">
           <button type="button" id="story-sockelhoehe-auto-btn" class="btn-secondary" title="Automatisch aus Höhe des darunterliegenden Geschosses">Auto</button>
+          <button type="button" id="story-start-reset-btn" class="btn-secondary" title="Abweichende Starthöhen einzelner Abschnitte entfernen">Alle Abschnitte auf diese Starthöhe</button>
         </label>
         <button type="button" id="story-add-btn" class="btn-secondary">+ Geschoss hinzufügen</button>
         <button type="button" id="story-duplicate-btn" class="btn-secondary">Geschoss duplizieren</button>
@@ -225,6 +276,7 @@
               <th>Winkel (°)</th>
               <th>Konsole</th>
               <th>Konsolenbreite (m)</th>
+              <th title="außen = Belag nach außen; innen = Konsole zur Wand, Gerüst rückt nach außen">Konsolenseite</th>
               <th></th>
             </tr>
           </thead>
@@ -440,10 +492,17 @@
             <label class="inline-label">Höhe (m) <input type="number" id="ed-height" step="0.05" min="0.1"></label>
             <label class="inline-label">Winkel zur nächsten Seite (°) <input type="number" id="ed-angle" step="1"></label>
             <label class="inline-label"><input type="checkbox" id="ed-konsole"> Konsole, Breite (m) <input type="number" id="ed-konsolenbreite" step="0.05" min="0"></label>
+            <label class="inline-label">Konsolenseite
+              <select id="ed-konsole-seite">
+                <option value="aussen">außen</option>
+                <option value="innen">innen (Wandseite, Gerüst rückt nach außen)</option>
+              </select>
+            </label>
           </fieldset>
           <fieldset>
             <legend id="ed-story-legend">Geschossebene</legend>
-            <label class="inline-label">Sockelhöhe (m) <input type="number" id="ed-sockel" step="0.05" min="0"></label>
+            <label class="inline-label">Starthöhe Gerüst / Sockel (m) <input type="number" id="ed-sockel" step="0.05" min="0"></label>
+            <button type="button" class="btn-secondary" id="ed-start-reset">Alle Abschnitte auf diese Starthöhe</button>
             <div class="editor3d-row">
               <span class="inline-label">Verschieben</span>
               <button type="button" class="btn-secondary ed-move" data-dx="0" data-dy="1" title="nach Norden">↑ N</button>
