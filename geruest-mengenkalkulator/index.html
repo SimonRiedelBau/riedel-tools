@@ -211,13 +211,15 @@
 
     <section class="panel" id="sections-panel">
       <h2>Fassadenabschnitte <span class="active-story-badge" id="active-story-badge-sections"></span></h2>
-      <p class="hint">Jede zusammenhängende Gerüstseite einzeln eintragen (z. B. Nord-, Ost-, Süd-, Westfassade), in der Reihenfolge des Rundgangs um das Gebäude. Aussparungsfläche ist optional und wird nur von der Fläche abgezogen (Felder/Lagen berücksichtigen sie nicht). Der Winkel ist der Richtungswechsel zur nächsten Seite (90° = rechtwinklige Ecke) und wird für den automatischen Lageplan/3D benötigt. Konsole verbreitert den Belag an dieser Seite und rückt die Außenkante des Gerüsts entsprechend nach außen.</p>
+      <p class="hint">Jede zusammenhängende Gerüstseite einzeln eintragen (z. B. Nord-, Ost-, Süd-, Westfassade), in der Reihenfolge des Rundgangs um das Gebäude. Aussparungsfläche ist optional und wird nur von der Fläche abgezogen (Felder/Lagen berücksichtigen sie nicht). Der Winkel ist der Richtungswechsel zur nächsten Seite (90° = rechtwinklige Ecke) und wird für den automatischen Lageplan/3D benötigt. Konsole verbreitert den Belag an dieser Seite und rückt die Außenkante des Gerüsts entsprechend nach außen. <strong>Start/Ende</strong> = Gerüstfuß und Oberkante in m über Gelände (Start standardmäßig = Sockelhöhe des Geschosses). Start oder Ende ändern passt die Höhe an, Höhe ändern verschiebt das Ende.</p>
       <div class="table-wrap">
         <table id="sections-table">
           <thead>
             <tr>
               <th>Bezeichnung</th>
               <th>Länge (m)</th>
+              <th title="Gerüstfuß, m über Gelände">Start (m)</th>
+              <th title="Oberkante Gerüst, m über Gelände">Ende (m)</th>
               <th>Höhe (m)</th>
               <th>Aussparung (m²)</th>
               <th>Winkel (°)</th>
@@ -413,6 +415,10 @@
 
       <h3>3D-Ansicht (schematisch, alle Geschosse gestapelt)</h3>
       <p class="hint">Ziehen = drehen, Mausrad/Pinch = zoomen.</p>
+      <label class="checkbox-label hidden" id="view3d-model-toggle-label">
+        <input type="checkbox" id="view3d-model-toggle" checked>
+        Eingelesenes 3D-Modell anzeigen (statt schematischem Gebäudekörper)
+      </label>
       <div class="view3d-wrap">
         <canvas id="view3d-canvas"></canvas>
         <p class="hint" id="view3d-status"></p>

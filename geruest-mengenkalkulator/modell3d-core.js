@@ -1241,11 +1241,20 @@ const ModelScaffold = (() => {
   }
 
   // Analyse-Ergebnis → Geschoss-Daten für die Abschnittstabelle
-  function toToolStories(result, selectedIdx) {
+  function planPoint(result, p) {
     const c = Math.cos(result.theta), s = Math.sin(result.theta);
-    const plan = (p) => ({ x: c * p.x - s * p.y, y: s * p.x + c * p.y });
+    return { x: c * p.x - s * p.y, y: s * p.x + c * p.y };
+  }
+  // Bezugspunkt (Plan-Koordinaten), auf den sich placement bezieht
+  function referencePoint(result, selectedIdx) {
     const chosen = result.stories.filter((_, i) => !selectedIdx || selectedIdx.includes(i));
-    const ref = chosen.length ? plan(chosen[0].sections[0].p0) : { x: 0, y: 0 };
+    return chosen.length ? planPoint(result, chosen[0].sections[0].p0) : { x: 0, y: 0 };
+  }
+
+  function toToolStories(result, selectedIdx) {
+    const plan = (p) => planPoint(result, p);
+    const chosen = result.stories.filter((_, i) => !selectedIdx || selectedIdx.includes(i));
+    const ref = referencePoint(result, selectedIdx);
     return chosen
       .map((st) => {
         // Lage im Plan (Startpunkt + Richtung der ersten Kante), damit der
@@ -1284,6 +1293,7 @@ const ModelScaffold = (() => {
     extents,
     analyze,
     toToolStories,
+    referencePoint,
     TriBuffer,
     DEFAULTS,
   };

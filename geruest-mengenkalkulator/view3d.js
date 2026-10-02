@@ -110,11 +110,58 @@ const View3D = (() => {
     renderer.render(scene, camera);
   }
 
+  // Eingelesenes 3D-Modell (aus modell3d.js), wird zwischengespeichert und
+  // nur neu aufgebaut, wenn ein anderes Modell übernommen wurde.
+  const modelToggle = document.getElementById("view3d-model-toggle");
+  const modelToggleLabel = document.getElementById("view3d-model-toggle-label");
+  let modelObj = null;
+  let modelSource = null;
+  let lastArgs = null;
+
+  function buildModelObject(model) {
+    const src = model.positions;
+    const n = src.length / 3;
+    const pos = new Float32Array(src.length);
+    for (let i = 0; i < n; i += 1) {
+      // Plan (x Ost, y Nord, z oben) → three.js (x, z oben, -y), relativ zum
+      // Bezugspunkt der übernommenen Geschossebenen und zur Geländehöhe
+      pos[i * 3] = src[i * 3] - model.ref.x;
+      pos[i * 3 + 1] = src[i * 3 + 2] - model.ground;
+      pos[i * 3 + 2] = -(src[i * 3 + 1] - model.ref.y);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    geo.computeVertexNormals();
+    const group = new THREE.Group();
+    group.userData.keep = true;
+    group.add(new THREE.Mesh(geo, new THREE.MeshLambertMaterial({
+      color: 0xc9ced6, side: THREE.DoubleSide, transparent: true, opacity: 0.9,
+      polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1,
+    })));
+    if (n / 3 <= 400000) {
+      const edges = new THREE.EdgesGeometry(geo, 25);
+      group.add(new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x6b7480 })));
+    }
+    return group;
+  }
+
+  function currentModel() {
+    if (typeof Model3DPlanner === "undefined" || !Model3DPlanner.getAppliedModel) return null;
+    return Model3DPlanner.getAppliedModel();
+  }
+
+  if (modelToggle) {
+    modelToggle.addEventListener("change", () => {
+      if (lastArgs) renderStories(...lastArgs);
+    });
+  }
+
   function clearScene() {
     for (let i = scene.children.length - 1; i >= 0; i -= 1) {
       const child = scene.children[i];
       if (child.isLight || child.isGridHelper) continue;
       scene.remove(child);
+      if (child.userData && child.userData.keep) continue;
       if (child.geometry) child.geometry.dispose();
       if (child.material) child.material.dispose();
     }
@@ -133,12 +180,12 @@ const View3D = (() => {
   // Maps a plan-space point {x,y} to three.js world space (x, 0, z).
   const toWorld = (p, y = 0) => new THREE.Vector3(p.x, y, -p.y);
 
-  function addPostRow(group, ringFrame, felder, heightM, color) {
+  function addPostRow(group, ringFrame, felder, heightM, color, baseY = 0) {
     for (let j = 0; j <= felder; j += 1) {
       const t = felder === 0 ? 0 : j / felder;
       const p = lerp(ringFrame.a, ringFrame.b, t);
       const post = box(0.05, heightM, 0.05, color);
-      const w = toWorld(p, heightM / 2);
+      const w = toWorld(p, baseY + heightM / 2);
       post.position.copy(w);
       group.add(post);
     }
@@ -157,7 +204,10 @@ const View3D = (() => {
   // Builds one story's scaffold as a THREE.Group at local y=0 (the caller
   // translates it up by that story's Sockelhöhe). budget is a {count} object
   // shared across stories so the overall scene stays within MAX_MESHES.
-  function buildStoryGroup(result, lagenhoehe, budget) {
+  // sockel: Sockelhöhe des Geschosses; Abschnitte mit abweichender
+  // Starthöhe (startAbs) werden innerhalb der Gruppe entsprechend versetzt.
+  // showVolume=false, wenn das echte 3D-Modell als Gebäude angezeigt wird.
+  function buildStoryGroup(result, lagenhoehe, budget, sockel = 0, showVolume = true) {
     const group = new THREE.Group();
     const geometry = result.geometry;
     const perSection = result.perSection;
@@ -166,8 +216,8 @@ const View3D = (() => {
     const baseOuterFrames = Geometry.edgeFrames(geometry.baseOuterRing, closed);
     const outerFrames = Geometry.edgeFrames(geometry.outerRing, closed);
 
-    const maxHeight = Math.max(...perSection.map((s) => s.height), 1);
-    const vol = buildingVolume(geometry.ring, closed, maxHeight);
+    const maxHeight = Math.max(...perSection.map((s) => (s.endAbs ?? sockel + s.height) - sockel), 1);
+    const vol = showVolume ? buildingVolume(geometry.ring, closed, maxHeight) : null;
     if (vol) group.add(vol);
 
     const overBudget = () => budget.count > MAX_MESHES;
@@ -179,14 +229,15 @@ const View3D = (() => {
       const konsoleFrame = outerFrames[i];
       if (!innerFrame || !outerFrame) return;
       const totalHeight = s.lagen * lagenhoehe;
+      const baseY = (s.startAbs ?? sockel) - sockel;
 
-      addPostRow(group, innerFrame, s.felder, totalHeight, 0x4a5568);
-      addPostRow(group, outerFrame, s.felder, totalHeight, 0x4a5568);
+      addPostRow(group, innerFrame, s.felder, totalHeight, 0x4a5568, baseY);
+      addPostRow(group, outerFrame, s.felder, totalHeight, 0x4a5568, baseY);
       budget.count += 2 * (s.felder + 1);
 
       for (let k = 1; k <= s.lagen; k += 1) {
         if (overBudget()) break;
-        const y = k * lagenhoehe;
+        const y = baseY + k * lagenhoehe;
         const midInner = lerp(innerFrame.a, innerFrame.b, 0.5);
         const midOuter = lerp(outerFrame.a, outerFrame.b, 0.5);
         const deckWidth = Math.hypot(midOuter.x - midInner.x, midOuter.y - midInner.y);
@@ -232,7 +283,22 @@ const View3D = (() => {
     if (!available) return;
     if (!renderer) initScene();
     clearScene();
+    lastArgs = [storyResults, globalSettings];
     if (statusEl) statusEl.textContent = "";
+
+    // passt die Geschoss-Lage zum übernommenen Modell? (nur dann anzeigen)
+    const model = currentModel();
+    const placed = storyResults.some((sr) => sr.story.placement);
+    if (modelToggleLabel) modelToggleLabel.classList.toggle("hidden", !(model && placed));
+    const showModel = Boolean(model && placed && (!modelToggle || modelToggle.checked));
+    if (showModel) {
+      if (modelSource !== model) {
+        if (modelObj) modelObj.children.forEach((c) => { c.geometry.dispose(); c.material.dispose(); });
+        modelObj = buildModelObject(model);
+        modelSource = model;
+      }
+      scene.add(modelObj);
+    }
 
     const valid = storyResults.filter((sr) => sr.result.geometry && sr.result.geometry.ring.length >= 2);
     if (!valid.length) {
@@ -249,12 +315,12 @@ const View3D = (() => {
 
     valid.forEach((sr) => {
       const sockel = sr.sockelhoehe || 0;
-      const group = buildStoryGroup(sr.result, globalSettings.lagenhoehe, budget);
+      const group = buildStoryGroup(sr.result, globalSettings.lagenhoehe, budget, sockel, !showModel);
       group.position.y = sockel;
       scene.add(group);
       allPoints.push(...sr.result.geometry.outerRing, ...sr.result.geometry.ring);
-      const storyMaxHeight = Math.max(...sr.result.perSection.map((s) => s.height), 1);
-      maxTop = Math.max(maxTop, sockel + storyMaxHeight);
+      const storyTop = Math.max(...sr.result.perSection.map((s) => s.endAbs ?? sockel + s.height), sockel + 1);
+      maxTop = Math.max(maxTop, storyTop);
     });
 
     const b = Geometry.bounds([allPoints]);
