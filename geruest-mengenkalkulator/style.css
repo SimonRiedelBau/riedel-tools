@@ -476,6 +476,86 @@ td input[type="text"], td input[type="number"] {
   margin-top: 12px;
 }
 
+/* Bearbeitung direkt in der 3D-Ansicht */
+.view3d-drag-label {
+  position: absolute;
+  pointer-events: none;
+  background: var(--rb-ink);
+  color: var(--rb-bg);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 3px 7px;
+  white-space: nowrap;
+}
+
+.editor3d {
+  border: 1px solid var(--border);
+  border-top: 3px solid #1e5bd8;
+  padding: 12px 14px;
+  margin-top: 10px;
+}
+
+.editor3d-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.editor3d-head strong {
+  flex: 1;
+}
+
+.editor3d-nav {
+  padding: 4px 10px;
+}
+
+.editor3d-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 12px;
+}
+
+.editor3d fieldset {
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+}
+
+.editor3d legend {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.editor3d .inline-label {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.editor3d input[type="number"] {
+  width: 96px;
+  padding: 5px 8px;
+}
+
+.editor3d select {
+  padding: 4px 6px;
+}
+
+.editor3d-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.editor3d-row .btn-secondary {
+  padding: 4px 10px;
+}
+
 .plan2d-wrap {
   border: 1px solid var(--border);
   border-radius: 0;
@@ -518,7 +598,7 @@ td input[type="text"], td input[type="number"] {
 }
 
 @media print {
-  .actions-panel, #model3d-panel, #stories-panel, #settings-panel, #sections-panel, #plan-panel, .view3d-wrap, .disclaimer {
+  .actions-panel, .editor3d, #model3d-panel, #stories-panel, #settings-panel, #sections-panel, #plan-panel, .view3d-wrap, .disclaimer {
     display: none !important;
   }
   body {

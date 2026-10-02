@@ -414,7 +414,7 @@
       </div>
 
       <h3>3D-Ansicht (schematisch, alle Geschosse gestapelt)</h3>
-      <p class="hint">Ziehen = drehen, Mausrad/Pinch = zoomen.</p>
+      <p class="hint">Ziehen = drehen, Mausrad/Pinch = zoomen. <strong>Bearbeiten direkt in 3D:</strong> Gerüstseite anklicken = auswählen (blau), dann grüne Kugel (Start) bzw. blaue Kugel (Ende) hoch/runter ziehen oder unten Werte, Lage und Drehung anpassen. Tabelle und Mengen werden sofort mitgeführt.</p>
       <label class="checkbox-label hidden" id="view3d-model-toggle-label">
         <input type="checkbox" id="view3d-model-toggle" checked>
         Eingelesenes 3D-Modell anzeigen (statt schematischem Gebäudekörper)
@@ -422,6 +422,57 @@
       <div class="view3d-wrap">
         <canvas id="view3d-canvas"></canvas>
         <p class="hint" id="view3d-status"></p>
+      </div>
+
+      <div class="editor3d hidden" id="editor3d">
+        <div class="editor3d-head">
+          <button type="button" class="btn-secondary editor3d-nav" id="ed-prev" title="Vorheriger Abschnitt">◀</button>
+          <strong id="ed-title"></strong>
+          <button type="button" class="btn-secondary editor3d-nav" id="ed-next" title="Nächster Abschnitt">▶</button>
+          <button type="button" class="row-remove-btn" id="ed-close" title="Auswahl aufheben">✕</button>
+        </div>
+        <div class="editor3d-cols">
+          <fieldset>
+            <legend>Abschnitt</legend>
+            <label class="inline-label">Länge (m) <input type="number" id="ed-length" step="0.01" min="0.1"></label>
+            <label class="inline-label">Start (m ü. Gel.) <input type="number" id="ed-start" step="0.05" min="0"></label>
+            <label class="inline-label">Ende (m ü. Gel.) <input type="number" id="ed-end" step="0.05" min="0"></label>
+            <label class="inline-label">Höhe (m) <input type="number" id="ed-height" step="0.05" min="0.1"></label>
+            <label class="inline-label">Winkel zur nächsten Seite (°) <input type="number" id="ed-angle" step="1"></label>
+            <label class="inline-label"><input type="checkbox" id="ed-konsole"> Konsole, Breite (m) <input type="number" id="ed-konsolenbreite" step="0.05" min="0"></label>
+          </fieldset>
+          <fieldset>
+            <legend id="ed-story-legend">Geschossebene</legend>
+            <label class="inline-label">Sockelhöhe (m) <input type="number" id="ed-sockel" step="0.05" min="0"></label>
+            <div class="editor3d-row">
+              <span class="inline-label">Verschieben</span>
+              <button type="button" class="btn-secondary ed-move" data-dx="0" data-dy="1" title="nach Norden">↑ N</button>
+              <button type="button" class="btn-secondary ed-move" data-dx="0" data-dy="-1" title="nach Süden">↓ S</button>
+              <button type="button" class="btn-secondary ed-move" data-dx="-1" data-dy="0" title="nach Westen">← W</button>
+              <button type="button" class="btn-secondary ed-move" data-dx="1" data-dy="0" title="nach Osten">→ O</button>
+              <select id="ed-move-step" title="Schrittweite">
+                <option value="0.05">5 cm</option>
+                <option value="0.1" selected>10 cm</option>
+                <option value="0.5">50 cm</option>
+                <option value="1">1 m</option>
+              </select>
+            </div>
+            <div class="editor3d-row">
+              <span class="inline-label">Drehen</span>
+              <button type="button" class="btn-secondary ed-rot" data-dir="1" title="gegen den Uhrzeigersinn">⟲</button>
+              <button type="button" class="btn-secondary ed-rot" data-dir="-1" title="im Uhrzeigersinn">⟳</button>
+              <select id="ed-rot-step" title="Drehschritt">
+                <option value="0.5">0,5°</option>
+                <option value="1" selected>1°</option>
+                <option value="5">5°</option>
+                <option value="15">15°</option>
+                <option value="90">90°</option>
+              </select>
+            </div>
+            <label class="inline-label">Lage X / Y (m) <input type="number" id="ed-x" step="0.05"> <input type="number" id="ed-y" step="0.05"></label>
+            <label class="inline-label">Richtung erste Seite (°) <input type="number" id="ed-heading" step="0.5"></label>
+          </fieldset>
+        </div>
       </div>
 
     </section>
@@ -450,5 +501,6 @@
 <script src="script.js"></script>
 <script src="modell3d-core.js"></script>
 <script src="modell3d.js"></script>
+<script src="editor3d.js"></script>
 </body>
 </html>

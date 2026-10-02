@@ -46,6 +46,17 @@ Ganz oben im Tool: ein 3D-Gebäudemodell laden, das Gerüst wird automatisch gep
 
 **Grenzen:** Der Vorschlag ist eine Auswertung der Modellgeometrie auf einem Raster (Standard 10 cm) – Längen sind auf wenige Zentimeter genau, aber kein Aufmaß. Sehr unsaubere Modelle (z. B. Gelände als Teil des Gebäudes, offene Wandflächen) können zu falschen Umrissen führen; die Vorschau zeigt das sofort.
 
+## Bearbeiten direkt in der 3D-Ansicht
+
+Statt zwischen Tabelle und 3D-Ansicht hin- und herzuspringen, lässt sich das Gerüst direkt im 3D-Bild anpassen:
+
+- **Gerüstseite anklicken** → der Abschnitt wird blau markiert, darunter erscheint ein Bearbeitungsfeld (◀ ▶ = vorheriger/nächster Abschnitt, ✕ = Auswahl aufheben).
+- **Höhe ziehen:** grüne Kugel = Start (Gerüstfuß), blaue Kugel = Ende (Oberkante) hoch/runter ziehen, in 5-cm-Schritten mit Live-Anzeige.
+- **Abschnitt:** Länge, Start, Ende, Höhe, Winkel zur nächsten Seite, Konsole/Konsolenbreite.
+- **Geschossebene:** Sockelhöhe, Verschieben nach N/S/W/O (Schritt 5 cm bis 1 m), Drehen um den Mittelpunkt (0,5° bis 90°), Lage X/Y und Richtung als Zahl.
+
+Jede Änderung wird sofort in die Abschnittstabelle übernommen, gespeichert und neu berechnet (Mengen, Lageplan, 3D); die Kamera bleibt dabei stehen. Verschieben/Drehen bewegt nur das Gerüst – das eingelesene 3D-Modell bleibt fest, so lässt sich das Gerüst passgenau ins Modell setzen.
+
 ## Geschossebenen
 
 Für Gebäude, bei denen nicht jeder Bauabschnitt denselben Grundriss hat (Staffelgeschoss, Rücksprung, angebauter niedrigerer Trakt, …): jedes Geschoss hat seinen eigenen, unabhängigen Grundriss (eigene Fassadenabschnitte-Tabelle, eigene Rundgang-Einstellungen). Alle Geschosse teilen sich dieselben globalen Einstellungen (Lagenhöhe, Gerüstbreite, Raster, …).
