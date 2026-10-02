@@ -553,6 +553,15 @@ td input[type="text"], td input[type="number"] {
   padding: 5px 8px;
 }
 
+.editor3d input[type="text"] {
+  width: 180px;
+  padding: 5px 8px;
+}
+
+.plan2d-side-arrow:hover path {
+  opacity: 0.6;
+}
+
 .editor3d select {
   padding: 4px 6px;
 }

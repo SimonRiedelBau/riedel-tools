@@ -1299,7 +1299,8 @@ const ModelScaffold = (() => {
         const suffix = j > i ? String.fromCharCode(97 + k - i) : "";
         x.edgeNo = no;
         x.stepped = j > i;
-        x.name = `${no}${suffix} ${dir}`;
+        // selbst vergebene Bezeichnungen bleiben erhalten
+        if (!x.customName) x.name = `${no}${suffix} ${dir}`;
       }
       i = j + 1;
     }
@@ -1347,6 +1348,7 @@ const ModelScaffold = (() => {
           konsole: Boolean(s.konsole),
           konsolenbreite: s.konsolenbreite !== undefined ? s.konsolenbreite : 0.3,
           konsoleSeite: s.konsoleSeite === "innen" ? "innen" : "aussen",
+          flip: Boolean(s.flip),
         })),
       }));
   }

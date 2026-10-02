@@ -20,6 +20,9 @@ const Editor3D = (() => {
     konsole: $("ed-konsole"),
     konsolenbreite: $("ed-konsolenbreite"),
     konsoleSeite: $("ed-konsole-seite"),
+    name: $("ed-name"),
+    storyName: $("ed-story-name"),
+    flip: $("ed-flip"),
     sockel: $("ed-sockel"),
     x: $("ed-x"),
     y: $("ed-y"),
@@ -58,6 +61,9 @@ const Editor3D = (() => {
     fields.konsole.checked = sec.konsole;
     fields.konsolenbreite.value = r2(sec.konsolenbreite || 0.3);
     fields.konsolenbreite.disabled = !sec.konsole;
+    fields.name.value = sec.name;
+    fields.storyName.value = sr.story.name;
+    fields.flip.value = sec.flip ? "1" : "";
     fields.konsoleSeite.value = sec.konsoleSeite === "innen" ? "innen" : "aussen";
     fields.konsoleSeite.disabled = !sec.konsole;
     fields.sockel.value = r2(sr.sockelhoehe || 0);
@@ -87,6 +93,9 @@ const Editor3D = (() => {
   onChange(fields.konsolenbreite, (v) => section({ konsolenbreite: v }));
   fields.konsole.addEventListener("change", () => section({ konsole: fields.konsole.checked }));
   fields.konsoleSeite.addEventListener("change", () => section({ konsoleSeite: fields.konsoleSeite.value }));
+  fields.flip.addEventListener("change", () => section({ flip: fields.flip.value === "1" }));
+  fields.name.addEventListener("change", () => section({ name: fields.name.value }));
+  fields.storyName.addEventListener("change", () => story({ name: fields.storyName.value }));
   $("ed-start-reset").addEventListener("click", () => {
     const c = current();
     if (c) ScaffoldData.resetStarts(c.sel.storyId);

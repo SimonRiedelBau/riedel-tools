@@ -28,7 +28,7 @@ let stories = [];
 let activeStoryIndex = 0;
 
 function defaultSection(name) {
-  return { name: name || "Fassade 1", length: "", start: "", height: "", opening: 0, angle: 90, konsole: false, konsolenbreite: 0.3, konsoleSeite: "aussen" };
+  return { name: name || "Fassade 1", length: "", start: "", height: "", opening: 0, angle: 90, konsole: false, konsolenbreite: 0.3, konsoleSeite: "aussen", flip: false };
 }
 
 function createStory(name) {
@@ -65,6 +65,12 @@ function addSectionRow(data) {
     <td><input type="number" class="s-height" min="0" step="0.01" value="${data?.height ?? ""}"></td>
     <td><input type="number" class="s-opening" min="0" step="0.01" value="${data?.opening ?? 0}"></td>
     <td><input type="number" class="s-angle" step="1" value="${data?.angle ?? 90}"></td>
+    <td>
+      <select class="s-flip" title="Auf welcher Seite der Linie das Gerüst steht">
+        <option value="" ${data?.flip ? "" : "selected"}>Standard (außen)</option>
+        <option value="1" ${data?.flip ? "selected" : ""}>Gegenseite</option>
+      </select>
+    </td>
     <td><input type="checkbox" class="s-konsole" ${data?.konsole ? "checked" : ""}></td>
     <td><input type="number" class="s-konsolenbreite" min="0" step="0.01" value="${data?.konsolenbreite ?? 0.30}" ${data?.konsole ? "" : "disabled"}></td>
     <td>
@@ -145,6 +151,7 @@ function readSectionsFromDom() {
     height: tr.querySelector(".s-height").value,
     opening: tr.querySelector(".s-opening").value,
     angle: tr.querySelector(".s-angle").value,
+    flip: tr.querySelector(".s-flip").value === "1",
     konsole: tr.querySelector(".s-konsole").checked,
     konsolenbreite: tr.querySelector(".s-konsolenbreite").value,
     konsoleSeite: tr.querySelector(".s-konsole-seite").value,
@@ -322,6 +329,7 @@ function normalizeSections(rawSections) {
       konsole: Boolean(s.konsole),
       konsolenbreite: parseFloat(s.konsolenbreite) || 0,
       konsoleSeite: s.konsoleSeite === "innen" ? "innen" : "aussen",
+      flip: Boolean(s.flip),
     }))
     .filter((s) => s.length > 0 && s.height > 0)
     .map((s) => ({ ...s, angle: isNaN(s.angle) ? 90 : s.angle }));
@@ -447,6 +455,10 @@ function calculateStory(rawSections, cornersConnected, cornersClosed, globalSett
     const outerDist = perSection.map((s, i) => baseOuterDist[i] + (aussen(s) ? s.konsolenbreite : 0));
     // Kante der Konsole, die nicht am Gerüst liegt (innen: wandseitig, außen: Außenkante)
     const consoleDist = perSection.map((s, i) => (innen(s) ? wandabstand : outerDist[i]));
+    // Gerüst auf der Gegenseite der Linie: alle Abstände dieses Abschnitts spiegeln
+    [wandDist, baseOuterDist, outerDist, consoleDist].forEach((arr) => {
+      perSection.forEach((s, i) => { if (s.flip) arr[i] = -arr[i]; });
+    });
     geometry = {
       ring: walk.ring,
       closed: cornersClosed,
@@ -647,7 +659,7 @@ function renderResults(calcResult) {
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
-function renderPlan2D(result) {
+function renderPlan2D(result, story) {
   const svg = document.getElementById("plan2d-svg");
   const note = document.getElementById("plan2d-note");
   while (svg.firstChild) svg.removeChild(svg.firstChild);
@@ -749,26 +761,77 @@ function renderPlan2D(result) {
   barText.textContent = `${barLenM} m`;
   svg.appendChild(barText);
 
+  // Pfeil je Seite: zeigt, auf welcher Seite der Linie das Gerüst steht.
+  // Klick auf den Pfeil = Gerüst auf die andere Seite der Linie setzen.
+  // Richtung = Außennormale der Kante (wie beim Versatz in offsetPolygonEdges),
+  // bei Gegenseite umgedreht
+  const frames = Geometry.edgeFrames(geometry.ring, geometry.closed);
+  for (let i = 0; i < edgeCount; i += 1) {
+    const s = result.perSection[i];
+    const fr = frames[i];
+    if (!s || !fr) continue;
+    const mid = { x: (fr.a.x + fr.b.x) / 2, y: (fr.a.y + fr.b.y) / 2 };
+    const dx = fr.normal.x * (s.flip ? -1 : 1), dy = fr.normal.y * (s.flip ? -1 : 1);
+    const L = Math.max(width, height) / 30; // Pfeillänge in Plan-Metern
+    const tip = { x: mid.x + dx * L, y: mid.y + dy * L };
+    const base = { x: mid.x + dx * L * 0.35, y: mid.y + dy * L * 0.35 };
+    const wing = L * 0.28;
+    const p1 = toSvg(tip), p2 = toSvg({ x: base.x - dy * wing, y: base.y + dx * wing }), p3 = toSvg({ x: base.x + dy * wing, y: base.y - dx * wing });
+    const m0 = toSvg(mid);
+    const g = document.createElementNS(SVG_NS, "g");
+    g.setAttribute("class", "plan2d-side-arrow");
+    const title = document.createElementNS(SVG_NS, "title");
+    title.textContent = `${s.name}: Gerüst ${s.flip ? "auf der Gegenseite" : "außen"} – klicken zum Umschalten`;
+    g.appendChild(title);
+    const stem = document.createElementNS(SVG_NS, "path");
+    stem.setAttribute("d", `M${m0.x},${m0.y} L${p1.x},${p1.y}`);
+    stem.setAttribute("stroke", "#e07a00");
+    stem.setAttribute("stroke-width", sw * 1.6);
+    const head = document.createElementNS(SVG_NS, "path");
+    head.setAttribute("d", `M${p1.x},${p1.y} L${p2.x},${p2.y} L${p3.x},${p3.y} Z`);
+    head.setAttribute("fill", "#e07a00");
+    // größere unsichtbare Klickfläche
+    const hit = document.createElementNS(SVG_NS, "circle");
+    const hc = toSvg({ x: mid.x + dx * L * 0.6, y: mid.y + dy * L * 0.6 });
+    hit.setAttribute("cx", hc.x);
+    hit.setAttribute("cy", hc.y);
+    hit.setAttribute("r", L * 0.6);
+    hit.setAttribute("fill", "transparent");
+    g.append(stem, head, hit);
+    if (story && typeof ScaffoldData !== "undefined") {
+      g.style.cursor = "pointer";
+      g.addEventListener("click", () => ScaffoldData.updateSection(story.id, s.srcIndex ?? i, { flip: !s.flip }));
+    }
+    svg.appendChild(g);
+  }
+
   const closingNote =
     geometry.closingError != null && geometry.closingError > 0.05
       ? ` Hinweis: Schlussfehler des Rundgangs ${fmt(geometry.closingError, 2)} m – Längen/Winkel prüfen.`
       : "";
-  note.textContent = `Schwarz = Gebäudelinie, grau gestrichelt = Ständerachse, blau = Gerüst-Außenkante${
+  note.textContent = `Orange Pfeile = Seite, auf der das Gerüst steht (anklicken = auf die andere Seite der Linie setzen). Schwarz = Gebäudelinie, grau gestrichelt = Ständerachse, blau = Gerüst-Außenkante${
     hasKonsole ? ", rot gestrichelt = Konsolenkante (außen bzw. bei Innenkonsole wandseitig)" : ""
   }.${closingNote}`;
 }
 
+let plan2dStoryId = null; // im Lageplan gezeigtes Geschoss (bleibt beim Neuberechnen)
+
 function renderPlan2DStorySelect(calcResult) {
   const select = document.getElementById("plan2d-story-select");
   select.innerHTML = calcResult.storyResults.map((sr, i) => `<option value="${i}">${escapeHtml(sr.story.name)}</option>`).join("");
-  select.value = String(Math.min(activeStoryIndex, calcResult.storyResults.length - 1));
-  renderPlan2D(calcResult.storyResults[Number(select.value)].result);
+  let idx = calcResult.storyResults.findIndex((sr) => sr.story.id === plan2dStoryId);
+  if (idx < 0) idx = Math.min(activeStoryIndex, calcResult.storyResults.length - 1);
+  select.value = String(idx);
+  const sr = calcResult.storyResults[idx];
+  plan2dStoryId = sr.story.id;
+  renderPlan2D(sr.result, sr.story);
 }
 
 document.getElementById("plan2d-story-select").addEventListener("change", (e) => {
   if (!lastCalcResult) return;
-  const idx = Number(e.target.value);
-  renderPlan2D(lastCalcResult.storyResults[idx]?.result);
+  const sr = lastCalcResult.storyResults[Number(e.target.value)];
+  plan2dStoryId = sr?.story.id ?? null;
+  renderPlan2D(sr?.result, sr?.story);
 });
 
 // ---------------------------------------------------------------------
@@ -820,6 +883,8 @@ const ScaffoldData = {
     if (patch.konsole !== undefined) sec.konsole = Boolean(patch.konsole);
     if (patch.konsolenbreite !== undefined) sec.konsolenbreite = String(round2(Math.max(0, patch.konsolenbreite)));
     if (patch.konsoleSeite !== undefined) sec.konsoleSeite = patch.konsoleSeite === "innen" ? "innen" : "aussen";
+    if (patch.flip !== undefined) sec.flip = Boolean(patch.flip);
+    if (patch.name !== undefined && String(patch.name).trim()) sec.name = String(patch.name).trim();
     this.commit(story);
   },
   // patch: { sockelhoehe, x, y, heading } – Lage/Drehung im Lageplan
@@ -830,6 +895,10 @@ const ScaffoldData = {
     if (patch.sockelhoehe !== undefined) {
       const next = Math.max(0, round2(patch.sockelhoehe));
       story.sockelhoehe = next;
+    }
+    if (patch.name !== undefined && String(patch.name).trim()) {
+      story.name = String(patch.name).trim();
+      renderStoryTabs();
     }
     if (patch.x !== undefined || patch.y !== undefined || patch.heading !== undefined) {
       const pl = story.placement || { x: 0, y: 0, heading: 0 };

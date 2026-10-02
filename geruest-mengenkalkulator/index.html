@@ -111,7 +111,7 @@
         <h3>Vorschau (Draufsicht, Norden oben)</h3>
         <p class="hint">Grau = Gebäude (dunkler = höher). Farbige Linien = geplante Gerüstseiten, Nummern = Abschnitte.
           <strong>Hier schon anpassen:</strong> Ecke ziehen = Lage ändern (rastet rechtwinklig ein, Alt = frei) ·
-          Linie anklicken = Abschnitt bearbeiten · Doppelklick auf Linie = Ecke einfügen · Rechtsklick auf Ecke = entfernen ·
+          Orangen Pfeil anklicken = Gerüst auf die andere Seite der Linie · Linie anklicken = Abschnitt bearbeiten (auch Bezeichnung) · Doppelklick auf Linie = Ecke einfügen · Rechtsklick auf Ecke = entfernen ·
           Mausrad = zoomen, leere Fläche ziehen = verschieben.</p>
         <div class="m3d-toolbar">
           <button type="button" id="m3d-fit-btn" class="btn-secondary">Einpassen</button>
@@ -128,6 +128,13 @@
           <div class="editor3d-cols">
             <fieldset class="m3d-ed-sec">
               <legend>Abschnitt</legend>
+              <label class="inline-label">Bezeichnung <input type="text" id="m3d-ed-name"></label>
+              <label class="inline-label">Gerüstseite
+                <select id="m3d-ed-flip">
+                  <option value="">Standard (außen)</option>
+                  <option value="1">Gegenseite der Linie</option>
+                </select>
+              </label>
               <label class="inline-label">Länge (m) <input type="number" id="m3d-ed-length" step="0.01" min="0.1"></label>
               <label class="inline-label">Start (m ü. Gel.) <input type="number" id="m3d-ed-start" step="0.05" min="0"></label>
               <label class="inline-label">Ende (m ü. Gel.) <input type="number" id="m3d-ed-end" step="0.05" min="0"></label>
@@ -153,6 +160,7 @@
             </fieldset>
             <fieldset>
               <legend>Geschossebene</legend>
+              <label class="inline-label">Bezeichnung <input type="text" id="m3d-ed-story-name"></label>
               <label class="inline-label">Starthöhe Gerüst / Sockel (m) <input type="number" id="m3d-ed-sockel" step="0.05" min="0"></label>
               <button type="button" class="btn-secondary" id="m3d-ed-start-reset">Alle Abschnitte auf diese Starthöhe</button>
               <p class="hint">Weglassen der ganzen Ebene: Häkchen „Übernehmen“ in der Tabelle unten entfernen.</p>
@@ -274,6 +282,7 @@
               <th>Höhe (m)</th>
               <th>Aussparung (m²)</th>
               <th>Winkel (°)</th>
+              <th title="Auf welcher Seite der Linie das Gerüst steht (im Lageplan per Pfeil umschaltbar)">Gerüstseite</th>
               <th>Konsole</th>
               <th>Konsolenbreite (m)</th>
               <th title="außen = Belag nach außen; innen = Konsole zur Wand, Gerüst rückt nach außen">Konsolenseite</th>
@@ -486,6 +495,13 @@
         <div class="editor3d-cols">
           <fieldset>
             <legend>Abschnitt</legend>
+            <label class="inline-label">Bezeichnung <input type="text" id="ed-name"></label>
+            <label class="inline-label">Gerüstseite
+              <select id="ed-flip">
+                <option value="">Standard (außen)</option>
+                <option value="1">Gegenseite der Linie</option>
+              </select>
+            </label>
             <label class="inline-label">Länge (m) <input type="number" id="ed-length" step="0.01" min="0.1"></label>
             <label class="inline-label">Start (m ü. Gel.) <input type="number" id="ed-start" step="0.05" min="0"></label>
             <label class="inline-label">Ende (m ü. Gel.) <input type="number" id="ed-end" step="0.05" min="0"></label>
@@ -501,6 +517,7 @@
           </fieldset>
           <fieldset>
             <legend id="ed-story-legend">Geschossebene</legend>
+            <label class="inline-label">Bezeichnung <input type="text" id="ed-story-name"></label>
             <label class="inline-label">Starthöhe Gerüst / Sockel (m) <input type="number" id="ed-sockel" step="0.05" min="0"></label>
             <button type="button" class="btn-secondary" id="ed-start-reset">Alle Abschnitte auf diese Starthöhe</button>
             <div class="editor3d-row">
