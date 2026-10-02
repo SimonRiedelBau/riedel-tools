@@ -44,6 +44,12 @@ Ganz oben im Tool: ein 3D-Gebäudemodell laden, das Gerüst wird automatisch gep
 
 **Ablauf:** Datei wählen → Vorschau (Draufsicht, Norden oben) und Liste der erkannten Geschossebenen prüfen, ggf. einzelne abwählen → „Übernehmen und berechnen“. Danach stehen alle Geschossebenen und Abschnitte ganz normal in den Tabellen und können weiter bearbeitet werden. Die Geschossebenen behalten ihre Lage zueinander, so dass Lageplan und 3D-Ansicht das Gebäude richtig zusammengesetzt zeigen. In der 3D-Ansicht wird das eingelesene Modell selbst mit dem schematischen Gerüst drumherum angezeigt (per Häkchen ausblendbar). Das Modell wird im Browser gespeichert (IndexedDB) und erscheint auch nach dem Neuladen der Seite wieder, sobald „Berechnen“ geklickt wird.
 
+**Vorschau bearbeiten (vor dem Übernehmen):** Die erkannten Gerüstlinien lassen sich direkt in der Draufsicht korrigieren:
+- Ecke ziehen → Lage/Länge der angrenzenden Seiten ändern (rastet an den Nachbarecken rechtwinklig ein, mit gedrückter Alt-Taste frei, 1-cm-Raster).
+- Linie anklicken → Abschnitt bearbeiten: Länge, Start, Ende, Gerüsthöhe, „In der Mitte teilen“, „Abschnitt entfernen“ (ein Umlauf wird dann zum offenen Zug, eine Lücke mitten im Zug teilt die Geschossebene in zwei).
+- Doppelklick auf eine Linie → Ecke einfügen; Rechtsklick auf eine Ecke (oder Ecke anklicken → „Ecke entfernen“) → zwei Seiten zusammenfassen.
+- Sockelhöhe der Geschossebene ändern; Mausrad = zoomen, leere Fläche ziehen = verschieben, „Einpassen“, „Rückgängig“.
+
 **Grenzen:** Der Vorschlag ist eine Auswertung der Modellgeometrie auf einem Raster (Standard 10 cm) – Längen sind auf wenige Zentimeter genau, aber kein Aufmaß. Sehr unsaubere Modelle (z. B. Gelände als Teil des Gebäudes, offene Wandflächen) können zu falschen Umrissen führen; die Vorschau zeigt das sofort.
 
 ## Bearbeiten direkt in der 3D-Ansicht

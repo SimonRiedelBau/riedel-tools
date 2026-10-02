@@ -448,6 +448,18 @@ td input[type="text"], td input[type="number"] {
 #m3d-canvas {
   display: block;
   max-width: 100%;
+  touch-action: none;
+  cursor: grab;
+}
+
+.m3d-toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.m3d-toolbar .btn-secondary {
+  padding: 6px 12px;
 }
 
 .m3d-notes {
