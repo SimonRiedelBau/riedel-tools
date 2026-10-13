@@ -38,6 +38,11 @@ h1{font-size:1.25rem;line-height:1.2;margin:0;font-weight:700}
 .ctrl{display:grid;grid-template-columns:1fr auto;gap:6px 10px;align-items:center;margin-bottom:12px;font-size:.9rem}
 .ctrl label{font-weight:500}
 .ctrl .hint{grid-column:1/-1;color:var(--muted);font-size:.78rem;margin-top:-2px}
+input[type=text]{width:170px;font:inherit;padding:5px 7px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+.edit .row label.rn{font-size:.95rem}
+.dragnote{font-size:.78rem;color:var(--muted);margin:2px 0 6px}
+.drawbar{display:flex;margin:-6px 0 16px}
+.drawbar button{flex:1}
 input[type=number]{width:92px;font:inherit;padding:5px 7px;border:1px solid var(--line);background:var(--panel);color:var(--ink);text-align:right;font-variant-numeric:tabular-nums}
 .ctrl input[type=range]{grid-column:1/-1;width:100%;accent-color:var(--ink)}
 .out{font-variant-numeric:tabular-nums;color:var(--muted)}
@@ -97,6 +102,7 @@ tfoot td{font-weight:600;border-bottom:none;border-top:2px solid var(--ink)}
     </div>
 
     <div class="edit" id="edit"></div>
+    <div class="drawbar"><button id="bDraw">+ Fläche einzeichnen</button></div>
 
     <div class="segl">Darstellung</div>
     <div class="seg" id="segMode">
@@ -153,7 +159,7 @@ tfoot td{font-weight:600;border-bottom:none;border-top:2px solid var(--ink)}
       <tbody id="tb"></tbody>
       <tfoot><tr><td>Summe</td><td id="sA"></td><td></td><td id="sV"></td></tr></tfoot>
     </table>
-    <p class="note">Ein zusammenhängendes Geländemodell: An jedem Punkt gilt die tiefste Höhe aus Sohle oder 45°-Böschung (1:1) eines Bereichs. Wo sich Böschungen schneiden, entstehen Grate, wo eine Böschung auf eine höhere Sohle trifft, die innere Böschungsoberkante. „Nur Baugrubenrand“ setzt innen senkrechte Wände an (nach DIN 4124 bis 1,25 m Tiefe ohne Verbau zulässig). Geänderte Höhen werden in diesem Browser gespeichert. Die Geländeoberkante steht nicht im Plan, bitte mit dem Bestandsaufmaß abgleichen. Arbeitsräume und Rampen sind nicht enthalten.</p>
+    <p class="note">Ein zusammenhängendes Geländemodell: An jedem Punkt gilt die tiefste Höhe aus Sohle oder 45°-Böschung (1:1) eines Bereichs. Wo sich Böschungen schneiden, entstehen Grate, wo eine Böschung auf eine höhere Sohle trifft, die innere Böschungsoberkante. „Nur Baugrubenrand“ setzt innen senkrechte Wände an (nach DIN 4124 bis 1,25 m Tiefe ohne Verbau zulässig). Eigene Flächen (Polygon oder Rechteck, fängt vorhandene Ecken) zählen wie Planbereiche: Liegen sie flacher als ein Planbereich, gilt dort weiter die tiefere Sohle. Geänderte Höhen und eigene Flächen werden in diesem Browser gespeichert. Die Geländeoberkante steht nicht im Plan, bitte mit dem Bestandsaufmaß abgleichen. Arbeitsräume und Rampen sind nicht enthalten.</p>
   </aside>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
@@ -173,18 +179,32 @@ const isDark=()=>css('--panel')<'#8';
 
 // ---------- regions (editable areas) ----------
 let edits={};try{edits=JSON.parse(localStorage.getItem(STORE)||'{}')||{}}catch(e){edits={}}
+// own areas drawn in the tool: [{id:'u1',n,uk,c,r:[[[x,y],…]]}]
+const USTORE=STORE+'-flaechen';
+let custom=[];try{custom=JSON.parse(localStorage.getItem(USTORE)||'[]')||[]}catch(e){custom=[]}
+if(!Array.isArray(custom))custom=[];
+const UCOL=['#2f6fd6','#8a3ffc','#00a3a3','#d6336c','#5c940d','#f08c00','#1098ad','#ae3ec9'];
 const AX=Object.entries(D.axX),AY=Object.entries(D.axY);
 function nearAx(arr,v){let b=arr[0];for(const a of arr)if(Math.abs(a[1]-v)<Math.abs(b[1]-v))b=a;const o=v-b[1];return b[0]+(Math.abs(o)<0.6?'':(o>0?'+':'−')+fmt(Math.abs(o),1))}
-const REG=D.regions.map((r,i)=>{
+function polyArea(ring){let a=0;for(let k=0;k<ring.length;k++){const p=ring[k],q=ring[(k+1)%ring.length];a+=p[0]*q[1]-q[0]*p[1]}return a/2}
+function makeReg(r,cu){
   let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9,A=0,cx=0,cy=0;
   r.r.forEach((ring,ri)=>{let a=0,sx=0,sy=0;for(let k=0;k<ring.length;k++){const p=ring[k],q=ring[(k+1)%ring.length];
     x0=Math.min(x0,p[0]);y0=Math.min(y0,p[1]);x1=Math.max(x1,p[0]);y1=Math.max(y1,p[1]);const c=p[0]*q[1]-q[0]*p[1];a+=c;sx+=(p[0]+q[0])*c;sy+=(p[1]+q[1])*c}
     a/=2;if(ri===0){A+=Math.abs(a);cx=sx/(6*a);cy=sy/(6*a)}else A-=Math.abs(a)});
   const col=new THREE.Color(r.c).lerp(new THREE.Color('#ffffff'),0.18);
-  return {i,id:r.id,uk0:r.uk,uk:edits[r.id]!=null?edits[r.id]:r.uk,name:r.n,rings:r.r,bb:[x0,y0,x1,y1],area:A,cx,cy,col,hex:r.c,
+  return {i:0,id:r.id,custom:cu,src:r,uk0:r.uk,uk:!cu&&edits[r.id]!=null?edits[r.id]:r.uk,name:r.n,rings:r.r,bb:[x0,y0,x1,y1],area:A,cx,cy,col,hex:r.c,
           ax:'Achse '+nearAx(AX,cx)+' / '+nearAx(AY,cy)};
-});
-const EDG=[];REG.forEach(R=>R.rings.forEach(ring=>{for(let k=0;k<ring.length;k++){const p=ring[k],q=ring[(k+1)%ring.length];EDG.push({r:R.i,ax:p[0],ay:p[1],bx:q[0],by:q[1]})}}));
+}
+let REG=[],EDG=[];
+function rebuildReg(){
+  REG=[...D.regions.map(r=>makeReg(r,false)),...custom.map(r=>makeReg(r,true))];REG.forEach((R,i)=>R.i=i);
+  EDG=[];REG.forEach(R=>R.rings.forEach(ring=>{for(let k=0;k<ring.length;k++){const p=ring[k],q=ring[(k+1)%ring.length];EDG.push({r:R.i,ax:p[0],ay:p[1],bx:q[0],by:q[1]})}}));
+}
+rebuildReg();
+function saveCustom(){try{localStorage.setItem(USTORE,JSON.stringify(custom))}catch(e){}}
+// regions moved together with R (same plan level if "alle mitändern" is ticked)
+function groupOf(R){return !R.custom&&$('grp')&&$('grp').checked?REG.filter(x=>!x.custom&&x.uk0===R.uk0):[R]}
 function inRegion(R,x,y){let c=false;for(const ring of R.rings)for(let k=0,n=ring.length,j=n-1;k<n;j=k++){const a=ring[k],b=ring[j];
   if((a[1]>y)!==(b[1]>y)&&x<(b[0]-a[0])*(y-a[1])/(b[1]-a[1])+a[0])c=!c}return c}
 function segDist(e,x,y){const dx=e.bx-e.ax,dy=e.by-e.ay;let t=((x-e.ax)*dx+(y-e.ay)*dy)/(dx*dx+dy*dy);t=t<0?0:t>1?1:t;
@@ -196,8 +216,8 @@ const state={G:0,ex:3,af:1.2,mode:'pit',slope:'all',res:0.1,cut:null,lines:true,
 let S=null; // computed surface
 
 // ---------- surface computation ----------
-function compute(){
-  const G=state.G,r=state.res;
+function compute(res){
+  const G=state.G,r=res||state.res;
   let minUK=Infinity,bx0=1e9,by0=1e9,bx1=-1e9,by1=-1e9;
   for(const R of REG){minUK=Math.min(minUK,R.uk);bx0=Math.min(bx0,R.bb[0]);by0=Math.min(by0,R.bb[1]);bx1=Math.max(bx1,R.bb[2]);by1=Math.max(by1,R.bb[3])}
   const M=Math.max(1,G-minUK+CAPD+0.3);
@@ -390,8 +410,7 @@ function buildCut(){
 }
 function buildSel(){
   selL=drop(selL);if(state.sel===null)return;const R=REG[state.sel],segs=[];
-  const grp=$('grp')&&$('grp').checked?REG.filter(x=>x.uk0===R.uk0):[R];
-  for(const Q of grp)for(const ring of Q.rings)for(let k=0;k<ring.length;k++){const p=ring[k],q=ring[(k+1)%ring.length];segs.push([p[0],p[1],Q.uk,q[0],q[1],Q.uk])}
+  for(const Q of groupOf(R))for(const ring of Q.rings)for(let k=0;k<ring.length;k++){const p=ring[k],q=ring[(k+1)%ring.length];segs.push([p[0],p[1],Q.uk,q[0],q[1],Q.uk])}
   selL=lineObj(segs,redMat,6);
 }
 // axis grid
@@ -424,42 +443,70 @@ function updateTable(){
   $('vTot').innerHTML=fmt(VOL.tot,0)+'<small>m³</small>';
   $('vLoose').textContent='≈ '+fmt(VOL.tot*state.af,0)+' m³ lose bei Faktor '+fmt(state.af,2);
   $('gNhn').textContent='entspricht '+fmt(NHN0+state.G)+' m ü NHN';
-  const nE=Object.keys(edits).length;
-  $('vDesc').textContent='Gesamtaushub fest, Böschungen 45° '+(state.slope==='all'?'an allen Sohlsprüngen':'am Baugrubenrand')+' verschnitten, ohne Arbeitsraum'+(nE?`, ${nE} Bereich${nE>1?'e':''} geändert`:'');
+  const nE=Object.keys(edits).length,nC=custom.length;
+  $('vDesc').textContent='Gesamtaushub fest, Böschungen 45° '+(state.slope==='all'?'an allen Sohlsprüngen':'am Baugrubenrand')+' verschnitten, ohne Arbeitsraum'+(nE?`, ${nE} Bereich${nE>1?'e':''} geändert`:'')+(nC?`, ${nC} eigene Fläche${nC>1?'n':''}`:'');
 }
 function saveEdits(){try{localStorage.setItem(STORE,JSON.stringify(edits))}catch(e){}}
-function setUK(R,v){R.uk=v;if(Math.abs(v-R.uk0)<1e-6)delete edits[R.id];else edits[R.id]=v}
+function setUK(R,v){R.uk=v;if(R.custom){R.src.uk=v;R.uk0=v;return}if(Math.abs(v-R.uk0)<1e-6)delete edits[R.id];else edits[R.id]=v}
+function saveAll(){saveEdits();saveCustom()}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const numIn=el=>parseFloat(String(el.value).replace(',','.'));
 function renderEdit(){
   const box=$('edit');let h='';
-  if(state.sel===null)h=`<div class="empty">Klick im Modell auf eine Sohle oder Böschung, um die Höhe dieses Bereichs zu ändern. Modell und Mengen passen sich sofort an.</div>`;
-  else{const R=REG[state.sel],same=REG.filter(x=>x.uk0===R.uk0).length;
-    h=`<div class="rn">${R.name}</div><div class="rs">${R.ax}, Fläche ${fmt(R.area,1)} m², laut Plan UK ${lvl(R.uk0)}</div>
-    <div class="row"><label for="ukIn">UK Aushub relativ zu ±0,00</label><input id="ukIn" type="number" step="0.05" value="${R.uk.toFixed(2)}"></div>
+  $('bDraw').disabled=draw.on;
+  if(draw.on){
+    const n=draw.pts.length,A=n>=3?Math.abs(polyArea(draw.pts)):0;
+    h=`<div class="rn">Neue Fläche einzeichnen</div>
+    <div class="rs">${draw.rect?'Zwei gegenüberliegende Ecken anklicken.':'Eckpunkte nacheinander anklicken. Abschließen mit Klick auf den ersten Punkt, Doppelklick oder Enter.'} Vorhandene Ecken werden gefangen, sonst 5-cm-Raster. Umschalt: rechtwinklig. Rechte Maustaste: verschieben.</div>
+    <div class="seg" id="segDraw"><button data-d="poly" aria-pressed="${!draw.rect}">Polygon</button><button data-d="rect" aria-pressed="${draw.rect}">Rechteck</button></div>
+    <div class="row"><label for="dName">Bezeichnung</label><input id="dName" type="text" value="${esc(draw.name)}"></div>
+    <div class="row"><label for="dUk">UK Aushub relativ zu ±0,00</label><input id="dUk" type="number" step="0.05" value="${draw.uk.toFixed(2)}"></div>
+    <div class="row" style="font-size:.8rem;color:var(--muted)"><span>${n} Punkt${n===1?'':'e'}${A?', Fläche '+fmt(A,1)+' m²':''}</span><span id="dNhn">entspricht ${fmt(NHN0+draw.uk)} m ü NHN</span></div>
+    <div class="btns"><button id="bDone" ${(!draw.rect&&n>=3)?'':'disabled'}>Fläche übernehmen</button><button id="bUndo" ${n?'':'disabled'}>Letzten Punkt löschen</button><button id="bCancel">Abbrechen</button></div>`;
+    box.innerHTML=h;
+    document.querySelectorAll('#segDraw button').forEach(b=>b.onclick=()=>{draw.rect=b.dataset.d==='rect';draw.pts=[];buildDraw();renderEdit()});
+    $('dName').oninput=e=>{draw.name=e.target.value};
+    $('dUk').oninput=e=>{const v=numIn(e.target);if(isNaN(v)||v<-8||v>2)return;draw.uk=v;$('dNhn').textContent='entspricht '+fmt(NHN0+v)+' m ü NHN'};
+    $('bDone').onclick=finishDraw;$('bUndo').onclick=()=>{draw.pts.pop();buildDraw();renderEdit()};$('bCancel').onclick=()=>stopDraw();
+    return;
+  }
+  if(state.sel===null)h=`<div class="empty">Klick im Modell auf eine Sohle oder Böschung, um die Höhe dieses Bereichs zu ändern. Ist ein Bereich ausgewählt, lässt er sich im Modell mit gedrückter Maustaste nach oben oder unten ziehen. Modell und Mengen passen sich sofort an.</div>`;
+  else{const R=REG[state.sel],same=R.custom?1:REG.filter(x=>!x.custom&&x.uk0===R.uk0).length;
+    h=R.custom?`<div class="row"><label for="nmIn" class="rn">Eigene Fläche</label><input id="nmIn" type="text" value="${esc(R.name)}"></div><div class="rs">${R.ax}, Fläche ${fmt(R.area,1)} m², selbst eingezeichnet</div>`
+      :`<div class="rn">${R.name}</div><div class="rs">${R.ax}, Fläche ${fmt(R.area,1)} m², laut Plan UK ${lvl(R.uk0)}</div>`;
+    h+=`<div class="row"><label for="ukIn">UK Aushub relativ zu ±0,00</label><input id="ukIn" type="number" step="0.05" value="${R.uk.toFixed(2)}"></div>
     <div class="row" style="font-size:.8rem;color:var(--muted)"><span id="ukNhn">entspricht ${fmt(NHN0+R.uk)} m ü NHN</span></div>
     ${same>1?`<label style="display:flex;gap:6px;align-items:center;font-size:.85rem"><input type="checkbox" id="grp"> Alle ${same} Bereiche mit Plan-UK ${lvl(R.uk0)} mitändern</label>`:''}
-    <div class="btns"><button id="bReset">Auf Planwert</button><button id="bDesel">Auswahl aufheben</button></div>`}
+    <div class="dragnote">⇕ Bereich im Modell anfassen und ziehen: 5-cm-Schritte, mit Umschalt 1 cm, Esc bricht ab.</div>
+    <div class="btns">${R.custom?'<button id="bDel">Fläche löschen</button>':'<button id="bReset">Auf Planwert</button>'}<button id="bDesel">Auswahl aufheben</button></div>`}
   box.innerHTML=h+'<div id="editChg"></div>';renderChanges();
   const inp=$('ukIn');if(!inp)return;
-  const group=()=>{const R=REG[state.sel];return $('grp')&&$('grp').checked?REG.filter(x=>x.uk0===R.uk0):[R]};
-  inp.addEventListener('input',()=>{const v=parseFloat(String(inp.value).replace(',','.'));if(isNaN(v)||v<-8||v>2)return;
-    group().forEach(Q=>setUK(Q,v));saveEdits();$('ukNhn').textContent='entspricht '+fmt(NHN0+v)+' m ü NHN';schedule(true)});
+  const group=()=>groupOf(REG[state.sel]);
+  inp.addEventListener('input',()=>{const v=numIn(inp);if(isNaN(v)||v<-8||v>2)return;
+    group().forEach(Q=>setUK(Q,v));saveAll();$('ukNhn').textContent='entspricht '+fmt(NHN0+v)+' m ü NHN';schedule(true)});
   const g=$('grp');if(g)g.onchange=()=>buildSel();
-  $('bReset').onclick=()=>{group().forEach(Q=>setUK(Q,Q.uk0));saveEdits();schedule()};
+  if($('bReset'))$('bReset').onclick=()=>{group().forEach(Q=>setUK(Q,Q.uk0));saveEdits();schedule()};
+  if($('bDel'))$('bDel').onclick=()=>{const R=REG[state.sel];custom=custom.filter(c=>c.id!==R.id);saveCustom();rebuildReg();state.sel=null;schedule()};
+  if($('nmIn'))$('nmIn').oninput=e=>{const R=REG[state.sel];R.name=R.src.n=e.target.value||'Eigene Fläche';saveCustom();updateTable();renderChanges()};
   $('bDesel').onclick=()=>{state.sel=null;renderEdit();buildSel()};
 }
 function renderChanges(){
-  const c=$('editChg');if(!c)return;const changed=REG.filter(R=>edits[R.id]!=null);
-  if(!changed.length){c.innerHTML='';return}
-  c.innerHTML=`<div class="chg"><b>Geänderte Bereiche (${changed.length})</b><ul>${changed.map(R=>`<li><a data-sel="${R.i}">${R.name}, ${R.ax}</a>: ${lvl(R.uk0)} → ${lvl(R.uk)}</li>`).join('')}</ul><a id="bResetAll">Alle auf Planwerte zurücksetzen</a></div>`;
+  const c=$('editChg');if(!c)return;const changed=REG.filter(R=>!R.custom&&edits[R.id]!=null),own=REG.filter(R=>R.custom);
+  if(!changed.length&&!own.length){c.innerHTML='';return}
+  let h='';
+  if(changed.length)h+=`<div class="chg"><b>Geänderte Bereiche (${changed.length})</b><ul>${changed.map(R=>`<li><a data-sel="${R.i}">${R.name}, ${R.ax}</a>: ${lvl(R.uk0)} → ${lvl(R.uk)}</li>`).join('')}</ul><a id="bResetAll">Alle auf Planwerte zurücksetzen</a></div>`;
+  if(own.length)h+=`<div class="chg"><b>Eigene Flächen (${own.length})</b><ul>${own.map(R=>`<li><a data-sel="${R.i}">${esc(R.name)}, ${R.ax}</a>: UK ${lvl(R.uk)}, ${fmt(R.area,1)} m²</li>`).join('')}</ul><a id="bDelAll">Alle eigenen Flächen löschen</a></div>`;
+  c.innerHTML=h;
   c.querySelectorAll('[data-sel]').forEach(a=>a.onclick=()=>{state.sel=+a.dataset.sel;renderEdit();buildSel()});
-  $('bResetAll').onclick=()=>{REG.forEach(R=>setUK(R,R.uk0));saveEdits();schedule()};
+  if($('bResetAll'))$('bResetAll').onclick=()=>{REG.forEach(R=>{if(!R.custom)setUK(R,R.uk0)});saveEdits();schedule()};
+  if($('bDelAll'))$('bDelAll').onclick=()=>{if(!confirm('Alle eigenen Flächen löschen?'))return;custom=[];saveCustom();rebuildReg();state.sel=null;schedule()};
 }
 
 // ---------- recompute scheduling ----------
 let timer=null;
-function refresh(){
-  compute();buildMesh();buildLines();buildCut();buildSel();updateTable();
-  gridG.position.y=state.G*state.ex+0.03;$('busy').style.display='none';
+function refresh(res){
+  compute(res);buildMesh();buildLines();buildCut();buildSel();updateTable();
+  gridG.position.y=state.G*state.ex+0.03;$('busy').style.display='none';buildDraw();
 }
 function schedule(keepPanel){
   $('busy').style.display='block';clearTimeout(timer);
@@ -469,7 +516,7 @@ function schedule(keepPanel){
 // ---------- controls ----------
 $('g').addEventListener('input',e=>{let v=parseFloat(String(e.target.value).replace(',','.'));if(isNaN(v))return;state.G=Math.max(-0.2,Math.min(1,v));schedule()});
 $('af').addEventListener('input',e=>{const v=parseFloat(String(e.target.value).replace(',','.'));if(!isNaN(v)&&v>=1){state.af=v;updateTable()}});
-$('ex').addEventListener('input',e=>{state.ex=parseFloat(e.target.value);$('exOut').textContent=fmt(state.ex,1)+'-fach';root.scale.y=state.ex;gridG.position.y=state.G*state.ex+0.03});
+$('ex').addEventListener('input',e=>{state.ex=parseFloat(e.target.value);$('exOut').textContent=fmt(state.ex,1)+'-fach';root.scale.y=state.ex;gridG.position.y=state.G*state.ex+0.03;buildDraw()});
 $('exOut').textContent=fmt(state.ex,1)+'-fach';
 function cutText(z){if(z===null)return 'aus';let b=AY[0];for(const a of AY)if(Math.abs(a[1]-z)<Math.abs(b[1]-z))b=a;const o=z-b[1];return 'Achse '+b[0]+(Math.abs(o)<0.13?'':(o>0?' + ':' − ')+fmt(Math.abs(o))+' m')}
 $('cut').addEventListener('input',e=>{const z=parseFloat(e.target.value);state.cut=z>=101.9?null:z;clip.constant=state.cut===null?1e4:state.cut;$('cutOut').textContent=cutText(state.cut);buildCut()});
@@ -501,18 +548,138 @@ function hitInfo(ev){
   if(f>=G-1e-4)kind='Gelände, kein Aushub';
   else if(l<0&&l!==-999999&&f<=REG[-l-1].uk+0.003){reg=REG[-l-1];kind='Sohle'}
   else{kind='Böschung 45°';if(l>=0)reg=REG[EDG[l].r];else if(l<0&&l!==-999999)reg=REG[-l-1]}
-  return{reg,kind,h:Math.min(G,f),r};
+  return{reg,kind,h:Math.min(G,f),r,point:{x:p.x,z:p.z}};
 }
+function showTip(ev,html){const r=renderer.domElement.getBoundingClientRect();tip.innerHTML=html;tip.style.display='block';
+  let x=ev.clientX-r.left+14,y=ev.clientY-r.top+14;if(x+260>r.width)x-=280;if(y+100>r.height)y-=110;tip.style.left=x+'px';tip.style.top=y+'px'}
+const STATUS0=$('status').textContent;
+function setStatus(t){$('status').textContent=t||STATUS0}
+
+// ---------- draw own areas ----------
+const draw={on:false,rect:false,pts:[],hover:null,name:'',uk:-1};
+const drawMat=new THREE.LineBasicMaterial({color:0xff0000,depthTest:false});
+const drawPtMat=new THREE.PointsMaterial({color:0xff0000,size:8,sizeAttenuation:false,depthTest:false});
+let drawL=null,drawP=null;
+function rectPts(a,b){return[[a[0],a[1]],[b[0],a[1]],[b[0],b[1]],[a[0],b[1]]]}
+function buildDraw(){
+  for(const o of[drawL,drawP])if(o){scene.remove(o);o.geometry.dispose()}drawL=drawP=null;
+  if(!draw.on)return;
+  const y=state.G*state.ex+0.05,h=draw.hover?[draw.hover.x,draw.hover.y]:null;
+  let pts=draw.pts.slice();if(draw.rect&&pts.length===1&&h)pts=rectPts(pts[0],h);else if(h&&!draw.rect)pts.push(h);
+  const v=p=>new THREE.Vector3(p[0],y,p[1]);
+  if(pts.length>=2){drawL=new (pts.length>=3?THREE.LineLoop:THREE.Line)(new THREE.BufferGeometry().setFromPoints(pts.map(v)),drawMat);drawL.renderOrder=20;scene.add(drawL)}
+  const mk=draw.pts.map(v);if(h)mk.push(v(h));
+  if(mk.length){drawP=new THREE.Points(new THREE.BufferGeometry().setFromPoints(mk),drawPtMat);drawP.renderOrder=21;scene.add(drawP)}
+}
+function startDraw(){
+  state.sel=null;buildSel();draw.on=true;draw.pts=[];draw.hover=null;
+  draw.name='Eigene Fläche '+(custom.length+1);
+  controls.enableRotate=false;go('top');setStatus('Zeichnen: Eckpunkte anklicken. Rechte Maustaste: verschieben, Mausrad: zoomen, Esc: abbrechen');
+  renderEdit();buildDraw();
+}
+function stopDraw(){draw.on=false;draw.pts=[];draw.hover=null;tip.style.display="none";controls.enableRotate=true;setStatus();renderer.domElement.style.cursor='';renderEdit();buildDraw()}
+function finishDraw(){
+  const pts=draw.pts;if(pts.length<3)return;
+  if(Math.abs(polyArea(pts))<0.05){alert('Die Fläche ist zu klein.');return}
+  let n=1;while(custom.some(c=>c.id==='u'+n))n++;
+  custom.push({id:'u'+n,n:(draw.name||'').trim()||'Eigene Fläche '+n,uk:draw.uk,c:UCOL[(n-1)%UCOL.length],r:[pts.map(p=>[+p[0].toFixed(3),+p[1].toFixed(3)])]});
+  saveCustom();rebuildReg();stopDraw();state.sel=REG.length-1;schedule();
+}
+function groundAt(ev){
+  const r=renderer.domElement.getBoundingClientRect();
+  mouse.set(((ev.clientX-r.left)/r.width)*2-1,-((ev.clientY-r.top)/r.height)*2+1);ray.setFromCamera(mouse,camera);
+  const v=new THREE.Vector3();if(!ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0,1,0),-state.G*state.ex),v))return null;return[v.x,v.z];
+}
+function toScreen(x,y,z){const r=renderer.domElement.getBoundingClientRect(),v=new THREE.Vector3(x,z*state.ex,y).project(camera);return[(v.x+1)/2*r.width,(1-v.y)/2*r.height]}
+function snapPoint(ev){
+  const g=groundAt(ev);if(!g)return null;
+  const r=renderer.domElement.getBoundingClientRect(),sx=ev.clientX-r.left,sy=ev.clientY-r.top,G=state.G,TOL=10;
+  if(!draw.rect&&draw.pts.length>=3){const s=toScreen(draw.pts[0][0],draw.pts[0][1],G);if(Math.hypot(s[0]-sx,s[1]-sy)<TOL)return{x:draw.pts[0][0],y:draw.pts[0][1],close:true}}
+  let best=null,bd=TOL;
+  const test=p=>{const s=toScreen(p[0],p[1],G),d=Math.hypot(s[0]-sx,s[1]-sy);if(d<bd){bd=d;best=p}};
+  for(const R of REG)for(const ring of R.rings)ring.forEach(test);draw.pts.forEach(test);
+  if(best)return{x:best[0],y:best[1],snap:true};
+  let[x,y]=g;const last=draw.pts[draw.pts.length-1];
+  if(ev.shiftKey&&last&&!draw.rect){if(Math.abs(x-last[0])>Math.abs(y-last[1]))y=last[1];else x=last[0]}
+  else{x=Math.round(x*20)/20;y=Math.round(y*20)/20}
+  return{x,y};
+}
+function drawMove(ev){
+  draw.hover=snapPoint(ev);buildDraw();if(!draw.hover){tip.style.display='none';return}
+  const p=draw.hover,last=draw.pts[draw.pts.length-1];
+  let h=`<b>${p.close?'Fläche schließen':p.snap?'Ecke gefangen':'Punkt setzen'}</b><br>Achse ${nearAx(AX,p.x)} / ${nearAx(AY,p.y)}`;
+  if(draw.rect&&last)h+=`<br>${fmt(Math.abs(p.x-last[0]))} × ${fmt(Math.abs(p.y-last[1]))} m = ${fmt(Math.abs((p.x-last[0])*(p.y-last[1])),1)} m²`;
+  else if(last)h+=`<br>Strecke ${fmt(Math.hypot(p.x-last[0],p.y-last[1]))} m`;
+  showTip(ev,h);
+}
+function drawClick(ev){
+  const p=snapPoint(ev);if(!p)return;
+  if(p.close){finishDraw();return}
+  const last=draw.pts[draw.pts.length-1];if(last&&Math.hypot(p.x-last[0],p.y-last[1])<0.02)return; // double click
+  draw.pts.push([p.x,p.y]);
+  if(draw.rect&&draw.pts.length===2){const[a,b]=draw.pts;if(Math.abs(a[0]-b[0])<0.05||Math.abs(a[1]-b[1])<0.05){draw.pts.pop();return}draw.pts=rectPts(a,b);finishDraw();return}
+  buildDraw();renderEdit();
+}
+renderer.domElement.addEventListener('dblclick',()=>{if(draw.on&&!draw.rect&&draw.pts.length>=3)finishDraw()});
+
+// ---------- drag heights ----------
+let hd=null; // active height drag
+function canDrag(H){if(state.sel===null||!H||!H.reg)return false;return groupOf(REG[state.sel]).includes(H.reg)}
+// capture phase: runs before OrbitControls so the camera stays put while dragging
+view.addEventListener('pointerdown',ev=>{
+  if(ev.target!==renderer.domElement||draw.on||ev.button!==0)return;
+  const H=hitInfo(ev);if(!canDrag(H))return;
+  const r=renderer.domElement.getBoundingClientRect(),p=H.point,a=toScreen(p.x,p.z,H.h),b=toScreen(p.x,p.z,H.h+1);
+  const grp=groupOf(REG[state.sel]);
+  hd={id:ev.pointerId,x:ev.clientX,y:ev.clientY,v:[b[0]-a[0],b[1]-a[1]],grp,start:grp.map(Q=>Q.uk),base:REG[state.sel].uk,moved:false,busy:false,again:false};
+  controls.enabled=false;renderer.domElement.setPointerCapture(ev.pointerId);
+},true);
+function dragPreview(){
+  if(!hd)return;if(hd.busy){hd.again=true;return}
+  hd.busy=true;setTimeout(()=>{if(!hd)return;refresh(0.25);hd.busy=false;if(hd.again){hd.again=false;dragPreview()}},16);
+}
+function dragMove(ev){
+  const dx=ev.clientX-hd.x,dy=ev.clientY-hd.y;if(!hd.moved&&Math.hypot(dx,dy)<4)return;hd.moved=true;
+  const L2=hd.v[0]*hd.v[0]+hd.v[1]*hd.v[1];
+  let dh=L2>400?(dx*hd.v[0]+dy*hd.v[1])/L2:-dy*0.01; // fall back to 1 cm per pixel in plan view
+  const st=ev.shiftKey?0.01:0.05;let u=Math.round((hd.base+dh)/st)*st;u=Math.max(-8,Math.min(state.G,u));const d=u-hd.base;
+  hd.grp.forEach((Q,k)=>setUK(Q,Math.max(-8,Math.min(state.G,+(hd.start[k]+d).toFixed(3)))));
+  const R=REG[state.sel];if($('ukIn'))$('ukIn').value=R.uk.toFixed(2);if($('ukNhn'))$('ukNhn').textContent='entspricht '+fmt(NHN0+R.uk)+' m ü NHN';
+  buildSel();dragPreview();
+  showTip(ev,`<b>UK ${lvl(R.uk)}</b>${hd.grp.length>1?` (${hd.grp.length} Bereiche)`:''}<br>= ${fmt(NHN0+R.uk)} m ü NHN<br>Änderung ${d>=0?'+':'−'}${fmt(Math.abs(d))} m, Tiefe ${fmt(state.G-R.uk)} m`);
+}
+function endDrag(cancel){
+  if(!hd)return;const moved=hd.moved;
+  if(cancel)hd.grp.forEach((Q,k)=>setUK(Q,hd.start[k]));
+  try{renderer.domElement.releasePointerCapture(hd.id)}catch(e){}
+  hd=null;controls.enabled=true;
+  if(moved||cancel){saveAll();schedule(!cancel);if(cancel)tip.style.display='none'}
+  return moved;
+}
+
 renderer.domElement.addEventListener('pointermove',ev=>{
-  const H=hitInfo(ev);if(!H){tip.style.display='none';return}
-  tip.innerHTML=`<b>${H.kind}</b>${H.reg?`<br>${H.kind==='Sohle'?'':'von '}${H.reg.name}, ${H.reg.ax}`:''}<br>Höhe ${lvl(H.h)} = ${fmt(NHN0+H.h)} m ü NHN<br>Tiefe ab Gelände ${fmt(state.G-H.h)} m`;
-  tip.style.display='block';const r=H.r;let x=ev.clientX-r.left+14,y=ev.clientY-r.top+14;if(x+260>r.width)x-=280;if(y+100>r.height)y-=110;tip.style.left=x+'px';tip.style.top=y+'px';
+  if(hd){dragMove(ev);return}
+  if(draw.on){drawMove(ev);return}
+  const H=hitInfo(ev);if(!H){tip.style.display='none';renderer.domElement.style.cursor='';return}
+  renderer.domElement.style.cursor=canDrag(H)?'ns-resize':'';
+  showTip(ev,`<b>${H.kind}</b>${H.reg?`<br>${H.kind==='Sohle'?'':'von '}${esc(H.reg.name)}, ${H.reg.ax}`:''}<br>Höhe ${lvl(H.h)} = ${fmt(NHN0+H.h)} m ü NHN<br>Tiefe ab Gelände ${fmt(state.G-H.h)} m${canDrag(H)?'<br><i>Ziehen ändert die Höhe</i>':''}`);
 });
-renderer.domElement.addEventListener('pointerleave',()=>tip.style.display='none');
+renderer.domElement.addEventListener('pointerleave',()=>{tip.style.display='none';if(draw.on){draw.hover=null;buildDraw()}});
 let down=null;
-renderer.domElement.addEventListener('pointerdown',e=>down=[e.clientX,e.clientY]);
-renderer.domElement.addEventListener('pointerup',e=>{if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>5)return;
+renderer.domElement.addEventListener('pointerdown',e=>down=[e.clientX,e.clientY,e.button]);
+renderer.domElement.addEventListener('pointerup',e=>{
+  if(hd&&endDrag(false))return;
+  if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>5)return;
+  if(draw.on){if(down[2]===0)drawClick(e);return}
   const H=hitInfo(e);state.sel=H&&H.reg?H.reg.i:null;renderEdit();buildSel();});
+renderer.domElement.addEventListener('pointercancel',()=>endDrag(true));
+document.addEventListener('keydown',e=>{
+  if(e.target.closest&&e.target.closest('input,textarea'))return;
+  if(e.key==='Escape'){if(hd)endDrag(true);else if(draw.on)stopDraw()}
+  else if(draw.on&&e.key==='Enter'&&!draw.rect)finishDraw();
+  else if(draw.on&&e.key==='Backspace'){e.preventDefault();draw.pts.pop();buildDraw();renderEdit()}
+});
+$('bDraw').onclick=startDraw;
 
 function resize(){const w=view.clientWidth,h=view.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/Math.max(h,1);camera.updateProjectionMatrix()}
 new ResizeObserver(resize).observe(view);resize();
@@ -557,7 +724,7 @@ function exportPDF(){
   AX.forEach(([k,x])=>{bub(X(-7.6),Y(x),k);bub(X(106.6)-1,Y(x),k)});AY.forEach(([k,y])=>{bub(X(y),Y(52.4),k);bub(X(y),Y(-7.4),k)});
   // Koten
   doc.setFont('helvetica','normal');doc.setFontSize(4.6);
-  REG.forEach(R=>{if(R.area<2.2)return;const ed=edits[R.id]!=null;doc.setTextColor(ed?220:40,ed?0:40,ed?0:40);
+  REG.forEach(R=>{if(R.area<2.2)return;const ed=edits[R.id]!=null||R.custom;doc.setTextColor(ed?220:40,ed?0:40,ed?0:40);
     doc.text('UK '+lvlP(R.uk),X(R.cy),Y(R.cx)+0.6,{align:'center'})});
   // legend
   doc.setTextColor(30);doc.setFont('helvetica','bold');doc.setFontSize(9);doc.text('Legende',16,222);
@@ -582,7 +749,7 @@ function exportPDF(){
     'Grundlage: Grundriss Aushub 26-24_OST_AH_V00 (KFK Architekten, Vorabzug 30.09.2026)',
     `Gelände OK ${lvlP(G)} = ${fmt(NHN0+G)} m ü NHN (Annahme), ±0,00 = 566,10 m ü NHN`,
     `Böschung 45° ${state.slope==='all'?'an allen Sohlsprüngen':'nur am Baugrubenrand, innen senkrecht'}, verschnitten`,
-    nE?`${nE} Bereich${nE>1?'e':''} gegenüber Plan in der Höhe geändert (rote Koten)`:'Sohlhöhen wie Plan',
+    (nE?`${nE} Bereich${nE>1?'e':''} gegenüber Plan in der Höhe geändert`:'Sohlhöhen wie Plan')+(custom.length?`, ${custom.length} eigene Fläche${custom.length>1?'n':''} ergänzt`:'')+(nE||custom.length?' (rote Koten)':''),
     `Aushub fest ca. ${fmt(VOL.tot,0)} m³, davon Böschung ca. ${fmt(VOL.slope,0)} m³`,
     `lose ca. ${fmt(VOL.tot*state.af,0)} m³ bei Auflockerungsfaktor ${fmt(state.af,2)}`,
     'ohne Arbeitsraum und Rampe, Geländeoberkante vor Ort prüfen',
@@ -603,9 +770,11 @@ function exportPDF(){
   doc.text('Böschung 45°, verschnitten',278,y);doc.text(fmt(VOL.slope,1),406,y,{align:'right'});y+=2;doc.setLineWidth(0.4);doc.line(278,y,406,y);y+=4.5;
   doc.setFont('helvetica','bold');doc.text('Summe fest',278,y);doc.text(fmt(VOL.tot,1),406,y,{align:'right'});y+=4.5;
   doc.setFont('helvetica','normal');doc.text('lose (Faktor '+fmt(state.af,2)+')',278,y);doc.text(fmt(VOL.tot*state.af,1),406,y,{align:'right'});y+=8;
-  const ch2=REG.filter(R=>edits[R.id]!=null);
+  const ch2=REG.filter(R=>!R.custom&&edits[R.id]!=null),own=REG.filter(R=>R.custom);
   if(ch2.length){doc.setFont('helvetica','bold');doc.text('Geänderte Bereiche',278,y);y+=4.5;doc.setFont('helvetica','normal');
-    ch2.slice(0,14).forEach(R=>{doc.text(txt(`${R.name}, ${R.ax}: UK ${lvlP(R.uk0)} -> ${lvlP(R.uk)}`).slice(0,70),278,y);y+=4.1});if(ch2.length>14)doc.text(`… und ${ch2.length-14} weitere`,278,y)}
+    ch2.slice(0,14).forEach(R=>{doc.text(txt(`${R.name}, ${R.ax}: UK ${lvlP(R.uk0)} -> ${lvlP(R.uk)}`).slice(0,70),278,y);y+=4.1});if(ch2.length>14){doc.text(`... und ${ch2.length-14} weitere`,278,y);y+=4.1}y+=3}
+  if(own.length){doc.setFont('helvetica','bold');doc.text('Eigene Flächen',278,y);y+=4.5;doc.setFont('helvetica','normal');
+    own.slice(0,10).forEach(R=>{doc.text(txt(`${R.name}, ${R.ax}: UK ${lvlP(R.uk)}, ${fmt(R.area,1)} m²`).slice(0,70),278,y);y+=4.1});if(own.length>10)doc.text(`... und ${own.length-10} weitere`,278,y)}
   if(state.cut!==null){
     const p=profile(state.cut),hs=5,vs=20,bx=24,by=200,base=G;  // 1:200 horizontal, 1:50 vertical
     const PX=x=>bx+(x+6)*hs,PY=z=>by+(base-z)*vs;
@@ -655,7 +824,10 @@ function quantitiesCSV(){
   rows.push(['Böschung 45°','','','','',VOL.slope.toFixed(1)]);rows.push(['Summe fest','','','','',VOL.tot.toFixed(1)]);
   rows.push(['Summe lose (Faktor '+state.af.toFixed(2)+')','','','','',(VOL.tot*state.af).toFixed(1)]);
   rows.push([]);rows.push(['Geänderte Bereiche','Achsbezug','UK Plan','UK neu']);
-  REG.filter(R=>edits[R.id]!=null).forEach(R=>rows.push([R.name,R.ax,R.uk0.toFixed(2),R.uk.toFixed(2)]));
+  REG.filter(R=>!R.custom&&edits[R.id]!=null).forEach(R=>rows.push([R.name,R.ax,R.uk0.toFixed(2),R.uk.toFixed(2)]));
+  const own=REG.filter(R=>R.custom);
+  if(own.length){rows.push([]);rows.push(['Eigene Flächen','Achsbezug','UK','Fläche m²','Eckpunkte X/Y']);
+    own.forEach(R=>rows.push([R.name,R.ax,R.uk.toFixed(2),R.area.toFixed(1),R.rings[0].map(p=>p[0].toFixed(2)+'/'+p[1].toFixed(2)).join(' ')]))}
   return '\ufeff'+rows.map(r=>r.map(v=>{v=String(v);return /^-?\d+\.\d+$/.test(v)?v.replace('.',','):v}).join(';')).join('\r\n');
 }
 $('bPdf').onclick=async()=>{if(!DL)return;const b=$('bPdf');b.textContent='Wird erstellt …';await new Promise(r=>setTimeout(r,30));let blob;try{blob=exportPDF()}catch(e){b.textContent='PDF-Plan (A3)';$('expNote').textContent='PDF konnte nicht erstellt werden: '+e.message;return}b.textContent='PDF-Plan (A3)';offer(fname('pdf'),blob,b)};

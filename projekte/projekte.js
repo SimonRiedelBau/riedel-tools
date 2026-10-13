@@ -25,7 +25,7 @@ window.RB_PROJEKTE = {
           href: 'ostermeier-taufkirchen/aushub-3d.html',
           art: 'TOOL',
           datum: '2026-10-01',
-          notiz: 'Grundlage Plan 26-24_OST_AH_V00, Höhen je Bereich änderbar, Export PDF und DXF'
+          notiz: 'Grundlage Plan 26-24_OST_AH_V00, eigene Flächen einzeichnen, Höhen per Ziehen oder Eingabe änderbar, Export PDF und DXF'
         }
       ]
     }
