@@ -41,8 +41,19 @@ h1{font-size:1.25rem;line-height:1.2;margin:0;font-weight:700}
 input[type=text]{width:170px;font:inherit;padding:5px 7px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
 .edit .row label.rn{font-size:.95rem}
 .dragnote{font-size:.78rem;color:var(--muted);margin:2px 0 6px}
+.edges{margin:10px 0 4px;border-top:1px solid var(--line);padding-top:8px}
+.et td{padding:3px 4px;vertical-align:middle}.et input{width:84px}
+.et tr.on td{background:rgba(31,111,235,.1)}
+.enr{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;border:1.5px solid var(--ink);font-size:.72rem;font-weight:600;margin-right:6px}
+.et tr.on .enr{background:#1f6feb;border-color:#1f6feb;color:#fff}
 .drawbar{display:flex;margin:-6px 0 16px}
 .drawbar button{flex:1}
+.plan{font-size:.85rem;margin:0 0 16px}
+.plan .btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.plan .pn{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.plan .row{display:flex;align-items:center;gap:8px;margin-top:6px}
+.plan input[type=range]{flex:1;accent-color:var(--ink)}
+.plan .cal{background:var(--edit);border-left:3px solid #1f6feb;padding:8px 10px;margin-top:8px}
 input[type=number]{width:92px;font:inherit;padding:5px 7px;border:1px solid var(--line);background:var(--panel);color:var(--ink);text-align:right;font-variant-numeric:tabular-nums}
 .ctrl input[type=range]{grid-column:1/-1;width:100%;accent-color:var(--ink)}
 .out{font-variant-numeric:tabular-nums;color:var(--muted)}
@@ -103,6 +114,9 @@ tfoot td{font-weight:600;border-bottom:none;border-top:2px solid var(--ink)}
 
     <div class="edit" id="edit"></div>
     <div class="drawbar"><button id="bDraw">+ Fläche einzeichnen</button></div>
+    <div class="segl">Plan hinterlegen</div>
+    <div class="plan" id="plan"></div>
+    <input type="file" id="planFile" accept="application/pdf,.pdf,image/png,image/jpeg,image/webp" hidden>
 
     <div class="segl">Darstellung</div>
     <div class="seg" id="segMode">
@@ -159,7 +173,7 @@ tfoot td{font-weight:600;border-bottom:none;border-top:2px solid var(--ink)}
       <tbody id="tb"></tbody>
       <tfoot><tr><td>Summe</td><td id="sA"></td><td></td><td id="sV"></td></tr></tfoot>
     </table>
-    <p class="note">Ein zusammenhängendes Geländemodell: An jedem Punkt gilt die tiefste Höhe aus Sohle oder 45°-Böschung (1:1) eines Bereichs. Wo sich Böschungen schneiden, entstehen Grate, wo eine Böschung auf eine höhere Sohle trifft, die innere Böschungsoberkante. „Nur Baugrubenrand“ setzt innen senkrechte Wände an (nach DIN 4124 bis 1,25 m Tiefe ohne Verbau zulässig). Eigene Flächen (Polygon oder Rechteck, fängt vorhandene Ecken) zählen wie Planbereiche: Liegen sie flacher als ein Planbereich, gilt dort weiter die tiefere Sohle. Geänderte Höhen und eigene Flächen werden in diesem Browser gespeichert. Die Geländeoberkante steht nicht im Plan, bitte mit dem Bestandsaufmaß abgleichen. Arbeitsräume und Rampen sind nicht enthalten.</p>
+    <p class="note">Ein zusammenhängendes Geländemodell: An jedem Punkt gilt die tiefste Höhe aus Sohle oder 45°-Böschung (1:1) eines Bereichs. Wo sich Böschungen schneiden, entstehen Grate, wo eine Böschung auf eine höhere Sohle trifft, die innere Böschungsoberkante. „Nur Baugrubenrand“ setzt innen senkrechte Wände an (nach DIN 4124 bis 1,25 m Tiefe ohne Verbau zulässig). Eigene Flächen (Polygon oder Rechteck, fängt vorhandene Ecken) zählen wie Planbereiche: Liegen sie flacher als ein Planbereich, gilt dort weiter die tiefere Sohle. Bei eigenen Flächen lassen sich einzelne Linien auf eigene Höhen legen, die Sohle dazwischen wird geneigt interpoliert (Rampe, Gefälle). Ein hinterlegter Plan (PDF oder Bild) dient nur als Zeichenhilfe und wird über zwei Passpunkte auf die Achsen gelegt. Geänderte Höhen, eigene Flächen und der Plan werden in diesem Browser gespeichert. Die Geländeoberkante steht nicht im Plan, bitte mit dem Bestandsaufmaß abgleichen. Arbeitsräume und Rampen sind nicht enthalten.</p>
   </aside>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
@@ -196,10 +210,28 @@ function makeReg(r,cu){
   return {i:0,id:r.id,custom:cu,src:r,uk0:r.uk,uk:!cu&&edits[r.id]!=null?edits[r.id]:r.uk,name:r.n,rings:r.r,bb:[x0,y0,x1,y1],area:A,cx,cy,col,hex:r.c,
           ax:'Achse '+nearAx(AX,cx)+' / '+nearAx(AY,cy)};
 }
+// own areas: single lines (edges) can get their own height -> inclined sohle.
+// eh[k] = height of edge k (ring point k -> k+1) or null (free: runs between the heights of its corners).
+// Corners take the height of the fixed lines meeting there (mean if two), otherwise the base UK.
+function slopeInfo(R){
+  R.sl=null;const eh=R.custom&&R.src.eh;if(!Array.isArray(eh)||!eh.some(h=>h!=null))return;
+  const ring=R.rings[0],n=ring.length,vh=[];
+  for(let k=0;k<n;k++){const a=eh[(k-1+n)%n],b=eh[k];vh.push(a!=null&&b!=null?(a+b)/2:a!=null?a:b!=null?b:R.uk)}
+  R.sl=ring.map((p,k)=>{const q=ring[(k+1)%n],f=eh[k]!=null;return{ax:p[0],ay:p[1],bx:q[0],by:q[1],za:f?eh[k]:vh[k],zb:f?eh[k]:vh[(k+1)%n],fix:f}});
+  R.zmin=Math.min(...R.sl.map(e=>Math.min(e.za,e.zb)));R.zmax=Math.max(...R.sl.map(e=>Math.max(e.za,e.zb)));
+}
+// height of the sohle of R at x,y: inverse distance (1/d) over its lines, exact on every line and planar for ramps
+function zAt(R,x,y){
+  if(!R.sl)return R.uk;let sw=0,sz=0;
+  for(const e of R.sl){const[d,,,t]=segDist(e,x,y),z=e.za+t*(e.zb-e.za);if(d<1e-6)return z;sw+=1/d;sz+=z/d}
+  return sz/sw;
+}
+function edgeZ(e,t){const R=REG[e.r];if(!R.sl)return R.uk;const s=R.sl[e.k];return s.za+t*(s.zb-s.za)}
+const ukTxt=(R,f=lvl)=>R.sl?f(R.zmin)+' bis '+f(R.zmax):f(R.uk);
 let REG=[],EDG=[];
 function rebuildReg(){
-  REG=[...D.regions.map(r=>makeReg(r,false)),...custom.map(r=>makeReg(r,true))];REG.forEach((R,i)=>R.i=i);
-  EDG=[];REG.forEach(R=>R.rings.forEach(ring=>{for(let k=0;k<ring.length;k++){const p=ring[k],q=ring[(k+1)%ring.length];EDG.push({r:R.i,ax:p[0],ay:p[1],bx:q[0],by:q[1]})}}));
+  REG=[...D.regions.map(r=>makeReg(r,false)),...custom.map(r=>makeReg(r,true))];REG.forEach((R,i)=>{R.i=i;slopeInfo(R)});
+  EDG=[];REG.forEach(R=>R.rings.forEach(ring=>{for(let k=0;k<ring.length;k++){const p=ring[k],q=ring[(k+1)%ring.length];EDG.push({r:R.i,k,ax:p[0],ay:p[1],bx:q[0],by:q[1]})}}));
 }
 rebuildReg();
 function saveCustom(){try{localStorage.setItem(USTORE,JSON.stringify(custom))}catch(e){}}
@@ -208,18 +240,18 @@ function groupOf(R){return !R.custom&&$('grp')&&$('grp').checked?REG.filter(x=>!
 function inRegion(R,x,y){let c=false;for(const ring of R.rings)for(let k=0,n=ring.length,j=n-1;k<n;j=k++){const a=ring[k],b=ring[j];
   if((a[1]>y)!==(b[1]>y)&&x<(b[0]-a[0])*(y-a[1])/(b[1]-a[1])+a[0])c=!c}return c}
 function segDist(e,x,y){const dx=e.bx-e.ax,dy=e.by-e.ay;let t=((x-e.ax)*dx+(y-e.ay)*dy)/(dx*dx+dy*dy);t=t<0?0:t>1?1:t;
-  const qx=e.ax+t*dx,qy=e.ay+t*dy;return[Math.hypot(x-qx,y-qy),qx,qy]}
+  const qx=e.ax+t*dx,qy=e.ay+t*dy;return[Math.hypot(x-qx,y-qy),qx,qy,t]}
 function regionDist(R,x,y){if(inRegion(R,x,y))return 0;let m=1e9;for(const e of EDG)if(e.r===R.i)m=Math.min(m,segDist(e,x,y)[0]);return m}
 
 // ---------- state ----------
-const state={G:0,ex:3,af:1.2,mode:'pit',slope:'all',res:0.1,cut:null,lines:true,cont:false,sel:null};
+const state={G:0,ex:3,af:1.2,mode:'pit',slope:'all',res:0.1,cut:null,lines:true,cont:false,sel:null,selEdge:null};
 let S=null; // computed surface
 
 // ---------- surface computation ----------
 function compute(res){
   const G=state.G,r=res||state.res;
   let minUK=Infinity,bx0=1e9,by0=1e9,bx1=-1e9,by1=-1e9;
-  for(const R of REG){minUK=Math.min(minUK,R.uk);bx0=Math.min(bx0,R.bb[0]);by0=Math.min(by0,R.bb[1]);bx1=Math.max(bx1,R.bb[2]);by1=Math.max(by1,R.bb[3])}
+  for(const R of REG){minUK=Math.min(minUK,R.sl?R.zmin:R.uk);bx0=Math.min(bx0,R.bb[0]);by0=Math.min(by0,R.bb[1]);bx1=Math.max(bx1,R.bb[2]);by1=Math.max(by1,R.bb[3])}
   const M=Math.max(1,G-minUK+CAPD+0.3);
   const x0=bx0-M,y0=by0-M,nx=Math.ceil((bx1-bx0+2*M)/r)+1,ny=Math.ceil((by1-by0+2*M)/r)+1,N=nx*ny;
   const ins=new Float32Array(N).fill(1e9),insId=new Int32Array(N).fill(-1);
@@ -230,18 +262,18 @@ function compute(res){
         if((p[1]<=y&&q[1]>y)||(q[1]<=y&&p[1]>y))xs.push(p[0]+(y-p[1])/(q[1]-p[1])*(q[0]-p[0]))}
       xs.sort((a,b)=>a-b);
       for(let m=0;m+1<xs.length;m+=2){const i0=Math.max(0,Math.ceil((xs[m]-x0)/r-1e-6)),i1=Math.min(nx-1,Math.floor((xs[m+1]-x0)/r+1e-6));
-        for(let i=i0;i<=i1;i++){const k=j*nx+i;if(R.uk<ins[k]){ins[k]=R.uk;insId[k]=R.i}}}
+        for(let i=i0;i<=i1;i++){const k=j*nx+i,z=R.sl?zAt(R,x0+i*r,y):R.uk;if(z<ins[k]){ins[k]=z;insId[k]=R.i}}}
     }
   }
   const sl=new Float32Array(N).fill(G+CAPD),sId=new Int32Array(N).fill(-1);
   EDG.forEach((e,ei)=>{
-    const uk=REG[e.r].uk,rr=G+CAPD-uk;if(rr<=0)return;
+    const R=REG[e.r],se=R.sl&&R.sl[e.k],uk=R.uk,za=se?se.za:uk,dz=se?se.zb-se.za:0,rr=G+CAPD-Math.min(za,za+dz);if(rr<=0)return;
     const i0=Math.max(0,Math.floor((Math.min(e.ax,e.bx)-rr-x0)/r)),i1=Math.min(nx-1,Math.ceil((Math.max(e.ax,e.bx)+rr-x0)/r));
     const j0=Math.max(0,Math.floor((Math.min(e.ay,e.by)-rr-y0)/r)),j1=Math.min(ny-1,Math.ceil((Math.max(e.ay,e.by)+rr-y0)/r));
     const dx=e.bx-e.ax,dy=e.by-e.ay,L2=dx*dx+dy*dy||1e-12;
     for(let j=j0;j<=j1;j++){const py=y0+j*r,row=j*nx;
       for(let i=i0;i<=i1;i++){const px=x0+i*r;let t=((px-e.ax)*dx+(py-e.ay)*dy)/L2;t=t<0?0:t>1?1:t;
-        const f=uk+Math.hypot(px-e.ax-t*dx,py-e.ay-t*dy);const k=row+i;if(f<sl[k]){sl[k]=f;sId[k]=ei}}}
+        const f=za+t*dz+Math.hypot(px-e.ax-t*dx,py-e.ay-t*dy);const k=row+i;if(f<sl[k]){sl[k]=f;sId[k]=ei}}}
   });
   const F=new Float32Array(N),LAB=new Int32Array(N);
   const out=state.slope==='out';
@@ -253,12 +285,12 @@ function compute(res){
 }
 // source value / gradient for kink & diagonal logic
 function srcVal(l,x,y,signed){
-  if(l<0){const R=REG[-l-1];return R.uk}
-  const e=EDG[l],uk=REG[e.r].uk;let[d]=segDist(e,x,y);
-  if(signed&&inRegion(REG[e.r],x,y))d=-d;return uk+d;
+  if(l<0)return zAt(REG[-l-1],x,y);
+  const e=EDG[l];let[d,,,t]=segDist(e,x,y);
+  if(signed&&inRegion(REG[e.r],x,y))d=-d;return edgeZ(e,t)+d;
 }
 function srcGrad(l,x,y){if(l<0)return[0,0];const[d,qx,qy]=segDist(EDG[l],x,y);return d<1e-9?[0,0]:[(x-qx)/d,(y-qy)/d]}
-function srcCenter(l,x,y){if(l<0){const R=REG[-l-1];return R.uk+regionDist(R,x,y)}return REG[EDG[l].r].uk+segDist(EDG[l],x,y)[0]}
+function srcCenter(l,x,y){if(l<0){const R=REG[-l-1];return zAt(R,x,y)+regionDist(R,x,y)}const[d,,,t]=segDist(EDG[l],x,y);return edgeZ(EDG[l],t)+d}
 
 // ---------- kink lines, crest, contours ----------
 function kinkSegments(){
@@ -269,8 +301,8 @@ function kinkSegments(){
     if(la!==lb&&la!==-999999&&lb!==-999999&&F[a]<G+CAPD-1e-4&&F[b]<G+CAPD-1e-4){
       const xa=x0+(a%nx)*r,ya=y0+Math.floor(a/nx)*r,xb=x0+(b%nx)*r,yb=y0+Math.floor(b/nx)*r;
       if(la<0&&lb<0){ // two sohle areas
-        const ua=REG[-la-1].uk,ub=REG[-lb-1].uk;
-        if(out&&Math.abs(ua-ub)>1e-4){const xm=(xa+xb)/2,ym=(ya+yb)/2;res={wall:true,p:[xm,ym],z1:ua,z2:ub}}
+        const xm=(xa+xb)/2,ym=(ya+yb)/2,ua=zAt(REG[-la-1],xm,ym),ub=zAt(REG[-lb-1],xm,ym);
+        if(out&&Math.abs(ua-ub)>1e-4)res={wall:true,p:[xm,ym],z1:ua,z2:ub}
       }else{
         const ga=srcVal(la,xa,ya,1)-srcVal(lb,xa,ya,1),gb=srcVal(la,xb,yb,1)-srcVal(lb,xb,yb,1);
         let t=(ga-gb)===0?0.5:ga/(ga-gb);t=t<0?0:t>1?1:t;
@@ -314,9 +346,12 @@ function contourSegments(){
   return out;
 }
 function volumes(){
-  const{F,LAB,N,r,G}=S,cell=r*r;let tot=0;const byUK=new Map();
-  for(let k=0;k<N;k++){const f=F[k];if(f<G){tot+=G-f;const l=LAB[k];if(l<0&&l!==-999999){const R=REG[-l-1];if(f<=R.uk+1e-4){const e=byUK.get(R.uk)||{a:0,names:new Set()};e.a+=cell;e.names.add(R.name);byUK.set(R.uk,e)}}}}
-  tot*=cell;const rows=[...byUK.entries()].sort((a,b)=>a[0]-b[0]).map(([uk,e])=>({uk,area:e.a,depth:G-uk,vol:e.a*(G-uk),names:[...e.names]}));
+  const{F,LAB,N,r,G,x0,y0,nx}=S,cell=r*r;let tot=0;const by=new Map();
+  for(let k=0;k<N;k++){const f=F[k];if(f<G){tot+=G-f;const l=LAB[k];if(l<0&&l!==-999999){const R=REG[-l-1];
+    const z=R.sl?zAt(R,x0+(k%nx)*r,y0+Math.floor(k/nx)*r):R.uk;
+    if(f<=z+1e-4){const key=R.sl?'s'+R.id:R.uk;const e=by.get(key)||{a:0,v:0,names:new Set(),R};e.a+=cell;e.v+=(G-f)*cell;e.names.add(R.name);by.set(key,e)}}}}
+  tot*=cell;
+  const rows=[...by.values()].map(e=>({uk:e.R.uk,R:e.R,sl:!!e.R.sl,area:e.a,depth:e.v/e.a,vol:e.v,names:[...e.names],o:e.R.sl?(e.R.zmin+e.R.zmax)/2:e.R.uk})).sort((a,b)=>a.o-b.o);
   const vert=rows.reduce((s,x)=>s+x.vol,0);
   return{tot,rows,slope:Math.max(0,tot-vert)};
 }
@@ -347,7 +382,9 @@ const kinkMat=new THREE.LineBasicMaterial({color:0x1c2830,transparent:true,opaci
 const crestMat=new THREE.LineBasicMaterial({color:0x111111,clippingPlanes:[clip]});
 const contMat=new THREE.LineBasicMaterial({color:0x7a5532,transparent:true,opacity:0.55,clippingPlanes:[clip]});
 const redMat=new THREE.LineBasicMaterial({color:0xff0000,depthTest:false});
-let terrain=null,cap=null,kinkL=null,crestL=null,contL=null,cutL=null,selL=null;
+let terrain=null,cap=null,kinkL=null,crestL=null,contL=null,cutL=null,selL=null,selE=null;
+const edgeMat=new THREE.LineBasicMaterial({color:0x1f6feb,depthTest:false});
+const selLab=new THREE.Group();scene.add(selLab);
 const slopeA=new THREE.Color('#b8925f'),slopeB=new THREE.Color('#6b4529');
 
 function drop(o){if(o){root.remove(o);o.geometry.dispose()}return null}
@@ -365,7 +402,7 @@ function buildMesh(){
     const x=x0+i*r,z=y0+j*r,f=F[k];pos[k*3]=cpos[k*3]=x;pos[k*3+2]=cpos[k*3+2]=z;pos[k*3+1]=Math.min(G,f);cpos[k*3+1]=G;
     const l=LAB[k];
     if(f>=G-1e-4)c.copy(gc);
-    else if(l<0&&l!==-999999&&f<=REG[-l-1].uk+0.003)c.copy(REG[-l-1].col);
+    else if(l<0&&l!==-999999&&f<=zAt(REG[-l-1],x,z)+0.003)c.copy(REG[-l-1].col);
     else c.copy(slopeA).lerp(slopeB,Math.min(1,(G-f)/2.6));
     col[k*3]=c.r;col[k*3+1]=c.g;col[k*3+2]=c.b;
   }
@@ -409,16 +446,22 @@ function buildCut(){
   cutL=new THREE.Line(g,redMat);cutL.renderOrder=5;root.add(cutL);
 }
 function buildSel(){
-  selL=drop(selL);if(state.sel===null)return;const R=REG[state.sel],segs=[];
-  for(const Q of groupOf(R))for(const ring of Q.rings)for(let k=0;k<ring.length;k++){const p=ring[k],q=ring[(k+1)%ring.length];segs.push([p[0],p[1],Q.uk,q[0],q[1],Q.uk])}
+  selL=drop(selL);selE=drop(selE);selLab.clear();if(state.sel===null)return;const R=REG[state.sel],segs=[];
+  for(const Q of groupOf(R))for(const ring of Q.rings)for(let k=0;k<ring.length;k++){const p=ring[k],q=ring[(k+1)%ring.length],e=Q.sl&&Q.sl[k];segs.push([p[0],p[1],e?e.za:Q.uk,q[0],q[1],e?e.zb:Q.uk])}
   selL=lineObj(segs,redMat,6);
+  if(!R.custom)return;
+  // numbered lines of an own area, the active one in blue
+  const ring=R.rings[0];
+  ring.forEach((p,k)=>{const q=ring[(k+1)%ring.length],e=R.sl&&R.sl[k],za=e?e.za:R.uk,zb=e?e.zb:R.uk;
+    const L=label(String(k+1),1.1,state.selEdge===k);L.position.set((p[0]+q[0])/2,((za+zb)/2)*state.ex+0.6,(p[1]+q[1])/2);selLab.add(L);
+    if(state.selEdge===k)selE=lineObj([[p[0],p[1],za,q[0],q[1],zb]],edgeMat,7)});
 }
 // axis grid
-function label(txt,size=1.8){
+function label(txt,size=1.8,hi=false){
   const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d');const dk=isDark();
-  x.fillStyle=dk?'#1b2228':'#ffffff';x.strokeStyle=dk?'#e6ecf0':'#1c2830';x.lineWidth=6;
+  x.fillStyle=hi?'#1f6feb':dk?'#1b2228':'#ffffff';x.strokeStyle=hi?'#1f6feb':dk?'#e6ecf0':'#1c2830';x.lineWidth=6;
   x.beginPath();x.arc(64,64,56,0,Math.PI*2);x.fill();x.stroke();
-  x.fillStyle=dk?'#e6ecf0':'#1c2830';x.font='600 '+(txt.length>1?50:62)+'px Barlow, sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText(txt,64,68);
+  x.fillStyle=hi?'#ffffff':dk?'#e6ecf0':'#1c2830';x.font='600 '+(txt.length>1?50:62)+'px Barlow, sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText(txt,64,68);
   const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),depthTest:false}));sp.scale.set(size,size,1);sp.renderOrder=10;return sp;
 }
 function buildGrid(){
@@ -435,8 +478,8 @@ function buildGrid(){
 let VOL=null;
 function updateTable(){
   VOL=volumes();const tb=$('tb');tb.innerHTML='';let sA=0;
-  VOL.rows.forEach(x=>{sA+=x.area;const R=REG.find(r=>r.uk===x.uk);const tr=document.createElement('tr');
-    tr.innerHTML=`<td><span class="sw" style="background:${R?R.hex:'#ccc'}"></span>${lvl(x.uk)}<span class="nm">${x.names.join(', ')}</span></td><td>${fmt(x.area,1)}</td><td>${fmt(x.depth)}</td><td>${fmt(x.vol,1)}</td>`;tb.appendChild(tr)});
+  VOL.rows.forEach(x=>{sA+=x.area;const R=x.R;const tr=document.createElement('tr');
+    tr.innerHTML=`<td><span class="sw" style="background:${R?R.hex:'#ccc'}"></span>${x.sl?ukTxt(R):lvl(x.uk)}<span class="nm">${x.names.map(esc).join(', ')}${x.sl?', geneigt, Tiefe im Mittel':''}</span></td><td>${fmt(x.area,1)}</td><td>${fmt(x.depth)}</td><td>${fmt(x.vol,1)}</td>`;tb.appendChild(tr)});
   const trb=document.createElement('tr');
   trb.innerHTML=`<td><span class="sw" style="background:#9a7350"></span>Böschung 45°, verschnitten<span class="nm">${state.slope==='all'?'an allen Sohlsprüngen':'nur Baugrubenrand'}</span></td><td></td><td></td><td>${fmt(VOL.slope,1)}</td>`;tb.appendChild(trb);
   $('sA').textContent=fmt(sA,1);$('sV').textContent=fmt(VOL.tot,1);
@@ -447,17 +490,18 @@ function updateTable(){
   $('vDesc').textContent='Gesamtaushub fest, Böschungen 45° '+(state.slope==='all'?'an allen Sohlsprüngen':'am Baugrubenrand')+' verschnitten, ohne Arbeitsraum'+(nE?`, ${nE} Bereich${nE>1?'e':''} geändert`:'')+(nC?`, ${nC} eigene Fläche${nC>1?'n':''}`:'');
 }
 function saveEdits(){try{localStorage.setItem(STORE,JSON.stringify(edits))}catch(e){}}
-function setUK(R,v){R.uk=v;if(R.custom){R.src.uk=v;R.uk0=v;return}if(Math.abs(v-R.uk0)<1e-6)delete edits[R.id];else edits[R.id]=v}
+function setUK(R,v){const d=v-R.uk;R.uk=v;if(R.custom){R.src.uk=v;R.uk0=v;if(Array.isArray(R.src.eh))R.src.eh=R.src.eh.map(h=>h==null?null:+(h+d).toFixed(3));slopeInfo(R);return}if(Math.abs(v-R.uk0)<1e-6)delete edits[R.id];else edits[R.id]=v}
 function saveAll(){saveEdits();saveCustom()}
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const numIn=el=>parseFloat(String(el.value).replace(',','.'));
 function renderEdit(){
   const box=$('edit');let h='';
+  if(state.sel===null||!REG[state.sel]||!REG[state.sel].custom||state.selEdge>=REG[state.sel].rings[0].length)state.selEdge=null;
   $('bDraw').disabled=draw.on;
   if(draw.on){
     const n=draw.pts.length,A=n>=3?Math.abs(polyArea(draw.pts)):0;
     h=`<div class="rn">Neue Fläche einzeichnen</div>
-    <div class="rs">${draw.rect?'Zwei gegenüberliegende Ecken anklicken.':'Eckpunkte nacheinander anklicken. Abschließen mit Klick auf den ersten Punkt, Doppelklick oder Enter.'} Vorhandene Ecken werden gefangen, sonst 5-cm-Raster. Umschalt: rechtwinklig. Rechte Maustaste: verschieben.</div>
+    <div class="rs">${draw.rect?'Zwei gegenüberliegende Ecken anklicken.':'Eckpunkte nacheinander anklicken. Abschließen mit Klick auf den ersten Punkt, Doppelklick oder Enter.'} Vorhandene Ecken und Achsschnittpunkte werden gefangen, sonst 5-cm-Raster. Umschalt: rechtwinklig. Rechte Maustaste: verschieben.</div>
     <div class="seg" id="segDraw"><button data-d="poly" aria-pressed="${!draw.rect}">Polygon</button><button data-d="rect" aria-pressed="${draw.rect}">Rechteck</button></div>
     <div class="row"><label for="dName">Bezeichnung</label><input id="dName" type="text" value="${esc(draw.name)}"></div>
     <div class="row"><label for="dUk">UK Aushub relativ zu ±0,00</label><input id="dUk" type="number" step="0.05" value="${draw.uk.toFixed(2)}"></div>
@@ -472,32 +516,64 @@ function renderEdit(){
   }
   if(state.sel===null)h=`<div class="empty">Klick im Modell auf eine Sohle oder Böschung, um die Höhe dieses Bereichs zu ändern. Ist ein Bereich ausgewählt, lässt er sich im Modell mit gedrückter Maustaste nach oben oder unten ziehen. Modell und Mengen passen sich sofort an.</div>`;
   else{const R=REG[state.sel],same=R.custom?1:REG.filter(x=>!x.custom&&x.uk0===R.uk0).length;
-    h=R.custom?`<div class="row"><label for="nmIn" class="rn">Eigene Fläche</label><input id="nmIn" type="text" value="${esc(R.name)}"></div><div class="rs">${R.ax}, Fläche ${fmt(R.area,1)} m², selbst eingezeichnet</div>`
+    h=R.custom?`<div class="row"><label for="nmIn" class="rn">Eigene Fläche</label><input id="nmIn" type="text" value="${esc(R.name)}"></div><div class="rs">${R.ax}, Fläche ${fmt(R.area,1)} m², selbst eingezeichnet${R.sl?`, Sohle geneigt UK ${ukTxt(R)}`:''}</div>`
       :`<div class="rn">${R.name}</div><div class="rs">${R.ax}, Fläche ${fmt(R.area,1)} m², laut Plan UK ${lvl(R.uk0)}</div>`;
-    h+=`<div class="row"><label for="ukIn">UK Aushub relativ zu ±0,00</label><input id="ukIn" type="number" step="0.05" value="${R.uk.toFixed(2)}"></div>
+    h+=`<div class="row"><label for="ukIn">${R.sl?'Grund-UK (ganze Fläche verschieben)':'UK Aushub relativ zu ±0,00'}</label><input id="ukIn" type="number" step="0.05" value="${R.uk.toFixed(2)}"></div>
     <div class="row" style="font-size:.8rem;color:var(--muted)"><span id="ukNhn">entspricht ${fmt(NHN0+R.uk)} m ü NHN</span></div>
     ${same>1?`<label style="display:flex;gap:6px;align-items:center;font-size:.85rem"><input type="checkbox" id="grp"> Alle ${same} Bereiche mit Plan-UK ${lvl(R.uk0)} mitändern</label>`:''}
     <div class="dragnote">⇕ Bereich im Modell anfassen und ziehen: 5-cm-Schritte, mit Umschalt 1 cm, Esc bricht ab.</div>
+    ${R.custom?edgeTable(R):''}
     <div class="btns">${R.custom?'<button id="bDel">Fläche löschen</button>':'<button id="bReset">Auf Planwert</button>'}<button id="bDesel">Auswahl aufheben</button></div>`}
   box.innerHTML=h+'<div id="editChg"></div>';renderChanges();
   const inp=$('ukIn');if(!inp)return;
-  const group=()=>groupOf(REG[state.sel]);
+  const group=()=>groupOf(REG[state.sel]),R0=()=>REG[state.sel];
   inp.addEventListener('input',()=>{const v=numIn(inp);if(isNaN(v)||v<-8||v>2)return;
     group().forEach(Q=>setUK(Q,v));saveAll();$('ukNhn').textContent='entspricht '+fmt(NHN0+v)+' m ü NHN';schedule(true)});
   const g=$('grp');if(g)g.onchange=()=>buildSel();
   if($('bReset'))$('bReset').onclick=()=>{group().forEach(Q=>setUK(Q,Q.uk0));saveEdits();schedule()};
   if($('bDel'))$('bDel').onclick=()=>{const R=REG[state.sel];custom=custom.filter(c=>c.id!==R.id);saveCustom();rebuildReg();state.sel=null;schedule()};
+  if(R0().custom)bindEdges();
   if($('nmIn'))$('nmIn').oninput=e=>{const R=REG[state.sel];R.name=R.src.n=e.target.value||'Eigene Fläche';saveCustom();updateTable();renderChanges()};
   $('bDesel').onclick=()=>{state.sel=null;renderEdit();buildSel()};
+}
+function edgeTable(R){
+  const ring=R.rings[0];
+  return `<div class="edges"><div class="segl">Höhe einzelner Linien</div><table class="et"><tbody>${ring.map((p,k)=>{const q=ring[(k+1)%ring.length],e=R.sl&&R.sl[k],fix=e&&e.fix;
+    return `<tr data-e="${k}"${state.selEdge===k?' class="on"':''}><td><span class="enr">${k+1}</span>${fmt(Math.hypot(q[0]-p[0],q[1]-p[1]))} m<span class="nm">${nearAx(AX,(p[0]+q[0])/2)} / ${nearAx(AY,(p[1]+q[1])/2)}</span></td>
+    <td><input type="number" step="0.05" data-eh="${k}" value="${fix?e.za.toFixed(2):''}" placeholder="${edgePh(R,k)}"></td></tr>`}).join('')}</tbody></table>
+    <div class="dragnote">Leeres Feld = frei: die Linie läuft zwischen den Höhen ihrer Ecken. Ecken an festen Linien übernehmen deren Höhe, sonst die Grund-UK. So entsteht z. B. mit einer festen Linie eine Rampe zur Gegenseite. Linie im Modell anklicken wählt sie aus.</div>
+    ${R.sl?'<div class="btns"><button id="bFlat">Alle Linien frei (Sohle eben)</button></div>':''}</div>`;
+}
+function edgePh(R,k){const e=R.sl&&R.sl[k];if(!e)return 'frei '+fmt(R.uk);return Math.abs(e.za-e.zb)<0.005?'frei '+fmt(e.za):'frei '+fmt(e.za)+'…'+fmt(e.zb)}
+function bindEdges(){
+  const R=REG[state.sel];
+  document.querySelectorAll('[data-eh]').forEach(inp=>{const k=+inp.dataset.eh;
+    inp.onfocus=()=>{state.selEdge=k;document.querySelectorAll('.et tr').forEach(tr=>tr.classList.toggle('on',+tr.dataset.e===k));buildSel()};
+    inp.oninput=()=>{const raw=String(inp.value).trim(),v=numIn(inp);
+      if(raw!==''&&(isNaN(v)||v<-8||v>2))return;
+      if(!Array.isArray(R.src.eh)||R.src.eh.length!==R.rings[0].length)R.src.eh=R.rings[0].map(()=>null);
+      R.src.eh[k]=raw===''?null:v;slopeInfo(R);saveCustom();
+      document.querySelectorAll('[data-eh]').forEach(o=>o.placeholder=edgePh(R,+o.dataset.eh));
+      buildSel();schedule(true)};
+  });
+  if($('bFlat'))$('bFlat').onclick=()=>{R.src.eh=null;slopeInfo(R);saveCustom();schedule()};
+}
+// click on a numbered line of the selected own area
+function pickEdge(ev){
+  if(state.sel===null)return null;const R=REG[state.sel];if(!R.custom)return null;
+  const r=renderer.domElement.getBoundingClientRect(),sx=ev.clientX-r.left,sy=ev.clientY-r.top,ring=R.rings[0];let best=null,bd=9;
+  ring.forEach((p,k)=>{const q=ring[(k+1)%ring.length],e=R.sl&&R.sl[k],a=toScreen(p[0],p[1],e?e.za:R.uk),b=toScreen(q[0],q[1],e?e.zb:R.uk);
+    const d=segDist({ax:a[0],ay:a[1],bx:b[0],by:b[1]},sx,sy)[0];if(d<bd){bd=d;best=k}});
+  return best;
 }
 function renderChanges(){
   const c=$('editChg');if(!c)return;const changed=REG.filter(R=>!R.custom&&edits[R.id]!=null),own=REG.filter(R=>R.custom);
   if(!changed.length&&!own.length){c.innerHTML='';return}
   let h='';
   if(changed.length)h+=`<div class="chg"><b>Geänderte Bereiche (${changed.length})</b><ul>${changed.map(R=>`<li><a data-sel="${R.i}">${R.name}, ${R.ax}</a>: ${lvl(R.uk0)} → ${lvl(R.uk)}</li>`).join('')}</ul><a id="bResetAll">Alle auf Planwerte zurücksetzen</a></div>`;
-  if(own.length)h+=`<div class="chg"><b>Eigene Flächen (${own.length})</b><ul>${own.map(R=>`<li><a data-sel="${R.i}">${esc(R.name)}, ${R.ax}</a>: UK ${lvl(R.uk)}, ${fmt(R.area,1)} m²</li>`).join('')}</ul><a id="bDelAll">Alle eigenen Flächen löschen</a></div>`;
+  if(own.length)h+=`<div class="chg"><b>Eigene Flächen (${own.length})</b><ul>${own.map(R=>`<li><a data-sel="${R.i}">${esc(R.name)}, ${R.ax}</a>: UK ${ukTxt(R)}, ${fmt(R.area,1)} m²</li>`).join('')}</ul><a id="bDelAll">Alle eigenen Flächen löschen</a></div>`;
   c.innerHTML=h;
-  c.querySelectorAll('[data-sel]').forEach(a=>a.onclick=()=>{state.sel=+a.dataset.sel;renderEdit();buildSel()});
+  c.querySelectorAll('[data-sel]').forEach(a=>a.onclick=()=>{state.sel=+a.dataset.sel;state.selEdge=null;renderEdit();buildSel()});
   if($('bResetAll'))$('bResetAll').onclick=()=>{REG.forEach(R=>{if(!R.custom)setUK(R,R.uk0)});saveEdits();schedule()};
   if($('bDelAll'))$('bDelAll').onclick=()=>{if(!confirm('Alle eigenen Flächen löschen?'))return;custom=[];saveCustom();rebuildReg();state.sel=null;schedule()};
 }
@@ -506,7 +582,7 @@ function renderChanges(){
 let timer=null;
 function refresh(res){
   compute(res);buildMesh();buildLines();buildCut();buildSel();updateTable();
-  gridG.position.y=state.G*state.ex+0.03;$('busy').style.display='none';buildDraw();
+  gridG.position.y=state.G*state.ex+0.03;$('busy').style.display='none';buildDraw();buildPlan();
 }
 function schedule(keepPanel){
   $('busy').style.display='block';clearTimeout(timer);
@@ -516,7 +592,7 @@ function schedule(keepPanel){
 // ---------- controls ----------
 $('g').addEventListener('input',e=>{let v=parseFloat(String(e.target.value).replace(',','.'));if(isNaN(v))return;state.G=Math.max(-0.2,Math.min(1,v));schedule()});
 $('af').addEventListener('input',e=>{const v=parseFloat(String(e.target.value).replace(',','.'));if(!isNaN(v)&&v>=1){state.af=v;updateTable()}});
-$('ex').addEventListener('input',e=>{state.ex=parseFloat(e.target.value);$('exOut').textContent=fmt(state.ex,1)+'-fach';root.scale.y=state.ex;gridG.position.y=state.G*state.ex+0.03;buildDraw()});
+$('ex').addEventListener('input',e=>{state.ex=parseFloat(e.target.value);$('exOut').textContent=fmt(state.ex,1)+'-fach';root.scale.y=state.ex;gridG.position.y=state.G*state.ex+0.03;buildDraw();buildSel();buildPlan()});
 $('exOut').textContent=fmt(state.ex,1)+'-fach';
 function cutText(z){if(z===null)return 'aus';let b=AY[0];for(const a of AY)if(Math.abs(a[1]-z)<Math.abs(b[1]-z))b=a;const o=z-b[1];return 'Achse '+b[0]+(Math.abs(o)<0.13?'':(o>0?' + ':' − ')+fmt(Math.abs(o))+' m')}
 $('cut').addEventListener('input',e=>{const z=parseFloat(e.target.value);state.cut=z>=101.9?null:z;clip.constant=state.cut===null?1e4:state.cut;$('cutOut').textContent=cutText(state.cut);buildCut()});
@@ -546,7 +622,7 @@ function hitInfo(ev){
   const i=Math.max(0,Math.min(nx-1,Math.round((p.x-x0)/res))),j=Math.max(0,Math.min(ny-1,Math.round((p.z-y0)/res))),k=j*nx+i;
   const l=LAB[k],f=F[k];let reg=null,kind;
   if(f>=G-1e-4)kind='Gelände, kein Aushub';
-  else if(l<0&&l!==-999999&&f<=REG[-l-1].uk+0.003){reg=REG[-l-1];kind='Sohle'}
+  else if(l<0&&l!==-999999&&f<=zAt(REG[-l-1],p.x,p.z)+0.003){reg=REG[-l-1];kind=REG[-l-1].sl?'Sohle geneigt':'Sohle'}
   else{kind='Böschung 45°';if(l>=0)reg=REG[EDG[l].r];else if(l<0&&l!==-999999)reg=REG[-l-1]}
   return{reg,kind,h:Math.min(G,f),r,point:{x:p.x,z:p.z}};
 }
@@ -572,7 +648,7 @@ function buildDraw(){
   if(mk.length){drawP=new THREE.Points(new THREE.BufferGeometry().setFromPoints(mk),drawPtMat);drawP.renderOrder=21;scene.add(drawP)}
 }
 function startDraw(){
-  state.sel=null;buildSel();draw.on=true;draw.pts=[];draw.hover=null;
+  if(cal.on)stopCal();state.sel=null;buildSel();draw.on=true;draw.pts=[];draw.hover=null;
   draw.name='Eigene Fläche '+(custom.length+1);
   controls.enableRotate=false;go('top');setStatus('Zeichnen: Eckpunkte anklicken. Rechte Maustaste: verschieben, Mausrad: zoomen, Esc: abbrechen');
   renderEdit();buildDraw();
@@ -597,7 +673,7 @@ function snapPoint(ev){
   if(!draw.rect&&draw.pts.length>=3){const s=toScreen(draw.pts[0][0],draw.pts[0][1],G);if(Math.hypot(s[0]-sx,s[1]-sy)<TOL)return{x:draw.pts[0][0],y:draw.pts[0][1],close:true}}
   let best=null,bd=TOL;
   const test=p=>{const s=toScreen(p[0],p[1],G),d=Math.hypot(s[0]-sx,s[1]-sy);if(d<bd){bd=d;best=p}};
-  for(const R of REG)for(const ring of R.rings)ring.forEach(test);draw.pts.forEach(test);
+  for(const R of REG)for(const ring of R.rings)ring.forEach(test);draw.pts.forEach(test);for(const[,x]of AX)for(const[,y]of AY)test([x,y]);
   if(best)return{x:best[0],y:best[1],snap:true};
   let[x,y]=g;const last=draw.pts[draw.pts.length-1];
   if(ev.shiftKey&&last&&!draw.rect){if(Math.abs(x-last[0])>Math.abs(y-last[1]))y=last[1];else x=last[0]}
@@ -622,12 +698,128 @@ function drawClick(ev){
 }
 renderer.domElement.addEventListener('dblclick',()=>{if(draw.on&&!draw.rect&&draw.pts.length>=3)finishDraw()});
 
+// ---------- plan underlay ----------
+// image pixel (u,v) -> model (x,y): similarity  x+iy = s*(u+iv)+t  with s=a+ib (scale and rotation), t=tx+i*ty
+const plan={img:null,name:'',w:0,h:0,a:1,b:0,tx:0,ty:0,op:0.6,vis:true,tex:null};
+const cal={on:false,step:0,w:[],z:[],hover:null};
+let planMesh=null,calP=null;
+const calMat=new THREE.PointsMaterial({color:0x1f6feb,size:10,sizeAttenuation:false,depthTest:false});
+function idb(mode,fn){return new Promise((res,rej)=>{let q;try{q=indexedDB.open('riedel-aushub',1)}catch(e){rej(e);return}
+  q.onupgradeneeded=()=>q.result.createObjectStore('plan');q.onerror=()=>rej(q.error);
+  q.onsuccess=()=>{try{const tx=q.result.transaction('plan',mode),r=fn(tx.objectStore('plan'));tx.oncomplete=()=>res(r&&r.result);tx.onerror=()=>rej(tx.error)}catch(e){rej(e)}}})}
+let planSaveT=null;
+function savePlan(){clearTimeout(planSaveT);planSaveT=setTimeout(()=>{
+  const v=plan.img?{img:plan.img,name:plan.name,w:plan.w,h:plan.h,a:plan.a,b:plan.b,tx:plan.tx,ty:plan.ty,op:plan.op,vis:plan.vis}:null;
+  idb('readwrite',st=>v?st.put(v,STORE):st.delete(STORE)).catch(()=>{})},300)}
+const pToM=(u,v)=>[plan.a*u-plan.b*v+plan.tx,plan.b*u+plan.a*v+plan.ty];
+function mToP(x,y){const dx=x-plan.tx,dy=y-plan.ty,n=plan.a*plan.a+plan.b*plan.b;return[(plan.a*dx+plan.b*dy)/n,(plan.a*dy-plan.b*dx)/n]}
+function fitPlan(){ // fit to the plan regions, unrotated
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const r of D.regions)for(const p of r.r[0]){x0=Math.min(x0,p[0]);y0=Math.min(y0,p[1]);x1=Math.max(x1,p[0]);y1=Math.max(y1,p[1])}
+  const m=6,sc=Math.min((x1-x0+2*m)/plan.w,(y1-y0+2*m)/plan.h);plan.a=sc;plan.b=0;plan.tx=(x0+x1)/2-sc*plan.w/2;plan.ty=(y0+y1)/2-sc*plan.h/2;
+}
+function buildPlan(){
+  if(planMesh){scene.remove(planMesh);planMesh.geometry.dispose()}planMesh=null;
+  if(calP){scene.remove(calP);calP.geometry.dispose();calP=null}
+  if(!plan.tex||!(plan.vis||cal.on))return;
+  const y=state.G*state.ex+0.02,c=[[0,0],[plan.w,0],[plan.w,plan.h],[0,plan.h]].map(([u,v])=>pToM(u,v));
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(c.flatMap(p=>[p[0],y,p[1]])),3));
+  g.setAttribute('uv',new THREE.BufferAttribute(new Float32Array([0,1,1,1,1,0,0,0]),2));g.setIndex([0,3,1,1,3,2]);
+  planMesh=new THREE.Mesh(g,new THREE.MeshBasicMaterial({map:plan.tex,transparent:true,opacity:plan.op,depthWrite:false,side:THREE.DoubleSide}));
+  planMesh.renderOrder=3;scene.add(planMesh);
+  if(cal.on){const pts=[...cal.w.map(w=>pToM(w[0],w[1])),...cal.z];if(cal.hover)pts.push(cal.hover);
+    if(pts.length){calP=new THREE.Points(new THREE.BufferGeometry().setFromPoints(pts.map(p=>new THREE.Vector3(p[0],y+0.05,p[1]))),calMat);calP.renderOrder=22;scene.add(calP)}}
+}
+function setPlanImage(url,name,keep){
+  return new Promise((res,rej)=>{new THREE.TextureLoader().load(url,t=>{
+    if(plan.tex)plan.tex.dispose();t.anisotropy=renderer.capabilities.getMaxAnisotropy();
+    plan.tex=t;plan.img=url;plan.name=name;plan.w=t.image.width;plan.h=t.image.height;if(!keep)fitPlan();res()},undefined,()=>rej(new Error('Bild nicht lesbar')))});
+}
+function loadScript(src){return new Promise((res,rej)=>{const el=document.createElement('script');el.src=src;el.onload=res;el.onerror=()=>rej(new Error('pdf.js konnte nicht geladen werden'));document.head.appendChild(el)})}
+const PDFJS='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/';
+async function fileToImage(file){
+  const MAX=4096,cv=document.createElement('canvas'),cx=cv.getContext('2d');
+  if(/pdf$/i.test(file.type)||/\.pdf$/i.test(file.name)){
+    if(!window.pdfjsLib)await loadScript(PDFJS+'pdf.min.js');pdfjsLib.GlobalWorkerOptions.workerSrc=PDFJS+'pdf.worker.min.js';
+    const pdf=await pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;
+    let pg=1;if(pdf.numPages>1){pg=parseInt(prompt(`Die PDF hat ${pdf.numPages} Seiten. Welche Seite soll hinterlegt werden?`,'1'),10);if(!(pg>=1&&pg<=pdf.numPages))pg=1}
+    const page=await pdf.getPage(pg),v1=page.getViewport({scale:1}),vp=page.getViewport({scale:Math.min(MAX/Math.max(v1.width,v1.height),8)});
+    cv.width=Math.floor(vp.width);cv.height=Math.floor(vp.height);cx.fillStyle='#fff';cx.fillRect(0,0,cv.width,cv.height);
+    await page.render({canvasContext:cx,viewport:vp}).promise;
+  }else{
+    const url=URL.createObjectURL(file);
+    const im=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error('Bild nicht lesbar'));i.src=url});
+    const k=Math.min(1,MAX/Math.max(im.naturalWidth,im.naturalHeight));cv.width=Math.round(im.naturalWidth*k);cv.height=Math.round(im.naturalHeight*k);
+    cx.fillStyle='#fff';cx.fillRect(0,0,cv.width,cv.height);cx.drawImage(im,0,0,cv.width,cv.height);URL.revokeObjectURL(url);
+  }
+  return cv.toDataURL('image/jpeg',0.88);
+}
+function renderPlan(msg){
+  const box=$('plan');let h='';
+  if(!plan.tex)h=`<div class="btns"><button id="bPlanLoad">Plan laden (PDF, PNG, JPG)</button></div><div class="expnote">${msg||'Grundriss oder Lageplan als Zeichenhilfe unter das Modell legen und über zwei Passpunkte ausrichten. Der Plan bleibt in diesem Browser gespeichert.'}</div>`;
+  else{
+    h=`<div class="pn" title="${esc(plan.name)}">${esc(plan.name)}</div>
+    <div class="row"><label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="pVis" ${plan.vis?'checked':''}> anzeigen</label><input id="pOp" type="range" min="0.1" max="1" step="0.05" value="${plan.op}" aria-label="Deckkraft"></div>
+    <div class="row" style="font-size:.78rem;color:var(--muted)">Maßstab 1 px = ${fmt(Math.hypot(plan.a,plan.b)*100,2)} cm, Drehung ${fmt(((Math.atan2(plan.b,plan.a)*180/Math.PI)+360)%360,1)}°</div>`;
+    if(cal.on){const st=['Passpunkt 1 im <b>Plan</b> anklicken, z. B. einen Achsschnittpunkt.','Denselben Punkt im <b>Modell</b> anklicken. Achsschnittpunkte und Ecken werden gefangen.','Passpunkt 2 im <b>Plan</b> anklicken, möglichst weit weg von Punkt 1.','Denselben Punkt im <b>Modell</b> anklicken.'];
+      h+=`<div class="cal">Schritt ${cal.step+1} von 4: ${st[cal.step]}<div class="btns"><button id="bCalX">Abbrechen</button></div></div>`}
+    else h+=`<div class="btns"><button id="bCal">Ausrichten (2 Punkte)</button><button id="bRot">90° drehen</button><button id="bFit">Einpassen</button><button id="bPlanLoad">Anderer Plan</button><button id="bPlanDel">Entfernen</button></div>${msg?`<div class="expnote">${msg}</div>`:''}`;
+  }
+  box.innerHTML=h;
+  if($('bPlanLoad'))$('bPlanLoad').onclick=()=>$('planFile').click();
+  if(!plan.tex)return;
+  $('pVis').onchange=e=>{plan.vis=e.target.checked;buildPlan();savePlan()};
+  $('pOp').oninput=e=>{plan.op=parseFloat(e.target.value);if(planMesh)planMesh.material.opacity=plan.op;savePlan()};
+  if($('bCalX'))$('bCalX').onclick=()=>stopCal();
+  if($('bCal'))$('bCal').onclick=startCal;
+  if($('bRot'))$('bRot').onclick=()=>{const[cx,cy]=pToM(plan.w/2,plan.h/2),a=plan.a,b=plan.b,tx=plan.tx-cx,ty=plan.ty-cy;
+    plan.a=-b;plan.b=a;plan.tx=cx-ty;plan.ty=cy+tx;buildPlan();savePlan();renderPlan()};
+  if($('bFit'))$('bFit').onclick=()=>{fitPlan();buildPlan();savePlan();renderPlan()};
+  if($('bPlanDel'))$('bPlanDel').onclick=()=>{if(!confirm('Hinterlegten Plan entfernen?'))return;if(plan.tex)plan.tex.dispose();plan.tex=null;plan.img=null;buildPlan();savePlan();renderPlan()};
+}
+$('planFile').onchange=async e=>{const f=e.target.files&&e.target.files[0];e.target.value='';if(!f)return;
+  $('plan').innerHTML='<div class="expnote">Plan wird geladen …</div>';
+  try{const url=await fileToImage(f);await setPlanImage(url,f.name);plan.vis=true;buildPlan();savePlan();go('top');renderPlan('Plan grob eingepasst. Mit „Ausrichten (2 Punkte)“ maßstäblich auf die Achsen legen.')}
+  catch(err){renderPlan('Plan konnte nicht geladen werden: '+esc(err.message||err))}};
+function startCal(){if(draw.on)stopDraw();state.sel=null;buildSel();renderEdit();cal.on=true;cal.step=0;cal.w=[];cal.z=[];cal.hover=null;controls.enableRotate=false;go('top');
+  setStatus('Plan ausrichten: Punkte anklicken. Rechte Maustaste: verschieben, Mausrad: zoomen, Esc: abbrechen');renderPlan();buildPlan()}
+function stopCal(){cal.on=false;cal.hover=null;controls.enableRotate=true;setStatus();tip.style.display='none';renderPlan();buildPlan()}
+// snap target for the model side: axis intersections and region corners
+function snapModel(ev){
+  const g=groundAt(ev);if(!g)return null;const r=renderer.domElement.getBoundingClientRect(),sx=ev.clientX-r.left,sy=ev.clientY-r.top;let best=null,bd=12,kind='';
+  const test=(p,k)=>{const q=toScreen(p[0],p[1],state.G),d=Math.hypot(q[0]-sx,q[1]-sy);if(d<bd){bd=d;best=p;kind=k}};
+  for(const[,x]of AX)for(const[,y]of AY)test([x,y],'Achsschnittpunkt');
+  for(const R of REG)for(const ring of R.rings)for(const p of ring)test(p,'Ecke');
+  return best?{p:[best[0],best[1]],kind}:{p:g,kind:''};
+}
+function calMove(ev){
+  const model=cal.step%2===1,t=model?snapModel(ev):(()=>{const g=groundAt(ev);return g&&{p:g,kind:''}})();
+  cal.hover=t&&t.p;buildPlan();if(!t){tip.style.display='none';return}
+  showTip(ev,`<b>${model?'Modellpunkt':'Planpunkt'} ${cal.step<2?1:2}</b><br>${t.kind?t.kind+' gefangen, ':''}Achse ${nearAx(AX,t.p[0])} / ${nearAx(AY,t.p[1])}`);
+}
+function calClick(ev){
+  if(cal.step%2===0){const g=groundAt(ev);if(!g)return;const w=mToP(g[0],g[1]);
+    if(w[0]<0||w[1]<0||w[0]>plan.w||w[1]>plan.h){setStatus('Bitte einen Punkt auf dem Plan anklicken.');return}cal.w.push(w)}
+  else{const t=snapModel(ev);if(!t)return;cal.z.push(t.p)}
+  cal.step++;
+  if(cal.step===4){
+    const[w1,w2]=cal.w,[z1,z2]=cal.z,du=w2[0]-w1[0],dv=w2[1]-w1[1],dx=z2[0]-z1[0],dy=z2[1]-z1[1],n=du*du+dv*dv;
+    if(n<25||Math.hypot(dx,dy)<0.5){stopCal();renderPlan('Die Passpunkte liegen zu nah beieinander. Bitte zwei weiter entfernte Punkte wählen.');return}
+    plan.a=(dx*du+dy*dv)/n;plan.b=(dy*du-dx*dv)/n;plan.tx=z1[0]-(plan.a*w1[0]-plan.b*w1[1]);plan.ty=z1[1]-(plan.b*w1[0]+plan.a*w1[1]);
+    savePlan();stopCal();renderPlan(`Plan ausgerichtet. Abstand der Passpunkte ${fmt(Math.hypot(dx,dy))} m.`);return;
+  }
+  renderPlan();buildPlan();
+}
+idb('readonly',st=>st.get(STORE)).then(v=>{if(!v||!v.img)return;Object.assign(plan,{a:v.a,b:v.b,tx:v.tx,ty:v.ty,op:v.op,vis:v.vis});
+  return setPlanImage(v.img,v.name,true).then(()=>{buildPlan();renderPlan()})}).catch(()=>{});
+renderPlan();
+
 // ---------- drag heights ----------
 let hd=null; // active height drag
 function canDrag(H){if(state.sel===null||!H||!H.reg)return false;return groupOf(REG[state.sel]).includes(H.reg)}
 // capture phase: runs before OrbitControls so the camera stays put while dragging
 view.addEventListener('pointerdown',ev=>{
-  if(ev.target!==renderer.domElement||draw.on||ev.button!==0)return;
+  if(ev.target!==renderer.domElement||draw.on||cal.on||ev.button!==0)return;
   const H=hitInfo(ev);if(!canDrag(H))return;
   const r=renderer.domElement.getBoundingClientRect(),p=H.point,a=toScreen(p.x,p.z,H.h),b=toScreen(p.x,p.z,H.h+1);
   const grp=groupOf(REG[state.sel]);
@@ -659,23 +851,26 @@ function endDrag(cancel){
 
 renderer.domElement.addEventListener('pointermove',ev=>{
   if(hd){dragMove(ev);return}
+  if(cal.on){calMove(ev);return}
   if(draw.on){drawMove(ev);return}
   const H=hitInfo(ev);if(!H){tip.style.display='none';renderer.domElement.style.cursor='';return}
   renderer.domElement.style.cursor=canDrag(H)?'ns-resize':'';
-  showTip(ev,`<b>${H.kind}</b>${H.reg?`<br>${H.kind==='Sohle'?'':'von '}${esc(H.reg.name)}, ${H.reg.ax}`:''}<br>Höhe ${lvl(H.h)} = ${fmt(NHN0+H.h)} m ü NHN<br>Tiefe ab Gelände ${fmt(state.G-H.h)} m${canDrag(H)?'<br><i>Ziehen ändert die Höhe</i>':''}`);
+  showTip(ev,`<b>${H.kind}</b>${H.reg?`<br>${H.kind.startsWith('Sohle')?'':'von '}${esc(H.reg.name)}, ${H.reg.ax}`:''}<br>Höhe ${lvl(H.h)} = ${fmt(NHN0+H.h)} m ü NHN<br>Tiefe ab Gelände ${fmt(state.G-H.h)} m${canDrag(H)?'<br><i>Ziehen ändert die Höhe</i>':''}`);
 });
-renderer.domElement.addEventListener('pointerleave',()=>{tip.style.display='none';if(draw.on){draw.hover=null;buildDraw()}});
+renderer.domElement.addEventListener('pointerleave',()=>{tip.style.display='none';if(draw.on){draw.hover=null;buildDraw()}if(cal.on){cal.hover=null;buildPlan()}});
 let down=null;
 renderer.domElement.addEventListener('pointerdown',e=>down=[e.clientX,e.clientY,e.button]);
 renderer.domElement.addEventListener('pointerup',e=>{
   if(hd&&endDrag(false))return;
   if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>5)return;
+  if(cal.on){if(down[2]===0)calClick(e);return}
   if(draw.on){if(down[2]===0)drawClick(e);return}
-  const H=hitInfo(e);state.sel=H&&H.reg?H.reg.i:null;renderEdit();buildSel();});
+  const ek=pickEdge(e);if(ek!==null){state.selEdge=ek;renderEdit();buildSel();const i=document.querySelector(`[data-eh="${ek}"]`);if(i)i.focus();return}
+  const H=hitInfo(e),ns=H&&H.reg?H.reg.i:null;if(ns!==state.sel)state.selEdge=null;state.sel=ns;renderEdit();buildSel();});
 renderer.domElement.addEventListener('pointercancel',()=>endDrag(true));
 document.addEventListener('keydown',e=>{
   if(e.target.closest&&e.target.closest('input,textarea'))return;
-  if(e.key==='Escape'){if(hd)endDrag(true);else if(draw.on)stopDraw()}
+  if(e.key==='Escape'){if(hd)endDrag(true);else if(cal.on)stopCal();else if(draw.on)stopDraw()}
   else if(draw.on&&e.key==='Enter'&&!draw.rect)finishDraw();
   else if(draw.on&&e.key==='Backspace'){e.preventDefault();draw.pts.pop();buildDraw();renderEdit()}
 });
@@ -725,7 +920,7 @@ function exportPDF(){
   // Koten
   doc.setFont('helvetica','normal');doc.setFontSize(4.6);
   REG.forEach(R=>{if(R.area<2.2)return;const ed=edits[R.id]!=null||R.custom;doc.setTextColor(ed?220:40,ed?0:40,ed?0:40);
-    doc.text('UK '+lvlP(R.uk),X(R.cy),Y(R.cx)+0.6,{align:'center'})});
+    doc.text('UK '+ukTxt(R,lvlP),X(R.cy),Y(R.cx)+0.6,{align:'center'})});
   // legend
   doc.setTextColor(30);doc.setFont('helvetica','bold');doc.setFontSize(9);doc.text('Legende',16,222);
   doc.setFont('helvetica','normal');doc.setFontSize(6.5);
@@ -766,7 +961,7 @@ function exportPDF(){
   doc.setFontSize(7.5);let y=28;const cols=[278,330,352,374,404];
   [['UK Aushub',278,0],['Bereiche',296,0],['Sohle m²',370,1],['Tiefe m',388,1],['m³ fest',406,1]].forEach(([h,x,r])=>doc.text(h,x,y,r?{align:'right'}:{}));
   doc.setFont('helvetica','normal');y+=2;doc.setLineWidth(0.2);doc.line(278,y,406,y);y+=4;
-  VOL.rows.forEach(r=>{doc.text('UK '+lvlP(r.uk),278,y);doc.text(txt(r.names.join(', ')).slice(0,24),296,y);doc.text(fmt(r.area,1),370,y,{align:'right'});doc.text(fmt(r.depth),388,y,{align:'right'});doc.text(fmt(r.vol,1),406,y,{align:'right'});y+=4.3});
+  VOL.rows.forEach(r=>{doc.text('UK '+(r.sl?ukTxt(r.R,lvlP):lvlP(r.uk)),278,y);doc.text(txt(r.names.join(', ')).slice(0,24),296,y);doc.text(fmt(r.area,1),370,y,{align:'right'});doc.text(fmt(r.depth),388,y,{align:'right'});doc.text(fmt(r.vol,1),406,y,{align:'right'});y+=4.3});
   doc.text('Böschung 45°, verschnitten',278,y);doc.text(fmt(VOL.slope,1),406,y,{align:'right'});y+=2;doc.setLineWidth(0.4);doc.line(278,y,406,y);y+=4.5;
   doc.setFont('helvetica','bold');doc.text('Summe fest',278,y);doc.text(fmt(VOL.tot,1),406,y,{align:'right'});y+=4.5;
   doc.setFont('helvetica','normal');doc.text('lose (Faktor '+fmt(state.af,2)+')',278,y);doc.text(fmt(VOL.tot*state.af,1),406,y,{align:'right'});y+=8;
@@ -774,7 +969,7 @@ function exportPDF(){
   if(ch2.length){doc.setFont('helvetica','bold');doc.text('Geänderte Bereiche',278,y);y+=4.5;doc.setFont('helvetica','normal');
     ch2.slice(0,14).forEach(R=>{doc.text(txt(`${R.name}, ${R.ax}: UK ${lvlP(R.uk0)} -> ${lvlP(R.uk)}`).slice(0,70),278,y);y+=4.1});if(ch2.length>14){doc.text(`... und ${ch2.length-14} weitere`,278,y);y+=4.1}y+=3}
   if(own.length){doc.setFont('helvetica','bold');doc.text('Eigene Flächen',278,y);y+=4.5;doc.setFont('helvetica','normal');
-    own.slice(0,10).forEach(R=>{doc.text(txt(`${R.name}, ${R.ax}: UK ${lvlP(R.uk)}, ${fmt(R.area,1)} m²`).slice(0,70),278,y);y+=4.1});if(own.length>10)doc.text(`... und ${own.length-10} weitere`,278,y)}
+    own.slice(0,10).forEach(R=>{doc.text(txt(`${R.name}, ${R.ax}: UK ${ukTxt(R,lvlP)}, ${fmt(R.area,1)} m²`).slice(0,70),278,y);y+=4.1});if(own.length>10)doc.text(`... und ${own.length-10} weitere`,278,y)}
   if(state.cut!==null){
     const p=profile(state.cut),hs=5,vs=20,bx=24,by=200,base=G;  // 1:200 horizontal, 1:50 vertical
     const PX=x=>bx+(x+6)*hs,PY=z=>by+(base-z)*vs;
@@ -810,24 +1005,24 @@ function exportDXF(){
       const xa=x0+i*r,xb=x0+(i+st)*r,ya=y0+j*r,yb=y0+(j+st)*r;
       face('DGM_BOESCHUNG',[[xa,ya,a],[xb,ya,b],[xb,yb,d]]);face('DGM_BOESCHUNG',[[xa,ya,a],[xb,yb,d],[xa,yb,c]]);i+=st}}
   KINK.forEach(s=>line('KANTEN',s));CREST.forEach(s=>line('BOESCHUNGSOBERKANTE',s));(CONT||contourSegments()).forEach(s=>line('HOEHENLINIEN',s));
-  REG.forEach(R=>R.rings.forEach(ring=>ring.forEach((p,k)=>{const q=ring[(k+1)%ring.length];line('BEREICHE',[p[0],p[1],R.uk,q[0],q[1],R.uk])})));
+  REG.forEach(R=>R.rings.forEach(ring=>ring.forEach((p,k)=>{const q=ring[(k+1)%ring.length],e=R.sl&&R.sl[k];line('BEREICHE',[p[0],p[1],e?e.za:R.uk,q[0],q[1],e?e.zb:R.uk])})));
   const text=(L,x,y,z,h,t)=>{const[a,b]=XY(x,y);P(0,'TEXT',8,L,10,a,20,b,30,Z(z),40,h,1,t)};
   AX.forEach(([k,x])=>{line('ACHSEN',[x,-5,G,x,105,G]);text('ACHSEN',x-0.4,-6.5,G,1,k)});
   AY.forEach(([k,y])=>{line('ACHSEN',[-5,y,G,49.5,y,G]);text('ACHSEN',-7,y+0.4,G,1,k)});
-  REG.forEach(R=>{if(R.area>=1.5)text('KOTEN',R.cx-0.9,R.cy+0.15,R.uk,0.3,'UK '+lvlP(R.uk).replace(',','.')+' / '+(NHN0+R.uk).toFixed(2))});
+  REG.forEach(R=>{if(R.area>=1.5)text('KOTEN',R.cx-0.9,R.cy+0.15,R.sl?zAt(R,R.cx,R.cy):R.uk,0.3,R.sl?'UK '+ukTxt(R,lvlP).replace(/,/g,'.')+' geneigt':'UK '+lvlP(R.uk).replace(',','.')+' / '+(NHN0+R.uk).toFixed(2))});
   P(0,'ENDSEC',0,'EOF');
   return o.join('\r\n');
 }
 function quantitiesCSV(){
   const rows=[['UK relativ','UK m ü NHN','Bereiche','Sohlfläche m²','Tiefe m','Volumen fest m³']];
-  VOL.rows.forEach(r=>rows.push([r.uk.toFixed(2),(NHN0+r.uk).toFixed(2),r.names.join(' / '),r.area.toFixed(1),r.depth.toFixed(2),r.vol.toFixed(1)]));
+  VOL.rows.forEach(r=>rows.push(r.sl?[r.R.zmin.toFixed(2)+' bis '+r.R.zmax.toFixed(2),(NHN0+r.R.zmin).toFixed(2)+' bis '+(NHN0+r.R.zmax).toFixed(2),r.names.join(' / ')+' (geneigt)',r.area.toFixed(1),r.depth.toFixed(2),r.vol.toFixed(1)]:[r.uk.toFixed(2),(NHN0+r.uk).toFixed(2),r.names.join(' / '),r.area.toFixed(1),r.depth.toFixed(2),r.vol.toFixed(1)]));
   rows.push(['Böschung 45°','','','','',VOL.slope.toFixed(1)]);rows.push(['Summe fest','','','','',VOL.tot.toFixed(1)]);
   rows.push(['Summe lose (Faktor '+state.af.toFixed(2)+')','','','','',(VOL.tot*state.af).toFixed(1)]);
   rows.push([]);rows.push(['Geänderte Bereiche','Achsbezug','UK Plan','UK neu']);
   REG.filter(R=>!R.custom&&edits[R.id]!=null).forEach(R=>rows.push([R.name,R.ax,R.uk0.toFixed(2),R.uk.toFixed(2)]));
   const own=REG.filter(R=>R.custom);
-  if(own.length){rows.push([]);rows.push(['Eigene Flächen','Achsbezug','UK','Fläche m²','Eckpunkte X/Y']);
-    own.forEach(R=>rows.push([R.name,R.ax,R.uk.toFixed(2),R.area.toFixed(1),R.rings[0].map(p=>p[0].toFixed(2)+'/'+p[1].toFixed(2)).join(' ')]))}
+  if(own.length){rows.push([]);rows.push(['Eigene Flächen','Achsbezug','Grund-UK','Fläche m²','Eckpunkte X/Y','Linien']);
+    own.forEach(R=>rows.push([R.name,R.ax,R.uk.toFixed(2),R.area.toFixed(1),R.rings[0].map(p=>p[0].toFixed(2)+'/'+p[1].toFixed(2)).join(' '),R.sl?'Linienhöhen: '+R.sl.map((e,k)=>(k+1)+'='+(e.fix?e.za.toFixed(2):'frei')).join(' '):'']))}
   return '\ufeff'+rows.map(r=>r.map(v=>{v=String(v);return /^-?\d+\.\d+$/.test(v)?v.replace('.',','):v}).join(';')).join('\r\n');
 }
 $('bPdf').onclick=async()=>{if(!DL)return;const b=$('bPdf');b.textContent='Wird erstellt …';await new Promise(r=>setTimeout(r,30));let blob;try{blob=exportPDF()}catch(e){b.textContent='PDF-Plan (A3)';$('expNote').textContent='PDF konnte nicht erstellt werden: '+e.message;return}b.textContent='PDF-Plan (A3)';offer(fname('pdf'),blob,b)};
