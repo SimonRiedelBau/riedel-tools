@@ -103,9 +103,12 @@ Statt Längen/Winkel von Hand einzutragen, kann ein vorhandener Grundriss- oder 
 
 **Warum DXF und nicht DWG?** DWG ist ein proprietäres Binärformat von Autodesk ohne offenen Standard – im Browser nicht zuverlässig lesbar. DXF ist das offene, textbasierte Austauschformat, das praktisch jedes CAD-Programm (AutoCAD, Revit, ArchiCAD, …) über „Speichern unter“ exportieren kann, und liefert die Koordinaten exakt.
 
-1. Plan-Datei hochladen (PDF wird über die mitgelieferte pdf.js-Bibliothek als Seite 1 gerendert).
-2. Maßstab kalibrieren: zwei Punkte einer bekannten Strecke im Plan anklicken (z. B. eine bemaßte Wandlänge) und die reale Länge in Metern eingeben.
-3. Gerüstlinie abklicken: Eckpunkte der Reihe nach anklicken; Länge und Winkel jedes Abschnitts werden live berechnet.
+1. Plan-Datei hochladen (PDF wird über die mitgelieferte pdf.js-Bibliothek gerendert; bei mehrseitigen PDFs ist die Seite wählbar).
+2. Maßstab:
+   - **PDF aus CAD:** Der Maßstab wird automatisch aus dem Plankopf gelesen (Text wie „M 1:100“, „Maßstab 1 : 50“). Angaben mit „M“/„Maßstab“ und unten rechts (Plankopf) haben Vorrang vor losen „1:n“ (z. B. Details 1:20); weitere gefundene Maßstäbe werden als Hinweis angezeigt. Der Maßstab ist von Hand überschreibbar. Voraussetzung: Das PDF ist in Originalgröße (nicht „an Seite angepasst“) ausgegeben – zur Kontrolle eine bemaßte Strecke nachmessen.
+   - **Bild oder eingescannter Plan (ohne Text):** zwei Punkte einer bekannten Strecke im Plan anklicken (z. B. eine bemaßte Wandlänge) und die reale Länge in Metern eingeben.
+3. Gerüstlinie entlang der Fassade abklicken: Eckpunkte der Reihe nach anklicken (Shift = waagrecht/senkrecht, Klick auf den ersten Punkt schließt den Umlauf); Länge und Winkel jedes Abschnitts werden live berechnet.
+4. Das Gerüst wird direkt auf dem Plan eingezeichnet: Wandabstand und Gerüstbreite aus den Einstellungen, Feldeinteilung nach dem gewählten Feldlängen-Raster, Länge und Felderzahl je Seite. Beim geschlossenen Umlauf steht das Gerüst außen, sonst per Häkchen auf die Gegenseite umschaltbar. „Plan mit Gerüst als PNG speichern“ exportiert den Plan in voller Auflösung mit eingezeichnetem Gerüst.
 
 ### DXF (exakter Import)
 

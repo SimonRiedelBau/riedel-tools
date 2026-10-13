@@ -329,8 +329,23 @@
       </div>
 
       <div class="plan-steps" id="plan-steps-raster">
+        <div class="plan-step hidden" id="plan-pdf-box">
+          <strong>1. PDF-Seite und Maßstab (aus dem Plankopf)</strong>
+          <div class="plan-step-actions">
+            <label class="inline-label hidden" id="plan-pdf-page-label">
+              Seite
+              <select id="plan-pdf-page"></select>
+            </label>
+            <label class="inline-label">
+              Planmaßstab 1 :
+              <input type="number" id="plan-pdf-scale" step="1" min="1" placeholder="z. B. 100">
+            </label>
+            <button type="button" id="plan-pdf-scale-btn" class="btn-secondary">Maßstab übernehmen</button>
+          </div>
+          <p class="hint" id="plan-pdf-scale-status"></p>
+        </div>
         <div class="plan-step">
-          <strong>1. Maßstab kalibrieren (nur Bild/PDF)</strong>
+          <strong id="plan-calibrate-title">1. Maßstab kalibrieren (nur Bild/PDF)</strong>
           <div class="plan-step-actions">
             <button type="button" id="plan-calibrate-btn" class="btn-secondary" disabled>Zwei Punkte einer bekannten Strecke anklicken</button>
             <label class="inline-label">
@@ -409,7 +424,19 @@
               Umlauf schließt (letzter Punkt = erster Punkt)
             </label>
           </div>
-          <p class="hint">Mausrad = zoomen, "Verschieben" + ziehen = schwenken, vorhandenen Punkt anklicken und ziehen = verschieben, Rechtsklick auf Punkt = löschen.</p>
+          <div class="plan-step-actions plan-scaffold-row">
+            <label class="inline-label">
+              <input type="checkbox" id="plan-show-scaffold" checked>
+              Gerüst einzeichnen (Breite, Wandabstand und Felder aus den Einstellungen)
+            </label>
+            <label class="inline-label">
+              <input type="checkbox" id="plan-scaffold-flip">
+              Gerüst auf der Gegenseite der Linie
+            </label>
+            <button type="button" id="plan-export-btn" class="btn-secondary" disabled>Plan mit Gerüst als PNG speichern</button>
+          </div>
+          <p class="hint">Linie entlang der Fassade (Außenkante Wand) abklicken – das Gerüst wird mit Wandabstand und Gerüstbreite daneben eingezeichnet, die Querstriche sind die Feldeinteilung. Beim geschlossenen Umlauf steht das Gerüst automatisch außen.
+            Mausrad = zoomen, "Verschieben" + ziehen = schwenken, vorhandenen Punkt anklicken und ziehen = verschieben, Rechtsklick auf Punkt = löschen. <strong>Shift</strong> gedrückt halten = waagrecht/senkrecht zum vorherigen Punkt; Klick auf den ersten Punkt schließt den Umlauf.</p>
         </div>
       </div>
 
