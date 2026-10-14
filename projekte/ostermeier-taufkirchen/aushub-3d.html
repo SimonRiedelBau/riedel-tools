@@ -49,6 +49,14 @@ input[type=text]{width:170px;font:inherit;padding:5px 7px;border:1px solid var(-
 .drawbar{display:flex;margin:-6px 0 16px}
 .drawbar button{flex:1}
 .plan{font-size:.85rem;margin:0 0 16px}
+#snapSvg,#planSvg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1;overflow:visible}
+.fkey{font-weight:400;color:var(--muted);font-size:.76rem;margin-left:6px}
+.fang{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 16px}
+.fang button{padding:4px 8px;font-size:.8rem}
+.fang button[aria-pressed="true"]{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.fang.off button:not(#fOn){opacity:.45}
+.et input.len{width:70px;margin-right:3px}
+input.num{width:92px;text-align:right;font-variant-numeric:tabular-nums}
 .plan .btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
 .plan .pn{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .plan .row{display:flex;align-items:center;gap:8px;margin-top:6px}
@@ -99,7 +107,7 @@ tfoot td{font-weight:600;border-bottom:none;border-top:2px solid var(--ink)}
 </head>
 <body>
 <div class="app">
-  <div id="view"><div id="tip"></div><div id="busy">Berechne …</div><div id="status">Klick auf eine Fläche: Bereich bearbeiten. Ziehen: drehen, Rechtsklick: verschieben, Mausrad: zoomen</div></div>
+  <div id="view"><svg id="snapSvg" aria-hidden="true"></svg><svg id="planSvg" aria-hidden="true"></svg><div id="tip"></div><div id="busy">Berechne …</div><div id="status">Klick auf eine Fläche: Bereich bearbeiten. Ziehen: drehen, Rechtsklick: verschieben, Mausrad: zoomen</div></div>
   <aside>
     <div class="brand"><div class="mark">RB</div><div>
       <h1>Aushub 3D – Neubau Firmensitz Ostermeier</h1>
@@ -114,6 +122,8 @@ tfoot td{font-weight:600;border-bottom:none;border-top:2px solid var(--ink)}
 
     <div class="edit" id="edit"></div>
     <div class="drawbar"><button id="bDraw">+ Fläche einzeichnen</button></div>
+    <div class="segl">Fangmodus <span class="fkey">F3 an/aus, Alt gedrückt: frei</span></div>
+    <div class="fang" id="fang"></div>
     <div class="segl">Plan hinterlegen</div>
     <div class="plan" id="plan"></div>
     <input type="file" id="planFile" accept="application/pdf,.pdf,image/png,image/jpeg,image/webp" hidden>
@@ -173,7 +183,7 @@ tfoot td{font-weight:600;border-bottom:none;border-top:2px solid var(--ink)}
       <tbody id="tb"></tbody>
       <tfoot><tr><td>Summe</td><td id="sA"></td><td></td><td id="sV"></td></tr></tfoot>
     </table>
-    <p class="note">Ein zusammenhängendes Geländemodell: An jedem Punkt gilt die tiefste Höhe aus Sohle oder 45°-Böschung (1:1) eines Bereichs. Wo sich Böschungen schneiden, entstehen Grate, wo eine Böschung auf eine höhere Sohle trifft, die innere Böschungsoberkante. „Nur Baugrubenrand“ setzt innen senkrechte Wände an (nach DIN 4124 bis 1,25 m Tiefe ohne Verbau zulässig). Eigene Flächen (Polygon oder Rechteck, fängt vorhandene Ecken) zählen wie Planbereiche: Liegen sie flacher als ein Planbereich, gilt dort weiter die tiefere Sohle. Bei eigenen Flächen lassen sich einzelne Linien auf eigene Höhen legen, die Sohle dazwischen wird geneigt interpoliert (Rampe, Gefälle). Ein hinterlegter Plan (PDF oder Bild) dient nur als Zeichenhilfe und wird über zwei Passpunkte auf die Achsen gelegt. Geänderte Höhen, eigene Flächen und der Plan werden in diesem Browser gespeichert. Die Geländeoberkante steht nicht im Plan, bitte mit dem Bestandsaufmaß abgleichen. Arbeitsräume und Rampen sind nicht enthalten.</p>
+    <p class="note">Ein zusammenhängendes Geländemodell: An jedem Punkt gilt die tiefste Höhe aus Sohle oder 45°-Böschung (1:1) eines Bereichs. Wo sich Böschungen schneiden, entstehen Grate, wo eine Böschung auf eine höhere Sohle trifft, die innere Böschungsoberkante. „Nur Baugrubenrand“ setzt innen senkrechte Wände an (nach DIN 4124 bis 1,25 m Tiefe ohne Verbau zulässig). Eigene Flächen (Polygon oder Rechteck, fängt vorhandene Ecken) zählen wie Planbereiche: Liegen sie flacher als ein Planbereich, gilt dort weiter die tiefere Sohle. Bei eigenen Flächen lassen sich einzelne Linien auf eigene Höhen legen, die Sohle dazwischen wird geneigt interpoliert (Rampe, Gefälle). Ecken eigener Flächen lassen sich ziehen und Linienlängen eingeben, der Fangmodus (F3) richtet die Maus an Ecken, Mitten, Kanten, Achsen, 45°-Winkeln und Spurlinien aus. Ein hinterlegter Plan (PDF oder Bild) dient nur als Zeichenhilfe und wird über zwei Passpunkte auf die Achsen gelegt oder über Maßstab, eine abgegriffene Strecke oder mit der Maus skaliert. Geänderte Höhen, eigene Flächen und der Plan werden in diesem Browser gespeichert. Die Geländeoberkante steht nicht im Plan, bitte mit dem Bestandsaufmaß abgleichen. Arbeitsräume und Rampen sind nicht enthalten.</p>
   </aside>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
@@ -501,17 +511,26 @@ function renderEdit(){
   if(draw.on){
     const n=draw.pts.length,A=n>=3?Math.abs(polyArea(draw.pts)):0;
     h=`<div class="rn">Neue Fläche einzeichnen</div>
-    <div class="rs">${draw.rect?'Zwei gegenüberliegende Ecken anklicken.':'Eckpunkte nacheinander anklicken. Abschließen mit Klick auf den ersten Punkt, Doppelklick oder Enter.'} Vorhandene Ecken und Achsschnittpunkte werden gefangen, sonst 5-cm-Raster. Umschalt: rechtwinklig. Rechte Maustaste: verschieben.</div>
+    <div class="rs">${draw.rect?'Zwei gegenüberliegende Ecken anklicken oder nach dem ersten Punkt Breite und Tiefe eingeben.':'Eckpunkte nacheinander anklicken. Abschließen mit Klick auf den ersten Punkt, Doppelklick oder Enter.'} Der Fangmodus richtet die Maus an Ecken, Kanten, Achsen und 45°-Winkeln aus. Umschalt: rechtwinklig, Alt: frei. Rechte Maustaste: verschieben.</div>
     <div class="seg" id="segDraw"><button data-d="poly" aria-pressed="${!draw.rect}">Polygon</button><button data-d="rect" aria-pressed="${draw.rect}">Rechteck</button></div>
     <div class="row"><label for="dName">Bezeichnung</label><input id="dName" type="text" value="${esc(draw.name)}"></div>
     <div class="row"><label for="dUk">UK Aushub relativ zu ±0,00</label><input id="dUk" type="number" step="0.05" value="${draw.uk.toFixed(2)}"></div>
     <div class="row" style="font-size:.8rem;color:var(--muted)"><span>${n} Punkt${n===1?'':'e'}${A?', Fläche '+fmt(A,1)+' m²':''}</span><span id="dNhn">entspricht ${fmt(NHN0+draw.uk)} m ü NHN</span></div>
+    ${!draw.rect&&n>=1?`<div class="row"><label for="dLen">Länge nächste Strecke (m)</label><input id="dLen" class="num" type="text" inputmode="decimal" autocomplete="off" placeholder="z. B. 8,50"></div><div class="dragnote">Zahl tippen und Enter: der Punkt wird in Mausrichtung gesetzt, die Richtung rastet über den Fangmodus ein.</div>`:''}
+    ${draw.rect&&n===1?`<div class="row"><label for="dW">Breite in X (m)</label><input id="dW" class="num" type="text" inputmode="decimal" autocomplete="off"></div><div class="row"><label for="dD">Tiefe in Y (m)</label><input id="dD" class="num" type="text" inputmode="decimal" autocomplete="off"></div><div class="dragnote">Beide Werte eingeben und Enter. Die Richtung ergibt sich aus der Mausposition.</div>`:''}
     <div class="btns"><button id="bDone" ${(!draw.rect&&n>=3)?'':'disabled'}>Fläche übernehmen</button><button id="bUndo" ${n?'':'disabled'}>Letzten Punkt löschen</button><button id="bCancel">Abbrechen</button></div>`;
     box.innerHTML=h;
     document.querySelectorAll('#segDraw button').forEach(b=>b.onclick=()=>{draw.rect=b.dataset.d==='rect';draw.pts=[];buildDraw();renderEdit()});
     $('dName').oninput=e=>{draw.name=e.target.value};
     $('dUk').oninput=e=>{const v=numIn(e.target);if(isNaN(v)||v<-8||v>2)return;draw.uk=v;$('dNhn').textContent='entspricht '+fmt(NHN0+v)+' m ü NHN'};
     $('bDone').onclick=finishDraw;$('bUndo').onclick=()=>{draw.pts.pop();buildDraw();renderEdit()};$('bCancel').onclick=()=>stopDraw();
+    const keyL=fn=>e=>{if(e.key==='Enter'){e.preventDefault();fn()}else if(e.key==='Escape')e.target.blur()};
+    if($('dLen'))$('dLen').onkeydown=keyL(()=>{const L=numIn($('dLen')),last=draw.pts[draw.pts.length-1];if(!(L>0.01)||!last)return;
+      const h=draw.hover;let dx=1,dy=0;if(h){const d=Math.hypot(h.x-last[0],h.y-last[1]);if(d>1e-6){dx=(h.x-last[0])/d;dy=(h.y-last[1])/d}}
+      draw.pts.push([+(last[0]+dx*L).toFixed(3),+(last[1]+dy*L).toFixed(3)]);draw.hover=null;buildDraw();renderEdit();if($('dLen'))$('dLen').focus()});
+    const rectKey=keyL(()=>{const W=numIn($('dW')),Dd=numIn($('dD')),a=draw.pts[0];if(!(W>0.05&&Dd>0.05))return;const h=draw.hover;
+      const sx=h&&h.x<a[0]?-1:1,sy=h&&h.y<a[1]?-1:1;draw.pts=rectPts(a,[+(a[0]+sx*W).toFixed(3),+(a[1]+sy*Dd).toFixed(3)]);finishDraw()});
+    if($('dW')){$('dW').onkeydown=rectKey;$('dD').onkeydown=rectKey}
     return;
   }
   if(state.sel===null)h=`<div class="empty">Klick im Modell auf eine Sohle oder Böschung, um die Höhe dieses Bereichs zu ändern. Ist ein Bereich ausgewählt, lässt er sich im Modell mit gedrückter Maustaste nach oben oder unten ziehen. Modell und Mengen passen sich sofort an.</div>`;
@@ -538,10 +557,11 @@ function renderEdit(){
 }
 function edgeTable(R){
   const ring=R.rings[0];
-  return `<div class="edges"><div class="segl">Höhe einzelner Linien</div><table class="et"><tbody>${ring.map((p,k)=>{const q=ring[(k+1)%ring.length],e=R.sl&&R.sl[k],fix=e&&e.fix;
-    return `<tr data-e="${k}"${state.selEdge===k?' class="on"':''}><td><span class="enr">${k+1}</span>${fmt(Math.hypot(q[0]-p[0],q[1]-p[1]))} m<span class="nm">${nearAx(AX,(p[0]+q[0])/2)} / ${nearAx(AY,(p[1]+q[1])/2)}</span></td>
+  return `<div class="edges"><div class="segl">Linien: Länge und Höhe</div><table class="et"><tbody>${ring.map((p,k)=>{const q=ring[(k+1)%ring.length],e=R.sl&&R.sl[k],fix=e&&e.fix;
+    return `<tr data-e="${k}"${state.selEdge===k?' class="on"':''}><td><span class="enr">${k+1}</span><input class="len num" type="text" inputmode="decimal" autocomplete="off" data-el="${k}" value="${Math.hypot(q[0]-p[0],q[1]-p[1]).toFixed(2)}" aria-label="Länge Linie ${k+1} in m">m<span class="nm">${nearAx(AX,(p[0]+q[0])/2)} / ${nearAx(AY,(p[1]+q[1])/2)}</span></td>
     <td><input type="number" step="0.05" data-eh="${k}" value="${fix?e.za.toFixed(2):''}" placeholder="${edgePh(R,k)}"></td></tr>`}).join('')}</tbody></table>
-    <div class="dragnote">Leeres Feld = frei: die Linie läuft zwischen den Höhen ihrer Ecken. Ecken an festen Linien übernehmen deren Höhe, sonst die Grund-UK. So entsteht z. B. mit einer festen Linie eine Rampe zur Gegenseite. Linie im Modell anklicken wählt sie aus.</div>
+    <div class="dragnote">Länge ändern verschiebt den Endpunkt der Linie, beim Rechteck die ganze Gegenseite. Ecken lassen sich im Modell auch direkt ziehen (mit Fang).</div>
+    <div class="dragnote">Höhe: leeres Feld = frei: die Linie läuft zwischen den Höhen ihrer Ecken. Ecken an festen Linien übernehmen deren Höhe, sonst die Grund-UK. So entsteht z. B. mit einer festen Linie eine Rampe zur Gegenseite. Linie im Modell anklicken wählt sie aus.</div>
     ${R.sl?'<div class="btns"><button id="bFlat">Alle Linien frei (Sohle eben)</button></div>':''}</div>`;
 }
 function edgePh(R,k){const e=R.sl&&R.sl[k];if(!e)return 'frei '+fmt(R.uk);return Math.abs(e.za-e.zb)<0.005?'frei '+fmt(e.za):'frei '+fmt(e.za)+'…'+fmt(e.zb)}
@@ -557,6 +577,19 @@ function bindEdges(){
       buildSel();schedule(true)};
   });
   if($('bFlat'))$('bFlat').onclick=()=>{R.src.eh=null;slopeInfo(R);saveCustom();schedule()};
+  document.querySelectorAll('[data-el]').forEach(inp=>{const k=+inp.dataset.el;
+    inp.onfocus=()=>{state.selEdge=k;document.querySelectorAll('.et tr').forEach(tr=>tr.classList.toggle('on',+tr.dataset.e===k));buildSel()};
+    inp.onchange=()=>{const L=numIn(inp);if(!(L>=0.05&&L<=500)){inp.value='';renderEdit();return}setEdgeLen(R,k,L)}});
+}
+function isRectRing(ring){if(ring.length!==4)return false;
+  for(let k=0;k<4;k++){const a=ring[k],b=ring[(k+1)%4],c=ring[(k+2)%4],ux=b[0]-a[0],uy=b[1]-a[1],vx=c[0]-b[0],vy=c[1]-b[1],L=Math.hypot(ux,uy)*Math.hypot(vx,vy);
+    if(!L||Math.abs(ux*vx+uy*vy)/L>1e-3)return false}return true}
+// new length for line k: its end point moves along the line, for a rectangle the opposite side moves with it
+function setEdgeLen(R,k,L){
+  const ring=R.src.r[0],n=ring.length,p=ring[k],q=ring[(k+1)%n],L0=Math.hypot(q[0]-p[0],q[1]-p[1]);if(L0<1e-9)return;
+  const dx=(q[0]-p[0])/L0*(L-L0),dy=(q[1]-p[1])/L0*(L-L0),mv=i=>{ring[i]=[+(ring[i][0]+dx).toFixed(3),+(ring[i][1]+dy).toFixed(3)]};
+  if(isRectRing(ring)){mv((k+1)%4);mv((k+2)%4)}else mv((k+1)%n);
+  rebuildReg();saveCustom();state.selEdge=k;schedule();
 }
 // click on a numbered line of the selected own area
 function pickEdge(ev){
@@ -648,12 +681,12 @@ function buildDraw(){
   if(mk.length){drawP=new THREE.Points(new THREE.BufferGeometry().setFromPoints(mk),drawPtMat);drawP.renderOrder=21;scene.add(drawP)}
 }
 function startDraw(){
-  if(cal.on)stopCal();state.sel=null;buildSel();draw.on=true;draw.pts=[];draw.hover=null;
+  if(cal.on)stopCal();if(meas.on)stopMeas();if(pe.on)stopPe();state.sel=null;buildSel();draw.on=true;draw.pts=[];draw.hover=null;
   draw.name='Eigene Fläche '+(custom.length+1);
   controls.enableRotate=false;go('top');setStatus('Zeichnen: Eckpunkte anklicken. Rechte Maustaste: verschieben, Mausrad: zoomen, Esc: abbrechen');
   renderEdit();buildDraw();
 }
-function stopDraw(){draw.on=false;draw.pts=[];draw.hover=null;tip.style.display="none";controls.enableRotate=true;setStatus();renderer.domElement.style.cursor='';renderEdit();buildDraw()}
+function stopDraw(){draw.on=false;draw.pts=[];draw.hover=null;tip.style.display="none";showSnap(null);controls.enableRotate=true;setStatus();renderer.domElement.style.cursor='';renderEdit();buildDraw()}
 function finishDraw(){
   const pts=draw.pts;if(pts.length<3)return;
   if(Math.abs(polyArea(pts))<0.05){alert('Die Fläche ist zu klein.');return}
@@ -661,31 +694,96 @@ function finishDraw(){
   custom.push({id:'u'+n,n:(draw.name||'').trim()||'Eigene Fläche '+n,uk:draw.uk,c:UCOL[(n-1)%UCOL.length],r:[pts.map(p=>[+p[0].toFixed(3),+p[1].toFixed(3)])]});
   saveCustom();rebuildReg();stopDraw();state.sel=REG.length-1;schedule();
 }
-function groundAt(ev){
+function groundAt(ev,z){
   const r=renderer.domElement.getBoundingClientRect();
   mouse.set(((ev.clientX-r.left)/r.width)*2-1,-((ev.clientY-r.top)/r.height)*2+1);ray.setFromCamera(mouse,camera);
-  const v=new THREE.Vector3();if(!ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0,1,0),-state.G*state.ex),v))return null;return[v.x,v.z];
+  const v=new THREE.Vector3();if(!ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0,1,0),-(z==null?state.G:z)*state.ex),v))return null;return[v.x,v.z];
 }
 function toScreen(x,y,z){const r=renderer.domElement.getBoundingClientRect(),v=new THREE.Vector3(x,z*state.ex,y).project(camera);return[(v.x+1)/2*r.width,(1-v.y)/2*r.height]}
+// ---------- snapping (Fangmodus) ----------
+// order: points (corners, axis intersections, midpoints) > intersection of two guide lines > one guide line > 5 cm grid.
+// guide lines: edges, axes, 45° rays from the previous point, horizontal/vertical lines through touched corners (Spurlinien)
+const FSTORE=STORE+'-fang';
+const FANG={on:true,end:true,mid:true,edge:true,axis:true,polar:true,track:true,grid:true};
+try{Object.assign(FANG,JSON.parse(localStorage.getItem(FSTORE)||'{}'))}catch(e){}
+const FANG_LBL=[['end','Ecken'],['mid','Mitten'],['edge','Kanten'],['axis','Achsen'],['polar','Winkel 45°'],['track','Spurlinien'],['grid','Raster 5 cm']];
+const SNAP_TXT={close:'Fläche schließen',end:'Ecke',axint:'Achsschnittpunkt',mid:'Mitte',int:'Schnittpunkt',edge:'auf Kante',axis:'auf Achse',polar:'Winkel',track:'Spurlinie',ortho:'rechtwinklig',grid:'Raster 5 cm','':'frei'};
+const track=[];
+function saveFang(){try{localStorage.setItem(FSTORE,JSON.stringify(FANG))}catch(e){}}
+function addTrack(p){if(track.some(t=>Math.hypot(t[0]-p[0],t[1]-p[1])<1e-6))return;track.push([p[0],p[1]]);if(track.length>3)track.shift()}
+function ppm(g,z){const a=toScreen(g[0],g[1],z),b=toScreen(g[0]+1,g[1],z),c=toScreen(g[0],g[1]+1,z);return Math.max(1e-3,Math.max(Math.hypot(b[0]-a[0],b[1]-a[1]),Math.hypot(c[0]-a[0],c[1]-a[1])))}
+const rnd=v=>Math.round(v*20)/20;
+// o: z (height of the drawing plane), from (previous point), first (closing point), extra (more corners), trackPts, self/selfK (region and corner being moved)
+function snapAt(ev,o={}){
+  const z=o.z==null?state.G:o.z,g=groundAt(ev,z);if(!g)return null;
+  const tol=10/ppm(g,z),gx=g[0],gy=g[1],from=o.from,res=(x,y,kind,guides=[])=>({x,y,kind,guides,z});
+  if(!FANG.on||ev.altKey)return res(gx,gy,'');
+  if(ev.shiftKey&&from){let x=gx,y=gy;const hz=Math.abs(x-from[0])>Math.abs(y-from[1]);
+    if(hz){y=from[1];if(FANG.grid)x=from[0]+rnd(x-from[0])}else{x=from[0];if(FANG.grid)y=from[1]+rnd(y-from[1])}
+    return res(x,y,'ortho',[[from,[x,y]]])}
+  if(o.first&&Math.hypot(o.first[0]-gx,o.first[1]-gy)<tol)return res(o.first[0],o.first[1],'close');
+  let best=null,bd=tol;
+  const pt=(p,kind)=>{const d=Math.hypot(p[0]-gx,p[1]-gy);if(d<bd){bd=d;best={p,kind}}};
+  for(const R of REG){const me=R.i===o.self;for(const ring of R.rings)for(let k=0;k<ring.length;k++){const p=ring[k],q=ring[(k+1)%ring.length];
+    if(FANG.end&&!(me&&k===o.selfK))pt(p,'end');if(FANG.mid&&!me)pt([(p[0]+q[0])/2,(p[1]+q[1])/2],'mid')}}
+  if(FANG.end)(o.extra||[]).forEach(p=>pt(p,'end'));
+  if(FANG.axis)for(const[,x]of AX)for(const[,y]of AY)pt([x,y],'axint');
+  if(best){if(best.kind!=='mid')addTrack(best.p);return res(best.p[0],best.p[1],best.kind)}
+  const lines=[];
+  const addL=(a,dx,dy,kind,seg)=>{const vx=gx-a[0],vy=gy-a[1],t=vx*dx+vy*dy;if(seg!=null&&(t<-tol||t>seg+tol))return;if(kind==='polar'&&t<0)return;
+    const d=Math.abs(vx*dy-vy*dx);if(d<tol)lines.push({a,dx,dy,kind,d,seg})};
+  if(FANG.edge)for(const R of REG){if(R.i===o.self)continue;for(const ring of R.rings)for(let k=0;k<ring.length;k++){const p=ring[k],q=ring[(k+1)%ring.length],L=Math.hypot(q[0]-p[0],q[1]-p[1]);if(L>1e-6)addL(p,(q[0]-p[0])/L,(q[1]-p[1])/L,'edge',L)}}
+  if(FANG.axis){for(const[,x]of AX)addL([x,0],0,1,'axis');for(const[,y]of AY)addL([0,y],1,0,'axis')}
+  if(FANG.polar&&from)for(let i=0;i<8;i++){const a=i*Math.PI/4;addL(from,Math.cos(a),Math.sin(a),'polar')}
+  if(FANG.track){const tp=[...track,...(o.trackPts||[])];if(o.first)tp.push(o.first);if(from&&!FANG.polar)tp.push(from);
+    for(const p of tp){if(from&&p===from&&FANG.polar)continue;addL(p,1,0,'track');addL(p,0,1,'track')}}
+  lines.sort((a,b)=>a.d-b.d);
+  const end=(A,x,y)=>A.kind==='edge'?[A.a,[A.a[0]+A.dx*A.seg,A.a[1]+A.dy*A.seg]]:A.kind==='axis'?[[x-A.dx*30,y-A.dy*30],[x+A.dx*30,y+A.dy*30]]:[A.a,[x,y]];
+  const L6=lines.slice(0,6);
+  for(let i=0;i<L6.length;i++)for(let j=i+1;j<L6.length;j++){const A=L6[i],B=L6[j],den=A.dx*B.dy-A.dy*B.dx;if(Math.abs(den)<0.1)continue;
+    const t=((B.a[0]-A.a[0])*B.dy-(B.a[1]-A.a[1])*B.dx)/den,x=A.a[0]+t*A.dx,y=A.a[1]+t*A.dy;
+    if(Math.hypot(x-gx,y-gy)<tol*1.5)return res(x,y,'int',[end(A,x,y),end(B,x,y)])}
+  if(lines.length){const A=lines[0];let t=(gx-A.a[0])*A.dx+(gy-A.a[1])*A.dy;if(FANG.grid&&A.kind==='polar')t=rnd(t);
+    let x=A.a[0]+t*A.dx,y=A.a[1]+t*A.dy;
+    if(FANG.grid&&(A.kind==='axis'||A.kind==='track')){if(Math.abs(A.dx)>0.99)x=rnd(x);else y=rnd(y)}
+    const r=res(x,y,A.kind,[end(A,x,y)]);if(A.kind==='polar')r.ang=Math.round(((Math.atan2(A.dy,A.dx)*180/Math.PI)+360)%360);return r}
+  if(FANG.grid)return res(rnd(gx),rnd(gy),'grid');
+  return res(gx,gy,'');
+}
+const snapLabel=s=>s?SNAP_TXT[s.kind]+(s.ang!=null?' '+s.ang+'°':''):'';
+// CAD-like marker and dashed guide lines in screen space
+function showSnap(sn){
+  const svg=$('snapSvg');if(!sn||!FANG.on){svg.innerHTML='';return}
+  const P=(x,y)=>toScreen(x,y,sn.z),c=P(sn.x,sn.y),cx=c[0].toFixed(1),cy=c[1].toFixed(1),col='#ff7a00';let h='';
+  for(const[a,b]of sn.guides){const A=P(a[0],a[1]),B=P(b[0],b[1]),dx=B[0]-A[0],dy=B[1]-A[1],L=Math.hypot(dx,dy)||1,ex=dx/L*40,ey=dy/L*40;
+    h+=`<line x1="${A[0]-ex}" y1="${A[1]-ey}" x2="${B[0]+ex}" y2="${B[1]+ey}" stroke="#1f6feb" stroke-width="1" stroke-dasharray="5 4"/>`}
+  const k=sn.kind;
+  if(k==='end'||k==='close')h+=`<rect x="${cx-6}" y="${cy-6}" width="12" height="12" fill="none" stroke="${col}" stroke-width="2"/>`;
+  else if(k==='axint'||k==='int')h+=`<path d="M${cx-6} ${cy-6}L${+cx+6} ${+cy+6}M${+cx+6} ${cy-6}L${cx-6} ${+cy+6}" stroke="${col}" stroke-width="2"/>`;
+  else if(k==='mid')h+=`<path d="M${cx} ${cy-7}L${+cx+7} ${+cy+5}L${cx-7} ${+cy+5}Z" fill="none" stroke="${col}" stroke-width="2"/>`;
+  else if(k==='grid'||k==='')h+=`<path d="M${cx-4} ${cy}H${+cx+4}M${cx} ${cy-4}V${+cy+4}" stroke="${col}" stroke-width="1.5"/>`;
+  else h+=`<circle cx="${cx}" cy="${cy}" r="5" fill="none" stroke="${col}" stroke-width="2"/>`;
+  svg.innerHTML=h;
+}
+function renderFang(){
+  const box=$('fang');box.classList.toggle('off',!FANG.on);
+  box.innerHTML=`<button id="fOn" aria-pressed="${FANG.on}">${FANG.on?'Fang an':'Fang aus'}</button>`+FANG_LBL.map(([k,t])=>`<button data-f="${k}" aria-pressed="${!!FANG[k]}">${t}</button>`).join('');
+  $('fOn').onclick=()=>{FANG.on=!FANG.on;saveFang();renderFang()};
+  box.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{FANG[b.dataset.f]=!FANG[b.dataset.f];saveFang();renderFang()});
+}
+renderFang();
 function snapPoint(ev){
-  const g=groundAt(ev);if(!g)return null;
-  const r=renderer.domElement.getBoundingClientRect(),sx=ev.clientX-r.left,sy=ev.clientY-r.top,G=state.G,TOL=10;
-  if(!draw.rect&&draw.pts.length>=3){const s=toScreen(draw.pts[0][0],draw.pts[0][1],G);if(Math.hypot(s[0]-sx,s[1]-sy)<TOL)return{x:draw.pts[0][0],y:draw.pts[0][1],close:true}}
-  let best=null,bd=TOL;
-  const test=p=>{const s=toScreen(p[0],p[1],G),d=Math.hypot(s[0]-sx,s[1]-sy);if(d<bd){bd=d;best=p}};
-  for(const R of REG)for(const ring of R.rings)ring.forEach(test);draw.pts.forEach(test);for(const[,x]of AX)for(const[,y]of AY)test([x,y]);
-  if(best)return{x:best[0],y:best[1],snap:true};
-  let[x,y]=g;const last=draw.pts[draw.pts.length-1];
-  if(ev.shiftKey&&last&&!draw.rect){if(Math.abs(x-last[0])>Math.abs(y-last[1]))y=last[1];else x=last[0]}
-  else{x=Math.round(x*20)/20;y=Math.round(y*20)/20}
-  return{x,y};
+  const last=draw.pts[draw.pts.length-1];
+  const sn=snapAt(ev,{from:draw.rect?null:last,first:!draw.rect&&draw.pts.length>=3?draw.pts[0]:null,extra:draw.pts,trackPts:draw.pts.length>=2?[draw.pts[0]]:draw.rect&&last?[last]:[]});
+  if(!sn)return null;return{x:sn.x,y:sn.y,close:sn.kind==='close',sn};
 }
 function drawMove(ev){
-  draw.hover=snapPoint(ev);buildDraw();if(!draw.hover){tip.style.display='none';return}
+  draw.hover=snapPoint(ev);buildDraw();showSnap(draw.hover&&draw.hover.sn);if(!draw.hover){tip.style.display='none';return}
   const p=draw.hover,last=draw.pts[draw.pts.length-1];
-  let h=`<b>${p.close?'Fläche schließen':p.snap?'Ecke gefangen':'Punkt setzen'}</b><br>Achse ${nearAx(AX,p.x)} / ${nearAx(AY,p.y)}`;
+  let h=`<b>${snapLabel(p.sn)}</b><br>Achse ${nearAx(AX,p.x)} / ${nearAx(AY,p.y)}`;
   if(draw.rect&&last)h+=`<br>${fmt(Math.abs(p.x-last[0]))} × ${fmt(Math.abs(p.y-last[1]))} m = ${fmt(Math.abs((p.x-last[0])*(p.y-last[1])),1)} m²`;
-  else if(last)h+=`<br>Strecke ${fmt(Math.hypot(p.x-last[0],p.y-last[1]))} m`;
+  else if(last)h+=`<br>Strecke ${fmt(Math.hypot(p.x-last[0],p.y-last[1]))} m, Richtung ${fmt(((Math.atan2(p.y-last[1],p.x-last[0])*180/Math.PI)+360)%360,1)}°`;
+  if(last)h+='<br><i>Zahl tippen + Enter: Länge</i>';
   showTip(ev,h);
 }
 function drawClick(ev){
@@ -700,7 +798,8 @@ renderer.domElement.addEventListener('dblclick',()=>{if(draw.on&&!draw.rect&&dra
 
 // ---------- plan underlay ----------
 // image pixel (u,v) -> model (x,y): similarity  x+iy = s*(u+iv)+t  with s=a+ib (scale and rotation), t=tx+i*ty
-const plan={img:null,name:'',w:0,h:0,a:1,b:0,tx:0,ty:0,op:0.6,vis:true,tex:null};
+const plan={img:null,name:'',w:0,h:0,a:1,b:0,tx:0,ty:0,op:0.6,vis:true,tex:null,mpp:null}; // mpp: paper metres per pixel (PDF only)
+const meas={on:false,pts:[],hover:null},pe={on:false,drag:null};
 const cal={on:false,step:0,w:[],z:[],hover:null};
 let planMesh=null,calP=null;
 const calMat=new THREE.PointsMaterial({color:0x1f6feb,size:10,sizeAttenuation:false,depthTest:false});
@@ -709,7 +808,7 @@ function idb(mode,fn){return new Promise((res,rej)=>{let q;try{q=indexedDB.open(
   q.onsuccess=()=>{try{const tx=q.result.transaction('plan',mode),r=fn(tx.objectStore('plan'));tx.oncomplete=()=>res(r&&r.result);tx.onerror=()=>rej(tx.error)}catch(e){rej(e)}}})}
 let planSaveT=null;
 function savePlan(){clearTimeout(planSaveT);planSaveT=setTimeout(()=>{
-  const v=plan.img?{img:plan.img,name:plan.name,w:plan.w,h:plan.h,a:plan.a,b:plan.b,tx:plan.tx,ty:plan.ty,op:plan.op,vis:plan.vis}:null;
+  const v=plan.img?{img:plan.img,name:plan.name,w:plan.w,h:plan.h,a:plan.a,b:plan.b,tx:plan.tx,ty:plan.ty,op:plan.op,vis:plan.vis,mpp:plan.mpp}:null;
   idb('readwrite',st=>v?st.put(v,STORE):st.delete(STORE)).catch(()=>{})},300)}
 const pToM=(u,v)=>[plan.a*u-plan.b*v+plan.tx,plan.b*u+plan.a*v+plan.ty];
 function mToP(x,y){const dx=x-plan.tx,dy=y-plan.ty,n=plan.a*plan.a+plan.b*plan.b;return[(plan.a*dx+plan.b*dy)/n,(plan.a*dy-plan.b*dx)/n]}
@@ -738,12 +837,12 @@ function setPlanImage(url,name,keep){
 function loadScript(src){return new Promise((res,rej)=>{const el=document.createElement('script');el.src=src;el.onload=res;el.onerror=()=>rej(new Error('pdf.js konnte nicht geladen werden'));document.head.appendChild(el)})}
 const PDFJS='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/';
 async function fileToImage(file){
-  const MAX=4096,cv=document.createElement('canvas'),cx=cv.getContext('2d');
+  let mpp=null;const MAX=4096,cv=document.createElement('canvas'),cx=cv.getContext('2d');
   if(/pdf$/i.test(file.type)||/\.pdf$/i.test(file.name)){
     if(!window.pdfjsLib)await loadScript(PDFJS+'pdf.min.js');pdfjsLib.GlobalWorkerOptions.workerSrc=PDFJS+'pdf.worker.min.js';
     const pdf=await pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;
     let pg=1;if(pdf.numPages>1){pg=parseInt(prompt(`Die PDF hat ${pdf.numPages} Seiten. Welche Seite soll hinterlegt werden?`,'1'),10);if(!(pg>=1&&pg<=pdf.numPages))pg=1}
-    const page=await pdf.getPage(pg),v1=page.getViewport({scale:1}),vp=page.getViewport({scale:Math.min(MAX/Math.max(v1.width,v1.height),8)});
+    const page=await pdf.getPage(pg),v1=page.getViewport({scale:1}),sc=Math.min(MAX/Math.max(v1.width,v1.height),8),vp=page.getViewport({scale:sc});mpp=0.0254/72/sc;
     cv.width=Math.floor(vp.width);cv.height=Math.floor(vp.height);cx.fillStyle='#fff';cx.fillRect(0,0,cv.width,cv.height);
     await page.render({canvasContext:cx,viewport:vp}).promise;
   }else{
@@ -752,7 +851,7 @@ async function fileToImage(file){
     const k=Math.min(1,MAX/Math.max(im.naturalWidth,im.naturalHeight));cv.width=Math.round(im.naturalWidth*k);cv.height=Math.round(im.naturalHeight*k);
     cx.fillStyle='#fff';cx.fillRect(0,0,cv.width,cv.height);cx.drawImage(im,0,0,cv.width,cv.height);URL.revokeObjectURL(url);
   }
-  return cv.toDataURL('image/jpeg',0.88);
+  return{url:cv.toDataURL('image/jpeg',0.88),mpp};
 }
 function renderPlan(msg){
   const box=$('plan');let h='';
@@ -760,10 +859,18 @@ function renderPlan(msg){
   else{
     h=`<div class="pn" title="${esc(plan.name)}">${esc(plan.name)}</div>
     <div class="row"><label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="pVis" ${plan.vis?'checked':''}> anzeigen</label><input id="pOp" type="range" min="0.1" max="1" step="0.05" value="${plan.op}" aria-label="Deckkraft"></div>
-    <div class="row" style="font-size:.78rem;color:var(--muted)">Maßstab 1 px = ${fmt(Math.hypot(plan.a,plan.b)*100,2)} cm, Drehung ${fmt(((Math.atan2(plan.b,plan.a)*180/Math.PI)+360)%360,1)}°</div>`;
-    if(cal.on){const st=['Passpunkt 1 im <b>Plan</b> anklicken, z. B. einen Achsschnittpunkt.','Denselben Punkt im <b>Modell</b> anklicken. Achsschnittpunkte und Ecken werden gefangen.','Passpunkt 2 im <b>Plan</b> anklicken, möglichst weit weg von Punkt 1.','Denselben Punkt im <b>Modell</b> anklicken.'];
+    <div class="row" style="font-size:.78rem;color:var(--muted)">1 px = ${fmt(Math.hypot(plan.a,plan.b)*100,2)} cm, Drehung ${fmt(((Math.atan2(plan.b,plan.a)*180/Math.PI)+360)%360,1)}°${plan.mpp?`, entspricht 1:${fmt(Math.hypot(plan.a,plan.b)/plan.mpp,0)}`:''}</div>`;
+    if(meas.on){const L=meas.pts.length===2?Math.hypot(meas.pts[1][0]-meas.pts[0][0],meas.pts[1][1]-meas.pts[0][1]):0;
+      h+=meas.pts.length<2?`<div class="cal">Strecke abgreifen: ${meas.pts.length?'Endpunkt':'Anfangspunkt'} einer bekannten Strecke im <b>Plan</b> anklicken, z. B. eine Maßkette oder zwei Achsen.<div class="btns"><button id="bMeasX">Abbrechen</button></div></div>`
+        :`<div class="cal">Abgegriffen im Plan: ${fmt(L)} m<div class="row"><label for="mLen">Tatsächliche Länge (m)</label><input id="mLen" class="num" type="text" inputmode="decimal" autocomplete="off" placeholder="${fmt(L)}"></div>
+        <div class="btns"><button id="bMeasOk">Plan skalieren</button><button id="bMeasX">Abbrechen</button></div></div>`}
+    else if(pe.on)h+=`<div class="cal">Plan mit der Maus anpassen: in den Plan klicken und ziehen verschiebt ihn, eine der blauen Ecken ziehen skaliert ihn (die Gegenecke bleibt stehen).
+      <div class="btns"><button data-pf="0.9">−10 %</button><button data-pf="0.99">−1 %</button><button data-pf="1.01">+1 %</button><button data-pf="1.1">+10 %</button><button id="bPeX">Fertig</button></div></div>`;
+    else if(cal.on){const st=['Passpunkt 1 im <b>Plan</b> anklicken, z. B. einen Achsschnittpunkt.','Denselben Punkt im <b>Modell</b> anklicken. Achsschnittpunkte und Ecken werden gefangen.','Passpunkt 2 im <b>Plan</b> anklicken, möglichst weit weg von Punkt 1.','Denselben Punkt im <b>Modell</b> anklicken.'];
       h+=`<div class="cal">Schritt ${cal.step+1} von 4: ${st[cal.step]}<div class="btns"><button id="bCalX">Abbrechen</button></div></div>`}
-    else h+=`<div class="btns"><button id="bCal">Ausrichten (2 Punkte)</button><button id="bRot">90° drehen</button><button id="bFit">Einpassen</button><button id="bPlanLoad">Anderer Plan</button><button id="bPlanDel">Entfernen</button></div>${msg?`<div class="expnote">${msg}</div>`:''}`;
+    else h+=`${plan.mpp?`<div class="row"><label for="pSc">Planmaßstab 1:</label><input id="pSc" class="num" type="text" inputmode="numeric" autocomplete="off" value="${Math.round(Math.hypot(plan.a,plan.b)/plan.mpp)}"><button id="bSc">Setzen</button></div>`:''}
+      <div class="btns"><button id="bMeas">Strecke abgreifen und skalieren</button><button id="bPe">Mit der Maus verschieben / skalieren</button></div>
+      <div class="btns"><button id="bCal">Ausrichten (2 Punkte)</button><button id="bRot">90° drehen</button><button id="bFit">Einpassen</button><button id="bPlanLoad">Anderer Plan</button><button id="bPlanDel">Entfernen</button></div>${msg?`<div class="expnote">${msg}</div>`:''}`;
   }
   box.innerHTML=h;
   if($('bPlanLoad'))$('bPlanLoad').onclick=()=>$('planFile').click();
@@ -771,6 +878,15 @@ function renderPlan(msg){
   $('pVis').onchange=e=>{plan.vis=e.target.checked;buildPlan();savePlan()};
   $('pOp').oninput=e=>{plan.op=parseFloat(e.target.value);if(planMesh)planMesh.material.opacity=plan.op;savePlan()};
   if($('bCalX'))$('bCalX').onclick=()=>stopCal();
+  if($('bMeas'))$('bMeas').onclick=startMeas;
+  if($('bMeasX'))$('bMeasX').onclick=()=>stopMeas();
+  if($('mLen')){const ok=()=>{const v=numIn($('mLen'));if(!(v>0.01))return;const[a,b]=meas.pts,L=Math.hypot(b[0]-a[0],b[1]-a[1]);scalePlan(v/L,a);stopMeas(`Plan skaliert: ${fmt(L)} m → ${fmt(v)} m. Jetzt ggf. verschieben oder über 2 Punkte ausrichten.`)};
+    $('bMeasOk').onclick=ok;$('mLen').onkeydown=e=>{if(e.key==='Enter')ok()};setTimeout(()=>$('mLen')&&$('mLen').focus(),0)}
+  if($('bPe'))$('bPe').onclick=startPe;
+  if($('bPeX'))$('bPeX').onclick=()=>stopPe();
+  document.querySelectorAll('[data-pf]').forEach(b=>b.onclick=()=>{scalePlan(parseFloat(b.dataset.pf),pToM(plan.w/2,plan.h/2));renderPlan()});
+  if($('bSc')){const set=()=>{const N=numIn($('pSc'));if(!(N>=1&&N<=100000))return;scalePlan(N*plan.mpp/Math.hypot(plan.a,plan.b),pToM(plan.w/2,plan.h/2));renderPlan(`Maßstab 1:${fmt(N,0)} gesetzt. Jetzt verschieben oder über 2 Punkte ausrichten.`)};
+    $('bSc').onclick=set;$('pSc').onkeydown=e=>{if(e.key==='Enter')set()}}
   if($('bCal'))$('bCal').onclick=startCal;
   if($('bRot'))$('bRot').onclick=()=>{const[cx,cy]=pToM(plan.w/2,plan.h/2),a=plan.a,b=plan.b,tx=plan.tx-cx,ty=plan.ty-cy;
     plan.a=-b;plan.b=a;plan.tx=cx-ty;plan.ty=cy+tx;buildPlan();savePlan();renderPlan()};
@@ -779,22 +895,57 @@ function renderPlan(msg){
 }
 $('planFile').onchange=async e=>{const f=e.target.files&&e.target.files[0];e.target.value='';if(!f)return;
   $('plan').innerHTML='<div class="expnote">Plan wird geladen …</div>';
-  try{const url=await fileToImage(f);await setPlanImage(url,f.name);plan.vis=true;buildPlan();savePlan();go('top');renderPlan('Plan grob eingepasst. Mit „Ausrichten (2 Punkte)“ maßstäblich auf die Achsen legen.')}
+  try{const im=await fileToImage(f);await setPlanImage(im.url,f.name);plan.mpp=im.mpp;plan.vis=true;buildPlan();savePlan();go('top');renderPlan('Plan grob eingepasst. Mit Maßstab, „Strecke abgreifen“ oder „Ausrichten (2 Punkte)“ auf die richtige Größe bringen.')}
   catch(err){renderPlan('Plan konnte nicht geladen werden: '+esc(err.message||err))}};
-function startCal(){if(draw.on)stopDraw();state.sel=null;buildSel();renderEdit();cal.on=true;cal.step=0;cal.w=[];cal.z=[];cal.hover=null;controls.enableRotate=false;go('top');
-  setStatus('Plan ausrichten: Punkte anklicken. Rechte Maustaste: verschieben, Mausrad: zoomen, Esc: abbrechen');renderPlan();buildPlan()}
-function stopCal(){cal.on=false;cal.hover=null;controls.enableRotate=true;setStatus();tip.style.display='none';renderPlan();buildPlan()}
-// snap target for the model side: axis intersections and region corners
-function snapModel(ev){
-  const g=groundAt(ev);if(!g)return null;const r=renderer.domElement.getBoundingClientRect(),sx=ev.clientX-r.left,sy=ev.clientY-r.top;let best=null,bd=12,kind='';
-  const test=(p,k)=>{const q=toScreen(p[0],p[1],state.G),d=Math.hypot(q[0]-sx,q[1]-sy);if(d<bd){bd=d;best=p;kind=k}};
-  for(const[,x]of AX)for(const[,y]of AY)test([x,y],'Achsschnittpunkt');
-  for(const R of REG)for(const ring of R.rings)for(const p of ring)test(p,'Ecke');
-  return best?{p:[best[0],best[1]],kind}:{p:g,kind:''};
+// scale by factor f about model point C
+function scalePlan(f,C){if(!(f>0)||!isFinite(f))return;plan.a*=f;plan.b*=f;plan.tx=C[0]+f*(plan.tx-C[0]);plan.ty=C[1]+f*(plan.ty-C[1]);buildPlan();savePlan()}
+function planModes(){if(draw.on)stopDraw();if(cal.on)stopCal();if(meas.on)stopMeas();if(pe.on)stopPe()}
+function startMeas(){planModes();meas.on=true;meas.pts=[];meas.hover=null;plan.vis=true;controls.enableRotate=false;go('top');
+  setStatus('Strecke abgreifen: zwei Punkte im Plan anklicken. Rechte Maustaste: verschieben, Mausrad: zoomen, Esc: abbrechen');renderPlan();buildPlan()}
+function stopMeas(msg){meas.on=false;meas.pts=[];meas.hover=null;controls.enableRotate=true;setStatus();tip.style.display='none';$('planSvg').innerHTML='';renderPlan(msg);buildPlan()}
+function measDraw(){
+  const svg=$('planSvg'),pts=[...meas.pts];if(meas.hover&&pts.length<2)pts.push(meas.hover);if(!pts.length){svg.innerHTML='';return}
+  const S=pts.map(p=>toScreen(p[0],p[1],state.G));let h='';
+  if(S.length===2)h+=`<line x1="${S[0][0]}" y1="${S[0][1]}" x2="${S[1][0]}" y2="${S[1][1]}" stroke="#1f6feb" stroke-width="2"/>`;
+  S.forEach(q=>h+=`<circle cx="${q[0]}" cy="${q[1]}" r="5" fill="#1f6feb"/>`);svg.innerHTML=h;
 }
+function measMove(ev){const g=groundAt(ev);meas.hover=g;measDraw();if(!g){tip.style.display='none';return}
+  const a=meas.pts[0];showTip(ev,a?`<b>Endpunkt</b><br>abgegriffen ${fmt(Math.hypot(g[0]-a[0],g[1]-a[1]))} m`:'<b>Anfangspunkt</b><br>der bekannten Strecke im Plan')}
+function measClick(ev){if(meas.pts.length>=2)return;const g=groundAt(ev);if(!g)return;
+  if(meas.pts.length&&Math.hypot(g[0]-meas.pts[0][0],g[1]-meas.pts[0][1])<0.05)return;meas.pts.push(g);meas.hover=null;tip.style.display='none';measDraw();renderPlan()}
+// move / scale with the mouse
+const planCorners=()=>[[0,0],[plan.w,0],[plan.w,plan.h],[0,plan.h]].map(([u,v])=>pToM(u,v));
+function startPe(){planModes();pe.on=true;pe.drag=null;plan.vis=true;controls.enableRotate=false;go('top');
+  setStatus('Plan anpassen: im Plan ziehen = verschieben, blaue Ecke ziehen = skalieren. Rechte Maustaste: Ansicht verschieben, Esc: fertig');renderPlan();buildPlan()}
+function stopPe(){pe.on=false;pe.drag=null;controls.enabled=true;controls.enableRotate=true;setStatus();tip.style.display='none';$('planSvg').innerHTML='';savePlan();renderPlan()}
+function peHandles(){if(!pe.on)return;const C=planCorners().map(p=>toScreen(p[0],p[1],state.G));
+  $('planSvg').innerHTML=`<polygon points="${C.map(c=>c.join(',')).join(' ')}" fill="none" stroke="#1f6feb" stroke-width="1.5" stroke-dasharray="6 4"/>`+C.map(c=>`<rect x="${c[0]-6}" y="${c[1]-6}" width="12" height="12" fill="#fff" stroke="#1f6feb" stroke-width="2"/>`).join('')}
+function peDown(ev){
+  const r=renderer.domElement.getBoundingClientRect(),sx=ev.clientX-r.left,sy=ev.clientY-r.top,C=planCorners(),g=groundAt(ev);if(!g)return false;
+  let k=-1;C.forEach((p,i)=>{const q=toScreen(p[0],p[1],state.G);if(Math.hypot(q[0]-sx,q[1]-sy)<12)k=i});
+  if(k>=0){const A=C[(k+2)%4];pe.drag={kind:'scale',A,d0:Math.hypot(C[k][0]-A[0],C[k][1]-A[1]),s0:[plan.a,plan.b,plan.tx,plan.ty]}}
+  else{const w=mToP(g[0],g[1]);if(w[0]<0||w[1]<0||w[0]>plan.w||w[1]>plan.h)return false;pe.drag={kind:'move',g0:g,t0:[plan.tx,plan.ty]}}
+  pe.drag.id=ev.pointerId;controls.enabled=false;renderer.domElement.setPointerCapture(ev.pointerId);return true;
+}
+function peMove(ev){
+  const g=groundAt(ev);if(!g)return;const D=pe.drag;
+  if(!D){const r=renderer.domElement.getBoundingClientRect(),sx=ev.clientX-r.left,sy=ev.clientY-r.top;
+    const onC=planCorners().some(p=>{const q=toScreen(p[0],p[1],state.G);return Math.hypot(q[0]-sx,q[1]-sy)<12});
+    const w=mToP(g[0],g[1]),inP=w[0]>=0&&w[1]>=0&&w[0]<=plan.w&&w[1]<=plan.h;renderer.domElement.style.cursor=onC?'nwse-resize':inP?'move':'';return}
+  if(D.kind==='move'){plan.tx=D.t0[0]+g[0]-D.g0[0];plan.ty=D.t0[1]+g[1]-D.g0[1]}
+  else{[plan.a,plan.b,plan.tx,plan.ty]=D.s0;const f=Math.max(0.01,Math.hypot(g[0]-D.A[0],g[1]-D.A[1])/D.d0);plan.a*=f;plan.b*=f;plan.tx=D.A[0]+f*(plan.tx-D.A[0]);plan.ty=D.A[1]+f*(plan.ty-D.A[1]);
+    showTip(ev,`<b>Skalieren</b><br>Faktor ${fmt(f,3)}${plan.mpp?`<br>entspricht 1:${fmt(Math.hypot(plan.a,plan.b)/plan.mpp,0)}`:''}`)}
+  buildPlan();
+}
+function peUp(){if(!pe.drag)return;try{renderer.domElement.releasePointerCapture(pe.drag.id)}catch(e){}pe.drag=null;controls.enabled=true;tip.style.display='none';savePlan();renderPlan()}
+function startCal(){planModes();state.sel=null;buildSel();renderEdit();cal.on=true;cal.step=0;cal.w=[];cal.z=[];cal.hover=null;controls.enableRotate=false;go('top');
+  setStatus('Plan ausrichten: Punkte anklicken. Rechte Maustaste: verschieben, Mausrad: zoomen, Esc: abbrechen');renderPlan();buildPlan()}
+function stopCal(){cal.on=false;cal.hover=null;showSnap(null);controls.enableRotate=true;setStatus();tip.style.display='none';renderPlan();buildPlan()}
+// snap target for the model side: axis intersections and region corners
+function snapModel(ev){const sn=snapAt(ev,{});return sn&&{p:[sn.x,sn.y],kind:sn.kind&&sn.kind!=='grid'?snapLabel(sn):'',sn}}
 function calMove(ev){
   const model=cal.step%2===1,t=model?snapModel(ev):(()=>{const g=groundAt(ev);return g&&{p:g,kind:''}})();
-  cal.hover=t&&t.p;buildPlan();if(!t){tip.style.display='none';return}
+  cal.hover=t&&t.p;buildPlan();showSnap(model&&t&&t.sn);if(!t){tip.style.display='none';return}
   showTip(ev,`<b>${model?'Modellpunkt':'Planpunkt'} ${cal.step<2?1:2}</b><br>${t.kind?t.kind+' gefangen, ':''}Achse ${nearAx(AX,t.p[0])} / ${nearAx(AY,t.p[1])}`);
 }
 function calClick(ev){
@@ -810,16 +961,56 @@ function calClick(ev){
   }
   renderPlan();buildPlan();
 }
-idb('readonly',st=>st.get(STORE)).then(v=>{if(!v||!v.img)return;Object.assign(plan,{a:v.a,b:v.b,tx:v.tx,ty:v.ty,op:v.op,vis:v.vis});
+idb('readonly',st=>st.get(STORE)).then(v=>{if(!v||!v.img)return;Object.assign(plan,{a:v.a,b:v.b,tx:v.tx,ty:v.ty,op:v.op,vis:v.vis,mpp:v.mpp||null});
   return setPlanImage(v.img,v.name,true).then(()=>{buildPlan();renderPlan()})}).catch(()=>{});
 renderPlan();
+
+// ---------- drag corners of own areas ----------
+let vd=null;
+function pickVertex(ev){
+  if(state.sel===null||draw.on||cal.on)return null;const R=REG[state.sel];if(!R||!R.custom)return null;
+  const r=renderer.domElement.getBoundingClientRect(),sx=ev.clientX-r.left,sy=ev.clientY-r.top;let best=null,bd=10;
+  R.rings[0].forEach((p,k)=>{const e=R.sl&&R.sl[k],q=toScreen(p[0],p[1],e?e.za:R.uk),d=Math.hypot(q[0]-sx,q[1]-sy);if(d<bd){bd=d;best=k}});
+  return best;
+}
+function vertexMove(ev){
+  if(!vd.moved&&Math.hypot(ev.clientX-vd.x,ev.clientY-vd.y)<4)return;vd.moved=true;
+  const R=REG[state.sel],ring=R.src.r[0],n=ring.length,k=vd.k,O=vd.orig;
+  const sn=snapAt(ev,{z:vd.z,from:O[(k-1+n)%n],trackPts:[O[(k+1)%n]],self:R.i,selfK:k});if(!sn)return;
+  let q=[sn.x,sn.y];
+  if(vd.rect){const o=O[(k+2)%4],a=O[(k+1)%4],b=O[(k+3)%4],la=Math.hypot(a[0]-o[0],a[1]-o[1]),lb=Math.hypot(b[0]-o[0],b[1]-o[1]);
+    const u=[(a[0]-o[0])/la,(a[1]-o[1])/la],w=[(b[0]-o[0])/lb,(b[1]-o[1])/lb];
+    const s=Math.max(0.05,(q[0]-o[0])*u[0]+(q[1]-o[1])*u[1]),t=Math.max(0.05,(q[0]-o[0])*w[0]+(q[1]-o[1])*w[1]);
+    ring[(k+1)%4]=[o[0]+u[0]*s,o[1]+u[1]*s];ring[(k+3)%4]=[o[0]+w[0]*t,o[1]+w[1]*t];ring[k]=[o[0]+u[0]*s+w[0]*t,o[1]+u[1]*s+w[1]*t];ring[(k+2)%4]=o.slice()}
+  else ring[k]=q;
+  for(let i=0;i<n;i++)ring[i]=[+ring[i][0].toFixed(3),+ring[i][1].toFixed(3)];
+  if(Math.abs(polyArea(ring))<0.05){O.forEach((p,i)=>ring[i]=p.slice())}
+  rebuildReg();buildSel();showSnap(sn);
+  if(!vd.busy){vd.busy=true;setTimeout(()=>{if(!vd)return;refresh(0.25);vd.busy=false},30)}
+  const p0=ring[(k-1+n)%n],p1=ring[k],p2=ring[(k+1)%n];
+  showTip(ev,`<b>Ecke ${k+1}</b>${sn.kind&&sn.kind!=='grid'?' · '+snapLabel(sn):''}<br>Achse ${nearAx(AX,p1[0])} / ${nearAx(AY,p1[1])}<br>Linie ${(k-1+n)%n+1}: ${fmt(Math.hypot(p1[0]-p0[0],p1[1]-p0[1]))} m, Linie ${k+1}: ${fmt(Math.hypot(p2[0]-p1[0],p2[1]-p1[1]))} m`);
+}
+function endVertex(cancel){
+  if(!vd)return false;const moved=vd.moved,R=REG[state.sel];
+  if(cancel&&R){const ring=R.src.r[0];vd.orig.forEach((p,i)=>ring[i]=p.slice());rebuildReg()}
+  try{renderer.domElement.releasePointerCapture(vd.id)}catch(e){}
+  vd=null;controls.enabled=true;showSnap(null);
+  if(moved||cancel){saveCustom();schedule();tip.style.display='none'}
+  return moved;
+}
 
 // ---------- drag heights ----------
 let hd=null; // active height drag
 function canDrag(H){if(state.sel===null||!H||!H.reg)return false;return groupOf(REG[state.sel]).includes(H.reg)}
 // capture phase: runs before OrbitControls so the camera stays put while dragging
 view.addEventListener('pointerdown',ev=>{
-  if(ev.target!==renderer.domElement||draw.on||cal.on||ev.button!==0)return;
+  if(ev.target!==renderer.domElement||ev.button!==0)return;
+  if(pe.on){peDown(ev);return}
+  if(draw.on||cal.on||meas.on)return;
+  const vk=pickVertex(ev);
+  if(vk!==null){const R=REG[state.sel],ring=R.src.r[0];
+    vd={id:ev.pointerId,k:vk,x:ev.clientX,y:ev.clientY,orig:ring.map(p=>p.slice()),rect:isRectRing(ring),z:R.sl?R.sl[vk].za:R.uk,moved:false,busy:false};
+    controls.enabled=false;renderer.domElement.setPointerCapture(ev.pointerId);return}
   const H=hitInfo(ev);if(!canDrag(H))return;
   const r=renderer.domElement.getBoundingClientRect(),p=H.point,a=toScreen(p.x,p.z,H.h),b=toScreen(p.x,p.z,H.h+1);
   const grp=groupOf(REG[state.sel]);
@@ -850,27 +1041,37 @@ function endDrag(cancel){
 }
 
 renderer.domElement.addEventListener('pointermove',ev=>{
+  if(vd){vertexMove(ev);return}
   if(hd){dragMove(ev);return}
+  if(pe.on){peMove(ev);return}
+  if(meas.on){measMove(ev);return}
   if(cal.on){calMove(ev);return}
   if(draw.on){drawMove(ev);return}
+  const vk=pickVertex(ev);if(vk!==null){renderer.domElement.style.cursor='move';showTip(ev,`<b>Ecke ${vk+1}</b><br>Ziehen verschiebt die Ecke${isRectRing(REG[state.sel].rings[0])?' (Rechteck bleibt rechtwinklig)':''}`);return}
   const H=hitInfo(ev);if(!H){tip.style.display='none';renderer.domElement.style.cursor='';return}
   renderer.domElement.style.cursor=canDrag(H)?'ns-resize':'';
   showTip(ev,`<b>${H.kind}</b>${H.reg?`<br>${H.kind.startsWith('Sohle')?'':'von '}${esc(H.reg.name)}, ${H.reg.ax}`:''}<br>Höhe ${lvl(H.h)} = ${fmt(NHN0+H.h)} m ü NHN<br>Tiefe ab Gelände ${fmt(state.G-H.h)} m${canDrag(H)?'<br><i>Ziehen ändert die Höhe</i>':''}`);
 });
-renderer.domElement.addEventListener('pointerleave',()=>{tip.style.display='none';if(draw.on){draw.hover=null;buildDraw()}if(cal.on){cal.hover=null;buildPlan()}});
+renderer.domElement.addEventListener('pointerleave',()=>{tip.style.display='none';if(!vd)showSnap(null);if(draw.on){draw.hover=null;buildDraw()}if(cal.on){cal.hover=null;buildPlan()}});
 let down=null;
 renderer.domElement.addEventListener('pointerdown',e=>down=[e.clientX,e.clientY,e.button]);
 renderer.domElement.addEventListener('pointerup',e=>{
+  if(pe.on){peUp();return}
+  if(vd&&endVertex(false))return;
   if(hd&&endDrag(false))return;
   if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>5)return;
+  if(meas.on){if(down[2]===0)measClick(e);return}
   if(cal.on){if(down[2]===0)calClick(e);return}
   if(draw.on){if(down[2]===0)drawClick(e);return}
   const ek=pickEdge(e);if(ek!==null){state.selEdge=ek;renderEdit();buildSel();const i=document.querySelector(`[data-eh="${ek}"]`);if(i)i.focus();return}
   const H=hitInfo(e),ns=H&&H.reg?H.reg.i:null;if(ns!==state.sel)state.selEdge=null;state.sel=ns;renderEdit();buildSel();});
-renderer.domElement.addEventListener('pointercancel',()=>endDrag(true));
+renderer.domElement.addEventListener('pointercancel',()=>{endVertex(true);endDrag(true);if(pe.on)peUp()});
 document.addEventListener('keydown',e=>{
+  if(e.key==='F3'){e.preventDefault();FANG.on=!FANG.on;saveFang();renderFang();return}
   if(e.target.closest&&e.target.closest('input,textarea'))return;
-  if(e.key==='Escape'){if(hd)endDrag(true);else if(cal.on)stopCal();else if(draw.on)stopDraw()}
+  // typing a number while drawing goes straight into the length field
+  if(draw.on&&/^[0-9.,]$/.test(e.key)&&!e.ctrlKey&&!e.metaKey){const f=$('dLen')||$('dW');if(f){f.focus();return}}
+  if(e.key==='Escape'){if(vd)endVertex(true);else if(hd)endDrag(true);else if(pe.on)stopPe();else if(meas.on)stopMeas();else if(cal.on)stopCal();else if(draw.on)stopDraw()}
   else if(draw.on&&e.key==='Enter'&&!draw.rect)finishDraw();
   else if(draw.on&&e.key==='Backspace'){e.preventDefault();draw.pts.pop();buildDraw();renderEdit()}
 });
@@ -881,7 +1082,7 @@ new ResizeObserver(resize).observe(view);resize();
 root.scale.y=state.ex;buildGrid();refresh();renderEdit();go('iso',true);
 (function loop(t){
   if(anim){const k=Math.min(1,(t-anim.s)/700),e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;camera.position.lerpVectors(anim.p0,anim.P,e);controls.target.lerpVectors(anim.t0,anim.T,e);if(k>=1)anim=null}
-  controls.update();renderer.render(scene,camera);requestAnimationFrame(loop)})(0);
+  controls.update();if(pe.on)peHandles();else if(meas.on)measDraw();renderer.render(scene,camera);requestAnimationFrame(loop)})(0);
 
 // ---------- export ----------
 let DL=null;
