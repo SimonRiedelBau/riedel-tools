@@ -19,4 +19,5 @@ für Admins auch direkt an, solange die Tabelle fehlt.
 - `index.html` – Übersicht (`projekte/`) und Ablage je Projekt (`projekte/?p=<id>`)
 - `projekte.js` – Projekte, Rubriken und Dokumente im Repo
 - `supabase-setup.sql` – Tabelle, Zugriffsregeln, Storage-Bucket
-- `ostermeier-taufkirchen/aushub-3d.html` – Aushub 3D, Baugrube mit Böschungen 45° (Plan 26-24_OST_AH_V00)
+- `aushub-setup.sql` – gemeinsamer Stand für Aushub 3D (Tabelle `aushub_stand`, Bucket `aushub-plaene`), einmalig im Supabase SQL Editor ausführen
+- `ostermeier-taufkirchen/aushub-3d.html` – Aushub 3D, Baugrube mit Böschungen 45° (Plan 26-24_OST_AH_V00). Höhen, eigene Flächen, Geländehöhe und hinterlegter Plan werden für alle Freigeschalteten gemeinsam gespeichert; ohne Verbindung bleibt der Stand im Browser und wird nachgeholt

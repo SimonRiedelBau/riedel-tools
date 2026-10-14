@@ -49,6 +49,11 @@ input[type=text]{width:170px;font:inherit;padding:5px 7px;border:1px solid var(-
 .drawbar{display:flex;margin:-6px 0 16px}
 .drawbar button{flex:1}
 .plan{font-size:.85rem;margin:0 0 16px}
+.sync{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;font-size:.8rem;color:var(--muted);margin:-8px 0 14px;line-height:1.35}
+.sync .dot{width:8px;height:8px;border-radius:50%;background:#9aa5ad;flex:none}
+.sync[data-s="ok"] .dot{background:#2f9e44}.sync[data-s="busy"] .dot{background:#f08c00}.sync[data-s="err"] .dot,.sync[data-s="conflict"] .dot{background:#e03131}
+.sync[data-s="conflict"]{background:var(--edit);border-left:3px solid #e03131;padding:8px 10px;color:var(--ink)}
+.sync .btns{display:flex;gap:6px;flex-wrap:wrap;width:100%}
 #snapSvg,#planSvg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1;overflow:visible}
 .fkey{font-weight:400;color:var(--muted);font-size:.76rem;margin-left:6px}
 .fang{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 16px}
@@ -114,6 +119,7 @@ tfoot td{font-weight:600;border-bottom:none;border-top:2px solid var(--ink)}
       <div class="sub">Grundlage Plan 26-24_OST_AH_V00, Vorabzug 30.09.2026<br>±0,00 = 566,10 m ü NHN</div>
     </div></div>
 
+    <div class="sync" id="sync"><span class="dot"></span><span id="syncTxt">Nur in diesem Browser gespeichert</span></div>
     <div class="total">
       <div class="n" id="vTot">–<small>m³</small></div>
       <div class="l" id="vDesc"></div>
@@ -183,7 +189,7 @@ tfoot td{font-weight:600;border-bottom:none;border-top:2px solid var(--ink)}
       <tbody id="tb"></tbody>
       <tfoot><tr><td>Summe</td><td id="sA"></td><td></td><td id="sV"></td></tr></tfoot>
     </table>
-    <p class="note">Ein zusammenhängendes Geländemodell: An jedem Punkt gilt die tiefste Höhe aus Sohle oder 45°-Böschung (1:1) eines Bereichs. Wo sich Böschungen schneiden, entstehen Grate, wo eine Böschung auf eine höhere Sohle trifft, die innere Böschungsoberkante. „Nur Baugrubenrand“ setzt innen senkrechte Wände an (nach DIN 4124 bis 1,25 m Tiefe ohne Verbau zulässig). Eigene Flächen (Polygon oder Rechteck, fängt vorhandene Ecken) zählen wie Planbereiche: Liegen sie flacher als ein Planbereich, gilt dort weiter die tiefere Sohle. Bei eigenen Flächen lassen sich einzelne Linien auf eigene Höhen legen, die Sohle dazwischen wird geneigt interpoliert (Rampe, Gefälle). Ecken eigener Flächen lassen sich ziehen und Linienlängen eingeben, der Fangmodus (F3) richtet die Maus an Ecken, Mitten, Kanten, Achsen, 45°-Winkeln und Spurlinien aus. Ein hinterlegter Plan (PDF oder Bild) dient nur als Zeichenhilfe und wird über zwei Passpunkte auf die Achsen gelegt oder über Maßstab, eine abgegriffene Strecke oder mit der Maus skaliert. Geänderte Höhen, eigene Flächen und der Plan werden in diesem Browser gespeichert. Die Geländeoberkante steht nicht im Plan, bitte mit dem Bestandsaufmaß abgleichen. Arbeitsräume und Rampen sind nicht enthalten.</p>
+    <p class="note">Ein zusammenhängendes Geländemodell: An jedem Punkt gilt die tiefste Höhe aus Sohle oder 45°-Böschung (1:1) eines Bereichs. Wo sich Böschungen schneiden, entstehen Grate, wo eine Böschung auf eine höhere Sohle trifft, die innere Böschungsoberkante. „Nur Baugrubenrand“ setzt innen senkrechte Wände an (nach DIN 4124 bis 1,25 m Tiefe ohne Verbau zulässig). Eigene Flächen (Polygon oder Rechteck, fängt vorhandene Ecken) zählen wie Planbereiche: Liegen sie flacher als ein Planbereich, gilt dort weiter die tiefere Sohle. Bei eigenen Flächen lassen sich einzelne Linien auf eigene Höhen legen, die Sohle dazwischen wird geneigt interpoliert (Rampe, Gefälle). Ecken eigener Flächen lassen sich ziehen und Linienlängen eingeben, der Fangmodus (F3) richtet die Maus an Ecken, Mitten, Kanten, Achsen, 45°-Winkeln und Spurlinien aus. Ein hinterlegter Plan (PDF oder Bild) dient nur als Zeichenhilfe und wird über zwei Passpunkte auf die Achsen gelegt oder über Maßstab, eine abgegriffene Strecke oder mit der Maus skaliert. Geänderte Höhen, eigene Flächen, Geländehöhe und der Plan werden als gemeinsamer Stand für alle Freigeschalteten gespeichert (Supabase) und sind auf allen Geräten gleich. Ohne Verbindung wird im Browser zwischengespeichert und später nachgeholt. Die Geländeoberkante steht nicht im Plan, bitte mit dem Bestandsaufmaß abgleichen. Arbeitsräume und Rampen sind nicht enthalten.</p>
   </aside>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
@@ -244,7 +250,7 @@ function rebuildReg(){
   EDG=[];REG.forEach(R=>R.rings.forEach(ring=>{for(let k=0;k<ring.length;k++){const p=ring[k],q=ring[(k+1)%ring.length];EDG.push({r:R.i,k,ax:p[0],ay:p[1],bx:q[0],by:q[1]})}}));
 }
 rebuildReg();
-function saveCustom(){try{localStorage.setItem(USTORE,JSON.stringify(custom))}catch(e){}}
+function saveCustom(){try{localStorage.setItem(USTORE,JSON.stringify(custom))}catch(e){}markDirty()}
 // regions moved together with R (same plan level if "alle mitändern" is ticked)
 function groupOf(R){return !R.custom&&$('grp')&&$('grp').checked?REG.filter(x=>!x.custom&&x.uk0===R.uk0):[R]}
 function inRegion(R,x,y){let c=false;for(const ring of R.rings)for(let k=0,n=ring.length,j=n-1;k<n;j=k++){const a=ring[k],b=ring[j];
@@ -499,7 +505,7 @@ function updateTable(){
   const nE=Object.keys(edits).length,nC=custom.length;
   $('vDesc').textContent='Gesamtaushub fest, Böschungen 45° '+(state.slope==='all'?'an allen Sohlsprüngen':'am Baugrubenrand')+' verschnitten, ohne Arbeitsraum'+(nE?`, ${nE} Bereich${nE>1?'e':''} geändert`:'')+(nC?`, ${nC} eigene Fläche${nC>1?'n':''}`:'');
 }
-function saveEdits(){try{localStorage.setItem(STORE,JSON.stringify(edits))}catch(e){}}
+function saveEdits(){try{localStorage.setItem(STORE,JSON.stringify(edits))}catch(e){}markDirty()}
 function setUK(R,v){const d=v-R.uk;R.uk=v;if(R.custom){R.src.uk=v;R.uk0=v;if(Array.isArray(R.src.eh))R.src.eh=R.src.eh.map(h=>h==null?null:+(h+d).toFixed(3));slopeInfo(R);return}if(Math.abs(v-R.uk0)<1e-6)delete edits[R.id];else edits[R.id]=v}
 function saveAll(){saveEdits();saveCustom()}
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -623,8 +629,8 @@ function schedule(keepPanel){
 }
 
 // ---------- controls ----------
-$('g').addEventListener('input',e=>{let v=parseFloat(String(e.target.value).replace(',','.'));if(isNaN(v))return;state.G=Math.max(-0.2,Math.min(1,v));schedule()});
-$('af').addEventListener('input',e=>{const v=parseFloat(String(e.target.value).replace(',','.'));if(!isNaN(v)&&v>=1){state.af=v;updateTable()}});
+$('g').addEventListener('input',e=>{let v=parseFloat(String(e.target.value).replace(',','.'));if(isNaN(v))return;state.G=Math.max(-0.2,Math.min(1,v));schedule();markDirty()});
+$('af').addEventListener('input',e=>{const v=parseFloat(String(e.target.value).replace(',','.'));if(!isNaN(v)&&v>=1){state.af=v;updateTable();markDirty()}});
 $('ex').addEventListener('input',e=>{state.ex=parseFloat(e.target.value);$('exOut').textContent=fmt(state.ex,1)+'-fach';root.scale.y=state.ex;gridG.position.y=state.G*state.ex+0.03;buildDraw();buildSel();buildPlan()});
 $('exOut').textContent=fmt(state.ex,1)+'-fach';
 function cutText(z){if(z===null)return 'aus';let b=AY[0];for(const a of AY)if(Math.abs(a[1]-z)<Math.abs(b[1]-z))b=a;const o=z-b[1];return 'Achse '+b[0]+(Math.abs(o)<0.13?'':(o>0?' + ':' − ')+fmt(Math.abs(o))+' m')}
@@ -635,7 +641,7 @@ $('tEdges').onchange=e=>{state.lines=e.target.checked;kinkL.visible=crestL.visib
 $('tCont').onchange=e=>{state.cont=e.target.checked;contL=drop(contL);if(state.cont){CONT=contourSegments();contL=lineObj(CONT,contMat,1)}};
 function seg(id,attr,fn){document.querySelectorAll('#'+id+' button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#'+id+' button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));fn(b.dataset[attr])})}
 seg('segMode','m',m=>{state.mode=m;if(cap)cap.visible=m==='body'});
-seg('segSlope','s',s=>{state.slope=s;schedule()});
+seg('segSlope','s',s=>{state.slope=s;schedule();markDirty()});
 seg('segRes','r',v=>{state.res=parseFloat(v);schedule()});
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{sceneBg();buildGrid();buildMesh()});
 const VIEWS={iso:[[-38,55,125],[CX,-2,CZ]],top:[[CX,150,CZ+0.01],[CX,0,CZ]],south:[[CX,6,165],[CX,-3,CZ]],under:[[-30,-60,115],[CX,-3,CZ]]};
@@ -798,7 +804,7 @@ renderer.domElement.addEventListener('dblclick',()=>{if(draw.on&&!draw.rect&&dra
 
 // ---------- plan underlay ----------
 // image pixel (u,v) -> model (x,y): similarity  x+iy = s*(u+iv)+t  with s=a+ib (scale and rotation), t=tx+i*ty
-const plan={img:null,name:'',w:0,h:0,a:1,b:0,tx:0,ty:0,op:0.6,vis:true,tex:null,mpp:null}; // mpp: paper metres per pixel (PDF only)
+const plan={img:null,name:'',w:0,h:0,a:1,b:0,tx:0,ty:0,op:0.6,vis:true,tex:null,mpp:null,pfad:null}; // pfad: file in the shared cloud store // mpp: paper metres per pixel (PDF only)
 const meas={on:false,pts:[],hover:null},pe={on:false,drag:null};
 const cal={on:false,step:0,w:[],z:[],hover:null};
 let planMesh=null,calP=null;
@@ -807,8 +813,8 @@ function idb(mode,fn){return new Promise((res,rej)=>{let q;try{q=indexedDB.open(
   q.onupgradeneeded=()=>q.result.createObjectStore('plan');q.onerror=()=>rej(q.error);
   q.onsuccess=()=>{try{const tx=q.result.transaction('plan',mode),r=fn(tx.objectStore('plan'));tx.oncomplete=()=>res(r&&r.result);tx.onerror=()=>rej(tx.error)}catch(e){rej(e)}}})}
 let planSaveT=null;
-function savePlan(){clearTimeout(planSaveT);planSaveT=setTimeout(()=>{
-  const v=plan.img?{img:plan.img,name:plan.name,w:plan.w,h:plan.h,a:plan.a,b:plan.b,tx:plan.tx,ty:plan.ty,op:plan.op,vis:plan.vis,mpp:plan.mpp}:null;
+function savePlan(){markDirty();clearTimeout(planSaveT);planSaveT=setTimeout(()=>{
+  const v=plan.img?{img:plan.img,name:plan.name,w:plan.w,h:plan.h,a:plan.a,b:plan.b,tx:plan.tx,ty:plan.ty,op:plan.op,vis:plan.vis,mpp:plan.mpp,pfad:plan.pfad}:null;
   idb('readwrite',st=>v?st.put(v,STORE):st.delete(STORE)).catch(()=>{})},300)}
 const pToM=(u,v)=>[plan.a*u-plan.b*v+plan.tx,plan.b*u+plan.a*v+plan.ty];
 function mToP(x,y){const dx=x-plan.tx,dy=y-plan.ty,n=plan.a*plan.a+plan.b*plan.b;return[(plan.a*dx+plan.b*dy)/n,(plan.a*dy-plan.b*dx)/n]}
@@ -891,11 +897,11 @@ function renderPlan(msg){
   if($('bRot'))$('bRot').onclick=()=>{const[cx,cy]=pToM(plan.w/2,plan.h/2),a=plan.a,b=plan.b,tx=plan.tx-cx,ty=plan.ty-cy;
     plan.a=-b;plan.b=a;plan.tx=cx-ty;plan.ty=cy+tx;buildPlan();savePlan();renderPlan()};
   if($('bFit'))$('bFit').onclick=()=>{fitPlan();buildPlan();savePlan();renderPlan()};
-  if($('bPlanDel'))$('bPlanDel').onclick=()=>{if(!confirm('Hinterlegten Plan entfernen?'))return;if(plan.tex)plan.tex.dispose();plan.tex=null;plan.img=null;buildPlan();savePlan();renderPlan()};
+  if($('bPlanDel'))$('bPlanDel').onclick=()=>{if(!confirm('Hinterlegten Plan entfernen?'))return;if(plan.tex)plan.tex.dispose();plan.tex=null;plan.img=null;plan.pfad=null;buildPlan();savePlan();renderPlan()};
 }
 $('planFile').onchange=async e=>{const f=e.target.files&&e.target.files[0];e.target.value='';if(!f)return;
   $('plan').innerHTML='<div class="expnote">Plan wird geladen …</div>';
-  try{const im=await fileToImage(f);await setPlanImage(im.url,f.name);plan.mpp=im.mpp;plan.vis=true;buildPlan();savePlan();go('top');renderPlan('Plan grob eingepasst. Mit Maßstab, „Strecke abgreifen“ oder „Ausrichten (2 Punkte)“ auf die richtige Größe bringen.')}
+  try{const im=await fileToImage(f);await setPlanImage(im.url,f.name);plan.mpp=im.mpp;plan.pfad=null;plan.vis=true;buildPlan();savePlan();go('top');renderPlan('Plan grob eingepasst. Mit Maßstab, „Strecke abgreifen“ oder „Ausrichten (2 Punkte)“ auf die richtige Größe bringen.')}
   catch(err){renderPlan('Plan konnte nicht geladen werden: '+esc(err.message||err))}};
 // scale by factor f about model point C
 function scalePlan(f,C){if(!(f>0)||!isFinite(f))return;plan.a*=f;plan.b*=f;plan.tx=C[0]+f*(plan.tx-C[0]);plan.ty=C[1]+f*(plan.ty-C[1]);buildPlan();savePlan()}
@@ -961,9 +967,114 @@ function calClick(ev){
   }
   renderPlan();buildPlan();
 }
-idb('readonly',st=>st.get(STORE)).then(v=>{if(!v||!v.img)return;Object.assign(plan,{a:v.a,b:v.b,tx:v.tx,ty:v.ty,op:v.op,vis:v.vis,mpp:v.mpp||null});
+const planLocal=idb('readonly',st=>st.get(STORE)).then(v=>{if(!v||!v.img)return;Object.assign(plan,{a:v.a,b:v.b,tx:v.tx,ty:v.ty,op:v.op,vis:v.vis,mpp:v.mpp||null,pfad:v.pfad||null});
   return setPlanImage(v.img,v.name,true).then(()=>{buildPlan();renderPlan()})}).catch(()=>{});
 renderPlan();
+
+// ---------- shared state in Supabase (aushub_stand, bucket aushub-plaene) ----------
+// One row per project, optimistic locking via version. Local storage stays the offline fallback;
+// pending changes are kept and pushed when the connection is back.
+const PROJ='26-24_OST',TAB='aushub_stand',BUCKET='aushub-plaene',VSTORE=STORE+'-sync';
+const sync={sb:null,ok:false,ver:0,pending:false,busy:false,again:false,timer:null,applying:false,remote:null,meta:null,prevPlan:null};
+try{const v=JSON.parse(localStorage.getItem(VSTORE)||'{}');sync.ver=v.ver||0;sync.pending=!!v.pending}catch(e){}
+function saveSyncMeta(){try{localStorage.setItem(VSTORE,JSON.stringify({ver:sync.ver,pending:sync.pending}))}catch(e){}}
+function markDirty(){
+  if(sync.applying)return;sync.pending=true;saveSyncMeta();if(!sync.ok)return;
+  setSync('busy','Änderungen werden gespeichert …');clearTimeout(sync.timer);sync.timer=setTimeout(pushNow,1500);
+}
+const tm=t=>t?new Date(t).toLocaleString('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
+const who=m=>m?esc(String(m).split('@')[0]):'unbekannt';
+function setSync(st,txt){const b=$('sync');b.dataset.s=st;b.innerHTML=`<span class="dot"></span><span id="syncTxt">${txt}</span>`}
+function syncOk(){const m=sync.meta;setSync('ok',`Gemeinsamer Stand gespeichert${m?`, zuletzt ${tm(m.at)} von ${who(m.mail)}`:''}`)}
+function snapshot(){return{edits,custom,G:state.G,af:state.af,slope:state.slope,
+  plan:plan.img?{pfad:plan.pfad,name:plan.name,w:plan.w,h:plan.h,a:plan.a,b:plan.b,tx:plan.tx,ty:plan.ty,op:plan.op,vis:plan.vis,mpp:plan.mpp}:null}}
+const hasLocal=()=>Object.keys(edits).length>0||custom.length>0||!!plan.img;
+const dbMissing=e=>e&&(e.code==='42P01'||e.code==='PGRST205'||/does not exist|schema cache/i.test(e.message||''));
+async function pushNow(){
+  if(!sync.ok||!sync.pending)return;if(sync.busy){sync.again=true;return}
+  sync.busy=true;
+  try{
+    if(plan.img&&!plan.pfad){ // new plan: upload the image first
+      const blob=await (await fetch(plan.img)).blob(),path=`${PROJ}/plan-${Date.now()}.jpg`;
+      const up=await sync.sb.storage.from(BUCKET).upload(path,blob,{contentType:'image/jpeg',upsert:false});if(up.error)throw up.error;
+      plan.pfad=path;savePlanLocal();
+    }
+    const d=snapshot();let r;
+    if(sync.ver===0)r=await sync.sb.from(TAB).insert({projekt:PROJ,daten:d,version:1}).select().maybeSingle();
+    else r=await sync.sb.from(TAB).update({daten:d,version:sync.ver+1}).eq('projekt',PROJ).eq('version',sync.ver).select().maybeSingle();
+    if(r.error&&r.error.code==='23505'||(!r.error&&!r.data)){await conflict();return} // someone else saved first
+    if(r.error)throw r.error;
+    const prev=sync.prevPlan;sync.ver=r.data.version;sync.pending=false;saveSyncMeta();
+    sync.meta={at:r.data.geaendert_am,mail:r.data.geaendert_mail};syncOk();
+    // remove plan files that are no longer referenced
+    if(prev&&prev!==plan.pfad)sync.sb.storage.from(BUCKET).remove([prev]).catch(()=>{});
+    sync.prevPlan=plan.pfad;
+  }catch(e){
+    if(dbMissing(e)){sync.ok=false;setSync('err','Gemeinsamer Speicher noch nicht eingerichtet (projekte/aushub-setup.sql in Supabase ausführen). Gespeichert wird vorerst nur in diesem Browser.');return}
+    setSync('err','Offline oder Fehler beim Speichern, wird automatisch nachgeholt.');clearTimeout(sync.timer);sync.timer=setTimeout(pushNow,15000);
+  }finally{sync.busy=false;if(sync.again){sync.again=false;pushNow()}}
+}
+function savePlanLocal(){const was=sync.applying;sync.applying=true;savePlan();sync.applying=was}
+async function fetchRow(){const r=await sync.sb.from(TAB).select('*').eq('projekt',PROJ).maybeSingle();if(r.error)throw r.error;return r.data}
+async function conflict(row){
+  row=row||await fetchRow().catch(()=>null);if(!row){sync.ver=0;pushNow();return}
+  sync.remote=row;
+  const b=$('sync');b.dataset.s='conflict';
+  b.innerHTML=`<span class="dot"></span><span>Auf einem anderen Gerät wurde inzwischen gespeichert (${tm(row.geaendert_am)} von ${who(row.geaendert_mail)}). Hier gibt es ungespeicherte Änderungen.</span>
+    <div class="btns"><button id="sLoad">Neueren Stand laden</button><button id="sMine">Meinen Stand speichern</button></div>`;
+  $('sLoad').onclick=()=>applyRemote(sync.remote);
+  $('sMine').onclick=()=>{sync.ver=sync.remote.version;sync.pending=true;setSync('busy','Wird gespeichert …');pushNow()};
+}
+function blobToURL(b){return new Promise((res,rej)=>{const f=new FileReader();f.onload=()=>res(f.result);f.onerror=()=>rej(f.error);f.readAsDataURL(b)})}
+async function applyRemote(row){
+  const d=row.daten||{};sync.applying=true;
+  try{
+    edits=d.edits&&typeof d.edits==='object'?d.edits:{};custom=Array.isArray(d.custom)?d.custom:[];
+    try{localStorage.setItem(STORE,JSON.stringify(edits));localStorage.setItem(USTORE,JSON.stringify(custom))}catch(e){}
+    if(typeof d.G==='number'){state.G=d.G;$('g').value=d.G.toFixed(2)}
+    if(typeof d.af==='number'){state.af=d.af;$('af').value=d.af.toFixed(2)}
+    if(d.slope==='all'||d.slope==='out'){state.slope=d.slope;document.querySelectorAll('#segSlope button').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.s===d.slope)))}
+    const P=d.plan;
+    if(P&&P.pfad){
+      if(P.pfad!==plan.pfad||!plan.tex){const dl=await sync.sb.storage.from(BUCKET).download(P.pfad);if(dl.error)throw dl.error;await setPlanImage(await blobToURL(dl.data),P.name,true)}
+      Object.assign(plan,{name:P.name,a:P.a,b:P.b,tx:P.tx,ty:P.ty,op:P.op,vis:P.vis,mpp:P.mpp||null,pfad:P.pfad});
+    }else if(!P&&plan.img){if(plan.tex)plan.tex.dispose();plan.tex=null;plan.img=null;plan.pfad=null}
+    savePlan();clearTimeout(planSaveT);
+    const v=plan.img?{img:plan.img,name:plan.name,w:plan.w,h:plan.h,a:plan.a,b:plan.b,tx:plan.tx,ty:plan.ty,op:plan.op,vis:plan.vis,mpp:plan.mpp,pfad:plan.pfad}:null;
+    await idb('readwrite',st=>v?st.put(v,STORE):st.delete(STORE)).catch(()=>{});
+    sync.ver=row.version;sync.pending=false;sync.prevPlan=plan.pfad;saveSyncMeta();sync.meta={at:row.geaendert_am,mail:row.geaendert_mail};
+    rebuildReg();state.sel=null;state.selEdge=null;schedule();renderPlan();buildPlan();syncOk();
+  }catch(e){setSync('err','Gemeinsamer Stand konnte nicht geladen werden: '+esc(e.message||e))}
+  finally{sync.applying=false}
+}
+async function pull(){
+  if(!sync.ok||sync.busy)return;
+  let row;try{row=await fetchRow()}catch(e){if(!dbMissing(e))setSync('err','Offline, Änderungen bleiben in diesem Browser und werden nachgeholt.');return}
+  if(!row){if(hasLocal()){sync.ver=0;sync.pending=true;pushNow()}else setSync('ok','Gemeinsamer Stand aktiv, noch nichts gespeichert');return}
+  if(row.version===sync.ver){sync.meta={at:row.geaendert_am,mail:row.geaendert_mail};sync.prevPlan=row.daten&&row.daten.plan&&row.daten.plan.pfad||null;if(sync.pending)pushNow();else syncOk();return}
+  // first connection of this browser with local work, or local changes on an older version
+  if(sync.pending||(sync.ver===0&&hasLocal())){sync.prevPlan=row.daten&&row.daten.plan&&row.daten.plan.pfad||null;conflict(row);return}
+  applyRemote(row);
+}
+async function initSync(){
+  const A=window.RIEDEL_AUTH;
+  for(let i=0;i<100&&!window.supabase;i++)await new Promise(r=>setTimeout(r,100));
+  if(!window.supabase||!A)return;
+  try{
+    sync.sb=window.supabase.createClient(A.url,A.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:A.storageKey}});
+    const{data}=await sync.sb.auth.getSession();if(!data||!data.session)return;
+  }catch(e){return}
+  await planLocal.catch(()=>{});
+  sync.ok=true;setSync('busy','Gemeinsamen Stand laden …');
+  try{const{data,error}=await sync.sb.from(TAB).select('projekt').limit(1);if(error&&dbMissing(error)){sync.ok=false;
+    setSync('err','Gemeinsamer Speicher noch nicht eingerichtet (projekte/aushub-setup.sql in Supabase ausführen). Gespeichert wird vorerst nur in diesem Browser.');return}}catch(e){}
+  await pull();
+  try{sync.sb.channel('aushub-'+PROJ).on('postgres_changes',{event:'*',schema:'public',table:TAB,filter:'projekt=eq.'+PROJ},ev=>{
+    const row=ev.new;if(!row||!row.version||row.version===sync.ver||sync.busy)return;if(sync.pending)conflict(row);else applyRemote(row)}).subscribe()}catch(e){}
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')pull()});
+  addEventListener('online',()=>{if(sync.pending)pushNow();else pull()});
+}
+initSync();
 
 // ---------- drag corners of own areas ----------
 let vd=null;
