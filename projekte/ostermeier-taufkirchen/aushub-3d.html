@@ -1210,9 +1210,22 @@ async function offer(filename,blob,btn){
 const hexRGB=(h,mix=0)=>{const c=new THREE.Color(h).lerp(new THREE.Color('#ffffff'),mix);return[c.r*255,c.g*255,c.b*255]};
 const txt=s=>s.replace(/−/g,'-').replace(/▲/g,'').replace(/≈/g,'ca.');
 
+// extent of the excavation (incl. slopes and own areas) and the axis grid, in model metres
+function planExtent(){
+  let x0=AX[0][1],x1=AX[AX.length-1][1],y0=AY[0][1],y1=AY[AY.length-1][1];
+  const{nx,ny,x0:gx,y0:gy,r,F,G}=S;
+  for(let j=0;j<ny;j++)for(let i=0;i<nx;i++)if(F[j*nx+i]<G-1e-3){const x=gx+i*r,y=gy+j*r;if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}
+  return{x0:x0-0.5,x1:x1+0.5,y0:y0-0.5,y1:y1+0.5};
+}
 function exportPDF(){
   const{jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a3'});
-  const sc=1000/300,X=py=>22+(py+6)*sc,Y=px=>16+(51-px)*sc,G=state.G;
+  const G=state.G,EX=planExtent();
+  // plan frame: model y (axes 1-17) runs left to right, model x (axes A-G) bottom to top.
+  // The scale is the largest usual one at which the whole excavation incl. own areas fits.
+  const FW=370,FH=184,NS=[100,125,150,200,250,300,400,500,750,1000,1500,2000,2500];
+  const N=NS.find(n=>(EX.y1-EX.y0)*1000/n<=FW&&(EX.x1-EX.x0)*1000/n<=FH)||2500,sc=1000/N;
+  const ox=26+(FW-(EX.y1-EX.y0)*sc)/2,oy=20+(FH-(EX.x1-EX.x0)*sc)/2;
+  const X=py=>ox+(py-EX.y0)*sc,Y=px=>oy+(EX.x1-px)*sc;
   // regions (shallow first, deep on top)
   [...REG].sort((a,b)=>b.uk-a.uk).forEach(R=>{
     doc.setFillColor(...hexRGB(R.hex,0.45));doc.setDrawColor(150);doc.setLineWidth(0.05);
@@ -1225,26 +1238,30 @@ function exportPDF(){
   L(KINK,0.18,[30,40,48]);L(CREST,0.4,[0,0,0]);
   // axes
   doc.setLineDashPattern([3,1.2],0);doc.setLineWidth(0.12);doc.setDrawColor(90);
-  AX.forEach(([k,x])=>doc.line(X(-5),Y(x),X(104),Y(x)));AY.forEach(([k,y])=>doc.line(X(y),Y(-5),X(y),Y(50)));
+  const xl=X(EX.y0)-4,xr=X(EX.y1)+4,yt=Y(EX.x1)-4,yb=Y(EX.x0)+4;
+  AX.forEach(([k,x])=>doc.line(xl,Y(x),xr,Y(x)));AY.forEach(([k,y])=>doc.line(X(y),yt,X(y),yb));
   doc.setLineDashPattern([],0);doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(30);
   const bub=(x,y,t)=>{doc.setFillColor(255);doc.setDrawColor(30);doc.setLineWidth(0.2);doc.circle(x,y,2.4,'FD');doc.text(t,x,y+0.9,{align:'center'})};
-  AX.forEach(([k,x])=>{bub(X(-7.6),Y(x),k);bub(X(106.6)-1,Y(x),k)});AY.forEach(([k,y])=>{bub(X(y),Y(52.4),k);bub(X(y),Y(-7.4),k)});
+  AX.forEach(([k,x])=>{bub(xl-3,Y(x),k);bub(xr+3,Y(x),k)});AY.forEach(([k,y])=>{bub(X(y),yt-3,k);bub(X(y),yb+3,k)});
   // Koten
-  doc.setFont('helvetica','normal');doc.setFontSize(4.6);
+  doc.setFont('helvetica','normal');doc.setFontSize(Math.max(3.2,Math.min(7,4.6*sc/(1000/300))));
   REG.forEach(R=>{if(R.area<2.2)return;const ed=edits[R.id]!=null||R.custom;doc.setTextColor(ed?220:40,ed?0:40,ed?0:40);
     doc.text('UK '+ukTxt(R,lvlP),X(R.cy),Y(R.cx)+0.6,{align:'center'})});
   // legend
   doc.setTextColor(30);doc.setFont('helvetica','bold');doc.setFontSize(9);doc.text('Legende',16,222);
   doc.setFont('helvetica','normal');doc.setFontSize(6.5);
-  const ul=[...new Map(REG.map(R=>[R.uk,R])).values()].sort((a,b)=>a.uk-b.uk);
-  ul.forEach((R,i)=>{const col=Math.floor(i/11),row=i%11,x=16+col*62,y=227+row*4.6;doc.setFillColor(...hexRGB(R.hex,0.45));doc.setDrawColor(120);doc.setLineWidth(0.1);doc.rect(x,y-2.6,5,3,'FD');
-    const names=[...new Set(REG.filter(Q=>Q.uk===R.uk).map(Q=>Q.name))].join(', ');doc.text(txt(`UK ${lvlP(R.uk)}  ${names}`).slice(0,48),x+7,y)});
+  const key=R=>R.sl?'s'+R.id:R.uk,ul=[...new Map(REG.map(R=>[key(R),R])).values()].sort((a,b)=>(a.sl?a.zmin:a.uk)-(b.sl?b.zmin:b.uk));
+  const LMAX=33,lcols=Math.min(3,Math.ceil(Math.min(ul.length,LMAX)/11));
+  ul.slice(0,LMAX).forEach((R,i)=>{const col=Math.floor(i/11),row=i%11,x=16+col*62,y=227+row*4.6;doc.setFillColor(...hexRGB(R.hex,0.45));doc.setDrawColor(120);doc.setLineWidth(0.1);doc.rect(x,y-2.6,5,3,'FD');
+    const names=[...new Set(REG.filter(Q=>key(Q)===key(R)).map(Q=>Q.name))].join(', ');doc.text(txt(`UK ${ukTxt(R,lvlP)}  ${names}`).slice(0,46),x+7,y)});
+  if(ul.length>LMAX)doc.text(`... und ${ul.length-LMAX} weitere`,16+2*62+7,227+11*4.6-4.6);
   const ly=227+11*4.6;doc.setLineWidth(0.4);doc.setDrawColor(0);doc.line(16,ly,26,ly);doc.text('Böschungsoberkante am Gelände',28,ly+0.8);
   doc.setLineWidth(0.18);doc.setDrawColor(30,40,48);doc.line(80,ly,90,ly);doc.text('Sohlkante, Grat, innere Böschungsoberkante',92,ly+0.8);
   doc.setLineWidth(0.08);doc.setDrawColor(150,105,60);doc.line(160,ly,170,ly);doc.text('Höhenlinie 0,25 m',172,ly+0.8);
   // scale bar
-  doc.setDrawColor(0);doc.setLineWidth(0.2);for(let i=0;i<5;i++){doc.setFillColor(i%2?255:0);doc.rect(205+i*2*sc,222,2*sc,1.5,'FD')}
-  doc.setFontSize(6);[0,5,10].forEach(m=>doc.text(m+' m',205+m*sc,227,{align:'center'}));
+  const BL=N<=300?10:N<=750?20:N<=1500?50:100,bx0=Math.max(205,16+lcols*62+4);
+  doc.setDrawColor(0);doc.setLineWidth(0.2);for(let i=0;i<5;i++){doc.setFillColor(i%2?255:0);doc.rect(bx0+i*BL/5*sc,222,BL/5*sc,1.5,'FD')}
+  doc.setFontSize(6);[0,BL/2,BL].forEach(m=>doc.text(fmt(m,0)+' m',bx0+m*sc,227,{align:'center'}));
   // title block
   const tx=262,ty=214,tw=144,th=72;doc.setLineWidth(0.3);doc.setDrawColor(0);doc.rect(tx,ty,tw,th);
   doc.setFillColor(255,0,0);doc.rect(tx+tw-16,ty+3,13,13,'F');doc.setTextColor(255);doc.setFont('helvetica','bold');doc.setFontSize(7);doc.text('RIEDEL',tx+tw-9.5,ty+8.6,{align:'center'});doc.text('BAU',tx+tw-9.5,ty+12,{align:'center'});
@@ -1263,7 +1280,7 @@ function exportPDF(){
   ];
   lines.forEach((l,i)=>doc.text(txt(l),tx+4,ty+15+i*5.2));
   doc.setLineWidth(0.15);doc.line(tx,ty+th-12,tx+tw,ty+th-12);
-  doc.text('Maßstab 1:300 (A3), Achse 1 links',tx+4,ty+th-5);doc.text('Riedel Bau AG, Bauleitung',tx+62,ty+th-5);doc.text('Stand '+today(),tx+tw-4,ty+th-5,{align:'right'});
+  doc.text(`Maßstab 1:${N} (A3), Achse 1 links`,tx+4,ty+th-5);doc.text('Riedel Bau AG, Bauleitung',tx+62,ty+th-5);doc.text('Stand '+today(),tx+tw-4,ty+th-5,{align:'right'});
   // ---- page 2: 3D view, quantities, section
   doc.addPage('a3','landscape');
   renderer.render(scene,camera);const img=renderer.domElement.toDataURL('image/jpeg',0.92);
@@ -1271,9 +1288,10 @@ function exportPDF(){
   doc.addImage(img,'JPEG',14,14,iw,ih);
   doc.setFont('helvetica','bold');doc.setFontSize(11);doc.text('Mengen',278,20);
   doc.setFontSize(7.5);let y=28;const cols=[278,330,352,374,404];
-  [['UK Aushub',278,0],['Bereiche',296,0],['Sohle m²',370,1],['Tiefe m',388,1],['m³ fest',406,1]].forEach(([h,x,r])=>doc.text(h,x,y,r?{align:'right'}:{}));
+  [['UK Aushub',278,0],['Bereiche',304,0],['Sohle m²',370,1],['Tiefe m',388,1],['m³ fest',406,1]].forEach(([h,x,r])=>doc.text(h,x,y,r?{align:'right'}:{}));
   doc.setFont('helvetica','normal');y+=2;doc.setLineWidth(0.2);doc.line(278,y,406,y);y+=4;
-  VOL.rows.forEach(r=>{doc.text('UK '+(r.sl?ukTxt(r.R,lvlP):lvlP(r.uk)),278,y);doc.text(txt(r.names.join(', ')).slice(0,24),296,y);doc.text(fmt(r.area,1),370,y,{align:'right'});doc.text(fmt(r.depth),388,y,{align:'right'});doc.text(fmt(r.vol,1),406,y,{align:'right'});y+=4.3});
+  VOL.rows.forEach(r=>{if(r.sl){doc.setFontSize(6.2);doc.text(lvlP(r.R.zmin)+' bis '+lvlP(r.R.zmax),278,y);doc.setFontSize(7.5)}else doc.text('UK '+lvlP(r.uk),278,y);
+    doc.text(txt(r.names.join(', ')+(r.sl?' (geneigt)':'')).slice(0,30),304,y);doc.text(fmt(r.area,1),370,y,{align:'right'});doc.text(fmt(r.depth),388,y,{align:'right'});doc.text(fmt(r.vol,1),406,y,{align:'right'});y+=4.3});
   doc.text('Böschung 45°, verschnitten',278,y);doc.text(fmt(VOL.slope,1),406,y,{align:'right'});y+=2;doc.setLineWidth(0.4);doc.line(278,y,406,y);y+=4.5;
   doc.setFont('helvetica','bold');doc.text('Summe fest',278,y);doc.text(fmt(VOL.tot,1),406,y,{align:'right'});y+=4.5;
   doc.setFont('helvetica','normal');doc.text('lose (Faktor '+fmt(state.af,2)+')',278,y);doc.text(fmt(VOL.tot*state.af,1),406,y,{align:'right'});y+=8;
@@ -1283,13 +1301,14 @@ function exportPDF(){
   if(own.length){doc.setFont('helvetica','bold');doc.text('Eigene Flächen',278,y);y+=4.5;doc.setFont('helvetica','normal');
     own.slice(0,10).forEach(R=>{doc.text(txt(`${R.name}, ${R.ax}: UK ${ukTxt(R,lvlP)}, ${fmt(R.area,1)} m²`).slice(0,70),278,y);y+=4.1});if(own.length>10)doc.text(`... und ${own.length-10} weitere`,278,y)}
   if(state.cut!==null){
-    const p=profile(state.cut),hs=5,vs=20,bx=24,by=200,base=G;  // 1:200 horizontal, 1:50 vertical
-    const PX=x=>bx+(x+6)*hs,PY=z=>by+(base-z)*vs;
-    doc.setFont('helvetica','bold');doc.setFontSize(10);doc.text(txt('Querschnitt bei '+cutText(state.cut)+'  (Längen 1:200, Höhen 1:50)'),14,192);
-    doc.setLineWidth(0.12);doc.setDrawColor(150);doc.setLineDashPattern([2,1],0);doc.line(PX(-6),PY(G),PX(51),PY(G));doc.setLineDashPattern([],0);
+    const a0=EX.x0-1,a1=EX.x1+1,NH=[200,250,300,400,500].find(n=>(a1-a0)*1000/n<=380)||500;
+    const p=profile(state.cut),hs=1000/NH,vs=20,bx=24,by=200,base=G;  // heights 1:50
+    const PX=x=>bx+(x-a0)*hs,PY=z=>by+(base-z)*vs;
+    doc.setFont('helvetica','bold');doc.setFontSize(10);doc.text(txt('Querschnitt bei '+cutText(state.cut)+`  (Längen 1:${NH}, Höhen 1:50)`),14,192);
+    doc.setLineWidth(0.12);doc.setDrawColor(150);doc.setLineDashPattern([2,1],0);doc.line(PX(a0),PY(G),PX(a1),PY(G));doc.setLineDashPattern([],0);
     let mn=G;p.forEach(q=>mn=Math.min(mn,q[1]));
-    for(let z=Math.ceil(mn*2)/2;z<=G+0.01;z+=0.5){doc.setDrawColor(220);doc.line(PX(-6),PY(z),PX(51),PY(z));doc.setFontSize(6);doc.setFont('helvetica','normal');doc.setTextColor(90);doc.text(fmt(z),PX(-6)-1,PY(z)+0.8,{align:'right'})}
-    doc.setDrawColor(255,0,0);doc.setLineWidth(0.35);for(let i=1;i<p.length;i++){if(p[i][0]<-6||p[i][0]>51)continue;doc.line(PX(p[i-1][0]),PY(p[i-1][1]),PX(p[i][0]),PY(p[i][1]))}
+    for(let z=Math.ceil(mn*2)/2;z<=G+0.01;z+=0.5){doc.setDrawColor(220);doc.line(PX(a0),PY(z),PX(a1),PY(z));doc.setFontSize(6);doc.setFont('helvetica','normal');doc.setTextColor(90);doc.text(fmt(z),PX(a0)-1,PY(z)+0.8,{align:'right'})}
+    doc.setDrawColor(255,0,0);doc.setLineWidth(0.35);for(let i=1;i<p.length;i++){if(p[i][0]<a0||p[i][0]>a1)continue;doc.line(PX(p[i-1][0]),PY(p[i-1][1]),PX(p[i][0]),PY(p[i][1]))}
     doc.setTextColor(30);doc.setFontSize(7);AX.forEach(([k,x])=>{doc.setDrawColor(120);doc.setLineWidth(0.1);doc.line(PX(x),PY(G)-3,PX(x),PY(mn)+3);bub(PX(x),PY(G)-6,k)});
   }
   doc.setFontSize(7);doc.setTextColor(90);doc.text(txt('3D-Ansicht '+(state.ex>1?fmt(state.ex,1)+'-fach überhöht':'unverzerrt')+', Stand '+today()),14,ih+19);
