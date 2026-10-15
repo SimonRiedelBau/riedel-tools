@@ -613,7 +613,7 @@ function tabPlans(p,c,plans){
   dropZone($('planDrop'),add);
   $('planNew').onclick=()=>editPlan(null);
   document.querySelectorAll('[data-editplan]').forEach(b=>b.onclick=()=>editPlan(S.plans.find(x=>x.id===b.dataset.editplan)));
-  document.querySelectorAll('[data-chkplan]').forEach(b=>b.onclick=async()=>{ delete S.plans.find(x=>x.id===b.dataset.chkplan).pruefen; await save(); renderProject(p.id); });
+  document.querySelectorAll('[data-chkplan]').forEach(b=>b.onclick=async()=>{ markGeprueft(S.plans.find(x=>x.id===b.dataset.chkplan)); await save(); renderProject(p.id); });
   if($('planChkF')) $('planChkF').onclick=()=>{ planFilter=planFilter?'':'pruefen'; renderProject(p.id); };
   document.querySelectorAll('[data-newlist]').forEach(b=>b.onclick=()=>editList(null,b.dataset.newlist));
   document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openFile(b.dataset.open));
@@ -661,6 +661,29 @@ function setPruef(x,key,text){ if(text) (x.pruefen||(x.pruefen={}))[key]=text;
   else if(x.pruefen){ delete x.pruefen[key]; if(!Object.keys(x.pruefen).length) delete x.pruefen; } }
 const pruefTag=x=>zuPruefen(x)?` <span class="tag chk" title="${esc(pruefGruende(x).join(' · '))}">prüfen</span>`:'';
 const pruefWhy=x=>zuPruefen(x)?`<span class="chk-why">${esc(pruefGruende(x).join(' · '))}</span>`:'';
+// „Geprüft“: Markierung entfernen und merken, damit „Bestand prüfen“ den Eintrag nicht erneut markiert
+function markGeprueft(x){ delete x.pruefen; x.geprueft=today(); }
+// Bestand nachträglich prüfen: gespeicherte Dateien erneut auslesen und wie beim Upload markieren.
+// Bereits als geprüft bestätigte und ersetzte Einträge bleiben unberührt.
+async function pruefBestand(pid,prog){ const lines=[];
+  S.plans.filter(x=>x.projectId===pid&&!x.geprueft&&x.fileName&&!planCode(x)).forEach(pl=>{
+    setPruef(pl,'nr','Dateiname nicht nach Plancodierung – Plan-Nr. und Index prüfen'); });
+  const ls=S.lists.filter(l=>l.projectId===pid&&!l.ersetzt&&!l.geprueft);
+  for(let i=0;i<ls.length;i++){ const l=ls[i]; prog(i+1,ls.length);
+    const kg=listKg(l);
+    setPruef(l,'kg',kg?null:'keine Gewichte erfasst – von Hand ergänzen');
+    setPruef(l,'plan',l.planId?null:'Plan fehlt – bitte zuordnen');
+    if(l.fileId&&/\.(pdf|xlsx|xls|csv|txt)$/i.test(l.fileName||'')){
+      try{ const f=await getFile(l.fileId); if(!f) throw new Error('Datei nicht gefunden');
+        const r=await parseSteel(new File([f.blob],l.fileName,{type:f.type})), w=parseWarnings(r), rk=sum(r.items||[],x=>x.kg);
+        if(kg&&rk&&Math.abs(kg-rk)>Math.max(1,rk*.005)) w.push(`gespeichert ${fmt(kg,1)} kg, Datei ergibt ${fmt(rk,1)} kg`);
+        setPruef(l,'masse',w.length?'Auslesen: '+w.join('; '):null);
+      }catch(e){ console.warn(e); setPruef(l,'masse','Datei konnte nicht erneut ausgelesen werden: '+e.message); } }
+    if(zuPruefen(l)) lines.push(['warn',`${esc(l.nr)}${l.idx?' Index '+esc(l.idx):''}: <b>Bitte prüfen:</b> ${esc(pruefGruende(l).join('; '))}`]); }
+  S.plans.filter(x=>x.projectId===pid&&zuPruefen(x)).forEach(pl=>lines.push(['warn',`Plan ${esc(pl.nr)}: <b>Bitte prüfen:</b> ${esc(pruefGruende(pl).join('; '))}`]));
+  const skip=S.lists.filter(l=>l.projectId===pid&&!l.ersetzt&&l.geprueft).length;
+  lines.unshift([lines.length?'':'ok',`<b>Bestand geprüft:</b> ${ls.length} Stahllisten erneut ausgelesen${skip?`, ${skip} bereits als geprüft bestätigt (übersprungen)`:''} – ${lines.length?lines.length+' zu prüfen':'keine Auffälligkeiten'}.`]);
+  return lines; }
 // Prüfkasten im Dialog: Gründe zeigen, „Geprüft“ entfernt die Markierung beim Speichern
 function pruefBox(el,x){ const g=pruefGruende(x);
   el.innerHTML=g.length?`<div class="chkbox"><b>Nach dem Upload zu prüfen:</b><ul>${g.map(t=>`<li>${esc(t)}</li>`).join('')}</ul><label><input type="checkbox" class="chkDone"> Geprüft – Markierung entfernen</label></div>`:'';
@@ -694,7 +717,7 @@ function listTable(lists){
 }
 function bindListTable(){
   document.querySelectorAll('[data-editlist]').forEach(b=>b.onclick=()=>editList(S.lists.find(x=>x.id===b.dataset.editlist)));
-  document.querySelectorAll('[data-chklist]').forEach(b=>b.onclick=async()=>{ delete S.lists.find(x=>x.id===b.dataset.chklist).pruefen; await save(); renderProject(curPid); });
+  document.querySelectorAll('[data-chklist]').forEach(b=>b.onclick=async()=>{ markGeprueft(S.lists.find(x=>x.id===b.dataset.chklist)); await save(); renderProject(curPid); });
   document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openFile(b.dataset.open));
 }
 let listFilter='';
@@ -703,7 +726,7 @@ function tabLists(p,c){
   let lists=c.lists.slice().sort((a,b)=>String(a.nr).localeCompare(String(b.nr),'de',{numeric:true}));
   const f=listFilter; if(f) lists=lists.filter(l=>f==='ersetzt'?l.ersetzt:f==='pruefen'?zuPruefen(l):!l.ersetzt&&listStatus(l)===f);
   let h=`<section style="margin-top:0"><div class="toolbar"><label>Status<select id="lFilter"><option value="">Alle</option><option value="offen">Offen</option><option value="bestellt">Bestellt</option><option value="geliefert">Geliefert</option><option value="ersetzt">Ersetzt</option><option value="pruefen">Zu prüfen</option></select></label><div class="grow"></div>
-    <button class="btn red" type="button" id="listNew">+ Stahlliste hinzufügen</button></div>`;
+    <button class="btn sec" type="button" id="listCheckAll" title="Alle gespeicherten Stahllisten erneut auslesen und Auffälligkeiten markieren">Bestand prüfen</button><button class="btn red" type="button" id="listNew">+ Stahlliste hinzufügen</button></div>`;
   const nChk=c.lists.filter(zuPruefen).length;
   if(nChk) h+=`<div class="chkbox" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin:0 0 14px"><span><b>${nChk} Stahlliste${nChk>1?'n':''} nach dem Upload zu prüfen</b> – farbig markiert. Nach der Kontrolle „Geprüft“ klicken.</span><button class="linkbtn" type="button" id="listChkF">${f==='pruefen'?'Alle Listen zeigen':'Nur diese zeigen'}</button></div>`;
   h+=reportBox('listen')+`<div class="drop" id="listDrop" style="margin-bottom:16px"><p><b>Stahllisten hochladen:</b> Eine oder mehrere Dateien (PDF, Excel, CSV) hierher ziehen. Die Gewichte werden ausgelesen, die Liste über die Plannummer im Dateinamen dem Plan zugeordnet (z. B. <code>…_SL_U1_2233_01</code> → Plan <code>…_BP_U1_2233</code>), ein höherer Index ersetzt den alten.</p>
@@ -712,6 +735,10 @@ function tabLists(p,c){
   $('tabBody').innerHTML=h+'</section>';
   $('lFilter').value=f; $('lFilter').onchange=e=>{ listFilter=e.target.value; renderProject(p.id); };
   $('listNew').onclick=()=>editList(null); bindListTable();
+  $('listCheckAll').onclick=async e=>{ const b=e.currentTarget; b.disabled=true;
+    try{ const lines=await pruefBestand(p.id,(i,n)=>{ b.textContent=`Prüfe ${i} / ${n} …`; }); await save(); setReport('listen',lines); }
+    catch(err){ console.error(err); alert('Prüfung abgebrochen: '+errMsg(err)); }
+    renderProject(p.id); };
   if($('listChkF')) $('listChkF').onclick=()=>{ listFilter=f==='pruefen'?'':'pruefen'; renderProject(p.id); };
   const add=async files=>{ const lines=[];
     for(const f of files){ const c=parseCode(f.name);
@@ -876,7 +903,7 @@ function editPlan(pl){
   dlg('dlgPlan',async()=>{ const f=$('plFile').files[0];
     const v={nr:$('plNr').value.trim(),idx:$('plIdx').value.trim(),date:$('plDate').value,title:$('plTitle').value.trim()};
     if(!pl){ pl={id:uid(),projectId:curPid,...v}; S.plans.push(pl); } else Object.assign(pl,v);
-    if(chkDone()) delete pl.pruefen;
+    if(chkDone()) markGeprueft(pl);
     if(f){ if(pl.fileId) await delFile(pl.fileId); const rec=await putFile(f); pl.fileId=rec.id; pl.fileName=f.name; }
     await save(); renderProject(curPid); });
 }
@@ -946,7 +973,7 @@ function editList(l,presetPlan){
     if(!l){ l={id:uid(),projectId:curPid,...v}; S.lists.push(l); } else Object.assign(l,v);
     if(parseWarn) setPruef(l,'masse',parseWarn.length?'Auslesen: '+parseWarn.join('; '):null);
     if(listKg(l)) setPruef(l,'kg'); if(l.planId) setPruef(l,'plan');
-    if(chkDone()) delete l.pruefen;
+    if(chkDone()) markGeprueft(l);
     if(newFile){ if(l.fileId) await delFile(l.fileId); const rec=await putFile(newFile); l.fileId=rec.id; l.fileName=newFile.name; }
     await save(); renderProject(curPid); });
 }

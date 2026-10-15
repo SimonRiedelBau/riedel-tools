@@ -38,6 +38,9 @@ z. B. Bewehrungsplan `BFS_88160_B_T_5_BP_U1_2233_01`, Stahlliste `BFS_88160_B_T_
   „Geprüft“ in der Zeile klicken (oder im Bearbeiten-Dialog ankreuzen); das wird im Verlauf festgehalten.
   Wird ein fehlender Plan später zugeordnet oder werden Gewichte ergänzt, verschwindet der jeweilige Grund von selbst.
   Filter „Zu prüfen“ bzw. „Nur diese zeigen“ in den Reitern, Hinweis in der Übersicht, Spalte „Zu prüfen“ in der Excel-Liste.
+- **Bestand prüfen** (Reiter *Stahllisten*): liest alle gespeicherten Stahllisten des Projekts erneut aus und markiert sie
+  wie beim Upload – zusätzlich, wenn das gespeicherte Gewicht von der Datei abweicht. Pläne ohne Plancodierung werden
+  ebenfalls markiert. Einträge, die schon als „Geprüft“ bestätigt wurden, und ersetzte Listen bleiben unberührt.
 - Stahllisten lassen sich im Reiter *Stahllisten* auch mehrere auf einmal hochladen.
 - Dateinamen, die nicht der Codierung folgen, funktionieren wie bisher (Plan-Nr. aus dem Dateinamen, Zuordnung von Hand).
 
