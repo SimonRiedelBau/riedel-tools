@@ -31,6 +31,13 @@ z. B. Bewehrungsplan `BFS_88160_B_T_5_BP_U1_2233_01`, Stahlliste `BFS_88160_B_T_
 - In den Tabellen *Pläne* und *Stahllisten* stehen **Index** und **Bereich** (Haus/Bauteil und Ebene im Klartext, z. B.
   „Bauteil B (West) · 1. UG“) automatisch aus dem Dateinamen.
 - Nach jedem Upload zeigt ein Kasten, was angelegt, ersetzt, übersprungen oder nicht zugeordnet wurde.
+- **Zu prüfen nach dem Upload:** Pläne und Stahllisten mit offenen Punkten werden dauerhaft farbig (orange) markiert,
+  mit Kennzeichen „prüfen“ und dem Grund darunter – auch nach dem Neuladen und für alle Kollegen:
+  Abweichungen beim Auslesen (Summen/Gesamtgewicht), keine Gewichte erkannt, kein Plan zugeordnet, Plan-Dateiname nicht
+  nach Plancodierung. Ein Plan ist auch markiert, wenn eine seiner Stahllisten zu prüfen ist. Nach der Kontrolle
+  „Geprüft“ in der Zeile klicken (oder im Bearbeiten-Dialog ankreuzen); das wird im Verlauf festgehalten.
+  Wird ein fehlender Plan später zugeordnet oder werden Gewichte ergänzt, verschwindet der jeweilige Grund von selbst.
+  Filter „Zu prüfen“ bzw. „Nur diese zeigen“ in den Reitern, Hinweis in der Übersicht, Spalte „Zu prüfen“ in der Excel-Liste.
 - Stahllisten lassen sich im Reiter *Stahllisten* auch mehrere auf einmal hochladen.
 - Dateinamen, die nicht der Codierung folgen, funktionieren wie bisher (Plan-Nr. aus dem Dateinamen, Zuordnung von Hand).
 
