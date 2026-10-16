@@ -14,6 +14,8 @@ Bewehrungsbedarf für laufende Projekte: Pläne und Stahllisten hochladen, Beste
      Biegeliste und Schneideskizze werden übersprungen (doppelte Angaben).
    - **PDF**: Gewichtsübersicht je Durchmesser, Summenzeilen „Ø 12 … kg“ oder Einzelpositionen; Matten (Q/R…) mit kg. Das erkannte Ergebnis wird mit dem Gesamtgewicht der Datei abgeglichen.
    - Ist die Stahlliste auf dem Plan selbst, „Aus Plan-PDF auslesen“ nutzen.
+   - **Stahllisten auf dem Bewehrungsplan** (z. B. Ing.-Büro Albus, Projekt Ostermeier): siehe unten – beim Plan-Upload
+     wird die Stahlliste automatisch angelegt.
    - Gescannte PDFs haben keinen Text – dann die Gewichte von Hand eintragen.
    - Neuer Plan-Index: alte Liste als *ersetzt* markieren, sie zählt dann nicht mehr zum Bedarf.
 4. **Bestellungen erfassen** (Reiter *Bestellungen*) – Stahllisten ankreuzen, Mengen werden übernommen; zusätzliche Mengen (Lagerstahl, Matten) als eigene Zeile. Status *bestellt* / *geliefert*, Liefertermin (überfällige werden gemeldet).
@@ -43,6 +45,22 @@ z. B. Bewehrungsplan `BFS_88160_B_T_5_BP_U1_2233_01`, Stahlliste `BFS_88160_B_T_
   ebenfalls markiert. Einträge, die schon als „Geprüft“ bestätigt wurden, und ersetzte Listen bleiben unberührt.
 - Stahllisten lassen sich im Reiter *Stahllisten* auch mehrere auf einmal hochladen.
 - Dateinamen, die nicht der Codierung folgen, funktionieren wie bisher (Plan-Nr. aus dem Dateinamen, Zuordnung von Hand).
+
+## Stahllisten auf dem Bewehrungsplan (Ing.-Büro Albus, Projekt Ostermeier)
+Bei manchen Projekten stehen „Rundstahlliste“ und „Mattenliste“ direkt auf dem Bewehrungsplan. Dafür im Projekt
+(*Projekt bearbeiten*) **„Stahllisten stehen auf den Bewehrungsplänen“** ankreuzen. Dann gilt beim Plan-Upload:
+- Die Tabellen werden ausgelesen und als Stahlliste des Plans angelegt (gleiche Nummer und Index wie der Plan,
+  Spalte *Datei* → „Plan“). Stabstahl je Ø, Matten je Typ, andere Typen der Mattenliste (z. B. DT17) als Unterstützungskörbe.
+- Jede Zeile wird gegengeprüft (Gesamtlänge × Nenngewicht = Gewicht, Stück × Einzellänge = Gesamtlänge,
+  Matten Stück × Länge × Breite × kg/m² = Gewicht), jede Tabelle gegen ihr „Gesamtgewicht“. Abweichungen oder
+  unsicher erkannte Zeichen → „prüfen“.
+- Plannummer aus dem Dateinamen: `BP041-0-V_Bew._Gründung_Teil_1_Verwaltung.pdf` → Plan **BP041-V**, Index **0**,
+  Inhalt „Bew. Gründung Teil 1 Verwaltung“. Index 0 → a → b …: ein höherer Index ersetzt den Plan und seine Stahlliste
+  (bestellte Listen bleiben als *ersetzt* erhalten).
+- Die Listen sind auf diesen Plänen keine Text-Objekte, sondern als CAD-Strichschrift gezeichnet. Das Tool erkennt die
+  Zeichen über ihre Form (Vorlagen `VGLYPH` in `index.html`, angelernt am Plan BP041-0-V). Kommt ein Zeichen vor, das
+  noch nicht angelernt ist (z. B. „Q“ bei Q-Matten), wird der Mattentyp aus dem Gewicht je m² abgeleitet; sonst
+  erscheint die Liste als „prüfen“.
 
 ## Dashboard
 - Bedarf lt. gültigen Stahllisten, bestellt, geliefert, **noch zu bestellen** (je Sorte: Bedarf − bestellt)
