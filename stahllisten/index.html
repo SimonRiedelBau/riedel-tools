@@ -80,6 +80,8 @@ tr.dim td.nostrike{text-decoration:none}
 .tag.lief{border-color:var(--ok);color:var(--ok)}
 .tag.old{border-color:var(--warn);color:var(--warn)}
 .tag.chk{border-color:var(--warn);background:var(--warn);color:var(--bg);font-weight:600}
+.tag.sub{border-color:#0091B8;color:#0091B8}
+.zub-note{display:block;font-size:12px;color:var(--muted)}
 tr.chk td{background:color-mix(in srgb,var(--warn) 13%,var(--surface))}
 tr.chk td:first-child{box-shadow:inset 4px 0 0 var(--warn)}
 tbody tr.chk:hover td{background:color-mix(in srgb,var(--warn) 20%,var(--surface))}
@@ -129,6 +131,7 @@ dialog form{display:flex;flex-direction:column;max-height:calc(100vh - 26px)}
 .df .left{margin-right:auto}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
 .grid input,.grid select,.grid textarea{width:100%}
+.grid input[type=checkbox]{width:16px;flex:none}
 .grid .wide{grid-column:1/-1}
 .items{margin-top:14px}
 .items table td{padding:4px 6px}
@@ -253,12 +256,25 @@ header.top > .logo-riedel, header.top > .mark, #whoMail, #btnLogout{display:none
       <label>Datum<input id="lDate" type="date"></label>
       <label class="wide">Bauteil / Bezeichnung<input id="lTitle" placeholder="z. B. Wände UG Achse A–D"></label>
       <label class="inline wide"><input type="checkbox" id="lOld"> Ersetzt / ungültig (alter Index) – zählt nicht mehr zum Bedarf</label>
+      <label>Ebene (Stahlübersicht)<select id="lEbene"></select></label>
+      <label>Sub verrechnet am<input id="lSub" type="date"></label>
+      <label class="wide">Bemerkung<input id="lNote" placeholder="z. B. Vorbestellung gem. Grüneintragungen · Tonnage gem. Lieferschein"></label>
+    </div>
+    <div class="items">
+      <h3>Zubehör</h3>
+      <div class="grid" id="lZub"></div>
     </div>
     <div class="items">
       <h3>Gewichte</h3>
       <div class="scroll"><table><thead><tr><th>Sorte</th><th class="n">Gewicht kg</th><th></th></tr></thead><tbody id="lItems"></tbody>
       <tfoot><tr class="sum"><td>Summe</td><td class="n" id="lSum">0 kg</td><td></td></tr></tfoot></table></div>
       <button class="btn sec sm" type="button" id="lAdd" style="margin-top:8px">+ Zeile</button>
+      <div class="grid" style="margin-top:12px"><label>Matten netto kg <small>(Matten oben = brutto)</small><input id="lMatN" inputmode="decimal" placeholder="optional"></label></div>
+    </div>
+    <div class="items">
+      <h3>Unterstützungskörbe in lfm</h3>
+      <div class="scroll"><table><thead><tr><th>Typ (z. B. 12/15, 85)</th><th class="n">lfm</th><th></th></tr></thead><tbody id="lLfm"></tbody></table></div>
+      <button class="btn sec sm" type="button" id="lLfmAdd" style="margin-top:8px">+ Körbe lfm</button>
     </div>
     <p class="hint" id="lFileInfo"></p>
   </div>
@@ -386,6 +402,8 @@ function describe(art,old,d){
   if(art==='liste'){
     if(!old.ersetzt&&d.ersetzt) ch.push('als ersetzt markiert'); if(old.ersetzt&&!d.ersetzt) ch.push('wieder gültig');
     if(old.planId!==d.planId) ch.push(d.planId?'Plan '+planNm(d.planId)+' zugeordnet':'Plan-Zuordnung entfernt');
+    if((old.sub||'')!==(d.sub||'')) ch.push(d.sub?'Sub verrechnet am '+dDE(d.sub):'Sub verrechnet entfernt');
+    if(zubText(old)!==zubText(d)) ch.push('Zubehör: '+(zubText(d)||'–'));
   }
   if(art==='bestellung'){
     if(old.status!==d.status) ch.push(d.status==='geliefert'?'geliefert'+(d.ls?' (LS '+d.ls+')':''):'Status '+d.status);
@@ -394,7 +412,7 @@ function describe(art,old,d){
   }
   if(old.pruefen&&!d.pruefen) ch.push('als geprüft markiert');
   if(art!=='plan'&&Math.abs(kgL(old)-kgL(d))>0.05) ch.push(`Gewicht ${fmt(kgL(old),1)} → ${fmt(kgL(d),1)} kg`);
-  if(!ch.length&&['title','date','nr','lief','note','ls'].some(k=>(old[k]||'')!==(d[k]||''))) ch.push('bearbeitet');
+  if(!ch.length&&(['title','date','nr','lief','note','ls','ebene'].some(k=>(old[k]||'')!==(d[k]||''))||(old.mattenNetto||0)!==(d.mattenNetto||0)||JSON.stringify(old.lfm||[])!==JSON.stringify(d.lfm||[]))) ch.push('bearbeitet');
   const head=(old.idx||'')!==(d.idx||'')?nm({...d,idx:''}):nm(d);
   return ch.length?{text:head+': '+ch.join(', '),kg:art==='plan'?undefined:kgL(d)}:null;
 }
@@ -472,6 +490,27 @@ function calc(pid){
 }
 const listKg=l=>sum(l.items||[],i=>+i.kg);
 const orderKg=o=>sum(o.items||[],i=>+i.kg);
+
+// ---------- Stahlübersicht (Aufbau wie die Excel-Stahlübersicht der Bauleitung) ----------
+// Ebene: von Hand gewählt, sonst aus der Plancodierung (BP = Bodenplatte → Gründung, U1, 0, 1 …), sonst aus dem Titel
+const EBENEN=['Gründung','2.UG','1.UG','EG','1.OG','2.OG','3.OG','4.OG','5.OG','Dach','Außenanlagen','Sonstige'];
+const EBENE_CODE={BP:'Gründung',U2:'2.UG',U1:'1.UG','0':'EG',EG:'EG','1':'1.OG','2':'2.OG','3':'3.OG','4':'4.OG','5':'5.OG',D:'Dach',DA:'Dach'};
+function ebeneAuto(l){ const pl=S.plans.find(x=>x.id===l.planId), c=listCode(l)||(pl&&planCode(pl));
+  if(c&&EBENE_CODE[c.ebene]) return EBENE_CODE[c.ebene];
+  const t=[l.title,pl?.title,l.nr].join(' ');
+  if(/gründung|fundament|bodenplatte|sohle/i.test(t)) return 'Gründung';
+  let m=t.match(/(\d)\.\s*UG\b/i); if(m) return m[1]+'.UG'; if(/\bUG\b|untergeschoss/i.test(t)) return '1.UG';
+  if(/\bEG\b|erdgeschoss/i.test(t)) return 'EG';
+  m=t.match(/(\d)\.\s*OG\b/i); if(m) return m[1]+'.OG';
+  if(/\bdach/i.test(t)) return 'Dach';
+  return 'Sonstige'; }
+const ebeneOf=l=>l.ebene||ebeneAuto(l);
+// Zubehör je Liste: benötigt (X) / bestellt (gelb) / geliefert (grün)
+const ZUB=[['dl','Dübelleisten'],['lenton','Lenton'],['hbt','HBT'],['iso','Iso./Tron.']];
+const ZUB_ST=[['','–'],['noetig','benötigt'],['bestellt','bestellt'],['geliefert','geliefert']];
+const zubText=l=>ZUB.filter(([k])=>l.zub?.[k]).map(([k,n])=>n+' '+(ZUB_ST.find(s=>s[0]===l.zub[k])||['',''])[1]).join(', ');
+// Sorten wie in der Excel: BST S = Stabstahl, BSTM = Matten, ABSTA = Unterstützungskörbe
+const grpKg=(l,g)=>sum((l.items||[]).filter(i=>g==='bst'?i.cat.startsWith('d'):g==='m'?i.cat.startsWith('M'):g==='k'?i.cat==='K':i.cat==='S'),i=>+i.kg);
 
 // ---------- Routing ----------
 let tab='uebersicht';
@@ -742,7 +781,7 @@ function listTable(lists){
   const cats=[...new Set(lists.flatMap(l=>(l.items||[]).map(i=>catGroup(i.cat))))].sort(catSort);
   let h=`<div class="tbl scroll"><table><thead><tr><th>Liste</th><th>Index</th><th>Bereich</th><th>Plan</th><th>Bauteil</th><th>Status</th>${cats.map(k=>`<th class="n">${esc(catLabel(k))}</th>`).join('')}<th class="n">Summe kg</th><th>Datei</th><th></th></tr></thead><tbody>`;
   lists.forEach(l=>{ const pl=S.plans.find(x=>x.id===l.planId), g=addItems({},l.items);
-    h+=`<tr class="${l.ersetzt?'dim':zuPruefen(l)?'chk':''}"><td><b>${esc(l.nr)}</b>${pruefTag(l)}<br><small style="color:var(--muted)">${dDE(l.date)}</small>${pruefWhy(l)}</td><td>${esc(l.idx||(listCode(l)?.idx)||'')}</td><td>${esc(bereich(listCode(l)||(pl&&planCode(pl))))}</td><td>${pl?esc(pl.nr+(pl.idx?' / '+pl.idx:'')):'–'}</td><td class="wrap">${esc(l.title||'')}</td><td class="nostrike">${statusTag(l)}</td>
+    h+=`<tr class="${l.ersetzt?'dim':zuPruefen(l)?'chk':''}"><td><b>${esc(l.nr)}</b>${pruefTag(l)}<br><small style="color:var(--muted)">${dDE(l.date)}</small>${pruefWhy(l)}</td><td>${esc(l.idx||(listCode(l)?.idx)||'')}</td><td>${esc(bereich(listCode(l)||(pl&&planCode(pl)))||ebeneOf(l))}</td><td>${pl?esc(pl.nr+(pl.idx?' / '+pl.idx:'')):'–'}</td><td class="wrap">${esc(l.title||'')}${l.note?`<span class="zub-note">${esc(l.note)}</span>`:''}${zubText(l)?`<span class="zub-note">Zubehör: ${esc(zubText(l))}</span>`:''}</td><td class="nostrike">${statusTag(l)}${l.sub?' <span class="tag sub" title="Sub verrechnet am '+dDE(l.sub)+'">Sub verr.</span>':''}</td>
       ${cats.map(k=>`<td class="n">${g[k]?fmt(g[k]):''}</td>`).join('')}<td class="n"><b>${fmt(listKg(l))}</b></td>
       <td class="nostrike">${l.fileId?`<button class="linkbtn" data-open="${l.fileId}" type="button">öffnen</button>`:l.src==='plan'&&pl?.fileId?`<button class="linkbtn" data-open="${pl.fileId}" type="button" title="Stahlliste steht auf dem Plan">Plan</button>`:'–'}</td><td class="nostrike"><button class="linkbtn" data-editlist="${l.id}" type="button">Bearbeiten</button>${zuPruefen(l)?` · <button class="linkbtn" data-chklist="${l.id}" type="button">Geprüft</button>`:''}</td></tr>`; });
   const tot={}; lists.filter(l=>!l.ersetzt).forEach(l=>addItems(tot,l.items));
@@ -783,6 +822,7 @@ function tabLists(p,c){
       const rec=await putFile(f), ref=planFromRef(p.id,r.planRef), pl=ref?{plan:ref}:matchPlan(p.id,c);
       const l={id:uid(),projectId:p.id,nr,idx:c?c.idx:'',planId:pl.plan?pl.plan.id:'',date:today(),title:pl.plan?.title||'',ersetzt:false,items:cleanItems(r.items||[]),fileId:rec.id,fileName:f.name};
       if(c) l.code=c;
+      if(r.matNetto) l.mattenNetto=r.matNetto;
       const repl=c?await replaceOld(olds):'';
       S.lists.push(l);
       const kg=listKg(l), warn=parseWarnings(r);
@@ -855,6 +895,67 @@ async function exportXlsx(p){
   const orderCats=[...new Set(c.orders.flatMap(o=>(o.items||[]).map(i=>i.cat)))].sort(catSort);
   const kgOf=(items,k)=>{ const v=sum((items||[]).filter(i=>i.cat===k),i=>+i.kg); return v||null; };
   const ordersOf=l=>c.orders.filter(o=>(o.listIds||[]).includes(l.id)).map(o=>o.nr||dDE(o.date)).join(', ');
+
+  // ---------- Stahlübersicht wie die Excel der Bauleitung: Gesamtübersicht + ein Blatt je Ebene ----------
+  // Farben wie dort: gelb = Material bestellt, grün = Material geliefert, blau = Sub verrechnet
+  const YEL='FFFFFF00', GRN='FF008000', BLU='FF00CCFF', T3='#,##0.000', LFM='#,##0.0';
+  const solid=a=>({type:'pattern',pattern:'solid',fgColor:{argb:a}});
+  const colL=n=>{ let s=''; for(;n>0;n=Math.floor((n-1)/26)) s=String.fromCharCode(65+(n-1)%26)+s; return s; };
+  const lfmTypes=[...new Set(c.lists.flatMap(l=>(l.lfm||[]).map(x=>x.typ)))].sort((a,b)=>a.localeCompare(b,'de',{numeric:true}));
+  const hasS=c.lists.some(l=>grpKg(l,'s')>0);
+  const ordersFor=l=>c.orders.filter(o=>(o.listIds||[]).includes(l.id));
+  // Zeilen: gültige Listen und ersetzte, die schon bestellt sind (Material ist da und wird abgerechnet)
+  const rowsL=c.lists.filter(l=>!l.ersetzt||ordersFor(l).length).sort((a,b)=>String(a.nr).localeCompare(String(b.nr),'de',{numeric:true})||idxNum(a.idx)-idxNum(b.idx));
+  const byEb={}; rowsL.forEach(l=>(byEb[ebeneOf(l)]=byEb[ebeneOf(l)]||[]).push(l));
+  const ebs=EBENEN.filter(e=>byEb[e]);
+  const ebTitle=e=>({'Gründung':'Gründung',EG:'Erdgeschoss'}[e]||e.replace(/^(\d)\.UG$/,'$1. Untergeschoss').replace(/^(\d)\.OG$/,'$1. Obergeschoss'));
+  // Liefertermine aus den Bestellungen, Stabstahl (BST S) und Lagermatten (LAMA) getrennt
+  const deliv=(l,g)=>{ if(g==='m'?!grpKg(l,'m'):!(grpKg(l,'bst')+grpKg(l,'k')+grpKg(l,'s'))) return null;
+    const os=ordersFor(l).filter(o=>!(o.items||[]).length||(o.items||[]).some(i=>g==='m'?i.cat.startsWith('M'):!i.cat.startsWith('M'))); if(!os.length) return null;
+    const ds=[...new Set(os.map(o=>o.due||o.date).filter(Boolean))].sort();
+    return {v:ds.length===1?new Date(ds[0]+'T12:00:00'):ds.map(dDE).join(' / '),fill:os.every(o=>o.status==='geliefert')?GRN:YEL}; };
+  const numCols=[{h:'BST S\n[to]',g:'bst'},{h:'BSTM netto\n[to]',g:'mn'},{h:'BSTM brutto\n[to]',g:'m'},{h:'ABSTA\n[to]',g:'k'},...(hasS?[{h:'Sonstiges\n[to]',g:'s'}]:[]),...lfmTypes.map(t=>({h:t+'\n[lfm]',lfm:t}))];
+  const valOf=(l,x)=>x.lfm?sum((l.lfm||[]).filter(y=>y.typ===x.lfm),y=>+y.m)||null:x.g==='mn'?(l.mattenNetto?l.mattenNetto/1000:null):(grpKg(l,x.g)/1000||null);
+  const zub0=6, num0=zub0+ZUB.length+1, sumRowOf={}, nData={};
+  ebs.forEach(e=>{ nData[e]=byEb[e].length; sumRowOf[e]=5+nData[e]; });
+  { // Gesamtübersicht
+    const cols=[{h:'Ebene',key:'e',w:22},...numCols.map((x,i)=>({h:x.h,key:'n'+i,fmt:x.lfm?LFM:T3,w:13})),{h:'Summe\n[to]',key:'sum',fmt:T3,w:12},{h:'davon geliefert\n[to]',key:'gel',fmt:T3,w:14},{h:'Sub verrechnet\n[to]',key:'sub',fmt:T3,w:14},{h:'noch nicht bestellt\n[to]',key:'off',fmt:T3,w:16}];
+    const ws=sheet('Gesamtübersicht','Stahlübersicht – Gesamtübersicht',cols);
+    const tons=x=>c.lists.filter(x).reduce((a,l)=>a+(grpKg(l,'bst')+grpKg(l,'m')+grpKg(l,'k')+grpKg(l,'s'))/1000,0);
+    ebs.forEach(e=>{ const ls=byEb[e], sr=sumRowOf[e], ref=n=>`'${e}'!${colL(num0+n)}${sr}`;
+      const sumT=sum(ls,l=>(grpKg(l,'bst')+grpKg(l,'m')+grpKg(l,'k')+grpKg(l,'s'))/1000);
+      const r=addRow(ws,[e,...numCols.map((x,i)=>({formula:ref(i),result:sum(ls,l=>valOf(l,x)||0)})),
+        {formula:numCols.map((x,i)=>x.lfm||x.g==='mn'?null:colL(2+i)+(ws.rowCount+1)).filter(Boolean).join('+'),result:sumT},
+        tons(l=>ebeneOf(l)===e&&rowsL.includes(l)&&listStatus(l)==='geliefert'),tons(l=>ebeneOf(l)===e&&rowsL.includes(l)&&l.sub),tons(l=>ebeneOf(l)===e&&!l.ersetzt&&listStatus(l)==='offen')]);
+      r.getCell(1).font={...font,bold:true}; });
+    const last=ws.rowCount;
+    addRow(ws,['Gesamtstahlbedarf:',...cols.slice(1).map((x,i)=>{ const L=colL(i+2); return {formula:`SUM(${L}5:${L}${last})`,result:sum(ebs,e=>{ const v=ws.getRow(5+ebs.indexOf(e)).getCell(i+2).value; return v&&typeof v==='object'?v.result:(v||0); })}; })],{sum:true});
+    ws.addRow([]);
+    ws.addRow(['Ersetzte Listen zählen nur, wenn sie schon bestellt sind (Material geliefert/abgerufen, wird abgerechnet). Summe = BST S + BSTM brutto + ABSTA'+(hasS?' + Sonstiges':'')+'.']).getCell(1).font={...font,size:9,color:{argb:GREY}};
+  }
+  // Ein Blatt je Ebene
+  ebs.forEach(e=>{
+    const cols=[{h:'Nr.',key:'nr',w:34},{h:'Bauteil',key:'bt',w:40},{h:'Bemerkung',key:'bem',w:30},{h:'Stahl\nabgerufen',key:'ab',w:12},{h:'geliefert\nBST S',key:'gb',w:14},{h:'geliefert\nLAMA',key:'gl',w:14},
+      ...ZUB.map(([k,n])=>({h:n,key:'z'+k,w:k==='dl'?12:9})),...numCols.map((x,i)=>({h:x.h,key:'n'+i,fmt:x.lfm?LFM:T3,w:12})),{h:'Status',key:'st',w:11},{h:'Bestellung / Lieferschein',key:'best',w:26}];
+    const ws=sheet(e,'Bewehrung '+ebTitle(e),cols);
+    ws.views=[{state:'frozen',xSplit:1,ySplit:4}];
+    byEb[e].forEach(l=>{ const os=ordersFor(l), ab=[...new Set(os.map(o=>o.date).filter(Boolean))].sort(), gb=deliv(l,'bst'), gl=deliv(l,'m');
+      const bem=[l.ersetzt?'alter Index – bereits bestellt, wird abgerechnet':'',l.note||''].filter(Boolean).join(' · ');
+      const r=addRow(ws,[(cd=>cd?l.nr+'_'+(l.idx||cd.idx):l.nr+(l.idx?' / Index '+l.idx:''))(listCode(l)),l.title||'',bem,ab.length?new Date(ab[0]+'T12:00:00'):null,gb?.v??null,gl?.v??null,
+        ...ZUB.map(([k])=>l.zub?.[k]?'X':null),...numCols.map(x=>valOf(l,x)),l.ersetzt?'ersetzt':listStatus(l),os.map(o=>(o.nr||dDE(o.date))+(o.ls?' (LS '+o.ls+')':'')).join(', ')],{dim:l.ersetzt});
+      [4,5,6].forEach(i=>{ r.getCell(i).numFmt='dd.mm.yyyy'; r.getCell(i).alignment={horizontal:'center'}; });
+      if(gb) r.getCell(5).fill=solid(gb.fill); if(gl) r.getCell(6).fill=solid(gl.fill);
+      [gb,gl].forEach((d,j)=>{ if(d?.fill===GRN) r.getCell(5+j).font={...font,color:{argb:'FFFFFFFF'}}; });
+      ZUB.forEach(([k],j)=>{ const st=l.zub?.[k], cell=r.getCell(zub0+1+j); cell.alignment={horizontal:'center'}; if(st==='bestellt') cell.fill=solid(YEL); if(st==='geliefert'){ cell.fill=solid(GRN); cell.font={...font,color:{argb:'FFFFFFFF'}}; } });
+      if(l.sub) numCols.forEach((x,i)=>{ if(!x.lfm) r.getCell(num0+i).fill=solid(BLU); });
+      r.getCell(2).alignment=r.getCell(3).alignment={wrapText:true,vertical:'top'}; });
+    const last=ws.rowCount;
+    addRow(ws,['Summe '+e,'','','','','',...ZUB.map(()=>''),...numCols.map((x,i)=>{ const L=colL(num0+i); return {formula:`SUM(${L}5:${L}${last})`,result:sum(byEb[e],l=>valOf(l,x)||0)}; }),'',''],{sum:true});
+    ws.addRow([]);
+    [['Material bestellt',YEL],['Material geliefert',GRN],['Sub verrechnet',BLU]].forEach(([t,a])=>{ const r=ws.addRow([]); r.getCell(num0).fill=solid(a); r.getCell(num0+1).value=t; r.getCell(num0+1).font=font; });
+    ws.addRow(['Lieferdaten aus den Bestellungen (Liefertermin, sonst Bestelldatum). Zubehör: X = benötigt, gelb = bestellt, grün = geliefert.']).getCell(1).font={...font,size:9,color:{argb:GREY}};
+    filter(ws,cols.length); ws.autoFilter&&(ws.autoFilter.to.row=last);
+  });
 
   // Übersicht
   { const ws=sheet('Übersicht','Stahllisten – Übersicht',[{h:'Sorte',key:'k',w:24},{h:'Bedarf t',key:'b',fmt:T},{h:'Bestellt t',key:'o',fmt:T},{h:'Geliefert t',key:'g',fmt:T},{h:'Noch zu bestellen t',key:'r',fmt:T,w:18},{h:'Mehr bestellt t',key:'m',fmt:T,w:16}]);
@@ -963,6 +1064,16 @@ function editList(l,presetPlan){
   $('lPlan').value=l?.planId||presetPlan||'';
   $('lNr').value=l?.nr||''; $('lIdx').value=l?.idx||''; $('lDate').value=l?.date||today(); $('lTitle').value=l?.title||''; $('lOld').checked=!!l?.ersetzt;
   $('lParse').innerHTML=''; $('lFile').value='';
+  $('lEbene').innerHTML=`<option value="">automatisch (${esc(l?ebeneAuto(l):'aus Plan/Titel')})</option>`+EBENEN.map(e=>`<option ${l?.ebene===e?'selected':''}>${e}</option>`).join('');
+  $('lSub').value=l?.sub||''; $('lNote').value=l?.note||''; $('lMatN').value=l?.mattenNetto?fmt(l.mattenNetto,1).replace(/\./g,''):'';
+  $('lZub').innerHTML=ZUB.map(([k,n])=>`<label>${n}<select data-zub="${k}">${ZUB_ST.map(([v,t])=>`<option value="${v}" ${(l?.zub?.[k]||'')===v?'selected':''}>${t}</option>`).join('')}</select></label>`).join('');
+  const lfm=(l?.lfm||[]).map(x=>({...x}));
+  const lfmRender=()=>{ $('lLfm').innerHTML=lfm.map((x,i)=>`<tr><td><input data-i="${i}" data-f="typ" value="${esc(x.typ)}" style="width:150px;text-align:left" aria-label="Korb-Typ"></td><td class="n"><input data-i="${i}" data-f="m" inputmode="decimal" value="${x.m===''||x.m==null?'':fmt(+x.m,1).replace(/\./g,'')}" aria-label="lfm"></td><td><button class="linkbtn del" type="button" data-rm="${i}">entfernen</button></td></tr>`).join('')
+    ||`<tr><td colspan="3" style="color:var(--muted)">Keine – nur nötig, wenn Körbe in lfm abgerechnet werden.</td></tr>`; };
+  $('lLfm').oninput=e=>{ const el=e.target; if(!el.dataset.f) return; const x=lfm[+el.dataset.i]; if(el.dataset.f==='m'){ const v=num(el.value); x.m=isNaN(v)?'':v; } else x.typ=el.value; };
+  $('lLfm').onclick=e=>{ const b=e.target.closest('[data-rm]'); if(b){ lfm.splice(+b.dataset.rm,1); lfmRender(); } };
+  $('lLfmAdd').onclick=()=>{ lfm.push({typ:'',m:''}); lfmRender(); };
+  lfmRender();
   $('lFileInfo').textContent=l?.fileId?`Gespeicherte Datei: ${l.fileName||''}`:'';
   const rows=itemRows($('lItems'),$('lSum'),(l?.items||[]).map(i=>({...i})));
   let newFile=null, newCode=null, parseWarn=null;
@@ -975,6 +1086,7 @@ function editList(l,presetPlan){
     $('lParse').innerHTML=`<p class="hint">Lese ${esc(file.name)} …</p>`;
     try{ const r=await parseSteel(file);
       if(r.items.length){ rows.set(r.items); }
+      if(r.matNetto) $('lMatN').value=fmt(r.matNetto,1).replace(/\./g,'');
       const code=isPlan?null:parseCode(file.name);
       if(code){ $('lNr').value=code.nr; $('lIdx').value=code.idx; newCode=code;
         if(!$('lPlan').value){ const mp=planFromRef(curPid,r.planRef)||matchPlan(curPid,code).plan; if(mp){ $('lPlan').value=mp.id; planSel(); } } }
@@ -999,7 +1111,10 @@ function editList(l,presetPlan){
     if(!confirm(`Stahlliste ${l.nr} löschen?${os.length?' Sie ist in '+os.length+' Bestellung(en) enthalten; die bestellten Mengen bleiben dort erhalten.':''}`)) return;
     os.forEach(o=>o.listIds=o.listIds.filter(id=>id!==l.id)); await delFile(l.fileId); S.lists=S.lists.filter(x=>x.id!==l.id); await save(); $('dlgList').close(); renderProject(curPid); };
   dlg('dlgList',async()=>{
-    const v={nr:$('lNr').value.trim(),idx:$('lIdx').value.trim(),planId:$('lPlan').value,date:$('lDate').value,title:$('lTitle').value.trim(),ersetzt:$('lOld').checked,items:cleanItems(rows.items)};
+    const v={nr:$('lNr').value.trim(),idx:$('lIdx').value.trim(),planId:$('lPlan').value,date:$('lDate').value,title:$('lTitle').value.trim(),ersetzt:$('lOld').checked,items:cleanItems(rows.items),
+      ebene:$('lEbene').value,sub:$('lSub').value,note:$('lNote').value.trim(),mattenNetto:(v=>isNaN(v)||v<=0?null:v)(num($('lMatN').value)),
+      zub:Object.fromEntries([...$('lZub').querySelectorAll('[data-zub]')].filter(s=>s.value).map(s=>[s.dataset.zub,s.value])),
+      lfm:lfm.filter(x=>String(x.typ).trim()&&+x.m>0).map(x=>({typ:String(x.typ).trim(),m:+x.m}))};
     if(newCode) v.code=newCode;
     // Neuer Index derselben Liste: ältere Indizes überschreiben bzw. als ersetzt markieren
     if(!v.ersetzt&&v.idx){ const olds=S.lists.filter(x=>x.projectId===curPid&&(x.nr===v.nr||listCode(x)?.nr===v.nr)&&x.id!==l?.id&&!x.ersetzt&&idxNum(x.idx??listCode(x)?.idx)<idxNum(v.idx));
@@ -1158,7 +1273,7 @@ function parseStueckliste(lines){
   if(matSum) parts.push(`Matten ${fmt(matSum,1)} kg brutto${out.matNetto?` (netto ${fmt(out.matNetto,1)} kg)`:''}`);
   if(out.matBrutto!=null&&Math.abs(matSum-out.matBrutto)>Math.max(1,out.matBrutto*.005)) checks.push(`Matten: erkannt ${fmt(matSum,1)} kg, Brutto laut Liste ${fmt(out.matBrutto,1)} kg`);
   const tParts=[out.rundTotal,out.korbTotal,out.matBrutto].filter(v=>v!=null);
-  return {acc,how:parts.join(' · '),checks,total:tParts.length?sum(tParts,v=>v):null};
+  return {acc,how:parts.join(' · '),checks,total:tParts.length?sum(tParts,v=>v):null,matNetto:out.matNetto};
 }
 
 async function parsePdf(file){
@@ -1167,7 +1282,7 @@ async function parsePdf(file){
   const planRef=(raw.match(/Plan\s*-?\s*nr\.?\s*:?\s*([A-Za-z0-9]+(?:_[A-Za-z0-9ÄÖÜäöü]+){5,})/i)||[])[1]||'';
   const st=parseStueckliste(lines);
   if(st) return {items:Object.entries(st.acc).sort((a,b)=>catSort(a[0],b[0])).map(([cat,kg])=>({cat,kg:Math.round(kg*10)/10})),
-    total:st.total,how:st.how,checks:st.checks,raw,nr:'',planRef};
+    total:st.total,how:st.how,checks:st.checks,raw,nr:'',planRef,matNetto:st.matNetto};
   const N='(\\d{1,3}(?:[.\\s]\\d{3})*(?:,\\d+)?|\\d+(?:[.,]\\d+)?)';
   const acc={}; let how='';
   // 1) Gewichtsübersicht als Tabelle: Zeile mit Durchmessern, darunter Zeile "Gewicht/kg/Summe" mit Zahlen

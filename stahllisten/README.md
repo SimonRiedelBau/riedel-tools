@@ -67,6 +67,21 @@ Bei manchen Projekten stehen „Rundstahlliste“ und „Mattenliste“ direkt a
 - Balken je Durchmesser, Tabelle „Noch zu bestellen“ (CSV-Export, Drucken), Liste der noch nicht bestellten Stahllisten mit Knopf „Offene Listen bestellen“
 - Hinweise: Abgleich mit Kalkulation, überfällige Lieferungen, Pläne ohne Stahlliste, bestellte ersetzte Listen
 
+## Stahlübersicht wie die Excel der Bauleitung
+Die Excel-Liste enthält vorne die Blätter im Aufbau der bisherigen Excel-Stahlübersicht (z. B. BfS Neuherberg):
+- **Gesamtübersicht**: je Ebene BST S, BSTM netto/brutto, ABSTA (t), Körbe in lfm, Summe, davon geliefert, Sub verrechnet,
+  noch nicht bestellt – als Formeln auf die Ebenen-Blätter.
+- **Ein Blatt je Ebene** (Gründung, 2.UG, 1.UG, EG, 1.OG …): Nr., Bauteil, Bemerkung, Stahl abgerufen, geliefert BST S,
+  geliefert LAMA, Zubehör (Dübelleisten, Lenton, HBT, Iso./Tron.), Tonnen je Sorte, lfm, Status, Bestellung/Lieferschein, Summenzeile.
+- Farben wie gewohnt: **gelb** = Material bestellt, **grün** = geliefert, **blau** = Sub verrechnet.
+- Ebene: aus der Plancodierung (BP → Gründung, U1 → 1.UG, 0 → EG …), sonst aus dem Titel; im Listen-Dialog überschreibbar.
+- Abgerufen/geliefert kommen aus den Bestellungen (Bestelldatum bzw. Liefertermin), Stabstahl und Matten getrennt.
+- Ersetzte Listen erscheinen nur, wenn sie schon bestellt waren („alter Index – bereits bestellt, wird abgerechnet“).
+- Mehrmengen/Nachbestellungen: als eigene Stahlliste zum Plan anlegen – sie erscheinen dann auf der Ebene des Plans.
+
+Zusätzliche Felder je Stahlliste: Ebene, Bemerkung, Sub verrechnet am, Zubehör (benötigt/bestellt/geliefert),
+Matten netto kg (ahw-Stücklisten: wird ausgelesen), Unterstützungskörbe in lfm je Typ.
+
 ## Excel-Liste und Verlauf
 - **Excel-Liste herunterladen** (im Projekt oben): erzeugt jederzeit den aktuellen Stand als `.xlsx` im Aufbau des Tools –
   Blätter *Übersicht* (Bedarf, bestellt, geliefert, noch zu bestellen je Sorte, Kennzahlen, Hinweise), *Stahllisten*
