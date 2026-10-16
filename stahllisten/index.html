@@ -213,6 +213,7 @@ header.top > .logo-riedel, header.top > .mark, #whoMail, #btnLogout{display:none
     <label>Kalkulierter Stahlbedarf gesamt (t)<input id="pKalk" inputmode="decimal" placeholder="optional"></label>
     <label>Biegebetrieb / Lieferant<input id="pLief" placeholder="optional"></label>
     <label class="wide">Notiz<textarea id="pNote" rows="2"></textarea></label>
+    <label class="inline wide"><input type="checkbox" id="pSlPlan"> Stahllisten stehen auf den Bewehrungsplänen (z. B. Ing.-Büro Albus) – beim Plan-Upload automatisch als Stahlliste anlegen</label>
   </div>
   <p class="hint">Die kalkulierte Menge (aus Kalkulation oder LV) dient als Vergleich, solange noch nicht alle Bewehrungspläne vorliegen.</p></div>
   <div class="df"><button class="btn sec left" id="pDel" type="button" hidden>Projekt löschen</button><button class="btn sec" value="cancel">Abbrechen</button><button class="btn" id="pSave" value="ok">Speichern</button></div>
@@ -578,7 +579,7 @@ function notes(p,c,kalk){
 let planFilter='';
 function tabPlans(p,c,plans){
   plans=plans.slice().sort((a,b)=>String(a.nr).localeCompare(String(b.nr),'de',{numeric:true}));
-  let h=`<section style="margin-top:18px">${reportBox('plaene')}<div class="drop" id="planDrop"><p><b>Pläne hochladen:</b> Eine oder mehrere Plan-PDFs hierher ziehen. Plan-Nr. und Index kommen aus dem Dateinamen (z. B. <code>BFS_88160_B_T_5_BP_U1_2233_01</code>: Index 01). Ein höherer Index ersetzt den alten Plan; Stahllisten mit derselben Nummer werden automatisch zugeordnet.</p>
+  let h=`<section style="margin-top:18px">${reportBox('plaene')}<div class="drop" id="planDrop"><p><b>Pläne hochladen:</b> Eine oder mehrere Plan-PDFs hierher ziehen. Plan-Nr. und Index kommen aus dem Dateinamen (z. B. <code>BFS_88160_B_T_5_BP_U1_2233_01</code>: Index 01). Ein höherer Index ersetzt den alten Plan; Stahllisten mit derselben Nummer werden automatisch zugeordnet.${p.slAufPlan?' <b>Stahllisten auf dem Plan</b> (Rundstahl- und Mattenliste) werden beim Upload ausgelesen und direkt als Stahlliste angelegt; ein neuer Plan-Index ersetzt sie.':''}</p>
     <div style="display:flex;gap:8px"><label class="btn" style="flex-direction:row" tabindex="0">Dateien wählen<input type="file" id="planFiles" multiple accept="application/pdf,image/*,.dwg,.dxf" hidden></label><button class="btn sec" id="planNew" type="button">Ohne Datei anlegen</button></div></div>`;
   const nChk=plans.filter(pl=>zuPruefen(pl)||S.lists.some(l=>l.planId===pl.id&&zuPruefen(l))).length;
   if(!nChk) planFilter='';
@@ -595,18 +596,25 @@ function tabPlans(p,c,plans){
     h+=`</tbody></table></div>`;
   } else h+=`<p class="sub" style="margin-top:14px">Noch keine Pläne erfasst.</p>`;
   $('tabBody').innerHTML=h+'</section>';
-  const add=async files=>{ const lines=[];
-    for(const f of files){ const c=parseCode(f.name);
-      if(!c){ const rec=await putFile(f); const g=guessPlan(f.name);
-        S.plans.push({id:uid(),projectId:p.id,nr:g.nr,idx:g.idx,title:'',date:today(),fileId:rec.id,fileName:f.name,pruefen:{nr:'Dateiname nicht nach Plancodierung – Plan-Nr. und Index prüfen'}});
-        lines.push(['info',`${esc(f.name)}: angelegt (Dateiname nicht nach Plancodierung – Plan-Nr. bitte prüfen)`]); continue; }
-      const old=S.plans.find(x=>x.projectId===p.id&&(x.nr===c.nr||planCode(x)?.nr===c.nr));
-      if(old&&idxNum(old.idx)>=idxNum(c.idx)){ lines.push(['info',`${esc(c.nr)}: Index ${esc(c.idx)} übersprungen – vorhanden ist bereits Index ${esc(old.idx)}`]); continue; }
-      const rec=await putFile(f);
-      if(old){ const was=old.idx; await delFile(old.fileId); Object.assign(old,{nr:c.nr,idx:c.idx,date:today(),fileId:rec.id,fileName:f.name,code:c}); setPruef(old,'nr');
-        lines.push(['ok',`${esc(c.nr)}: Index ${esc(was||'–')} durch ${esc(c.idx)} ersetzt`]); }
-      else { S.plans.push({id:uid(),projectId:p.id,nr:c.nr,idx:c.idx,title:'',date:today(),fileId:rec.id,fileName:f.name,code:c});
-        lines.push(['ok',`${esc(c.nr)}: Index ${esc(c.idx)} angelegt`]); } }
+  const add=async files=>{ const lines=[], slPlan=p.slAufPlan;
+    if(slPlan) toast('Pläne werden hochgeladen und die Stahllisten ausgelesen …');
+    for(const f of files){ const c=parseCode(f.name), a=c?null:parseAlbus(f.name);
+      if(!c&&!a){ const rec=await putFile(f); const g=guessPlan(f.name);
+        const pl={id:uid(),projectId:p.id,nr:g.nr,idx:g.idx,title:'',date:today(),fileId:rec.id,fileName:f.name,pruefen:{nr:'Dateiname nicht nach Plancodierung – Plan-Nr. und Index prüfen'}};
+        S.plans.push(pl);
+        lines.push(['info',`${esc(f.name)}: angelegt (Dateiname nicht nach Plancodierung – Plan-Nr. bitte prüfen)`]);
+        if(slPlan) await listFromPlan(p,pl,f,lines);
+        continue; }
+      const nr=c?c.nr:a.nr, idx=c?c.idx:a.idx;
+      const old=S.plans.find(x=>x.projectId===p.id&&(x.nr===nr||c&&planCode(x)?.nr===nr));
+      if(old&&idxNum(old.idx)>=idxNum(idx)){ lines.push(['info',`${esc(nr)}: Index ${esc(idx)} übersprungen – vorhanden ist bereits Index ${esc(old.idx)}`]); continue; }
+      const rec=await putFile(f), ext=c?{code:c}:{};
+      let pl=old;
+      if(old){ const was=old.idx; await delFile(old.fileId); Object.assign(old,{nr,idx,date:today(),fileId:rec.id,fileName:f.name,...ext}); if(a&&!old.title) old.title=a.title; setPruef(old,'nr');
+        lines.push(['ok',`${esc(nr)}: Index ${esc(was||'–')} durch ${esc(idx)} ersetzt`]); }
+      else { pl={id:uid(),projectId:p.id,nr,idx,title:a?a.title:'',date:today(),fileId:rec.id,fileName:f.name,...ext}; S.plans.push(pl);
+        lines.push(['ok',`${esc(nr)}: Index ${esc(idx)} angelegt`]); }
+      if(slPlan&&(!a||/^BP/i.test(a.nr))) await listFromPlan(p,pl,f,lines); }
     const linked=linkLists(p.id); linked.forEach(([l,pl])=>lines.push(['ok',`Stahlliste ${esc(l.nr)} dem Plan ${esc(pl.nr)} zugeordnet`]));
     await save(); setReport('plaene',lines); renderProject(p.id); };
   $('planFiles').onchange=e=>{ if(e.target.files.length) add([...e.target.files]); };
@@ -635,7 +643,15 @@ function bereich(c){ if(!c) return '';
   const bt='Bauteil '+c.bt+(BT_NAME[c.bt]?' ('+BT_NAME[c.bt]+')':'');
   const eb=EBENE_NAME[c.ebene]||(/^[A-Z]$/.test(c.ebene)?'Schnitt '+c.ebene:c.ebene);
   return bt+' · '+eb; }
-const idxNum=v=>{ const n=parseInt(v,10); return isNaN(n)?-1:n; };
+// Index: Zahlen (00, 01 …) bzw. Albus 0, a, b … – Buchstaben sind neuer als Zahlen
+const idxNum=v=>{ v=String(v??'').trim(); if(/^[a-z]$/i.test(v)) return 1000+v.toLowerCase().charCodeAt(0); const n=parseInt(v,10); return isNaN(n)?-1:n; };
+// Plannummer Ing.-Büro Albus (Projekt Ostermeier): Art+Nummer-Index-Bauteil, z. B. „BP041-0-V_Bew._Gründung_Teil_1_Verwaltung.pdf“
+// → Plan-Nr. BP041-V, Index 0, Inhalt aus dem Rest des Dateinamens
+function parseAlbus(name){
+  const base=String(name||'').replace(/\.[A-Za-z0-9]{1,5}$/,'');
+  const m=base.match(/(?:^|[_\s])([A-Z]{1,3}\d{2,4})-(\d{1,2}|[a-z])-([A-Z0-9]{1,3})(?=$|[_\s])(.*)$/);
+  if(!m) return null;
+  return {nr:m[1]+'-'+m[3],idx:m[2],title:m[4].replace(/_+/g,' ').trim()}; }
 const listCode=l=>l.code||parseCode(l.fileName);
 const planCode=pl=>pl.code||parseCode(pl.fileName)||parseCode(pl.nr+'_'+(pl.idx||'00'));
 // Plan zur Stahlliste über die 4-stellige Nummer; bei mehreren Treffern entscheiden Bauteil, Ebene, Gebäude
@@ -666,16 +682,18 @@ function markGeprueft(x){ delete x.pruefen; x.geprueft=today(); }
 // Bestand nachträglich prüfen: gespeicherte Dateien erneut auslesen und wie beim Upload markieren.
 // Bereits als geprüft bestätigte und ersetzte Einträge bleiben unberührt.
 async function pruefBestand(pid,prog){ const lines=[];
-  S.plans.filter(x=>x.projectId===pid&&!x.geprueft&&x.fileName&&!planCode(x)).forEach(pl=>{
+  S.plans.filter(x=>x.projectId===pid&&!x.geprueft&&x.fileName&&!planCode(x)&&!parseAlbus(x.fileName)).forEach(pl=>{
     setPruef(pl,'nr','Dateiname nicht nach Plancodierung – Plan-Nr. und Index prüfen'); });
   const ls=S.lists.filter(l=>l.projectId===pid&&!l.ersetzt&&!l.geprueft);
   for(let i=0;i<ls.length;i++){ const l=ls[i]; prog(i+1,ls.length);
     const kg=listKg(l);
     setPruef(l,'kg',kg?null:'keine Gewichte erfasst – von Hand ergänzen');
     setPruef(l,'plan',l.planId?null:'Plan fehlt – bitte zuordnen');
-    if(l.fileId&&/\.(pdf|xlsx|xls|csv|txt)$/i.test(l.fileName||'')){
-      try{ const f=await getFile(l.fileId); if(!f) throw new Error('Datei nicht gefunden');
-        const r=await parseSteel(new File([f.blob],l.fileName,{type:f.type})), w=parseWarnings(r), rk=sum(r.items||[],x=>x.kg);
+    // Stahlliste vom Plan: den Plan erneut auslesen
+    const src=l.fileId?{id:l.fileId,name:l.fileName}:l.src==='plan'?(pl=>pl&&{id:pl.fileId,name:pl.fileName})(S.plans.find(x=>x.id===l.planId)):null;
+    if(src&&src.id&&/\.(pdf|xlsx|xls|csv|txt)$/i.test(src.name||'')){
+      try{ const f=await getFile(src.id); if(!f) throw new Error('Datei nicht gefunden');
+        const r=await parseSteel(new File([f.blob],src.name,{type:f.type})), w=parseWarnings(r), rk=sum(r.items||[],x=>x.kg);
         if(kg&&rk&&Math.abs(kg-rk)>Math.max(1,rk*.005)) w.push(`gespeichert ${fmt(kg,1)} kg, Datei ergibt ${fmt(rk,1)} kg`);
         setPruef(l,'masse',w.length?'Auslesen: '+w.join('; '):null);
       }catch(e){ console.warn(e); setPruef(l,'masse','Datei konnte nicht erneut ausgelesen werden: '+e.message); } }
@@ -692,6 +710,22 @@ function pruefBox(el,x){ const g=pruefGruende(x);
 function linkLists(pid){ const out=[];
   S.lists.filter(l=>l.projectId===pid&&!l.planId).forEach(l=>{ const m=matchPlan(pid,listCode(l)); if(m.plan){ l.planId=m.plan.id; setPruef(l,'plan'); if(!l.title) l.title=m.plan.title||''; out.push([l,m.plan]); } });
   return out; }
+// Stahlliste direkt vom Plan (Projekte mit „Stahllisten auf den Bewehrungsplänen“): Rundstahl- und Mattenliste
+// auslesen und als Stahlliste des Plans anlegen. Ein neuer Plan-Index ersetzt die vom alten Index angelegte Liste
+// (ohne Bestellung überschrieben, sonst als ersetzt markiert). Die Liste hat keine eigene Datei – Quelle ist der Plan.
+async function listFromPlan(p,pl,file,lines){
+  if(!/\.pdf$/i.test(file.name)&&file.type!=='application/pdf') return;
+  let r=null; try{ r=await parseSteel(file); }catch(e){ console.warn(e); }
+  if(!r||!(r.items||[]).length){ lines.push(['warn',`${esc(pl.nr)}: <b>keine Stahlliste auf dem Plan erkannt</b> – bitte unter „Stahllisten“ von Hand anlegen`]); return; }
+  const olds=S.lists.filter(l=>l.projectId===p.id&&!l.ersetzt&&l.planId===pl.id&&l.src==='plan');
+  const others=S.lists.filter(l=>l.projectId===p.id&&!l.ersetzt&&l.planId===pl.id&&l.src!=='plan');
+  const repl=await replaceOld(olds);
+  const l={id:uid(),projectId:p.id,nr:pl.nr,idx:pl.idx||'',planId:pl.id,date:today(),title:pl.title||'',ersetzt:false,items:cleanItems(r.items),src:'plan'};
+  S.lists.push(l);
+  const warn=parseWarnings(r);
+  if(others.length) warn.push(`Plan hat schon die Stahlliste ${others.map(o=>o.nr).join(', ')} – doppelt gezählt?`);
+  if(warn.length) setPruef(l,'masse','Auslesen: '+warn.join('; '));
+  lines.push([warn.length?'warn':'ok',`Stahlliste vom Plan ${esc(pl.nr)}${pl.idx?' Index '+esc(pl.idx):''}: ${fmt(listKg(l),1)} kg (${esc(r.how)})${repl}${warn.length?' · <b>Bitte prüfen:</b> '+esc(warn.join('; ')):(r.total?' · stimmt mit Gesamtgewicht überein':'')}`]); }
 // Ergebnis des letzten Uploads einmal oben im Reiter anzeigen
 let report=null;
 function setReport(tab,lines){ report=lines.length?{tab,lines}:null; }
@@ -710,7 +744,7 @@ function listTable(lists){
   lists.forEach(l=>{ const pl=S.plans.find(x=>x.id===l.planId), g=addItems({},l.items);
     h+=`<tr class="${l.ersetzt?'dim':zuPruefen(l)?'chk':''}"><td><b>${esc(l.nr)}</b>${pruefTag(l)}<br><small style="color:var(--muted)">${dDE(l.date)}</small>${pruefWhy(l)}</td><td>${esc(l.idx||(listCode(l)?.idx)||'')}</td><td>${esc(bereich(listCode(l)||(pl&&planCode(pl))))}</td><td>${pl?esc(pl.nr+(pl.idx?' / '+pl.idx:'')):'–'}</td><td class="wrap">${esc(l.title||'')}</td><td class="nostrike">${statusTag(l)}</td>
       ${cats.map(k=>`<td class="n">${g[k]?fmt(g[k]):''}</td>`).join('')}<td class="n"><b>${fmt(listKg(l))}</b></td>
-      <td class="nostrike">${l.fileId?`<button class="linkbtn" data-open="${l.fileId}" type="button">öffnen</button>`:'–'}</td><td class="nostrike"><button class="linkbtn" data-editlist="${l.id}" type="button">Bearbeiten</button>${zuPruefen(l)?` · <button class="linkbtn" data-chklist="${l.id}" type="button">Geprüft</button>`:''}</td></tr>`; });
+      <td class="nostrike">${l.fileId?`<button class="linkbtn" data-open="${l.fileId}" type="button">öffnen</button>`:l.src==='plan'&&pl?.fileId?`<button class="linkbtn" data-open="${pl.fileId}" type="button" title="Stahlliste steht auf dem Plan">Plan</button>`:'–'}</td><td class="nostrike"><button class="linkbtn" data-editlist="${l.id}" type="button">Bearbeiten</button>${zuPruefen(l)?` · <button class="linkbtn" data-chklist="${l.id}" type="button">Geprüft</button>`:''}</td></tr>`; });
   const tot={}; lists.filter(l=>!l.ersetzt).forEach(l=>addItems(tot,l.items));
   h+=`<tr class="sum"><td colspan="6">${lists.length} Listen${lists.some(l=>l.ersetzt)?' (Summe ohne ersetzte)':''}</td>${cats.map(k=>`<td class="n">${fmt(tot[k]||0)}</td>`).join('')}<td class="n">${fmt(sum(Object.values(tot),v=>v))}</td><td colspan="2"></td></tr></tbody></table></div>`;
   return h;
@@ -878,7 +912,7 @@ function requireValid(d){ const f=d.querySelector('form'); f.onsubmit=e=>{ if(e.
 
 function editProject(p){
   $('dpTitle').textContent=p?'Projekt bearbeiten':'Neues Projekt';
-  $('pName').value=p?.name||''; $('pNr').value=p?.nr||''; $('pKst').value=p?.kst||''; $('pKalk').value=p?.kalkT!=null?String(p.kalkT).replace('.',','):''; $('pLief').value=p?.lief||''; $('pNote').value=p?.note||'';
+  $('pName').value=p?.name||''; $('pNr').value=p?.nr||''; $('pKst').value=p?.kst||''; $('pKalk').value=p?.kalkT!=null?String(p.kalkT).replace('.',','):''; $('pLief').value=p?.lief||''; $('pNote').value=p?.note||''; $('pSlPlan').checked=!!p?.slAufPlan;
   $('pDel').hidden=!p;
   $('pDel').onclick=async()=>{ if(!confirm(`Projekt „${p.name}“ mit allen Plänen, Stahllisten und Bestellungen löschen?`)) return;
     const fids=[...S.plans,...S.lists].filter(x=>x.projectId===p.id).map(x=>x.fileId).filter(Boolean);
@@ -886,7 +920,7 @@ function editProject(p){
     ['plans','lists','orders'].forEach(k=>S[k]=S[k].filter(x=>x.projectId!==p.id)); S.projects=S.projects.filter(x=>x.id!==p.id);
     await save(); $('dlgProject').close(); location.hash='#/'; };
   dlg('dlgProject',async()=>{ const k=num($('pKalk').value);
-    const v={name:$('pName').value.trim(),nr:$('pNr').value.trim(),kst:$('pKst').value.trim(),kalkT:isNaN(k)?null:k,lief:$('pLief').value.trim(),note:$('pNote').value.trim()};
+    const v={name:$('pName').value.trim(),nr:$('pNr').value.trim(),kst:$('pKst').value.trim(),kalkT:isNaN(k)?null:k,lief:$('pLief').value.trim(),note:$('pNote').value.trim(),slAufPlan:$('pSlPlan').checked};
     if(p) Object.assign(p,v); else { p={id:uid(),created:today(),...v}; S.projects.push(p); tab='uebersicht'; }
     await save(); location.hash='#/p/'+p.id; route(); });
 }
@@ -1129,7 +1163,7 @@ function parseStueckliste(lines){
 
 async function parsePdf(file){
   const lines=await pdfLines(file), raw=lines.join('\n');
-  if(!raw.replace(/\s/g,'').length) return {items:[],total:null,how:'',raw:'(kein Text – gescannte PDF)'};
+  if(!raw.replace(/\s/g,'').length) return (await parseVecPdf(file))||{items:[],total:null,how:'',raw:'(kein Text – gescannte PDF)'};
   const planRef=(raw.match(/Plan\s*-?\s*nr\.?\s*:?\s*([A-Za-z0-9]+(?:_[A-Za-z0-9ÄÖÜäöü]+){5,})/i)||[])[1]||'';
   const st=parseStueckliste(lines);
   if(st) return {items:Object.entries(st.acc).sort((a,b)=>catSort(a[0],b[0])).map(([cat,kg])=>({cat,kg:Math.round(kg*10)/10})),
@@ -1169,9 +1203,174 @@ async function parsePdf(file){
   lines.forEach(l=>{ const mk=matKey(l); if(!mk) return; const m=l.match(new RegExp(N+'\\s*kg','i')); if(m){ const v=num(m[1]); if(v>0) acc['M:'+mk]=Math.max(acc['M:'+mk]||0,v); } });
   // Gesamtgewicht
   let total=null; lines.forEach(l=>{ if(/gesamt\s*gew|gesamtgewicht|summe\s*gesamt|gesamt\s*summe|total/i.test(l)){ const m=l.match(new RegExp(N+'\\s*(kg|t)\\b','i')); if(m){ const v=num(m[1])*(m[2].toLowerCase()==='t'?1000:1); if(v>0) total=Math.max(total||0,v); } } });
+  // Keine Gewichte im Text: Stahllisten in Vektorschrift auf dem Plan suchen (z. B. Ing.-Büro Albus)
+  if(!Object.keys(acc).length){ const v=await parseVecPdf(file); if(v&&v.items.length) return v; }
   const nrM=raw.match(/(?:Listen?|Stahlliste|Biegeliste)[\s-]*(?:Nr\.?|Nummer)\s*[:.]?\s*([A-Z0-9][\w./-]{0,20})/i);
   return {items:Object.entries(acc).sort((a,b)=>catSort(a[0],b[0])).map(([cat,kg])=>({cat,kg:Math.round(kg*10)/10})),total,how,raw,nr:nrM?nrM[1]:'',planRef};
 }
+
+// ---------- Stahllisten in Vektorschrift auf dem Plan (Ingenieurbüro Albus, Projekt Ostermeier) ----------
+// Die Listen sind keine Text-Objekte, sondern als CAD-Strichschrift gezeichnet. Die kurzen Linien werden zu
+// Zeichen und Wörtern gruppiert und über die Form mit den Vorlagen unten verglichen (gleiche CAD-Schrift → gleiche Form).
+// Vorlagen: je Zeichen Varianten aus Segmenten x1 y1 x2 y2 in 1/100 Schrifthöhe, Ursprung links auf der Grundlinie.
+const VGLYPH={"0":["20 100 10 97,10 97 4 90,4 90 0 80,0 80 0 20,0 20 4 10,4 10 10 3,10 3 20 0,60 80 57 90,57 90 50 97,50 97 40 100,40 0 50 3,50 3 57 10,57 10 60 20,60 20 60 80,40 100 20 100,20 0 40 0"],
+"1":["30 100 30 0,0 70 30 100"],
+"2":["0 0 67 0,43 100 53 97,53 97 60 90,60 90 63 80,56 52 62 63,62 63 63 73,51 45 0 0,51 45 56 52,63 80 63 73,3 80 6 90,6 90 13 97,13 97 23 100,3 80 3 70,23 100 43 100"],
+"3":["67 20 63 10,63 10 57 4,57 4 47 0,47 0 20 0,20 0 10 4,10 4 4 10,4 10 0 20,57 48 63 42,63 42 67 32,67 32 67 20,4 80 7 90,7 90 13 97,13 97 23 100,44 100 54 97,54 97 60 90,60 90 63 80,63 80 63 72,63 72 60 62,60 62 54 55,54 55 47 52,23 100 44 100,47 52 57 48,47 52 30 52"],
+"4":["67 33 0 33,0 33 40 100,46 0 46 67"],
+"5":["0 20 3 10,3 10 10 3,10 3 20 0,20 0 47 0,47 0 57 3,57 3 63 10,63 10 67 20,67 20 67 40,67 40 63 50,63 50 57 57,57 57 47 60,3 50 10 57,10 57 20 60,3 50 13 100,47 60 20 60,13 100 63 100"],
+"6":["67 80 63 90,63 90 56 97,56 97 46 100,46 100 20 100,20 100 10 97,10 97 3 90,3 90 0 80,0 80 0 20,0 20 3 10,3 10 10 3,10 3 20 0,20 0 46 0,46 0 56 3,56 3 63 10,63 10 67 20,67 20 67 40,67 40 63 50,63 50 56 57,56 57 46 60,0 40 3 50,3 50 10 57,10 57 20 60,46 60 20 60"],
+"7":["67 100 0 100,27 0 67 100"],
+"8":["0 20 3 10,3 10 10 3,10 3 20 0,20 0 47 0,47 0 57 3,57 3 63 10,63 10 67 20,10 48 3 42,3 42 0 31,0 31 0 20,67 20 67 31,67 31 63 42,63 42 57 48,23 100 13 97,13 97 7 90,7 90 3 80,3 80 3 72,3 72 7 62,7 62 13 55,13 55 20 52,63 80 60 90,60 90 53 97,53 97 43 100,47 52 53 55,53 55 60 62,60 62 63 72,63 72 63 80,43 100 23 100,20 52 10 48,57 48 47 52,20 52 47 52"],
+"9":["20 100 10 97,10 97 3 90,3 90 0 80,20 100 47 100,47 100 56 97,56 97 63 90,63 90 67 80,67 80 67 20,67 20 63 10,63 10 56 3,56 3 47 0,47 0 20 0,20 0 10 3,10 3 3 10,3 10 0 20,0 60 3 50,3 50 10 44,0 80 0 60,10 44 20 40,67 60 63 50,63 50 56 44,56 44 47 40,20 40 47 40"],
+"R":["0 0 0 100,40 100 50 97,50 97 57 90,57 90 60 80,0 100 40 100,60 80 60 67,40 47 50 50,50 50 57 57,57 57 60 67,40 47 0 47,30 47 63 0"],
+"u":["0 67 0 20,0 20 3 10,3 10 10 3,10 3 20 0,37 0 47 3,47 3 53 10,53 10 57 20,20 0 37 0,57 0 57 67"],
+"n":["0 67 0 0,0 47 3 57,3 57 10 63,10 63 20 67,37 67 47 63,47 63 53 57,53 57 57 47,57 47 57 0,20 67 37 67"],
+"d":["67 47 63 57,63 57 57 63,57 63 47 67,47 67 20 67,20 67 10 63,10 63 3 57,3 57 0 47,0 47 0 20,0 20 3 10,3 10 10 3,10 3 20 0,20 0 47 0,47 0 57 3,57 3 63 10,63 10 67 20,67 100 67 0"],
+"s":["63 20 60 27,63 20 63 13,63 13 60 7,60 7 57 3,57 3 47 0,60 27 57 30,60 53 57 60,57 60 53 63,53 63 43 67,47 0 17 0,17 0 7 3,7 3 3 7,3 7 0 13,20 67 10 63,10 63 7 60,7 60 3 53,3 53 3 47,3 47 7 40,7 40 10 37,10 37 57 30,43 67 20 67"],
+"t":["12 100 12 20,12 20 15 10,15 10 22 3,22 3 32 0,32 0 38 0,0 67 33 67"],
+"a":["67 20 63 10,63 10 57 3,57 3 47 0,47 0 20 0,20 0 10 3,10 3 3 10,3 10 0 20,0 47 3 57,3 57 10 63,10 63 20 67,20 67 47 67,47 67 57 63,57 63 63 57,63 57 67 47,67 47 67 20,0 20 0 47,67 0 67 67"],
+"h":["0 100 0 0,0 47 3 57,3 57 10 63,10 63 20 67,57 47 57 0,37 67 47 63,47 63 53 57,53 57 57 47,20 67 37 67"],
+"l":["0 100 0 20,0 20 3 10,3 10 10 3,10 3 20 0,20 0 30 0"],
+"i":["0 100 0 90,0 67 0 0","0 67 0 0"],
+"e":["67 47 63 57,63 57 57 63,57 63 47 67,47 67 20 67,20 67 10 63,10 63 3 57,3 57 0 47,0 47 0 20,0 20 3 10,3 10 10 3,10 3 20 0,20 0 47 0,47 0 57 3,57 3 63 10,67 47 67 35,67 35 0 35,63 10 67 17"],
+"B":["67 20 63 10,63 10 57 3,57 3 47 0,47 0 0 0,0 0 0 100,43 100 53 97,53 97 60 90,60 90 63 80,0 100 43 100,57 48 63 42,63 42 67 32,67 32 67 20,63 80 63 72,63 72 60 62,60 62 53 55,53 55 47 52,47 52 57 48,0 52 47 52"],
+"A":["0 0 33 100,33 100 67 0,33 100 33 100,13 38 54 38"],
+"P":["0 0 0 100,40 100 50 97,50 97 57 90,57 90 60 80,0 100 40 100,60 80 60 67,40 47 50 50,50 50 57 56,57 56 60 67,40 47 0 47"],
+"o":["67 47 63 56,63 56 57 63,57 63 47 67,47 67 20 67,20 67 10 63,10 63 3 56,3 56 0 47,0 47 0 20,0 20 3 10,3 10 10 3,10 3 20 0,20 0 47 0,47 0 57 3,57 3 63 10,63 10 67 20,67 20 67 47"],
+".":["0 0 0 10"],
+"S":["20 100 10 97,10 97 3 90,3 90 0 80,0 80 0 70,0 70 3 60,67 30 67 20,67 20 63 10,63 10 57 4,57 4 47 0,47 0 20 0,20 0 10 4,10 4 3 10,3 10 0 20,3 60 10 54,63 40 67 30,63 40 57 47,10 54 57 47,63 80 60 90,60 90 53 97,53 97 43 100,43 100 20 100"],
+"c":["63 57 57 63,57 63 47 67,47 67 20 67,20 67 10 63,10 63 3 57,3 57 0 47,0 47 0 20,0 20 3 10,3 10 10 4,10 4 20 0,20 0 47 0,47 0 57 4,57 4 63 10,63 10 67 17,67 50 63 57"],
+"k":["0 100 0 0,50 67 0 20,15 35 50 0"],
+"Ø":["67 56 62 69,62 69 52 78,52 78 40 83,40 83 27 83,27 83 15 78,15 78 5 69,5 69 0 56,0 56 0 43,0 43 5 31,5 31 15 22,15 22 27 17,27 17 40 17,40 17 52 22,52 22 62 31,62 31 67 43,67 43 67 56,0 0 67 100"],
+"E":["67 0 0 0,0 0 0 100,0 100 67 100,0 50 50 50"],
+"z":["0 0 63 0,0 67 60 67,60 67 0 0"],
+"G":["67 80 63 90,63 90 56 97,56 97 47 100,47 100 20 100,20 100 10 97,10 97 3 90,3 90 0 80,0 80 0 20,0 20 3 10,3 10 10 4,10 4 20 0,20 0 47 0,47 0 56 4,56 4 63 10,63 10 67 20,67 20 67 47,67 47 40 47"],
+"m":["0 67 0 0,33 50 33 0,33 50 37 60,37 60 40 63,40 63 47 67,47 67 53 67,53 67 60 63,60 63 63 60,63 60 67 50,67 50 67 0,13 67 20 67,20 67 27 63,27 63 30 60,30 60 33 50,13 67 6 63,6 63 3 60,3 60 0 50"],
+"N":["0 0 0 100,0 100 67 0,67 0 67 100"],
+"g":["67 47 63 57,63 57 57 63,57 63 47 67,47 67 20 67,20 67 10 63,10 63 4 57,4 57 0 47,0 47 0 20,0 20 4 10,4 10 10 4,10 4 20 0,20 0 47 0,47 0 57 4,57 4 63 10,63 10 67 20,67 67 67 -13,67 -13 63 -23,63 -23 57 -30,57 -30 47 -33,47 -33 20 -33,20 -33 10 -30,10 -30 4 -23,4 -23 0 -17"],
+"w":["0 67 17 0,17 0 33 50,33 50 50 0,50 0 67 67"],
+"L":["0 100 0 0,0 0 50 0"],
+"ä":["67 20 63 10,63 10 57 3,57 3 47 0,47 0 20 0,20 0 10 3,10 3 4 10,4 10 0 20,0 20 0 46,0 46 4 56,4 56 10 63,10 63 20 67,20 67 47 67,47 67 57 63,57 63 63 56,63 56 67 46,67 46 67 20,67 0 67 63,13 100 13 90,53 100 53 90"],
+"[":["33 0 0 0,0 0 0 100,0 100 33 100"],
+"]":["0 0 33 0,33 0 33 100,33 100 0 100"],
+"f":["12 80 12 0,12 80 15 90,15 90 22 97,22 97 31 100,0 50 33 50,31 100 38 100"],
+"M":["0 0 0 100,0 100 33 33,33 33 67 100,67 100 67 0"],
+"y":["0 67 33 0,67 67 17 -33"],
+"p":["67 47 63 57,63 57 57 63,57 63 47 67,47 67 20 67,20 67 10 63,10 63 4 57,4 57 0 47,0 20 4 10,4 10 10 3,10 3 20 0,20 0 47 0,47 0 57 3,57 3 63 10,63 10 67 20,67 20 67 47,0 67 0 -33"],
+"r":["30 67 40 63,40 63 47 57,47 57 50 47,0 67 0 0,0 47 3 57,3 57 10 63,10 63 20 67,20 67 30 67"],
+"D":["0 0 0 100,0 100 47 100,47 100 57 97,57 97 63 90,63 90 67 80,67 80 67 20,67 20 63 10,63 10 57 3,57 3 47 0,47 0 0 0"],
+"T":["33 0 33 100,0 100 67 100"]};
+let vTpl=null;
+function vPts(ns,step=.05){ const P=[]; for(const [x1,y1,x2,y2] of ns){ const n=Math.max(1,Math.ceil(Math.hypot(x2-x1,y2-y1)/step)); for(let i=0;i<=n;i++) P.push([x1+(x2-x1)*i/n,y1+(y2-y1)*i/n]); } return P; }
+function vTemplates(){ return vTpl||(vTpl=Object.entries(VGLYPH).flatMap(([ch,vs])=>vs.map(v=>{ const ns=v.split(',').map(s=>s.split(' ').map(x=>x/100)); const P=vPts(ns);
+  return {ch,P,w:Math.max(...P.map(p=>p[0])),y0:Math.min(...P.map(p=>p[1])),y1:Math.max(...P.map(p=>p[1]))}; }))); }
+// Hausdorff-Abstand zweier Punktmengen (größte Abweichung), Abbruch sobald > lim
+function vHaus(A,B,lim){ let h=0; for(const [P,Q] of [[A,B],[B,A]]) for(const a of P){ let m=1e9; for(const b of Q){ const d=(a[0]-b[0])**2+(a[1]-b[1])**2; if(d<m){ m=d; if(m<=h) break; } } if(m>h){ h=m; if(h>lim*lim) return 9; } } return Math.sqrt(h); }
+const vBox=list=>{ const b={x0:1e9,x1:-1e9,y0:1e9,y1:-1e9}; for(const s of list) for(const p of [s.a,s.b]){ if(p[0]<b.x0)b.x0=p[0]; if(p[0]>b.x1)b.x1=p[0]; if(p[1]<b.y0)b.y0=p[1]; if(p[1]>b.y1)b.y1=p[1]; } return b; };
+// Linien einer Seite in Seitenkoordinaten (nur gestrichene Pfade)
+async function vSegments(page){ const O=pdfjsLib.OPS, ol=await page.getOperatorList(), out=[];
+  const mul=(m,n)=>[m[0]*n[0]+m[2]*n[1],m[1]*n[0]+m[3]*n[1],m[0]*n[2]+m[2]*n[3],m[1]*n[2]+m[3]*n[3],m[0]*n[4]+m[2]*n[5]+m[4],m[1]*n[4]+m[3]*n[5]+m[5]];
+  let ctm=[1,0,0,1,0,0], st=[], pend=[], cur=null, start=null;
+  for(let i=0;i<ol.fnArray.length;i++){ const f=ol.fnArray[i], a=ol.argsArray[i];
+    if(f===O.save) st.push(ctm); else if(f===O.restore) ctm=st.pop()||ctm; else if(f===O.transform) ctm=mul(ctm,a);
+    else if(f===O.constructPath){ const T=(x,y)=>[ctm[0]*x+ctm[2]*y+ctm[4],ctm[1]*x+ctm[3]*y+ctm[5]], ar=a[1]; let k=0;
+      for(const op of a[0]){
+        if(op===O.moveTo){ cur=start=T(ar[k],ar[k+1]); k+=2; }
+        else if(op===O.lineTo){ const n=T(ar[k],ar[k+1]); if(cur) pend.push([cur,n]); cur=n; k+=2; }
+        else if(op===O.curveTo){ const n=T(ar[k+4],ar[k+5]); if(cur) pend.push([cur,n]); cur=n; k+=6; }
+        else if(op===O.curveTo2||op===O.curveTo3){ const n=T(ar[k+2],ar[k+3]); if(cur) pend.push([cur,n]); cur=n; k+=4; }
+        else if(op===O.closePath){ if(cur&&start) pend.push([cur,start]); cur=start; }
+        else if(op===O.rectangle){ const [x,y,w,h]=ar.slice(k,k+4), q=[T(x,y),T(x+w,y),T(x+w,y+h),T(x,y+h)]; k+=4; for(let j=0;j<4;j++) pend.push([q[j],q[(j+1)%4]]); } } }
+    else if(f===O.stroke||f===O.closeStroke){ pend.forEach(([p,q])=>out.push({a:p,b:q})); pend=[]; cur=start=null; }
+    else if(f===O.fill||f===O.eoFill||f===O.fillStroke||f===O.eoFillStroke||f===O.closeFillStroke||f===O.closeEOFillStroke||f===O.endPath){ pend=[]; cur=start=null; } }
+  return out; }
+// Gruppen über ein Raster: Elemente verbinden, deren Boxen (erweitert um ex/ey) sich überlappen und ok() erfüllen
+function vGroups(bx,ex,ey,cell,ok){ const par=bx.map((_,i)=>i), f=i=>{ while(par[i]!==i){ par[i]=par[par[i]]; i=par[i]; } return i; }, g=new Map();
+  bx.forEach((b,i)=>{ for(let gx=Math.floor((b.x0-ex)/cell);gx<=Math.floor((b.x1+ex)/cell);gx++) for(let gy=Math.floor((b.y0-ey)/cell);gy<=Math.floor((b.y1+ey)/cell);gy++){ const k=gx+','+gy; let c=g.get(k); if(!c) g.set(k,c=[]); c.push(i); } });
+  for(const c of g.values()) for(let i=0;i<c.length;i++) for(let j=i+1;j<c.length;j++){ const A=bx[c[i]],B=bx[c[j]];
+    if(f(c[i])!==f(c[j])&&A.x0-ex<=B.x1&&B.x0-ex<=A.x1&&A.y0-ey<=B.y1&&B.y0-ey<=A.y1&&(!ok||ok(A,B))) par[f(c[i])]=f(c[j]); }
+  const m=new Map(); bx.forEach((b,i)=>{ const r=f(i); if(!m.has(r)) m.set(r,[]); m.get(r).push(b); }); return [...m.values()]; }
+// Linien → Komponenten → Wörter → Zeichen (Trennung über Lücken in der x-Projektion)
+function vWords(segs){
+  const S=segs.filter(s=>Math.hypot(s.b[0]-s.a[0],s.b[1]-s.a[1])<15).map(s=>({s,...vBox([s])}));
+  const comps=vGroups(S,.25,.25,4).map(l=>{ const segs=l.map(x=>x.s), b=vBox(segs); return {segs,...b,h:b.y1-b.y0}; });
+  return vGroups(comps,12,.2,12,(A,B)=>{ const h=Math.max(A.h,B.h); if(h<1||Math.max(A.x0,B.x0)-Math.min(A.x1,B.x1)>1.4*h) return false;
+      const big=A.h>=B.h?A:B, sm=A.h>=B.h?B:A;
+      return sm.y0>=big.y0-.25*big.h&&sm.y1<=big.y1+.25*big.h&&(sm.h<=.5*big.h||Math.abs(sm.y0-big.y0)<.35*big.h||Math.abs(sm.y1-big.y1)<.35*big.h); })
+    .map(cs=>{ const segs=cs.flatMap(c=>c.segs), iv=cs.map(c=>[c.x0,c.x1]).sort((a,b)=>a[0]-b[0]), ch=[];
+      for(const [a,z] of iv){ const l=ch[ch.length-1]; if(l&&a<=l[1]+.05) l[1]=Math.max(l[1],z); else ch.push([a,z]); }
+      const chars=ch.map(([a,z])=>{ const ss=segs.filter(s=>{ const m=(s.a[0]+s.b[0])/2; return m>=a-.06&&m<=z+.06; }); return {segs:ss,...vBox(ss)}; });
+      return {...vBox(segs),chars}; }); }
+// Wort lesen: Grundlinie = häufigste Unterkante, Schrifthöhe = Oberkante darüber; unbekannte Zeichen als „?“
+function vRead(w){ if(w.text!=null) return w.text; const H=w.y1-w.y0||1;
+  const bs=w.chars.filter(c=>c.y1-c.y0>.3*H||w.chars.length===1).map(c=>c.y0); let base=w.y0, bc=-1;
+  for(const b of bs){ const n=bs.filter(x=>Math.abs(x-b)<.15*H).length; if(n>bc||n===bc&&b>base){ bc=n; base=b; } }
+  let cap=Math.max(...w.chars.filter(c=>Math.abs(c.y0-base)<.15*H).map(c=>c.y1-base)); if(!(cap>0)) cap=H;
+  const T=vTemplates(); let txt='';
+  for(const c of w.chars){ const P=vPts(c.segs.map(s=>[(s.a[0]-c.x0)/cap,(s.a[1]-base)/cap,(s.b[0]-c.x0)/cap,(s.b[1]-base)/cap]));
+    const cw=(c.x1-c.x0)/cap, cy0=(c.y0-base)/cap, cy1=(c.y1-base)/cap; let best='?', bd=.06;
+    for(const t of T){ if(Math.abs(t.w-cw)>bd||Math.abs(t.y0-cy0)>bd||Math.abs(t.y1-cy1)>bd) continue; const d=vHaus(P,t.P,bd); if(d<bd){ bd=d; best=t.ch; } }
+    txt+=best; }
+  w.cap=cap; w.base=base; return w.text=txt; }
+// Mattentyp: Q/R aus dem Gewicht ableiten, falls der Buchstabe nicht erkannt wurde
+// (Q: Längs- und Querstäbe gleich → kg/m² ≈ 2 × Querschnitt × 0,785; R: deutlich weniger)
+function vMatType(typ,kgm2){ const m=typ.match(/^(.)(\d{3})(A?)$/); if(!m) return matKey(typ)||'';
+  if(/[QRNK]/.test(m[1])) return m[1]+m[2]+m[3];
+  return (kgm2/(m[2]/100*.785)>1.8?'Q':'R')+m[2]+(m[3]||'A'); }
+// Tabellen „Rundstahlliste“ und „Mattenliste“ auf allen Seiten suchen und auslesen.
+// Jede Zeile wird gegengeprüft (Länge × Nenngewicht = Gewicht, Stück × Einzellänge = Gesamtlänge, Matten Stück × L × B × kg/m²),
+// jede Tabelle gegen ihr „Gesamtgewicht“.
+async function parseVecTables(pdf){
+  const acc={}, checks=[], parts=[], notes=[], raw=[]; let total=0, nTab=0;
+  const f=v=>/^\d+(\.\d+)?$/.test(v)?parseFloat(v):NaN, near=(a,b,r=.004)=>Math.abs(a-b)<=Math.max(.06,Math.abs(b)*r);
+  for(let pn=1;pn<=Math.min(pdf.numPages,5);pn++){
+    const segs=await vSegments(await pdf.getPage(pn)), W=vWords(segs);
+    const titles=W.filter(w=>w.chars.length>=10&&w.chars.length<=16&&/^.{0,6}stahlliste$|^mattenliste$/i.test(vRead(w)));
+    const hor=segs.filter(s=>Math.abs(s.a[1]-s.b[1])<.2&&Math.abs(s.a[0]-s.b[0])>3).map(s=>({...s,x0:Math.min(s.a[0],s.b[0]),x1:Math.max(s.a[0],s.b[0])}));
+    for(const t of titles){ const mat=/^matten/i.test(t.text), cx=(t.x0+t.x1)/2, H=t.y1-t.y0;
+      // Tabellenbreite: erste durchgehende Linie unter dem Titel
+      const ln=hor.filter(s=>s.a[1]<t.y0&&s.a[1]>t.y0-2*H&&s.x0<cx&&s.x1>cx).sort((a,b)=>b.a[1]-a.a[1])[0];
+      let x0=t.x0-20*H, x1=t.x1+20*H;
+      if(ln){ const iv=hor.filter(s=>Math.abs(s.a[1]-ln.a[1])<.3); x0=ln.x0; x1=ln.x1; // Teilstücke auf gleicher Höhe anhängen
+        for(let more=true;more;){ more=false; for(const s of iv){ if(s.x0<x0&&s.x1>=x0-2){ x0=s.x0; more=true; } if(s.x1>x1&&s.x0<=x1+2){ x1=s.x1; more=true; } } } }
+      const ws=W.filter(w=>w!==t&&w.x0>=x0-1&&w.x1<=x1+1&&w.y1<t.y0&&w.y1>t.y0-100*H).sort((a,b)=>b.y1-a.y1), rows=[];
+      for(const w of ws){ const h=Math.max(w.y1-w.y0,1); const r=rows.find(r=>Math.abs(r.y1-w.y1)<.5*h||h>1&&Math.abs(r.y0-w.y0)<.5*h); if(r) r.ws.push(w); else rows.push({y1:w.y1,y0:w.y0,ws:[w]}); }
+      rows.sort((a,b)=>b.y1-a.y1);
+      const name=mat?'Mattenliste':'Rundstahlliste'; let tabKg=0, tabTot=null, n=0;
+      raw.push(name+' (Seite '+pn+')');
+      for(const r of rows){ r.ws.sort((a,b)=>a.x0-b.x0); const tk=r.ws.map(vRead).filter(x=>x!=='.'&&x!==':'), line=tk.join('  ');
+        if(titles.some(o=>o!==t&&o.y1<t.y1&&Math.abs(o.y1-r.y1)<H)) break; // nächste Tabelle darunter
+        raw.push(line);
+        if(/^gesamtgewicht/i.test(tk[0]||'')){ tabTot=f(tk[tk.length-1]); if(isNaN(tabTot)) checks.push(name+': Gesamtgewicht nicht lesbar'); break; }
+        if(!/^\d+$/.test(tk[0]||'')||tk.length<7) continue;
+        const pos=tk[0], bad=m=>checks.push(name+' Pos. '+pos+': '+m);
+        if(!mat){ const [,stk,dd,el,gl,kgm,kg]=tk.slice(0,7), d=+dd, G=f(gl), K=f(kg), N=f(kgm);
+          if(!KGM[d]){ bad('Durchmesser „'+dd+'“ nicht erkannt'); continue; }
+          let w=K; if(isNaN(w)&&!isNaN(G)) w=G*KGM[d];
+          if(isNaN(w)){ bad('Gewicht nicht lesbar'); continue; }
+          if(!isNaN(N)&&Math.abs(N-KGM[d])>.01) bad('Nenngewicht '+kgm+' passt nicht zu Ø '+d);
+          if(!isNaN(G)&&!near(G*(isNaN(N)?KGM[d]:N),w)) bad('Gesamtlänge × Nenngewicht ≠ Gewicht ('+gl+' m, '+kg+' kg)');
+          if(/^\d+$/.test(stk)&&!isNaN(f(el))&&!isNaN(G)&&!near(+stk*f(el),G)) bad('Stück × Einzellänge ≠ Gesamtlänge');
+          if(/\?/.test(line)) bad('Zeichen nicht sicher erkannt: '+line);
+          acc['d'+d]=(acc['d'+d]||0)+w; tabKg+=w; n++; }
+        else { const [,stk,typ,L,B,kgm2,kg]=tk.slice(0,7), K=f(kg), A=f(L)*f(B)*f(kgm2)*(+stk);
+          const mk=vMatType(typ,f(kgm2)), cat=/^[QRNK]\d{3}/.test(mk)?'M:'+mk:'K'; // sonst z. B. DT17 = Unterstützungskorb
+          let w=K; if(isNaN(w)&&!isNaN(A)&&cat!=='K') w=A;
+          if(isNaN(w)){ bad('Gewicht nicht lesbar'); continue; }
+          if(cat!=='K'&&!isNaN(A)&&!near(A,w,.006)) bad('Stück × Länge × Breite × kg/m² ≠ Gewicht ('+kg+' kg)');
+          if(cat==='K'&&!notes.includes(typ)) notes.push(typ);
+          if(/\?/.test(line)) bad('Zeichen nicht sicher erkannt: '+line);
+          acc[cat]=(acc[cat]||0)+w; tabKg+=w; n++; } }
+      nTab++;
+      if(tabTot!=null&&!isNaN(tabTot)){ total+=tabTot; if(!near(tabKg,tabTot,.005)) checks.push(name+': Positionen ergeben '+fmt(tabKg,2)+' kg, Gesamtgewicht laut Liste '+fmt(tabTot,2)+' kg'); }
+      else if(n) checks.push(name+': Gesamtgewicht nicht gefunden');
+      parts.push(name+' '+n+' Pos. '+fmt(tabKg,1)+' kg'); } }
+  if(!nTab) return null;
+  if(notes.length) parts.push(notes.join(', ')+' als Unterstützungskörbe');
+  return {acc,how:parts.join(' · '),checks,total:total||null,raw:raw.join('\n')}; }
+async function parseVecPdf(file){ const v=await parseVecTables(await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise); if(!v) return null;
+  return {items:Object.entries(v.acc).sort((a,b)=>catSort(a[0],b[0])).map(([cat,kg])=>({cat,kg:Math.round(kg*10)/10})),total:v.total,how:v.how,checks:v.checks,raw:v.raw,nr:'',planRef:''}; }
 
 // ---------- Export / Sicherung ----------
 function csv(name,rows){ const s='﻿'+rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(';')).join('\r\n');
