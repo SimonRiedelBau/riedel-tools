@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<link rel="icon" type="image/png" href="../assets/icons/favicon-32.png">
+<meta name="rb-tool" content="Baustelle 4D">
+<script src="../assets/auth-gate.js"></script>
 <title>Baustelle 4D</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -192,6 +193,9 @@ table.tab tfoot td{font-weight:600;border-bottom:0}
 .modal .box{background:var(--panel);border:1px solid var(--line);border-radius:8px;width:min(640px,100%);max-height:100%;overflow:auto;padding:18px;display:flex;flex-direction:column;gap:12px}
 .modal textarea{width:100%;min-height:160px;font:12px/1.4 var(--f-mono);background:var(--raise);border:1px solid var(--line);border-radius:5px;padding:8px}
 .busy{position:absolute;inset:0;display:grid;place-items:center;background:color-mix(in srgb,var(--viewport) 70%,transparent);z-index:5;font:600 16px var(--f-display);letter-spacing:.06em;text-transform:uppercase}
+#projSrc[data-sync]::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:1px;background:var(--muted)}
+#projSrc[data-sync="ok"]::before{background:var(--st-fertig)}#projSrc[data-sync="err"]::before{background:var(--st-arbeit)}#projSrc[data-sync="setup"]::before{background:var(--st-verzug)}#projSrc[data-sync=""]::before{display:none}
+html:has(> .rb-bar) body{height:calc(100% - var(--rb-bar-h, 48px))}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--panel);padding:9px 14px;border-radius:var(--r);font-size:13px;z-index:30;max-width:calc(100% - 32px)}
 
 /* Last Planner */
@@ -301,6 +305,7 @@ table.tab tfoot td{font-weight:600;border-bottom:0}
       <div class="hdr-actions">
         <label class="btn primary" for="ifcFile">IFC laden</label>
         <input type="file" id="ifcFile" accept=".ifc" hidden>
+        <button class="btn" id="btnProj" hidden>Projekte</button>
         <button class="btn" id="btnLps" aria-pressed="false">Last Planner</button>
         <button class="btn" id="btnDemo">Demo</button>
         <button class="btn" id="btnData">Daten</button>
@@ -429,6 +434,8 @@ function reindex() {
 }
 let saveT;
 function save() {
+  if (CL.on) return cloudSaveLater();
+  if (S.source === 'cloud') return;
   clearTimeout(saveT);
   saveT = setTimeout(() => {
     try { localStorage.setItem(STORE, JSON.stringify(S)); }
@@ -945,10 +952,10 @@ function renderHeader() {
   const lv = S.storeys.filter(s => elsArr().some(e => e.storey === s && e.cat !== 'Aushub'));
   const idx = lv.findIndex(s => progressAt(view.date, e => e.storey === s).ist < .999);
   $('#levelChip').innerHTML = idx < 0 ? 'Rohbau <b>fertig</b>' : `Ebene <b>${esc(lv[idx])}</b> · ${idx + 1}/${lv.length}`;
-  $('#projSrc').textContent = S.source === 'demo' ? 'Beispieldaten' : `IFC · ${S.file || ''}`;
+  setSync(CL.state);
   $('#projName').value = S.project.name;
 }
-$('#projName').addEventListener('change', e => { S.project.name = e.target.value; save(); });
+$('#projName').addEventListener('change', e => { S.project.name = e.target.value; save(); if (CL.on) CL.sb.from(T_PROJ).update({ name: e.target.value }).eq('id', CL.proj.id).then(() => {}); });
 
 /* ---------- Panel ---------- */
 const TABS = [['uebersicht', 'Übersicht'], ['bauteil', 'Bauteil'], ['termine', 'Termine'], ['chat', 'Ablauf-Chat'], ['vergaben', 'Vergaben'], ['maengel', 'Mängel'], ['tagebuch', 'Tagebuch'], ['aufmass', 'Aufmaß']];
@@ -961,6 +968,7 @@ function renderPanel() {
   renderTabs();
   const pane = $('#pane');
   pane.innerHTML = ({ uebersicht: pUebersicht, bauteil: pBauteil, termine: pTermine, chat: pChat, vergaben: pVergaben, maengel: pMaengel, tagebuch: pTagebuch, aufmass: pAufmass })[view.tab]();
+  hydrateFotos();
 }
 function renderAll() { reindex(); renderHeader(); renderTicks(); applyColors(); renderPanel(); if (lpsView.open) renderLps(); }
 const chipS = i => `<span class="chip" style="color:var(${STATUS[i].tok})">${STATUS[i].label}</span>`;
@@ -1249,7 +1257,7 @@ function pTagebuch() {
     ${list.length ? list.map(t => `<div class="card"><div class="top"><h3 class="num">${D.wd(t.datum)} ${D.de(t.datum)}</h3><span class="muted num" style="font-size:12px">KW ${D.kw(t.datum)}</span></div>
       <div class="muted" style="font-size:12.5px">${esc(t.wetter || '–')} · ${t.personal ?? '–'} Personen</div>
       <div style="white-space:pre-wrap">${esc(t.text)}</div>
-      ${t.fotos?.length ? `<div class="thumbs">${t.fotos.map(f => `<img src="${f}" alt="Baustellenfoto ${D.de(t.datum)}">`).join('')}</div>` : ''}
+      ${t.fotos?.length ? `<div class="thumbs">${t.fotos.map(f => `<img ${fotoAttr(f)} alt="Baustellenfoto ${D.de(t.datum)}">`).join('')}</div>` : ''}
       ${t.guids?.length ? `<div><button class="btn small" data-selguids="${t.id}">${t.guids.length} Bauteile zeigen</button></div>` : ''}
       <div><button class="btn small" data-tdate="${t.datum}">Stichtag auf diesen Tag</button></div></div>`).join('') : '<div class="empty">Noch keine Einträge.</div>'}</div>`;
 }
@@ -1335,28 +1343,28 @@ function shrink(file) {
 function loadScript(src) { return new Promise((ok, no) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = () => no(new Error('Skript nicht ladbar')); document.head.append(s); }); }
 const CAT = { IFCFOOTING: 'Fundamente', IFCWALL: 'Wände', IFCWALLSTANDARDCASE: 'Wände', IFCCOLUMN: 'Stützen', IFCBEAM: 'Unterzüge', IFCSLAB: 'Decken', IFCROOF: 'Dach', IFCSTAIR: 'Treppen', IFCSTAIRFLIGHT: 'Treppen', IFCRAMP: 'Treppen', IFCRAMPFLIGHT: 'Treppen', IFCWINDOW: 'Ausbau', IFCDOOR: 'Ausbau', IFCRAILING: 'Ausbau', IFCCURTAINWALL: 'Ausbau', IFCPLATE: 'Ausbau', IFCMEMBER: 'Sonstige', IFCBUILDINGELEMENTPROXY: 'Sonstige', IFCCOVERING: 'Ausbau', IFCPILE: 'Fundamente' };
 const SKIP = new Set(['IFCSPACE', 'IFCOPENINGELEMENT', 'IFCSITE', 'IFCANNOTATION', 'IFCVIRTUALELEMENT', 'IFCBUILDING', 'IFCBUILDINGSTOREY', 'IFCFURNISHINGELEMENT', 'IFCFLOWTERMINAL', 'IFCFLOWSEGMENT', 'IFCFLOWFITTING']);
-let ifcApi = null;
-async function loadIFC(file) {
-  stopPlay(); $('#busy').hidden = false; $('#busy').textContent = 'IFC-Leser wird geladen …';
+let ifcApi = null, lastIfcFile = null;
+async function parseIFC(buf, name) {
+  $('#busy').hidden = false; $('#busy').textContent = 'IFC-Leser wird geladen …';
   await new Promise(r => setTimeout(r, 30));
+  if (!window.WebIFC) await loadScript('https://cdn.jsdelivr.net/npm/web-ifc@0.0.78/web-ifc-api-iife.js');
+  if (!ifcApi) { ifcApi = new WebIFC.IfcAPI(); await ifcApi.Init(p => new URL(p, location.href).href, true); }
+  $('#busy').textContent = `${name} wird gelesen …`; await new Promise(r => setTimeout(r, 30));
+  const api = ifcApi, W = window.WebIFC;
+  const mid = api.OpenModel(new Uint8Array(buf), { COORDINATE_TO_ORIGIN: true });
+  const stName = new Map(), storeyOf = new Map();
+  const sts = api.GetLineIDsWithType(mid, W.IFCBUILDINGSTOREY);
+  for (let i = 0; i < sts.size(); i++) { const s = api.GetLine(mid, sts.get(i)); stName.set(s.expressID, { name: s.Name?.value || `Geschoss ${i + 1}`, elev: +(s.Elevation?.value ?? i) }); }
+  const rels = api.GetLineIDsWithType(mid, W.IFCRELCONTAINEDINSPATIALSTRUCTURE);
+  for (let i = 0; i < rels.size(); i++) { const r = api.GetLine(mid, rels.get(i)); const st = r.RelatingStructure?.value; if (!stName.has(st)) continue; for (const e of r.RelatedElements || []) storeyOf.set(e.value, st); }
+  // Bauteile in Aggregaten (z. B. Treppe -> Läufe) erben das Geschoss
+  const agg = api.GetLineIDsWithType(mid, W.IFCRELAGGREGATES);
+  for (let i = 0; i < agg.size(); i++) { const r = api.GetLine(mid, agg.get(i)); const p = r.RelatingObject?.value; if (storeyOf.has(p)) for (const e of r.RelatedObjects || []) if (!storeyOf.has(e.value)) storeyOf.set(e.value, storeyOf.get(p)); }
+  const storeys = [...stName.values()].sort((a, b) => a.elev - b.elev);
+  const uniq = []; storeys.forEach(s => { let n = s.name, k = 2; while (uniq.includes(n)) n = `${s.name} (${k++})`; s.name = n; uniq.push(n); });
+  const elements = {}, geoms = [];
+  const mat = new THREE.Matrix4(), nm = new THREE.Matrix3(), v3 = new THREE.Vector3();
   try {
-    if (!window.WebIFC) await loadScript('https://cdn.jsdelivr.net/npm/web-ifc@0.0.78/web-ifc-api-iife.js');
-    if (!ifcApi) { ifcApi = new WebIFC.IfcAPI(); await ifcApi.Init(p => new URL(p, location.href).href, true); }
-    $('#busy').textContent = `${file.name} wird gelesen …`; await new Promise(r => setTimeout(r, 30));
-    const api = ifcApi, W = window.WebIFC;
-    const mid = api.OpenModel(new Uint8Array(await file.arrayBuffer()), { COORDINATE_TO_ORIGIN: true });
-    const stName = new Map(), storeyOf = new Map();
-    const sts = api.GetLineIDsWithType(mid, W.IFCBUILDINGSTOREY);
-    for (let i = 0; i < sts.size(); i++) { const s = api.GetLine(mid, sts.get(i)); stName.set(s.expressID, { name: s.Name?.value || `Geschoss ${i + 1}`, elev: +(s.Elevation?.value ?? i) }); }
-    const rels = api.GetLineIDsWithType(mid, W.IFCRELCONTAINEDINSPATIALSTRUCTURE);
-    for (let i = 0; i < rels.size(); i++) { const r = api.GetLine(mid, rels.get(i)); const st = r.RelatingStructure?.value; if (!stName.has(st)) continue; for (const e of r.RelatedElements || []) storeyOf.set(e.value, st); }
-    // Bauteile in Aggregaten (z. B. Treppe -> Läufe) erben das Geschoss
-    const agg = api.GetLineIDsWithType(mid, W.IFCRELAGGREGATES);
-    for (let i = 0; i < agg.size(); i++) { const r = api.GetLine(mid, agg.get(i)); const p = r.RelatingObject?.value; if (storeyOf.has(p)) for (const e of r.RelatedObjects || []) if (!storeyOf.has(e.value)) storeyOf.set(e.value, storeyOf.get(p)); }
-    const storeys = [...stName.values()].sort((a, b) => a.elev - b.elev);
-    const uniq = []; storeys.forEach(s => { let n = s.name, k = 2; while (uniq.includes(n)) n = `${s.name} (${k++})`; s.name = n; uniq.push(n); });
-    const elements = {}, geoms = [];
-    const mat = new THREE.Matrix4(), nm = new THREE.Matrix3(), v3 = new THREE.Vector3();
     api.StreamAllMeshes(mid, mesh => {
       const id = mesh.expressID, line = api.GetLine(mid, id);
       const tname = api.GetNameFromTypeCode(line.type); const T = tname.toUpperCase();
@@ -1385,9 +1393,19 @@ async function loadIFC(file) {
       elements[guid] = { guid, name: line.Name?.value || tname, type: tname, cat, storey: st, vol: Math.abs(vol), taskId: null, startDate: null, doneDate: null, acceptDate: null };
       geoms.push([guid, geom, idx.length < 60000]);
     });
-    api.CloseModel(mid);
-    if (!geoms.length) throw new Error('Keine Bauteile mit Geometrie gefunden.');
-    const order = storeys.map(s => s.name); if (Object.values(elements).some(e => e.storey === 'Ohne Geschoss')) order.push('Ohne Geschoss');
+  } finally { api.CloseModel(mid); }
+  if (!geoms.length) throw new Error('Keine Bauteile mit Geometrie gefunden.');
+  const order = storeys.map(s => s.name); if (Object.values(elements).some(e => e.storey === 'Ohne Geschoss')) order.push('Ohne Geschoss');
+  return { elements, geoms, order };
+}
+function showModel(geoms) {
+  clearModel(); geoms.forEach(([g, geo, edges]) => addMesh(g, geo, edges && geoms.length < 4000));
+}
+async function loadIFC(file) {
+  stopPlay(); cloudLeave();
+  try {
+    const { elements, geoms, order } = await parseIFC(await file.arrayBuffer(), file.name);
+    lastIfcFile = file;
     const saved = loadSaved();
     let next;
     if (saved && saved.source === 'ifc' && saved.file === file.name) {
@@ -1396,10 +1414,9 @@ async function loadIFC(file) {
       next.elements = elements;
       toast('Gespeicherter Stand zu diesem Modell wiederhergestellt.');
     } else next = autoPlan(elements, order, file.name);
-    S = next; reindex();
-    clearModel(); geoms.forEach(([g, geo, edges]) => addMesh(g, geo, edges && geoms.length < 4000));
-    afterModelChange(); frame();
-    toast(`${geoms.length} Bauteile in ${order.length} Geschossen geladen.`);
+    S = next; reindex(); showModel(geoms);
+    afterModelChange(); frame(); save();
+    toast(CL.ready ? `${geoms.length} Bauteile geladen. Unter „Projekte“ kannst du das Modell fürs Team freigeben.` : `${geoms.length} Bauteile in ${order.length} Geschossen geladen.`, 4500);
   } catch (err) {
     console.error(err);
     toast('IFC konnte nicht gelesen werden: ' + (err.message || err), 6000);
@@ -1442,12 +1459,12 @@ $('#btnDemo').addEventListener('click', () => {
   const m = $('#modal'); m.hidden = false;
   m.innerHTML = `<div class="box" role="dialog" aria-modal="true" aria-labelledby="dlgT"><h3 id="dlgT">Demo-Baustelle neu laden?</h3><p>Der aktuelle Stand in diesem Browser wird durch die Beispieldaten ersetzt. Vorher über „Daten“ sichern, falls du ihn behalten willst.</p>
     <div class="gedit" style="justify-content:flex-end"><button class="btn" data-close>Abbrechen</button><button class="btn primary" id="doDemo">Demo laden</button></div></div>`;
-  $('#doDemo').onclick = () => { m.hidden = true; startDemo(); save(); };
+  $('#doDemo').onclick = () => { m.hidden = true; cloudLeave(); startDemo(); save(); };
 });
 $('#btnData').addEventListener('click', () => {
   const m = $('#modal'); m.hidden = false;
   m.innerHTML = `<div class="box" role="dialog" aria-modal="true" aria-labelledby="dlgD"><h3 id="dlgD">Daten sichern und übernehmen</h3>
-    <p class="note">Der Stand liegt nur in diesem Browser. Zum Sichern den Text kopieren und als .json ablegen. Die Geometrie bleibt im IFC – beim erneuten Laden derselben Datei werden die Daten über die GUIDs zugeordnet.</p>
+    <p class="note">${CL.on ? 'Der Stand ist gemeinsam in den Riedel-Tools gespeichert. Ein Export ist eine zusätzliche Sicherung; ein Import überschreibt den gemeinsamen Stand für alle.' : 'Der Stand liegt nur in diesem Browser.'} Zum Sichern den Text kopieren und als .json ablegen. Die Geometrie bleibt im IFC – beim erneuten Laden derselben Datei werden die Daten über die GUIDs zugeordnet.</p>
     <label class="field"><span>Export (${fmtN(JSON.stringify(S).length / 1024, 0)} KB)</span><textarea id="expTxt" readonly>${esc(JSON.stringify(S))}</textarea></label>
     <div class="gedit"><button class="btn" id="copyBtn">Kopieren</button></div>
     <label class="field"><span>Import – JSON einfügen oder Datei wählen</span><textarea id="impTxt" placeholder="{ … }"></textarea></label>
@@ -1458,7 +1475,12 @@ $('#btnData').addEventListener('click', () => {
     try {
       const n = JSON.parse($('#impTxt').value);
       if (!n.elements || !n.tasks) throw 0;
-      if (n.source === 'demo') { startDemo(n); }
+      if (CL.on) {
+        if (n.source === 'demo') throw 0;
+        for (const e of Object.values(S.elements)) { const x = n.elements[e.guid]; Object.assign(e, { taskId: x?.taskId ?? null, startDate: x?.startDate ?? null, doneDate: x?.doneDate ?? null, acceptDate: x?.acceptDate ?? null }); }
+        Object.assign(S, { tasks: n.tasks, vergaben: n.vergaben || [], milestones: n.milestones || S.milestones, maengel: n.maengel || [], tagebuch: n.tagebuch || [], projectStart: n.projectStart || S.projectStart, lps: n.lps || S.lps });
+        reindex(); afterModelChange(); toast('Übernommen und für alle gespeichert.');
+      } else if (n.source === 'demo') { startDemo(n); }
       else { S = n; reindex(); const known = [...meshes.keys()].filter(g => S.elements[g]).length; afterModelChange(); toast(known ? `Übernommen, ${known} Bauteile zugeordnet.` : 'Übernommen. Jetzt die passende IFC-Datei laden.', 4000); }
       save(); m.hidden = true;
     } catch { toast('Das ist kein gültiger Export dieser App.'); }
@@ -1764,6 +1786,334 @@ function show3d(taskId) {
   const g = [...view.sel][0]; if (g) flyTo(g); else toast('Dieser Vorgang hat keine Bauteile im Modell.');
 }
 
+/* ---------- Gemeinsamer Speicher (Riedel-Tools / Supabase) ----------
+   Läuft nur, wenn die Seite in den Riedel-Tools mit Anmeldung geöffnet ist (assets/auth-gate.js).
+   Tabellen b4d_projekte und b4d_daten, Bucket baustelle-4d – siehe baustelle-4d/supabase-setup.sql.
+   Jeder Datensatz (Ablauf, Bauteilstatus, Zusage, Hindernis, Mangel, Tagebucheintrag) ist eine eigene
+   Zeile. Gespeichert wird nur, was sich geändert hat; andere Geräte bekommen Änderungen live. */
+const T_PROJ = 'b4d_projekte', T_DAT = 'b4d_daten', BUCKET = 'baustelle-4d', LAST_PROJ = 'baustelle4d.projekt';
+const CL = { sb: null, ready: false, setup: false, on: false, me: null, mail: '', cid: uid() + uid(), proj: null, snap: new Map(), planVer: 0,
+  chan: null, busy: false, again: false, state: 'ok', at: null, online: 1, timer: null, retry: null, urls: new Map(), applyT: null };
+const dbMissing = e => e && (e.code === '42P01' || e.code === 'PGRST205' || /does not exist|schema cache|could not find the table/i.test(e.message || ''));
+const isLocalFoto = f => typeof f === 'string' && f.startsWith('data:');
+
+function records(st = S) {
+  const m = new Map();
+  m.set('plan|plan', JSON.stringify({ project: st.project, projectStart: st.projectStart, tasks: st.tasks, vergaben: st.vergaben, milestones: st.milestones, crews: st.lps?.crews || [],
+    elTask: Object.fromEntries(Object.values(st.elements).filter(e => e.taskId).map(e => [e.guid, e.taskId])) }));
+  for (const e of Object.values(st.elements)) if (e.startDate || e.doneDate || e.acceptDate) m.set('bauteil|' + e.guid, JSON.stringify({ s: e.startDate, d: e.doneDate, a: e.acceptDate }));
+  for (const c of st.lps?.commits || []) m.set('zusage|' + c.id, JSON.stringify(c));
+  for (const c of st.lps?.constraints || []) m.set('hindernis|' + c.id, JSON.stringify(c));
+  for (const x of st.maengel) m.set('mangel|' + x.id, JSON.stringify(x));
+  for (const x of st.tagebuch) m.set('tagebuch|' + x.id, JSON.stringify(x));
+  return m;
+}
+const splitKey = k => { const i = k.indexOf('|'); return [k.slice(0, i), k.slice(i + 1)]; };
+function putById(list, id, d) { const i = list.findIndex(x => x.id === id); if (!d) { if (i >= 0) list.splice(i, 1); } else if (i >= 0) list[i] = d; else list.push(d); }
+function applyRec(art, id, d, del) {
+  switch (art) {
+    case 'plan':
+      if (del || !d) return;
+      S.project = { ...S.project, ...(d.project || {}) }; if (d.projectStart) S.projectStart = d.projectStart;
+      if (Array.isArray(d.tasks)) S.tasks = d.tasks; if (Array.isArray(d.vergaben)) S.vergaben = d.vergaben; if (Array.isArray(d.milestones)) S.milestones = d.milestones;
+      if (Array.isArray(d.crews)) S.lps.crews = d.crews;
+      if (d.elTask) for (const e of Object.values(S.elements)) e.taskId = d.elTask[e.guid] ?? null;
+      return;
+    case 'bauteil': { const e = S.elements[id]; if (!e) return; e.startDate = del ? null : d.s || null; e.doneDate = del ? null : d.d || null; e.acceptDate = del ? null : d.a || null; return; }
+    case 'zusage': return putById(S.lps.commits, id, del ? null : d);
+    case 'hindernis': return putById(S.lps.constraints, id, del ? null : d);
+    case 'mangel': return putById(S.maengel, id, del ? null : d);
+    case 'tagebuch': return putById(S.tagebuch, id, del ? null : d);
+  }
+}
+
+/* Status in der Kopfzeile */
+function srcLabel() {
+  if (S.source === 'demo') return CL.ready ? 'Beispieldaten · nur in diesem Browser' : 'Beispieldaten';
+  if (S.source !== 'cloud') return `IFC · ${S.file || ''}${CL.ready ? ' · nur in diesem Browser' : ''}`;
+  const who = CL.online > 1 ? ` · ${CL.online} online` : '';
+  return { ok: `Gemeinsam gespeichert${CL.at ? ' ' + CL.at.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : ''}${who}`,
+    busy: 'Wird gespeichert …', err: 'Offline – Änderungen werden nachgeholt', setup: 'Speicher nicht eingerichtet' }[CL.state] || '';
+}
+function setSync(state) {
+  CL.state = state; const el = $('#projSrc'); if (!el) return;
+  el.textContent = srcLabel(); el.dataset.sync = S.source === 'cloud' ? state : '';
+}
+
+/* Lokale Kopie je Projekt: Arbeiten ohne Netz, Nachholen beim nächsten Start */
+const cacheKey = id => STORE + '.cloud.' + id;
+function saveCloudLocal() {
+  try { localStorage.setItem(cacheKey(CL.proj.id), JSON.stringify({ S: { ...S, elements: Object.fromEntries(Object.values(S.elements).filter(e => e.startDate || e.doneDate || e.acceptDate || e.taskId).map(e => [e.guid, { taskId: e.taskId, startDate: e.startDate, doneDate: e.doneDate, acceptDate: e.acceptDate }])) }, snap: Object.fromEntries(CL.snap), planVer: CL.planVer })); }
+  catch { /* Speicher voll: Stand liegt trotzdem in der Datenbank, sobald online */ }
+}
+function cloudSaveLater() {
+  saveCloudLocal();
+  clearTimeout(CL.timer); CL.timer = setTimeout(cloudPush, 500);
+  if (CL.state !== 'busy') setSync('busy');
+}
+
+async function uploadFotos() {
+  for (const t of S.tagebuch) {
+    if (!t.fotos?.some(isLocalFoto)) continue;
+    const out = [];
+    for (const f of t.fotos) {
+      if (!isLocalFoto(f)) { out.push(f); continue; }
+      const blob = await (await fetch(f)).blob(), pfad = `${CL.proj.id}/fotos/${uid()}${uid()}.jpg`;
+      const r = await CL.sb.storage.from(BUCKET).upload(pfad, blob, { contentType: 'image/jpeg', upsert: false });
+      if (r.error) throw r.error;
+      CL.urls.set(pfad, f); out.push({ pfad });
+    }
+    t.fotos = out;
+  }
+}
+async function cloudPush() {
+  if (!CL.on) return;
+  if (CL.busy) { CL.again = true; return; }
+  CL.busy = true; clearTimeout(CL.retry);
+  const projekt = CL.proj.id;
+  try {
+    await uploadFotos();
+    const cur = records(), ups = [], dels = [];
+    for (const [k, v] of cur) if (CL.snap.get(k) !== v) ups.push([k, v]);
+    for (const k of CL.snap.keys()) if (!cur.has(k)) dels.push(k);
+    const planV = cur.get('plan|plan');
+    if (CL.snap.get('plan|plan') !== planV) {
+      const daten = JSON.parse(planV);
+      const q = CL.planVer === 0
+        ? CL.sb.from(T_DAT).upsert({ projekt, art: 'plan', id: 'plan', daten, version: 1, client: CL.cid, geloescht: false }, { onConflict: 'projekt,art,id', ignoreDuplicates: true }).select('version')
+        : CL.sb.from(T_DAT).update({ daten, version: CL.planVer + 1, client: CL.cid }).eq('projekt', projekt).eq('art', 'plan').eq('id', 'plan').eq('version', CL.planVer).select('version');
+      const r = await q;
+      if (r.error) throw r.error;
+      if (!r.data?.length) {
+        // Ein anderer hat den Ablauf zwischenzeitlich geändert: dessen Stand gilt
+        const row = (await CL.sb.from(T_DAT).select('daten,version,geaendert_mail').eq('projekt', projekt).eq('art', 'plan').eq('id', 'plan').single()).data;
+        if (row) { applyRec('plan', 'plan', row.daten, false); reindex(); CL.planVer = row.version; CL.snap.set('plan|plan', records().get('plan|plan')); queueRender();
+          toast(`Den Ablauf hat gerade ${row.geaendert_mail || 'jemand anderes'} geändert. Du siehst jetzt diesen Stand – deine letzte Ablaufänderung bitte noch einmal eintragen.`, 7000); }
+      } else { CL.planVer = r.data[0].version; CL.snap.set('plan|plan', planV); }
+    }
+    const rows = ups.filter(([k]) => k !== 'plan|plan').map(([k, v]) => { const [art, id] = splitKey(k); return { projekt, art, id, daten: JSON.parse(v), geloescht: false, client: CL.cid }; })
+      .concat(dels.filter(k => k !== 'plan|plan').map(k => { const [art, id] = splitKey(k); return { projekt, art, id, daten: {}, geloescht: true, client: CL.cid }; }));
+    for (let i = 0; i < rows.length; i += 400) {
+      const part = rows.slice(i, i + 400);
+      const r = await CL.sb.from(T_DAT).upsert(part, { onConflict: 'projekt,art,id' });
+      if (r.error) throw r.error;
+      for (const x of part) { const k = x.art + '|' + x.id; if (x.geloescht) CL.snap.delete(k); else CL.snap.set(k, cur.get(k)); }
+    }
+    CL.at = new Date(); setSync('ok');
+  } catch (e) {
+    console.warn('Sync', e);
+    if (dbMissing(e)) setSync('setup');
+    else { setSync('err'); CL.retry = setTimeout(cloudPush, 20000); }
+  } finally {
+    CL.busy = false; if (CL.on) saveCloudLocal();
+    if (CL.again) { CL.again = false; cloudPush(); }
+  }
+}
+addEventListener('online', () => { if (CL.on) cloudPush(); });
+
+/* Live-Änderungen anderer */
+let renderQ = null;
+function queueRender() { clearTimeout(renderQ); renderQ = setTimeout(() => { reindex(); computeRange(); renderAll(); renderTicks(); }, 120); }
+function onRemote(row) {
+  if (!row || row.projekt !== CL.proj?.id || row.client === CL.cid) return;
+  const k = row.art + '|' + row.id;
+  if (row.art === 'plan') { if (row.version <= CL.planVer) return; CL.planVer = row.version; }
+  applyRec(row.art, row.id, row.daten, row.geloescht);
+  if (row.art === 'plan') reindex();
+  const v = records().get(k);
+  if (v == null) CL.snap.delete(k); else CL.snap.set(k, v);
+  saveCloudLocal(); queueRender();
+}
+function subscribe() {
+  unsubscribe();
+  const id = CL.proj.id;
+  const ch = CL.chan = CL.sb.channel('b4d-' + id, { config: { presence: { key: CL.cid } } });
+  ch.on('postgres_changes', { event: '*', schema: 'public', table: T_DAT, filter: 'projekt=eq.' + id }, ev => onRemote(ev.new))
+    .on('presence', { event: 'sync' }, () => { CL.online = Object.keys(ch.presenceState()).length || 1; setSync(CL.state); })
+    .subscribe(st => { if (st === 'SUBSCRIBED') ch.track({ mail: CL.mail }); });
+}
+function unsubscribe() { if (CL.chan) { CL.sb.removeChannel(CL.chan); CL.chan = null; } CL.online = 1; }
+
+/* IFC-Zwischenspeicher im Browser, damit das Modell nicht bei jedem Öffnen neu geladen wird */
+function idb() { return new Promise((ok, no) => { const r = indexedDB.open('baustelle4d', 1); r.onupgradeneeded = () => r.result.createObjectStore('ifc'); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); }); }
+async function idbGet(k) { try { const db = await idb(); return await new Promise(ok => { const q = db.transaction('ifc').objectStore('ifc').get(k); q.onsuccess = () => ok(q.result || null); q.onerror = () => ok(null); }); } catch { return null; } }
+async function idbPut(k, v) { try { const db = await idb(); db.transaction('ifc', 'readwrite').objectStore('ifc').put(v, k); } catch { /* ohne Zwischenspeicher geht es auch */ } }
+
+async function cloudOpen(row) {
+  stopPlay(); cloudLeave(true);
+  try {
+    if (!row.ifc_pfad) throw new Error('Zu diesem Projekt ist kein IFC-Modell hinterlegt.');
+    $('#busy').hidden = false; $('#busy').textContent = `${row.name} wird geladen …`;
+    let buf = await idbGet(row.ifc_pfad);
+    if (!buf) {
+      $('#busy').textContent = `IFC-Modell wird heruntergeladen (${fmtN((row.ifc_groesse || 0) / 1048576, 1)} MB) …`;
+      const dl = await CL.sb.storage.from(BUCKET).download(row.ifc_pfad);
+      if (dl.error) throw dl.error;
+      buf = await dl.data.arrayBuffer(); idbPut(row.ifc_pfad, buf);
+    }
+    const { elements, geoms, order } = await parseIFC(buf, row.ifc_name || 'Modell.ifc');
+    $('#busy').hidden = false; $('#busy').textContent = 'Projektdaten werden geladen …';
+    const rows = [];
+    for (let from = 0; ; from += 1000) {
+      const r = await CL.sb.from(T_DAT).select('art,id,daten,geloescht,version').eq('projekt', row.id).range(from, from + 999);
+      if (r.error) throw r.error; rows.push(...r.data); if (r.data.length < 1000) break;
+    }
+    S = autoPlan(elements, order, row.ifc_name || row.name);
+    S.source = 'cloud'; S.project.name = row.name; S.lps ||= { crews: ['Kolonne 1', 'Kolonne 2', 'NU Erdbau', 'NU Bewehrung'], commits: [], constraints: [] };
+    const remote = new Set();
+    CL.proj = row; CL.planVer = 0;
+    for (const x of rows) { if (x.art === 'plan') CL.planVer = x.version; if (!x.geloescht) { applyRec(x.art, x.id, x.daten, false); remote.add(x.art + '|' + x.id); } }
+    reindex();
+    CL.snap = new Map([...records()].filter(([k]) => remote.has(k)));
+    if (!remote.has('plan|plan')) CL.planVer = 0;
+    // Änderungen, die in diesem Browser noch nicht hochgeladen waren
+    let pending = 0;
+    try {
+      const c = JSON.parse(localStorage.getItem(cacheKey(row.id)) || 'null');
+      if (c?.S) {
+        const loc = { ...c.S, elements: Object.fromEntries(Object.entries(S.elements).map(([g, e]) => [g, { ...e, taskId: null, startDate: null, doneDate: null, acceptDate: null, ...(c.S.elements[g] || {}) }])) };
+        const lr = records(loc), ls = new Map(Object.entries(c.snap || {}));
+        for (const [k, v] of lr) if (ls.get(k) !== v && k !== 'plan|plan') { const [a, id] = splitKey(k); applyRec(a, id, JSON.parse(v), false); pending++; }
+        for (const k of ls.keys()) if (!lr.has(k) && k !== 'plan|plan') { const [a, id] = splitKey(k); applyRec(a, id, null, true); pending++; }
+        if (lr.get('plan|plan') !== ls.get('plan|plan') && (c.planVer || 0) === CL.planVer) { applyRec('plan', 'plan', JSON.parse(lr.get('plan|plan')), false); pending++; }
+      }
+    } catch { /* kaputte lokale Kopie ignorieren */ }
+    CL.on = true; lastIfcFile = null;
+    try { localStorage.setItem(LAST_PROJ, row.id); } catch { }
+    reindex(); showModel(geoms); afterModelChange(); frame();
+    subscribe(); CL.at = new Date(); setSync('ok');
+    cloudPush();
+    toast(pending ? `${row.name} geladen. ${pending} Änderungen aus diesem Browser werden nachgetragen.` : `${row.name} geladen – gemeinsamer Stand.`, 4000);
+  } catch (e) {
+    console.error(e); CL.on = false;
+    toast((dbMissing(e) ? 'Der gemeinsame Speicher ist noch nicht eingerichtet. ' : 'Projekt konnte nicht geladen werden: ') + (e.message || e), 7000);
+    if (S?.source === 'cloud') startDemo();
+  } finally { $('#busy').hidden = true; }
+}
+function cloudLeave(keep) {
+  if (!CL.on) return;
+  clearTimeout(CL.timer); if (CL.proj) saveCloudLocal();
+  CL.on = false; unsubscribe(); if (!keep) CL.proj = null;
+  if (!keep) try { localStorage.removeItem(LAST_PROJ); } catch { }
+}
+
+const slug = s => (s.toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/ß/g, 'ss').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'projekt');
+async function cloudCreate(name) {
+  const file = lastIfcFile;
+  if (!file) throw new Error('Bitte zuerst die IFC-Datei laden.');
+  if (file.size > 50 * 1048576) throw new Error('Die IFC-Datei ist größer als 50 MB. Bitte reduziertes Modell (nur Tragwerk) exportieren.');
+  const id = slug(name) + '-' + uid().slice(0, 4), pfad = `${id}/modell/${slug(file.name.replace(/\.ifc$/i, ''))}.ifc`;
+  $('#busy').hidden = false; $('#busy').textContent = 'IFC-Modell wird hochgeladen …';
+  try {
+    const up = await CL.sb.storage.from(BUCKET).upload(pfad, file, { contentType: 'application/octet-stream', upsert: true });
+    if (up.error) throw up.error;
+    const r = await CL.sb.from(T_PROJ).insert({ id, name, ifc_pfad: pfad, ifc_name: file.name, ifc_groesse: file.size }).select().single();
+    if (r.error) throw r.error;
+    idbPut(pfad, await file.arrayBuffer());
+    S.source = 'cloud'; S.project.name = name; CL.proj = r.data; CL.snap = new Map(); CL.planVer = 0; CL.on = true; lastIfcFile = null;
+    try { localStorage.setItem(LAST_PROJ, id); } catch { }
+    subscribe(); renderHeader(); await cloudPush();
+    toast(`„${name}“ ist jetzt gemeinsam gespeichert. Alle Freigeschalteten finden es unter „Projekte“.`, 5000);
+  } finally { $('#busy').hidden = true; }
+}
+async function cloudNewModel(file) {
+  if (file.size > 50 * 1048576) throw new Error('Die IFC-Datei ist größer als 50 MB.');
+  const pfad = `${CL.proj.id}/modell/${slug(file.name.replace(/\.ifc$/i, ''))}-${uid().slice(0, 4)}.ifc`;
+  $('#busy').hidden = false; $('#busy').textContent = 'Neue Modellversion wird hochgeladen …';
+  try {
+    const up = await CL.sb.storage.from(BUCKET).upload(pfad, file, { contentType: 'application/octet-stream', upsert: true });
+    if (up.error) throw up.error;
+    const r = await CL.sb.from(T_PROJ).update({ ifc_pfad: pfad, ifc_name: file.name, ifc_groesse: file.size }).eq('id', CL.proj.id).select().single();
+    if (r.error) throw r.error;
+    idbPut(pfad, await file.arrayBuffer());
+  } finally { $('#busy').hidden = true; }
+  await cloudOpen((await CL.sb.from(T_PROJ).select('*').eq('id', CL.proj.id).single()).data);
+}
+
+/* Projekte-Dialog */
+async function projectsDialog() {
+  const m = $('#modal'); m.hidden = false;
+  m.innerHTML = `<div class="box" role="dialog" aria-modal="true" aria-labelledby="dlgP"><h3 id="dlgP">Projekte</h3><p class="note">Wird geladen …</p></div>`;
+  const r = await CL.sb.from(T_PROJ).select('*').order('geaendert_am', { ascending: false });
+  if (r.error && dbMissing(r.error)) return setupDialog();
+  const list = r.data || [];
+  const cur = S.source === 'cloud' ? CL.proj?.id : null;
+  m.innerHTML = `<div class="box" role="dialog" aria-modal="true" aria-labelledby="dlgP">
+    <h3 id="dlgP">Projekte</h3>
+    <p class="note">Gemeinsame Projekte sehen und bearbeiten alle, die für die Riedel-Tools freigeschaltet sind. Das IFC-Modell liegt einmal in der Ablage, Status, Ablauf, Zusagen, Hindernisse, Mängel und Tagebuch werden live abgeglichen.</p>
+    ${r.error ? `<p class="note" style="color:var(--st-verzug)">Projektliste nicht erreichbar: ${esc(r.error.message)}</p>` : ''}
+    <div class="list">${list.length ? list.map(p => `<div class="row"><span class="t">${esc(p.name)}${p.id === cur ? ' <span class="chip" style="color:var(--st-fertig)">geöffnet</span>' : ''}</span>
+      <button class="btn small ${p.id === cur ? '' : 'primary'}" data-popen="${esc(p.id)}">${p.id === cur ? 'Neu laden' : 'Öffnen'}</button>
+      <span class="s">${esc(p.ifc_name || 'ohne Modell')} · ${fmtN((p.ifc_groesse || 0) / 1048576, 1)} MB · geändert ${new Date(p.geaendert_am).toLocaleDateString('de-DE')} · angelegt von ${esc(p.angelegt_mail || '–')}</span></div>`).join('')
+      : '<div class="empty">Noch keine gemeinsamen Projekte.</div>'}</div>
+    ${S.source === 'ifc' ? `<form class="form" data-pform="create"><label class="field full"><span>Aktuelles Modell „${esc(S.file)}“ fürs Team freigeben – Projektname</span><input id="p-name" name="name" required value="${esc(S.project.name)}"></label>
+      <p class="note full">Der bisherige Stand aus diesem Browser (Ablauf, Status, Zusagen, Mängel …) wird mit übernommen.</p>
+      <div class="act"><button class="btn primary" type="submit">Gemeinsames Projekt anlegen</button></div></form>`
+      : S.source === 'cloud' ? `<div class="form"><p class="note full">Neue Planstände: IFC-Datei hochladen. Status und Termine bleiben über die IFC-GUIDs erhalten.</p>
+        <div class="act"><label class="btn" for="p-ifc">Neue Modellversion hochladen</label><input type="file" id="p-ifc" accept=".ifc" hidden></div></div>`
+      : `<p class="note">Um ein neues gemeinsames Projekt anzulegen: Dialog schließen, „IFC laden“ und hier wieder „Projekte“ öffnen.</p>`}
+    <div class="gedit" style="justify-content:space-between"><button class="btn" data-pdemo>Demo (nur in diesem Browser)</button><button class="btn" data-close>Schließen</button></div>
+    <p class="note" id="p-msg"></p></div>`;
+}
+async function setupDialog() {
+  const m = $('#modal'); m.hidden = false;
+  let sql = ''; try { sql = await (await fetch('supabase-setup.sql', { cache: 'no-cache' })).text(); } catch { sql = '-- baustelle-4d/supabase-setup.sql im Repo öffnen'; }
+  const ref = (window.RIEDEL_AUTH?.url.match(/^https:\/\/([^.]+)\.supabase\.co/) || [])[1];
+  m.innerHTML = `<div class="box" role="dialog" aria-modal="true" aria-labelledby="dlgS"><h3 id="dlgS">Gemeinsamen Speicher einrichten</h3>
+    <p>Einmalig nötig, danach arbeiten alle Freigeschalteten auf demselben Stand.</p>
+    <ol class="note" style="padding-left:18px;margin:0"><li>SQL kopieren</li><li><a href="https://supabase.com/dashboard/project/${esc(ref || '')}/sql/new" target="_blank" rel="noopener">Supabase SQL Editor öffnen</a>, einfügen und „Run“ klicken</li><li>Hier „Erneut prüfen“</li></ol>
+    <textarea id="setupSql" readonly>${esc(sql)}</textarea>
+    <div class="gedit" style="justify-content:flex-end"><button class="btn" id="sqlCopy">SQL kopieren</button><button class="btn" data-close>Später</button><button class="btn primary" id="sqlCheck">Erneut prüfen</button></div></div>`;
+  $('#sqlCopy').onclick = async () => { try { await navigator.clipboard.writeText(sql); toast('SQL kopiert.'); } catch { $('#setupSql').select(); toast('Text markiert – mit Strg+C kopieren.'); } };
+  $('#sqlCheck').onclick = async () => { const r = await CL.sb.from(T_PROJ).select('id').limit(1); if (r.error) toast(dbMissing(r.error) ? 'Tabellen noch nicht gefunden.' : r.error.message); else { CL.setup = true; projectsDialog(); } };
+}
+$('#btnProj').addEventListener('click', () => projectsDialog());
+$('#modal').addEventListener('click', async e => {
+  const o = e.target.closest('[data-popen]');
+  if (o) { $('#modal').hidden = true; const r = await CL.sb.from(T_PROJ).select('*').eq('id', o.dataset.popen).single(); if (r.data) cloudOpen(r.data); else toast('Projekt nicht gefunden.'); return; }
+  if (e.target.closest('[data-pdemo]')) { $('#modal').hidden = true; cloudLeave(); startDemo(loadSaved()?.source === 'demo' ? loadSaved() : undefined); }
+});
+$('#modal').addEventListener('change', async e => {
+  if (e.target.id !== 'p-ifc' || !e.target.files[0]) return;
+  $('#modal').hidden = true;
+  try { await cloudNewModel(e.target.files[0]); } catch (er) { toast('Hochladen fehlgeschlagen: ' + (er.message || er), 6000); }
+});
+$('#modal').addEventListener('submit', async e => {
+  const f = e.target; if (f.dataset.pform !== 'create') return; e.preventDefault();
+  const name = String(new FormData(f).get('name') || '').trim(); if (!name) return;
+  f.querySelector('button[type=submit]').disabled = true;
+  try { $('#modal').hidden = true; await cloudCreate(name); }
+  catch (er) { toast((dbMissing(er) ? 'Der gemeinsame Speicher ist noch nicht eingerichtet. ' : 'Anlegen fehlgeschlagen: ') + (er.message || er), 7000); if (dbMissing(er)) setupDialog(); }
+});
+
+/* Fotos aus der Ablage anzeigen */
+const fotoAttr = f => isLocalFoto(f) || typeof f === 'string' ? `src="${f}"` : (CL.urls.get(f.pfad) ? `src="${CL.urls.get(f.pfad)}"` : `data-pfad="${esc(f.pfad)}"`);
+async function hydrateFotos() {
+  const imgs = [...document.querySelectorAll('img[data-pfad]')]; if (!imgs.length || !CL.sb) return;
+  const paths = [...new Set(imgs.map(i => i.dataset.pfad))];
+  const r = await CL.sb.storage.from(BUCKET).createSignedUrls(paths, 3600);
+  for (const x of r.data || []) if (x.signedUrl) CL.urls.set(x.path, x.signedUrl);
+  imgs.forEach(i => { const u = CL.urls.get(i.dataset.pfad); if (u) { i.src = u; i.removeAttribute('data-pfad'); } });
+}
+
+async function cloudInit() {
+  if (!window.RIEDEL_AUTH) return;
+  for (let i = 0; i < 100 && !window.supabase; i++) await new Promise(r => setTimeout(r, 100));
+  if (!window.supabase) return;
+  const A = window.RIEDEL_AUTH;
+  CL.sb = window.supabase.createClient(A.url, A.key, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: A.storageKey } });
+  const { data } = await CL.sb.auth.getSession(); if (!data?.session) return;
+  CL.me = data.session.user.id; CL.mail = data.session.user.email || '';
+  CL.ready = true; $('#btnProj').hidden = false; renderHeader();
+  const r = await CL.sb.from(T_PROJ).select('*').order('geaendert_am', { ascending: false });
+  if (r.error) { if (dbMissing(r.error)) toast('Für die gemeinsame Ablage muss einmal das Setup-SQL ausgeführt werden – siehe „Projekte“.', 6000); return; }
+  CL.setup = true;
+  let last = null; try { last = localStorage.getItem(LAST_PROJ); } catch { }
+  const p = r.data.find(x => x.id === last);
+  if (p) cloudOpen(p);
+  else if (r.data.length) projectsDialog();
+}
+
 /* ---------- Start ---------- */
 function afterModelChange() {
   view.sel.clear(); view.selTask = null; view.storey = 'alle';
@@ -1790,6 +2140,7 @@ const themeObs = () => { buildMaterials(); applyColors(); };
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', themeObs);
 new MutationObserver(themeObs).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 resize(); requestAnimationFrame(loop);
+cloudInit();
 </script>
 
 </body>
