@@ -18,7 +18,7 @@
   --brand:#ff0000; --accent:#d10a0a; --accent-fg:#ffffff;
   --st-ghost:#8d979e; --st-arbeit:#e0951a; --st-fertig:#3a9459; --st-abgenommen:#2a78ad;
   --st-verzug:#e04a2b; --st-vorsprung:#6a5acd; --st-beton:#9aa0a5;
-  --v0:#b4434b; --v1:#e0951a; --v2:#2a78ad; --v3:#3a9459; --mangel:#c2187a; --erde:#8a6a3f;
+  --v0:#b4434b; --v1:#e0951a; --v2:#2a78ad; --v3:#3a9459; --mangel:#c2187a; --erde:#8a6a3f; --note:#fdf0a6; --note-ok:#e3f1dc; --note-bad:#f8e0dc; --note-fg:#2b2a20; --note-edge:#e2c94a;
   --f-display:"Barlow Semi Condensed","Arial Narrow",system-ui,sans-serif;
   --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
   --f-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Consolas,monospace;
@@ -29,13 +29,13 @@
   --viewport:#0f1214; --grid:#2b3238; --accent:#ff3b30; --accent-fg:#ffffff;
   --st-ghost:#7d878e; --st-arbeit:#f0a72c; --st-fertig:#4cb36f; --st-abgenommen:#4a9bd4;
   --st-verzug:#ff6a48; --st-vorsprung:#9488ee; --st-beton:#7f868c;
-  --v0:#e0606a; --v1:#f0a72c; --v2:#4a9bd4; --v3:#4cb36f; --mangel:#e84aa6; --erde:#a7865a; color-scheme:dark}}
+  --v0:#e0606a; --v1:#f0a72c; --v2:#4a9bd4; --v3:#4cb36f; --mangel:#e84aa6; --erde:#a7865a; --note:#4b4526; --note-ok:#24382a; --note-bad:#45292a; --note-fg:#f0ead0; --note-edge:#b59a2e; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#121518; --panel:#191d21; --raise:#21262b; --fg:#e6e9eb; --muted:#97a1a8; --line:#2c3338;
   --viewport:#0f1214; --grid:#2b3238; --accent:#ff3b30; --accent-fg:#ffffff;
   --st-ghost:#7d878e; --st-arbeit:#f0a72c; --st-fertig:#4cb36f; --st-abgenommen:#4a9bd4;
   --st-verzug:#ff6a48; --st-vorsprung:#9488ee; --st-beton:#7f868c;
-  --v0:#e0606a; --v1:#f0a72c; --v2:#4a9bd4; --v3:#4cb36f; --mangel:#e84aa6; --erde:#a7865a; color-scheme:dark}
+  --v0:#e0606a; --v1:#f0a72c; --v2:#4a9bd4; --v3:#4cb36f; --mangel:#e84aa6; --erde:#a7865a; --note:#4b4526; --note-ok:#24382a; --note-bad:#45292a; --note-fg:#f0ead0; --note-edge:#b59a2e; color-scheme:dark}
 
 [hidden]{display:none!important}
 html,body{height:100%}
@@ -194,6 +194,82 @@ table.tab tfoot td{font-weight:600;border-bottom:0}
 .busy{position:absolute;inset:0;display:grid;place-items:center;background:color-mix(in srgb,var(--viewport) 70%,transparent);z-index:5;font:600 16px var(--f-display);letter-spacing:.06em;text-transform:uppercase}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--panel);padding:9px 14px;border-radius:var(--r);font-size:13px;z-index:30;max-width:calc(100% - 32px)}
 
+/* Last Planner */
+.lps{display:grid;grid-template-rows:auto 1fr;grid-template-columns:minmax(0,1fr);min-height:0;min-width:0;background:var(--bg)}
+.lps-head{min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;padding:0 16px;background:var(--panel);border-bottom:1px solid var(--line)}
+.lps-head .tabs{border-bottom:0;min-width:0;max-width:100%}
+.weeknav{display:flex;align-items:center;gap:8px;margin-left:auto;padding:6px 0;flex-wrap:wrap}
+.weeknav .wk{display:flex;flex-direction:column;line-height:1.1;min-width:120px}
+.weeknav .wk strong{font:700 18px/1 var(--f-display);letter-spacing:.03em}
+.weeknav .wk span{font-size:11.5px;color:var(--muted)}
+.ppc{font:600 13px/1 var(--f-display);letter-spacing:.05em;padding:6px 9px;border-radius:var(--r);border:1px solid var(--line);background:var(--raise)}
+.ppc.good{color:var(--st-fertig);border-color:currentColor}.ppc.mid{color:var(--st-arbeit);border-color:currentColor}.ppc.bad{color:var(--st-verzug);border-color:currentColor}
+.lps-body{overflow:auto;padding:14px 16px 32px;display:flex;flex-direction:column;gap:14px;min-height:0;min-width:0}
+.lps-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;font-size:13px}
+.lps-bar .sp{flex:1}
+.note-legend{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.note-legend .stick{width:14px;height:14px;min-height:0;padding:0;display:inline-block;box-shadow:none;transform:none;margin-left:6px;pointer-events:none}
+.note-hint{font-size:12px;color:var(--muted);max-width:75ch;margin:0}
+.board-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--panel)}
+.board{display:grid;grid-template-columns:170px repeat(5,minmax(128px,1fr));min-width:820px}
+.bh{padding:8px 10px;font:600 13px/1 var(--f-display);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line);border-left:1px solid var(--line)}
+.bh.crewh{border-left:0}
+.bh.today{color:var(--accent)}
+.bh span{font:500 12px var(--f-body);letter-spacing:0;text-transform:none;margin-left:4px}
+.crew{padding:10px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:2px;background:var(--raise)}
+.crew span{font:600 15px/1.15 var(--f-display);letter-spacing:.02em}
+.crew small{color:var(--muted);font-size:11.5px}
+.lane{grid-column:2 / span 5;position:relative;border-bottom:1px solid var(--line);min-height:96px}
+.lane .cells{position:absolute;inset:0;display:grid;grid-template-columns:repeat(5,1fr)}
+.cell{border:0;border-left:1px solid var(--line);background:transparent;display:flex;align-items:flex-end;justify-content:center;padding-bottom:4px;color:transparent;font-size:16px}
+.cell.today{background:color-mix(in srgb,var(--accent) 5%,transparent)}
+.cell:hover,.cell:focus-visible{color:var(--muted);background:color-mix(in srgb,var(--fg) 4%,transparent)}
+.lane .notes{position:relative;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));grid-auto-flow:row dense;gap:6px;padding:8px 6px 30px;pointer-events:none}
+.stick{pointer-events:auto;background:var(--note);color:var(--note-fg);border-radius:2px;padding:7px 9px 8px;min-height:58px;font-size:12.5px;line-height:1.3;display:flex;flex-direction:column;gap:3px;cursor:grab;box-shadow:0 1px 0 rgb(0 0 0 / .06),0 3px 8px -4px rgb(0 0 0 / .35);border-top:4px solid var(--note-edge);min-width:0;overflow-wrap:anywhere}
+.stick:nth-child(3n+2){transform:rotate(-.6deg)}.stick:nth-child(3n){transform:rotate(.5deg)}
+.stick b{font-weight:600}
+.stick small{font-size:11px;opacity:.75}
+.stick.erledigt{background:var(--note-ok);border-top-color:var(--st-fertig)}
+.stick.nicht{background:var(--note-bad);border-top-color:var(--st-verzug)}
+.stick .ok{color:var(--st-fertig);opacity:1;font-weight:600}
+.stick .why{color:var(--st-verzug);opacity:1;font-weight:600}
+.crew-add{display:flex;gap:6px;max-width:420px}
+.crew-add input{flex:1;min-width:0;border:1px solid var(--line);border-radius:5px;padding:5px 8px;background:var(--panel)}
+.la{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;align-items:start}
+.la-week{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:10px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.la-week header{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;padding-bottom:6px;border-bottom:1px solid var(--line)}
+.la-week header strong{font:700 17px/1 var(--f-display)}
+.la-week header span:last-child{margin-left:auto;font-size:12px}
+.la-task{display:flex;flex-direction:column;gap:5px;padding:8px;border-radius:5px;border:1px solid var(--line);border-left:4px solid var(--st-fertig);background:var(--raise)}
+.la-task.blocked{border-left-color:var(--st-verzug)}
+.la-top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.la-top .gname{font-size:13px}
+.con{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:6px;align-items:start;font-size:12.5px;padding:4px 0;border-top:1px dashed var(--line)}
+.con b{font-weight:600}
+.con small{display:block;color:var(--muted);font-size:11.5px}
+.con small.late{color:var(--st-verzug);font-weight:600}
+.con.done span{text-decoration:line-through;color:var(--muted)}
+.con .x{border:0;background:transparent;color:var(--muted);font-size:16px;line-height:1;padding:0 2px}
+.la-task .btn.small{align-self:flex-start}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:12px;display:flex;flex-direction:column;gap:2px}
+.tile span{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.tile strong{font:700 28px/1.1 var(--f-display)}
+.tile small{font-size:12px;color:var(--muted)}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px}
+.kcard{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.kcard h2{font:700 15px/1.1 var(--f-display);text-transform:uppercase;letter-spacing:.07em;margin:0;color:var(--muted)}
+.chart{width:100%;min-width:420px;height:auto;display:block}
+.chart .grid{stroke:var(--line);stroke-width:1}
+.chart .target{stroke:var(--fg);stroke-dasharray:4 4;stroke-width:1.2;opacity:.6}
+.chart .lbl{fill:var(--muted);font:11px var(--f-body)}
+.chart .val{fill:var(--fg);font:600 11px var(--f-mono)}
+.pareto{display:grid;grid-template-columns:minmax(0,170px) minmax(0,1fr) 26px;gap:8px;align-items:center;font-size:12.5px}
+.pareto .bar{height:12px;background:var(--raise);border-radius:2px;overflow:hidden}
+.pareto .bar i{display:block;height:100%;background:var(--st-verzug)}
+.stat{border:0;padding:0;margin:0}
+.stat label{display:flex;gap:6px;align-items:center;border:1px solid var(--line);border-radius:6px;padding:7px 8px;font-size:13px;color:var(--fg)}
+@media (max-width:900px){.lps{overflow:visible}.lps-body{overflow:visible}.weeknav{margin-left:0}}
 @media (max-width:900px){
   .app{height:auto;min-height:100%}
   main.work{grid-template-columns:minmax(0,1fr)}
@@ -225,6 +301,7 @@ table.tab tfoot td{font-weight:600;border-bottom:0}
       <div class="hdr-actions">
         <label class="btn primary" for="ifcFile">IFC laden</label>
         <input type="file" id="ifcFile" accept=".ifc" hidden>
+        <button class="btn" id="btnLps" aria-pressed="false">Last Planner</button>
         <button class="btn" id="btnDemo">Demo</button>
         <button class="btn" id="btnData">Daten</button>
       </div>
@@ -240,6 +317,7 @@ table.tab tfoot td{font-weight:600;border-bottom:0}
             <button data-mode="soll" aria-pressed="false">Soll</button>
             <button data-mode="vergleich" aria-pressed="false">Soll/Ist</button>
             <button data-mode="vergabe" aria-pressed="false">Vergabe</button>
+            <button data-mode="freigabe" aria-pressed="false" title="Last Planner: freie und blockierte Vorgänge der nächsten 6 Wochen">Freigabe</button>
           </div>
           <div class="seg" role="group" aria-label="Werkzeug" id="toolSeg">
             <button data-tool="select" aria-pressed="true">Auswahl</button>
@@ -274,6 +352,7 @@ table.tab tfoot td{font-weight:600;border-bottom:0}
       <div class="pane" id="pane"></div>
     </aside>
   </main>
+  <section class="lps" id="lps" hidden aria-label="Last Planner"><div class="lps-head" id="lpsHead"></div><div class="lps-body" id="lpsBody"></div></section>
 </div>
 <div class="modal" id="modal" hidden></div>
 <div class="toast" id="toast" hidden></div>
@@ -342,6 +421,7 @@ function reindex() {
     if (!t.preds) { t.preds = []; t.fix = t.start; }
     if (t.fix === undefined) t.fix = null;
   }
+  S.lps ||= { crews: ['Kolonne 1', 'Kolonne 2', 'NU Erdbau', 'NU Bewehrung'], commits: [], constraints: [] };
   S.projectStart ||= S.tasks.map(t => t.start).filter(Boolean).sort()[0] || TODAY;
   try { schedule(S.tasks, S.projectStart); } catch (e) { toast(e.message); }
   taskMap = Object.fromEntries(S.tasks.map(t => [t.id, t]));
@@ -390,6 +470,7 @@ function colorKey(e, d) {
       return ['ghost', 'arbeit', 'beton'][ii];
     }
     case 'vergabe': { const v = vergabeLevel(e); return v < 0 ? 'ghost' : 'v' + v; }
+    case 'freigabe': return lpsKey(e, d);
     default: return ['ghost', 'arbeit', 'fertig', 'abgenommen'][i];
   }
 }
@@ -539,6 +620,7 @@ function buildDemo() {
     });
   });
   tasks.forEach(t => delete t.grp);
+  const lps = lpsSeed(tasks, elements);
   const pick = (cat, storey, n = 0) => Object.values(elements).filter(e => e.cat === cat && e.storey === storey)[n]?.guid;
   const maengel = [
     { id: uid(), typ: 'mangel', guid: pick('Außenwand', 'UG', 1), titel: 'Kiesnest am Wandfuß, ca. 40 × 20 cm', status: 'offen', datum: D.addWD(start, 30), frist: D.addWD(TODAY, 3), wer: 'Polier' },
@@ -552,7 +634,7 @@ function buildDemo() {
   ];
   return {
     S: { v: 2, source: 'demo', file: null, project: { name: 'Demo: Verwaltung mit Halle' }, projectStart: start,
-      storeys: ['Erdbau', 'UG', 'EG', '1.OG', 'Dach', 'Halle 1', 'Halle 2'], elements, tasks, vergaben, maengel, tagebuch,
+      storeys: ['Erdbau', 'UG', 'EG', '1.OG', 'Dach', 'Halle 1', 'Halle 2'], elements, tasks, vergaben, maengel, tagebuch, lps,
       milestones: [
         { name: 'Erdarbeiten abgeschlossen', cat: 'Aushub' }, { name: 'Bodenplatte Verwaltung', cat: 'Bodenplatte' },
         { name: 'Rohbau Verwaltung', storeys: ['UG', 'EG', '1.OG', 'Dach'] }, { name: 'Halle Abschnitt 1', storey: 'Halle 1' },
@@ -788,7 +870,8 @@ function renderLegend() {
     ist: [it('', 'Geplant', 1), it('--st-arbeit', 'In Arbeit'), it('--st-fertig', 'Fertig'), it('--st-abgenommen', 'Abgenommen')],
     soll: [it('', 'Noch nicht dran', 1), it('--st-arbeit', 'Soll in Arbeit'), it('--st-fertig', 'Soll fertig')],
     vergleich: [it('--st-verzug', 'Verzug'), it('--st-vorsprung', 'Vorsprung'), it('--st-arbeit', 'Planmäßig in Arbeit'), it('--st-beton', 'Planmäßig fertig'), it('', 'Noch nicht dran', 1)],
-    vergabe: [...VSTATUS.map((v, i) => it(v.tok, v.label)), it('', 'Keine Vergabe', 1)]
+    vergabe: [...VSTATUS.map((v, i) => it(v.tok, v.label)), it('', 'Keine Vergabe', 1)],
+    freigabe: [it('--st-fertig', 'Frei'), it('--st-verzug', 'Hindernis offen'), it('--st-abgenommen', 'Diese Woche zugesagt'), it('--st-beton', 'Fertig'), it('', 'Später', 1)]
   }[view.mode];
   $('#legend').innerHTML = L.join('') + `<span><i class="dot" style="background:var(--mangel);transform:rotate(45deg)"></i>Offener Punkt</span>`;
 }
@@ -879,7 +962,7 @@ function renderPanel() {
   const pane = $('#pane');
   pane.innerHTML = ({ uebersicht: pUebersicht, bauteil: pBauteil, termine: pTermine, chat: pChat, vergaben: pVergaben, maengel: pMaengel, tagebuch: pTagebuch, aufmass: pAufmass })[view.tab]();
 }
-function renderAll() { reindex(); renderHeader(); renderTicks(); applyColors(); renderPanel(); }
+function renderAll() { reindex(); renderHeader(); renderTicks(); applyColors(); renderPanel(); if (lpsView.open) renderLps(); }
 const chipS = i => `<span class="chip" style="color:var(${STATUS[i].tok})">${STATUS[i].label}</span>`;
 const chipV = i => `<span class="chip" style="color:var(${VSTATUS[i].tok})">${VSTATUS[i].label}</span>`;
 
@@ -901,6 +984,7 @@ function warnings() {
       if (miss.length) W.push({ c: '--v1', t: `${t.name} startet in ${ahead} AT`, s: `Noch nicht beauftragt: ${miss.map(v => v.gewerk).join(', ')}`, task: t.id });
     }
   }
+  W.push(...lpsWarnings());
   for (const m of S.maengel) if (m.status === 'offen' && m.frist && m.frist < d) W.push({ c: '--mangel', t: `${MTYP[m.typ]} überfällig: ${m.titel}`, s: `Frist ${D.de(m.frist)} · ${m.wer || '–'}`, guid: m.guid });
   return W;
 }
@@ -1383,6 +1467,303 @@ $('#btnData').addEventListener('click', () => {
 $('#modal').addEventListener('click', e => { if (e.target.id === 'modal' || e.target.closest('[data-close]')) $('#modal').hidden = true; });
 addEventListener('keydown', e => { if (e.key === 'Escape') $('#modal').hidden = true; });
 
+/* ---------- Last Planner ---------- */
+const LPS_KAT = ['Planung / Info', 'Material', 'Personal', 'Gerät', 'Vorleistung', 'Platz / Zugang', 'Genehmigung / Abnahme', 'Witterung'];
+const LPS_GRUND = ['Planung / Info fehlt', 'Material nicht da', 'Personal fehlt', 'Gerät fehlt / defekt', 'Vorleistung nicht fertig', 'Witterung', 'Überplant / zu knapp', 'Änderung durch AG', 'Sonstiges'];
+const WD = ['Mo', 'Di', 'Mi', 'Do', 'Fr'];
+const lpsView = { tab: 'woche', week: D.monday(TODAY), open: false, drag: null };
+
+function crewFor(t) {
+  const n = t.name;
+  if (/aushub|baugrube|erd/i.test(n)) return 'NU Erdbau';
+  if (/treppe|stützen|binder|sockel/i.test(n) && /halle|treppe/i.test(n)) return 'NU Fertigteilmontage';
+  if (/halle/i.test(n)) return 'Kolonne Halle';
+  return 'Kolonne Verwaltung';
+}
+function weekDays(mon) { return [0, 1, 2, 3, 4].map(i => D.add(mon, i)); }
+function taskSpanInWeek(t, mon) {
+  const ds = weekDays(mon), idx = ds.map((d, i) => (t.start <= d && d <= t.end ? i : -1)).filter(i => i >= 0);
+  return idx.length ? { day: idx[0], len: idx[idx.length - 1] - idx[0] + 1 } : null;
+}
+function lpsSeed(tasks, elements) {
+  const r = rng(7), crews = ['NU Erdbau', 'Kolonne Verwaltung', 'Kolonne Halle', 'NU Fertigteilmontage', 'NU Bewehrung'];
+  const commits = [], constraints = [];
+  const thisMon = D.monday(TODAY);
+  // sieben abgeschlossene Wochen mit Zusagen und Abweichungen, dazu die laufende Woche
+  const plan = { '-7': ['Personal fehlt'], '-6': [], '-5': ['Gerät fehlt / defekt', 'Witterung'], '-4': ['Vorleistung nicht fertig'], '-3': [], '-2': ['Witterung', 'Material nicht da'], '-1': ['Planung / Info fehlt'] };
+  const today = (D.parse(TODAY).getUTCDay() + 6) % 7;
+  const steps = t => /aushub/i.test(t.name) ? ['Aushub und Abfuhr', 'Planum und Verbau', 'Aushub Restflächen']
+    : /stützen|binder|sockel|treppe/i.test(t.name) && /halle|treppe/i.test(t.name) ? ['Montage', 'Ausrichten und Vergießen']
+    : /fundament/i.test(t.name) ? ['Sauberkeitsschicht und Schalung', 'Betonieren Köcher']
+    : ['Schalen', 'Betonieren', 'Ausschalen und Umsetzen'];
+  for (let w = -7; w <= 0; w++) {
+    const mon = D.add(thisMon, 7 * w), miss = [...(plan[w] || [])], wk = [];
+    for (const t of tasks) {
+      const sp = taskSpanInWeek(t, mon); if (!sp) continue;
+      const st = steps(t);
+      for (let d = sp.day, i = 0; d < sp.day + sp.len; d += 2, i++) {
+        const len = Math.min(2, sp.day + sp.len - d);
+        wk.push({ id: uid(), week: mon, taskId: t.id, text: `${t.name} · ${st[i % st.length]}`, crew: crewFor(t), day: d, len, status: 'offen', grund: '', notiz: '' });
+      }
+      if (/^Decke|Bodenplatte/.test(t.name)) wk.push({ id: uid(), week: mon, taskId: t.id, text: `Bewehrung ${t.name}`, crew: 'NU Bewehrung', day: sp.day, len: Math.min(3, sp.len), status: 'offen', grund: '', notiz: '' });
+    }
+    for (const c of wk) {
+      if (w < 0) c.status = 'erledigt';
+      else if (c.day + c.len - 1 < today) c.status = 'erledigt';
+    }
+    if (w < 0) miss.forEach(g => { const pool = wk.filter(c => c.status === 'erledigt'); if (pool.length > 1) { const c = pool[Math.floor(r() * pool.length)]; c.status = 'nicht'; c.grund = g; } });
+    commits.push(...wk);
+  }
+  const byName = n => tasks.find(t => t.name === n);
+  const C = (n, kat, text, wer, bis, erledigt = false) => { const t = byName(n); if (t) constraints.push({ id: uid(), taskId: t.id, kat, text, wer, bis: bis || D.addWD(t.start, -3), erledigt }); };
+  C('Decke über EG', 'Planung / Info', 'Bewehrungsplan Abschnitt 3, Index b', 'Tragwerksplanung', D.addWD(TODAY, 2));
+  C('Decke über EG', 'Material', 'Deckenschalung 2. Satz abrufen', 'Polier', D.addWD(TODAY, 1), true);
+  C('1.OG · Außenwände', 'Gerät', 'Fassadengerüst beauftragen und stellen', 'Bauleitung', D.addWD(TODAY, 4));
+  C('1.OG · Außenwände', 'Planung / Info', 'Aussparungsplan HLS freigegeben', 'TGA-Planer', D.addWD(TODAY, 5), true);
+  C('1.OG · Treppe', 'Material', 'Fertigteiltreppen bestellen (Lieferzeit 4 Wochen)', 'Einkauf', D.addWD(TODAY, -1));
+  C('Halle 1 · Stützen', 'Material', 'Fertigteile Halle beauftragen', 'Bauleitung', D.addWD(TODAY, 8));
+  C('Halle 1 · Stützen', 'Platz / Zugang', 'Kranstandort und Zufahrt Mobilkran festlegen', 'Polier', null);
+  C('Fundamente Halle 2', 'Genehmigung / Abnahme', 'Bodengutachter: Abnahme Gründungssohle Achse 6', 'Bodengutachter', D.addWD(TODAY, 3));
+  C('Attika Verwaltung', 'Planung / Info', 'Detail Abdichtungsanschluss Attika klären', 'Architekt', null);
+  return { crews, commits, constraints };
+}
+
+/* Abfragen */
+const lpsC = () => S.lps.constraints, lpsK = () => S.lps.commits;
+const openCons = t => lpsC().filter(c => c.taskId === t.id && !c.erledigt);
+function taskDone(t) { const ti = taskIst(t, TODAY); return ti.els.length ? !!ti.finish : t.end < TODAY; }
+function ppc(mon) {
+  const k = lpsK().filter(c => c.week === mon), done = k.filter(c => c.status === 'erledigt').length, nicht = k.filter(c => c.status === 'nicht').length;
+  return { n: k.length, done, nicht, offen: k.length - done - nicht, p: done + nicht ? done / (done + nicht) : null };
+}
+function lookahead(mon, weeks = 6) {
+  const end = D.add(mon, weeks * 7 - 1);
+  return S.tasks.filter(t => t.start <= end && t.end >= mon && !taskDone(t)).sort((a, b) => a.start.localeCompare(b.start));
+}
+function lpsKey(e, d) {
+  const t = taskMap[e.taskId]; if (!t) return 'ghost';
+  if (istAt(e, d) >= 2) return 'beton';
+  const mon = D.monday(d);
+  if (lpsK().some(c => c.week === mon && c.taskId === t.id && c.status !== 'nicht')) return 'abgenommen';
+  if (t.start > D.add(mon, 41)) return 'ghost';
+  return openCons(t).length ? 'verzug' : 'fertig';
+}
+function lpsWarnings() {
+  return lpsC().filter(c => !c.erledigt && c.bis && c.bis < view.date).map(c => ({ c: '--st-verzug', t: `Hindernis überfällig: ${c.text}`, s: `${taskMap[c.taskId]?.name || ''} · ${c.wer || '–'} · bis ${D.de(c.bis)}`, task: c.taskId, lps: 1 }));
+}
+
+/* Ansicht umschalten */
+function setLps(open) {
+  lpsView.open = open;
+  $('#lps').hidden = !open; $('main.work').hidden = open;
+  $('#btnLps').setAttribute('aria-pressed', open);
+  $('#btnLps').textContent = open ? '3D-Modell' : 'Last Planner';
+  if (open) renderLps(); else { resize(); renderAll(); }
+}
+$('#btnLps').addEventListener('click', () => setLps(!lpsView.open));
+
+function renderLps() {
+  if (!lpsView.open) return;
+  const mon = lpsView.week, q = ppc(mon), fri = D.add(mon, 4);
+  $('#lpsHead').innerHTML = `
+    <nav class="tabs" role="tablist">${[['woche', 'Wochenplan'], ['vorschau', 'Vorschau 6 Wochen'], ['kpi', 'Kennzahlen']].map(([k, l]) => `<button role="tab" data-ltab="${k}" aria-selected="${lpsView.tab === k}">${l}</button>`).join('')}</nav>
+    <div class="weeknav"><button class="btn small" data-wk="-1" aria-label="Woche zurück">‹</button>
+      <div class="wk"><strong class="num">KW ${D.kw(mon)}</strong><span class="num">${D.short(mon)}–${D.short(fri)}${mon === D.monday(TODAY) ? ' · diese Woche' : ''}</span></div>
+      <button class="btn small" data-wk="1" aria-label="Woche vor">›</button>
+      ${mon !== D.monday(TODAY) ? '<button class="btn small" data-wk="0">Heute</button>' : ''}
+      <span class="ppc ${q.p == null ? '' : q.p >= .8 ? 'good' : q.p >= .6 ? 'mid' : 'bad'}" title="Prozent erledigter Zusagen">PPC ${q.p == null ? '–' : Math.round(q.p * 100) + ' %'}</span></div>`;
+  $('#lpsBody').innerHTML = lpsView.tab === 'woche' ? lpsWoche(mon) : lpsView.tab === 'vorschau' ? lpsVorschau(mon) : lpsKpi(mon);
+}
+
+function lpsWoche(mon) {
+  const days = weekDays(mon), k = lpsK().filter(c => c.week === mon);
+  const active = S.tasks.filter(t => taskSpanInWeek(t, mon) && !taskDone(t));
+  const committed = new Set(k.map(c => c.taskId));
+  const free = active.filter(t => !committed.has(t.id) && !openCons(t).length);
+  const blocked = active.filter(t => !committed.has(t.id) && openCons(t).length);
+  const q = ppc(mon);
+  const card = c => {
+    const t = taskMap[c.taskId];
+    return `<div class="stick ${c.status}" draggable="true" data-commit="${c.id}" style="grid-column:${c.day + 1} / span ${c.len}" tabindex="0" role="button" aria-label="Zusage ${esc(c.text)} bearbeiten">
+      <b>${esc(c.text)}</b>
+      ${c.status === 'nicht' ? `<small class="why">✕ ${esc(c.grund || 'ohne Grund')}</small>` : c.status === 'erledigt' ? '<small class="ok">✓ erledigt</small>' : ''}
+      ${t && t.name !== c.text ? `<small>${esc(t.name)}</small>` : ''}</div>`;
+  };
+  return `<div class="lps-bar">
+      <span class="note-legend"><i class="stick offen"></i>zugesagt <i class="stick erledigt"></i>erledigt <i class="stick nicht"></i>nicht erledigt</span>
+      <span class="muted num">${q.n} Zusagen · ${q.done} erledigt · ${q.nicht} nicht erledigt · ${q.offen} offen</span>
+      <span class="sp"></span>
+      ${free.length ? `<button class="btn primary small" data-lpsact="takefree">${free.length} freie Vorgänge einplanen</button>` : ''}
+      ${blocked.length ? `<button class="btn small" data-ltab="vorschau" title="${esc(blocked.map(t => t.name).join(', '))}">${blocked.length} Vorgänge nicht frei</button>` : ''}
+    </div>
+    <div class="board-wrap"><div class="board">
+      <div class="bh crewh">Kolonne / NU</div>
+      ${days.map((d, i) => `<div class="bh ${d === TODAY ? 'today' : ''}">${WD[i]} <span class="num">${D.short(d)}</span></div>`).join('')}
+      ${S.lps.crews.map(cr => `
+        <div class="crew"><span>${esc(cr)}</span><small class="num">${k.filter(c => c.crew === cr).length} Zusagen</small></div>
+        <div class="lane" data-crew="${esc(cr)}">
+          <div class="cells">${days.map((d, i) => `<button class="cell ${d === TODAY ? 'today' : ''}" data-cell="${i}" aria-label="Zusage ${esc(cr)} ${WD[i]} anlegen"><span>+</span></button>`).join('')}</div>
+          <div class="notes">${k.filter(c => c.crew === cr).sort((a, b) => a.day - b.day).map(card).join('')}</div>
+        </div>`).join('')}
+    </div></div>
+    <form class="crew-add" data-lpsform="crew"><input id="lps-crew" name="crew" placeholder="Kolonne oder NU hinzufügen" aria-label="Neue Kolonne"><button class="btn small" type="submit">Hinzufügen</button></form>
+    <p class="note-hint">Zusage antippen zum Bearbeiten oder Abhaken. Am Rechner Zettel per Drag & Drop auf anderen Tag oder andere Kolonne ziehen. Nur freie Arbeit zusagen: Hindernisse vorher in der Vorschau ausräumen.</p>`;
+}
+
+function lpsVorschau(mon) {
+  const weeks = [0, 1, 2, 3, 4, 5].map(i => D.add(mon, i * 7)), seen = new Set();
+  const all = lookahead(mon);
+  const freeN = all.filter(t => !openCons(t).length).length;
+  return `<div class="lps-bar"><span class="muted">${all.length} Vorgänge in den nächsten 6 Wochen · <b style="color:var(--fg)">${freeN} frei</b> · ${all.length - freeN} mit offenen Hindernissen</span></div>
+  <div class="la">${weeks.map(w => {
+    const ts = all.filter(t => !seen.has(t.id) && t.start <= D.add(w, 6)); ts.forEach(t => seen.add(t.id));
+    const onW = S.tasks.filter(t => taskSpanInWeek(t, w) && !taskDone(t));
+    return `<section class="la-week"><header><strong class="num">KW ${D.kw(w)}</strong><span class="num muted">${D.short(w)}–${D.short(D.add(w, 4))}</span><span class="muted num">${onW.filter(t => !openCons(t).length).length}/${onW.length} frei</span></header>
+      ${ts.length ? ts.map(t => {
+        const cs = lpsC().filter(c => c.taskId === t.id), op = cs.filter(c => !c.erledigt);
+        return `<div class="la-task ${op.length ? 'blocked' : 'free'}">
+          <div class="la-top"><span class="gname" data-lpstask="${t.id}">${esc(t.name)}</span><span class="chip" style="color:var(${op.length ? '--st-verzug' : '--st-fertig'})">${op.length ? op.length + ' offen' : 'frei'}</span></div>
+          <div class="note num">Soll ${D.short(t.start)}–${D.short(t.end)} · ${esc(crewFor(t))}</div>
+          ${cs.map(c => { const late = !c.erledigt && c.bis && c.bis < TODAY; return `<label class="con ${c.erledigt ? 'done' : ''}"><input type="checkbox" data-con="${c.id}" ${c.erledigt ? 'checked' : ''}><span><b>${esc(c.kat)}</b> ${esc(c.text)}<small class="num ${late ? 'late' : ''}">${esc(c.wer || '–')} · bis ${D.short(c.bis)}${late ? ' · überfällig' : ''}</small></span><button type="button" class="x" data-condel="${c.id}" aria-label="Hindernis löschen">×</button></label>`; }).join('')}
+          <button class="btn small" data-conadd="${t.id}">+ Hindernis</button>
+        </div>`; }).join('') : '<div class="note">Keine neuen Vorgänge.</div>'}
+    </section>`; }).join('')}</div>
+  <p class="note-hint">Ein Vorgang ist frei, wenn alle Hindernisse ausgeräumt sind (Pläne, Material, Personal, Gerät, Vorleistung, Platz, Abnahmen, Witterung). Nur freie Vorgänge wandern in den Wochenplan.</p>`;
+}
+
+function lpsKpi(mon) {
+  const weeks = Array.from({ length: 8 }, (_, i) => D.add(mon, (i - 7) * 7));
+  const data = weeks.map(w => ({ w, ...ppc(w) }));
+  const W = 560, H = 210, pl = 34, pb = 26, pt = 14, pr = 46, bw = (W - pl - pr) / 8;
+  const y = v => pt + (1 - v) * (H - pt - pb);
+  const bars = data.map((d, i) => { const x = pl + i * bw + bw * .18, w = bw * .64;
+    return d.p == null ? `<text x="${x + w / 2}" y="${H - pb - 6}" class="lbl" text-anchor="middle">–</text>`
+      : `<rect x="${x}" y="${y(d.p)}" width="${w}" height="${H - pb - y(d.p)}" rx="2" style="fill:var(${d.p >= .8 ? '--st-fertig' : d.p >= .6 ? '--st-arbeit' : '--st-verzug'})"/><text x="${x + w / 2}" y="${y(d.p) - 4}" class="val" text-anchor="middle">${Math.round(d.p * 100)}</text>`; }).join('');
+  const xl = data.map((d, i) => `<text x="${pl + i * bw + bw / 2}" y="${H - 8}" class="lbl" text-anchor="middle">KW ${D.kw(d.w)}</text>`).join('');
+  const grid = [0, .5, 1].map(v => `<line x1="${pl}" x2="${W - pr + 4}" y1="${y(v)}" y2="${y(v)}" class="grid"/><text x="${pl - 6}" y="${y(v) + 4}" class="lbl" text-anchor="end">${v * 100}</text>`).join('');
+  const reasons = {}; lpsK().filter(c => c.status === 'nicht' && weeks.includes(c.week)).forEach(c => reasons[c.grund || 'Sonstiges'] = (reasons[c.grund || 'Sonstiges'] || 0) + 1);
+  const rs = Object.entries(reasons).sort((a, b) => b[1] - a[1]), rmax = rs[0]?.[1] || 1;
+  const done4 = data.slice(4).filter(d => d.p != null), avg = done4.length ? done4.reduce((a, d) => a + d.p, 0) / done4.length : null;
+  const la = lookahead(D.monday(TODAY), 3), laFree = la.length ? la.filter(t => !openCons(t).length).length / la.length : null;
+  const oc = lpsC().filter(c => !c.erledigt), late = oc.filter(c => c.bis && c.bis < TODAY);
+  const tile = (l, v, s, tone) => `<div class="tile"><span>${l}</span><strong class="num" style="${tone ? `color:var(${tone})` : ''}">${v}</strong><small>${s}</small></div>`;
+  const last = data[7].p != null ? data[7] : data[6];
+  return `<div class="tiles">
+      ${tile('PPC ' + (last === data[7] ? 'gewählte Woche' : 'Vorwoche'), last.p == null ? '–' : Math.round(last.p * 100) + ' %', `${last.done} von ${last.done + last.nicht} Zusagen erledigt`, last.p == null ? '' : last.p >= .8 ? '--st-fertig' : last.p >= .6 ? '--st-arbeit' : '--st-verzug')}
+      ${tile('PPC Ø 4 Wochen', avg == null ? '–' : Math.round(avg * 100) + ' %', 'Ziel ≥ 80 %')}
+      ${tile('Vorschau 3 Wochen frei', laFree == null ? '–' : Math.round(laFree * 100) + ' %', `${la.length} Vorgänge betrachtet`)}
+      ${tile('Offene Hindernisse', oc.length, `${late.length} überfällig`, late.length ? '--st-verzug' : '')}
+    </div>
+    <div class="kpi-grid">
+      <section class="kcard"><h2>PPC je Woche</h2><div class="tw"><svg viewBox="0 0 ${W} ${H}" class="chart" role="img" aria-label="PPC der letzten 8 Wochen">${grid}<line x1="${pl}" x2="${W - pr + 4}" y1="${y(.8)}" y2="${y(.8)}" class="target"/><text x="${W - 2}" y="${y(.8) + 4}" class="lbl" text-anchor="end">Ziel 80</text>${bars}${xl}</svg></div></section>
+      <section class="kcard"><h2>Abweichungsgründe · 8 Wochen</h2>
+        ${rs.length ? rs.map(([g, n]) => `<div class="pareto"><span>${esc(g)}</span><div class="bar"><i style="width:${n / rmax * 100}%"></i></div><b class="num">${n}</b></div>`).join('') : '<div class="empty">Keine Abweichungen erfasst.</div>'}
+        <p class="note-hint">Häufigste Gründe zuerst angehen – meist Planung, Material oder Vorleistung.</p></section>
+    </div>`;
+}
+
+/* Bearbeiten */
+function commitDialog(c, isNew) {
+  const m = $('#modal'); m.hidden = false;
+  const opts = S.tasks.map(t => `<option value="${t.id}" ${c.taskId === t.id ? 'selected' : ''}>${esc(t.name)}</option>`).join('');
+  m.innerHTML = `<form class="box" data-lpsform="commit" data-id="${c.id}" role="dialog" aria-modal="true" aria-labelledby="dlgC">
+    <h3 id="dlgC">${isNew ? 'Neue Zusage' : 'Zusage'} · KW ${D.kw(c.week)}</h3>
+    <div class="form" style="background:transparent;border:0;padding:0">
+      <label class="field full"><span>Was wird gemacht</span><input id="c-text" name="text" required value="${esc(c.text)}" placeholder="z. B. Wände Achse 1–3 schalen und betonieren"></label>
+      <label class="field"><span>Kolonne / NU</span><select id="c-crew" name="crew">${S.lps.crews.map(x => `<option ${x === c.crew ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>
+      <label class="field"><span>Vorgang</span><select id="c-task" name="taskId"><option value="">ohne Vorgang</option>${opts}</select></label>
+      <label class="field"><span>Ab</span><select id="c-day" name="day">${WD.map((d, i) => `<option value="${i}" ${c.day === i ? 'selected' : ''}>${d} ${D.short(D.add(c.week, i))}</option>`).join('')}</select></label>
+      <label class="field"><span>Tage</span><select id="c-len" name="len">${[1, 2, 3, 4, 5].map(n => `<option ${c.len === n ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+      <fieldset class="field full stat"><span>Status</span><div class="statusrow" style="grid-template-columns:repeat(3,1fr)">
+        ${[['offen', 'Zugesagt'], ['erledigt', 'Erledigt'], ['nicht', 'Nicht erledigt']].map(([k, l]) => `<label><input type="radio" name="status" value="${k}" ${c.status === k ? 'checked' : ''}> ${l}</label>`).join('')}</div></fieldset>
+      <label class="field"><span>Grund, falls nicht erledigt</span><select id="c-grund" name="grund"><option value=""></option>${LPS_GRUND.map(g => `<option ${c.grund === g ? 'selected' : ''}>${g}</option>`).join('')}</select></label>
+      <label class="field"><span>Notiz</span><input id="c-notiz" name="notiz" value="${esc(c.notiz || '')}"></label>
+    </div>
+    <p class="note" id="c-msg"></p>
+    <div class="gedit" style="justify-content:space-between">${isNew ? '<span></span>' : `<button class="btn" type="button" data-lpsdel="${c.id}">Löschen</button>`}
+      <span class="gedit">${c.taskId ? `<button class="btn" type="button" data-show3d="${c.taskId}">Im Modell</button>` : ''}<button class="btn" type="button" data-close>Abbrechen</button><button class="btn primary" type="submit">Speichern</button></span></div>
+  </form>`;
+  m._draft = isNew ? c : null;
+  setTimeout(() => $('#c-text')?.focus(), 0);
+}
+function conDialog(taskId) {
+  const t = taskMap[taskId], m = $('#modal'); m.hidden = false;
+  m.innerHTML = `<form class="box" data-lpsform="con" data-task="${taskId}" role="dialog" aria-modal="true" aria-labelledby="dlgH">
+    <h3 id="dlgH">Hindernis für „${esc(t.name)}“</h3>
+    <div class="form" style="background:transparent;border:0;padding:0">
+      <label class="field"><span>Art</span><select id="h-kat" name="kat">${LPS_KAT.map(k => `<option>${k}</option>`).join('')}</select></label>
+      <label class="field"><span>Ausräumen bis</span><input id="h-bis" type="date" name="bis" value="${D.addWD(t.start, -3) < TODAY ? TODAY : D.addWD(t.start, -3)}"></label>
+      <label class="field full"><span>Was fehlt</span><input id="h-text" name="text" required placeholder="z. B. Schalplan Decke freigegeben"></label>
+      <label class="field full"><span>Wer räumt es aus</span><input id="h-wer" name="wer" placeholder="Planer, Einkauf, Polier, NU …"></label>
+    </div>
+    <div class="gedit" style="justify-content:flex-end"><button class="btn" type="button" data-close>Abbrechen</button><button class="btn primary" type="submit">Hindernis anlegen</button></div></form>`;
+  setTimeout(() => $('#h-text')?.focus(), 0);
+}
+function lpsChanged() { save(); renderLps(); }
+
+$('#lps').addEventListener('click', e => {
+  const t = e.target;
+  const lt = t.closest('[data-ltab]'); if (lt) { lpsView.tab = lt.dataset.ltab; return renderLps(); }
+  const wk = t.closest('[data-wk]'); if (wk) { const n = +wk.dataset.wk; lpsView.week = n ? D.add(lpsView.week, 7 * n) : D.monday(TODAY); return renderLps(); }
+  const nt = t.closest('[data-commit]'); if (nt) return commitDialog(lpsK().find(c => c.id === nt.dataset.commit), false);
+  const cell = t.closest('[data-cell]');
+  if (cell) { const crew = cell.closest('[data-crew]').dataset.crew; return commitDialog({ id: uid(), week: lpsView.week, taskId: '', text: '', crew, day: +cell.dataset.cell, len: 1, status: 'offen', grund: '', notiz: '' }, true); }
+  if (t.closest('[data-lpsact="takefree"]')) {
+    const mon = lpsView.week, have = new Set(lpsK().filter(c => c.week === mon).map(c => c.taskId));
+    const free = S.tasks.filter(x => taskSpanInWeek(x, mon) && !taskDone(x) && !have.has(x.id) && !openCons(x).length);
+    free.forEach(x => { const sp = taskSpanInWeek(x, mon); const crew = crewFor(x); if (!S.lps.crews.includes(crew)) S.lps.crews.push(crew); lpsK().push({ id: uid(), week: mon, taskId: x.id, text: x.name, crew, day: sp.day, len: sp.len, status: 'offen', grund: '', notiz: '' }); });
+    toast(`${free.length} Vorgänge als Zusage eingeplant.`); return lpsChanged();
+  }
+  const ca = t.closest('[data-conadd]'); if (ca) return conDialog(ca.dataset.conadd);
+  const cd = t.closest('[data-condel]'); if (cd) { e.preventDefault(); S.lps.constraints = lpsC().filter(c => c.id !== cd.dataset.condel); return lpsChanged(); }
+  const lt2 = t.closest('[data-lpstask]'); if (lt2) { show3d(lt2.dataset.lpstask); }
+});
+$('#lps').addEventListener('change', e => {
+  const c = e.target.dataset.con; if (!c) return;
+  const x = lpsC().find(k => k.id === c); x.erledigt = e.target.checked;
+  const t = taskMap[x.taskId];
+  if (x.erledigt && t && !openCons(t).length) toast(`„${t.name}“ ist jetzt frei für den Wochenplan.`);
+  lpsChanged();
+});
+$('#lps').addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.dataset.commit) { e.preventDefault(); e.target.click(); } });
+$('#lps').addEventListener('submit', e => {
+  e.preventDefault(); const f = e.target, fd = new FormData(f);
+  if (f.dataset.lpsform === 'crew') { const n = String(fd.get('crew') || '').trim(); if (n && !S.lps.crews.includes(n)) { S.lps.crews.push(n); lpsChanged(); } }
+});
+$('#lps').addEventListener('dragstart', e => { const n = e.target.closest?.('[data-commit]'); if (!n) return; lpsView.drag = n.dataset.commit; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', n.dataset.commit); });
+$('#lps').addEventListener('dragover', e => { if (lpsView.drag && e.target.closest('.lane')) { e.preventDefault(); } });
+$('#lps').addEventListener('drop', e => {
+  const lane = e.target.closest('.lane'); if (!lane || !lpsView.drag) return; e.preventDefault();
+  const c = lpsK().find(k => k.id === lpsView.drag); lpsView.drag = null; if (!c) return;
+  const r = lane.getBoundingClientRect(), day = Math.max(0, Math.min(4, Math.floor((e.clientX - r.left) / r.width * 5)));
+  c.crew = lane.dataset.crew; c.day = Math.min(day, 5 - c.len); lpsChanged();
+});
+$('#lps').addEventListener('dragend', () => { lpsView.drag = null; });
+// Dialoge laufen im gemeinsamen Modal
+$('#modal').addEventListener('submit', e => {
+  const f = e.target; if (!f.dataset.lpsform) return; e.preventDefault(); const fd = new FormData(f);
+  if (f.dataset.lpsform === 'commit') {
+    const status = fd.get('status') || 'offen', grund = fd.get('grund') || '';
+    if (status === 'nicht' && !grund) { $('#c-msg').textContent = 'Bitte einen Grund wählen – daraus lernt die Kennzahl, was den Ablauf bremst.'; $('#c-msg').style.color = 'var(--st-verzug)'; return; }
+    let c = lpsK().find(k => k.id === f.dataset.id); if (!c) { c = $('#modal')._draft; lpsK().push(c); }
+    Object.assign(c, { text: String(fd.get('text')).trim(), crew: fd.get('crew'), taskId: fd.get('taskId') || '', day: +fd.get('day'), len: Math.min(+fd.get('len'), 5 - +fd.get('day')), status, grund: status === 'nicht' ? grund : '', notiz: String(fd.get('notiz') || '').trim() });
+    if (c.taskId && openCons(taskMap[c.taskId]).length && status === 'offen') toast('Achtung: Der Vorgang hat noch offene Hindernisse.', 3500);
+  } else if (f.dataset.lpsform === 'con') {
+    lpsC().push({ id: uid(), taskId: f.dataset.task, kat: fd.get('kat'), text: String(fd.get('text')).trim(), wer: String(fd.get('wer') || '').trim(), bis: fd.get('bis') || null, erledigt: false });
+  }
+  $('#modal').hidden = true; lpsChanged();
+});
+$('#modal').addEventListener('click', e => {
+  const d = e.target.closest('[data-lpsdel]'); if (d) { S.lps.commits = lpsK().filter(c => c.id !== d.dataset.lpsdel); $('#modal').hidden = true; return lpsChanged(); }
+  const s = e.target.closest('[data-show3d]'); if (s) { $('#modal').hidden = true; show3d(s.dataset.show3d); }
+});
+function show3d(taskId) {
+  setLps(false);
+  view.selTask = taskId; view.sel = new Set(elsArr().filter(x => x.taskId === taskId).map(x => x.guid));
+  view.tab = 'termine'; applyColors(); renderPanel();
+  const g = [...view.sel][0]; if (g) flyTo(g); else toast('Dieser Vorgang hat keine Bauteile im Modell.');
+}
+
 /* ---------- Start ---------- */
 function afterModelChange() {
   view.sel.clear(); view.selTask = null; view.storey = 'alle';
@@ -1394,6 +1775,7 @@ function afterModelChange() {
 function startDemo(state) {
   const demo = buildDemo(); SPECS = demo.specs;
   S = state && state.source === 'demo' && state.v === 2 ? state : demo.S;
+  S.lps ||= demo.S.lps;
   // Geometrie-GUIDs sind deterministisch, aber bei anderem Startdatum gespeicherter Stand → frische Demo
   if (!SPECS.every(s => S.elements[s.guid])) S = demo.S;
   reindex(); buildDemoMeshes(SPECS); view.date = TODAY; afterModelChange(); frame();
