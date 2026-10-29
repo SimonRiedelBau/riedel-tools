@@ -303,7 +303,7 @@ html:has(> .rb-bar) body{height:calc(100% - var(--rb-bar-h, 48px))}
 .gh.dh.today{color:var(--accent);font-weight:700}
 .gh.lab{top:26px;left:0;z-index:4;padding:4px 10px;font:600 11.5px/1 var(--f-display);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-right:1px solid var(--line)}
 .gh.lab.gh1{top:0;z-index:4;border-right:1px solid var(--line)}
-.ggroup{grid-column:1/-1;position:sticky;left:0;display:flex;align-items:center;gap:6px;border:0;border-bottom:1px solid var(--line);background:var(--raise);padding:6px 10px;font:600 13px/1 var(--f-display);letter-spacing:.06em;text-transform:uppercase;text-align:left}
+.ggroup{grid-column:1;position:sticky;left:0;z-index:2;border-right:1px solid var(--line)!important;display:flex;align-items:center;gap:6px;border:0;border-bottom:1px solid var(--line);background:var(--raise);padding:6px 10px;font:600 13px/1 var(--f-display);letter-spacing:.06em;text-transform:uppercase;text-align:left}
 .ggroup span{display:inline-flex;transition:transform .15s}.ggroup span.rot{transform:rotate(90deg)}
 .ggroup svg{width:12px;height:12px}
 .ggroup small{font:500 11px var(--f-mono);color:var(--muted);margin-left:2px}
@@ -399,6 +399,41 @@ html:has(> .rb-bar) body{height:calc(100% - var(--rb-bar-h, 48px))}
 .con2.done b{text-decoration:line-through;color:var(--muted)}
 .con2 .iconbtn{width:24px;height:24px;background:transparent;border-color:transparent;color:var(--muted)}
 
+/* 3D neben dem Plan */
+.lps.split{grid-template-columns:minmax(0,1fr) minmax(320px,42%)}
+.lps.split.withdrawer{grid-template-columns:minmax(0,1fr) minmax(300px,36%) 340px}
+.lps.split .lps-side{display:none}
+.lps-3d{display:grid;grid-template-rows:auto minmax(0,1fr);border-left:1px solid var(--line);background:var(--viewport);min-height:0;min-width:0}
+.lps-3d header{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:8px 12px;background:var(--panel);border-bottom:1px solid var(--line);font-size:12.5px;color:var(--muted)}
+.lps-3d header>b{font:600 12.5px/1 var(--f-display);letter-spacing:.08em;text-transform:uppercase;color:var(--fg)}
+.lps-3d.assigning header{background:color-mix(in srgb,var(--accent) 12%,var(--panel));color:var(--fg)}
+.lps-3d .vp{position:relative;min-height:0;overflow:hidden}
+.lps-3d .vp canvas{display:block;width:100%;height:100%;touch-action:none}
+.lps-3d.assigning .vp canvas{cursor:crosshair}
+.btn.on{background:var(--fg);color:var(--panel);border-color:var(--fg)}
+.gsum{position:relative;height:10px;border-radius:2px;background:var(--fg);opacity:.75;cursor:grab;z-index:2;min-width:0}
+.gsum span{position:absolute;left:4px;top:-1px;font:600 9px/12px var(--f-display);letter-spacing:.06em;text-transform:uppercase;color:var(--panel);white-space:nowrap;overflow:hidden;max-width:calc(100% - 8px)}
+.gsum:hover{opacity:1}
+.grow2.grp{background:var(--raise)}
+.grow2.grp .gbars{height:22px}
+.gbar2{cursor:grab;touch-action:none;user-select:none}
+.gbar2 .grip{position:absolute;right:0;top:0;bottom:0;width:8px;cursor:ew-resize;background:linear-gradient(90deg,transparent 3px,color-mix(in srgb,var(--k) 70%,transparent) 3px 4px,transparent 4px 5px,color-mix(in srgb,var(--k) 70%,transparent) 5px 6px,transparent 6px)}
+.gbar2.selbar{outline:2px solid var(--fg);outline-offset:1px}
+.gbar2.dragging,.gsum.dragging{opacity:.85;cursor:grabbing;z-index:5;box-shadow:0 6px 16px -6px rgb(0 0 0 / .45)}
+.gbar2[data-tip]::after,.gsum[data-tip]::after{content:attr(data-tip);position:absolute;left:50%;top:-24px;transform:translateX(-50%);background:var(--fg);color:var(--panel);font:600 11px/1 var(--f-mono);padding:4px 6px;border-radius:4px;white-space:nowrap;pointer-events:none}
+.gbar2.dragging,.gsum.dragging{overflow:visible}
+.gbars{overflow:visible}
+.lg.grp{height:6px;background:var(--fg);border:0;opacity:.75}
+.deps{display:flex;flex-direction:column;gap:4px}
+.dep{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--raise)}
+.dep small{display:block;color:var(--muted);font-size:11.5px}
+.dform.inline{padding:0}
+@media (max-width:1180px){.lps.split.withdrawer{grid-template-columns:minmax(0,1fr) minmax(300px,42%)}}
+@media (max-width:900px){
+  .lps.split,.lps.split.withdrawer{grid-template-columns:minmax(0,1fr)}
+  .lps-3d{order:-1;height:46vh;border-left:0;border-bottom:1px solid var(--line)}
+  .lps-head{order:-2}
+}
 @media (max-width:1180px){
   .lps.withdrawer{grid-template-columns:232px minmax(0,1fr)}
   .lps-drawer{grid-row:2;grid-column:1/-1;position:absolute;right:0;top:0;bottom:0;width:min(380px,100%);z-index:8;box-shadow:-12px 0 30px -12px rgb(0 0 0 / .35)}
@@ -496,7 +531,7 @@ html:has(> .rb-bar) body{height:calc(100% - var(--rb-bar-h, 48px))}
       <div class="pane" id="pane"></div>
     </aside>
   </main>
-  <section class="lps" id="lps" hidden aria-label="Last Planner"><div class="lps-head" id="lpsHead"></div><aside class="lps-side" id="lpsSide" aria-label="Filter"></aside><div class="lps-body" id="lpsBody"></div><aside class="lps-drawer" id="lpsDrawer" hidden aria-label="Details"></aside></section>
+  <section class="lps" id="lps" hidden aria-label="Last Planner"><div class="lps-head" id="lpsHead"></div><aside class="lps-side" id="lpsSide" aria-label="Filter"></aside><div class="lps-body" id="lpsBody"></div><section class="lps-3d" id="lps3d" hidden aria-label="3D-Modell"><header><b>Modell</b><span id="lps3dHint"></span></header><div class="vp" id="lps3dVp"></div></section><aside class="lps-drawer" id="lpsDrawer" hidden aria-label="Details"></aside></section>
 </div>
 <div class="modal" id="modal" hidden></div>
 <div class="toast" id="toast" hidden></div>
@@ -807,7 +842,7 @@ const meshes = new Map();   // guid -> mesh
 
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim() || '#888';
 const MAT = {};
-const KEYTOK = { erde: '--erde', ghost: '--st-ghost', arbeit: '--st-arbeit', fertig: '--st-fertig', abgenommen: '--st-abgenommen', verzug: '--st-verzug', vorsprung: '--st-vorsprung', beton: '--st-beton', v0: '--v0', v1: '--v1', v2: '--v2', v3: '--v3' };
+const KEYTOK = { k0: '--k0', k1: '--k1', k2: '--k2', k3: '--k3', k4: '--k4', k5: '--k5', k6: '--k6', k7: '--k7', erde: '--erde', ghost: '--st-ghost', arbeit: '--st-arbeit', fertig: '--st-fertig', abgenommen: '--st-abgenommen', verzug: '--st-verzug', vorsprung: '--st-vorsprung', beton: '--st-beton', v0: '--v0', v1: '--v1', v2: '--v2', v3: '--v3' };
 let edgeMat, edgeSelMat;
 function buildMaterials() {
   for (const [k, tok] of Object.entries(KEYTOK)) {
@@ -859,7 +894,7 @@ function buildDemoMeshes(specs) {
   }
 }
 function frame() {
-  const b = modelBox(), c = b.getCenter(new THREE.Vector3()), sz = b.getSize(new THREE.Vector3()).length();
+  const b = modelBox(), c = b.getCenter(new THREE.Vector3()), sz = b.getSize(new THREE.Vector3()).length() * Math.max(1, 1.5 / (camera.aspect || 1.5));
   orbit.target.copy(c);
   camera.position.set(c.x - sz * .55, c.y + sz * .45, c.z + sz * .75);
   camera.near = Math.max(.05, sz / 2000); camera.far = sz * 20; camera.updateProjectionMatrix();
@@ -880,11 +915,12 @@ function applyColors() {
   const d = view.date;
   const order = S.storeys;
   const lim = view.storey === 'alle' ? Infinity : order.indexOf(view.storey);
+  const lpsMode = lpsView.open && lpsView.split, lk = lpsMode ? lps3dKeyFn() : null, lsel = lpsMode ? lpsSelSet() : null;
   for (const [g, m] of meshes) {
     const e = S.elements[g]; if (!e) { m.visible = false; continue; }
     const si = order.indexOf(e.storey);
-    const sel = view.sel.has(g);
-    let key = colorKey(e, d);
+    const sel = lpsMode ? lsel.has(g) : view.sel.has(g);
+    let key = lpsMode ? lk(e) : colorKey(e, d);
     if (e.cat === 'Aushub') { if (key === 'ghost') key = 'erde'; else if (['fertig', 'abgenommen', 'beton'].includes(key)) key = null; }
     m.visible = (si < 0 || si <= lim) && !!key;
     if (!key) continue;
@@ -893,6 +929,7 @@ function applyColors() {
   }
   // Mängel-Pins
   pinRoot.clear();
+  if (lpsMode) return;
   const pinGeo = applyColors.geo ||= new THREE.ConeGeometry(.28, .8, 4).rotateX(Math.PI);
   const pinMat = MAT.pin;
   for (const m of S.maengel) {
@@ -905,7 +942,7 @@ function applyColors() {
 }
 
 function resize() {
-  const w = host.clientWidth, h = host.clientHeight; if (!w || !h) return;
+  const p = renderer.domElement.parentElement || host, w = p.clientWidth, h = p.clientHeight; if (!w || !h) return;
   renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
 }
 new ResizeObserver(resize).observe(host);
@@ -947,12 +984,14 @@ function pick(ev) {
 }
 let down = null, painting = false, painted = new Set();
 renderer.domElement.addEventListener('pointerdown', ev => {
+  if (lpsView.open) return lpsPD(ev);
   if (view.tool === 'walk') return;
   down = { x: ev.clientX, y: ev.clientY };
   if (view.tool === 'paint' && ev.button === 0) { painting = true; painted.clear(); paintAt(ev); }
 });
-renderer.domElement.addEventListener('pointermove', ev => { if (painting) paintAt(ev); });
+renderer.domElement.addEventListener('pointermove', ev => { if (lpsView.open) return lpsPM(ev); if (painting) paintAt(ev); });
 addEventListener('pointerup', ev => {
+  if (lpsView.open) return lpsPU(ev);
   if (painting) { painting = false; if (painted.size) { const n = painted.size; checkMilestones(true); save(); renderAll(); toast(`${n} Bauteil${n > 1 ? 'e' : ''} auf „${STATUS[view.brush].label}“ gesetzt (Stichtag ${D.de(view.date)})`); } down = null; return; }
   if (!down || ev.target !== renderer.domElement) { down = null; return; }
   const moved = Math.hypot(ev.clientX - down.x, ev.clientY - down.y) > 5; down = null;
@@ -1029,6 +1068,7 @@ function computeRange() {
   range = { a: D.add(ds[0] || TODAY, -3), b: D.add(ds[ds.length - 1] || TODAY, 7) };
   if (TODAY < range.a) range.a = TODAY; if (TODAY > range.b) range.b = TODAY;
   $('#slider').max = D.diff(range.a, range.b);
+  if (view.date) $('#slider').value = D.diff(range.a, view.date);
 }
 function setDate(d, fromPlay = false) {
   const prev = view.date;
@@ -1632,9 +1672,14 @@ addEventListener('keydown', e => { if (e.key === 'Escape') $('#modal').hidden = 
 const LPS_KAT = ['Planung / Info', 'Material', 'Personal', 'Gerät', 'Vorleistung', 'Platz / Zugang', 'Genehmigung / Abnahme', 'Witterung'];
 const LPS_GRUND = ['Planung / Info fehlt', 'Material nicht da', 'Personal fehlt', 'Gerät fehlt / defekt', 'Vorleistung nicht fertig', 'Witterung', 'Überplant / zu knapp', 'Änderung durch AG', 'Sonstiges'];
 const WD = ['Mo', 'Di', 'Mi', 'Do', 'Fr'];
-const lpsView = { tab: 'woche', week: D.monday(TODAY), open: false, drag: null, hide: new Set(), q: '', sel: null, cf: 'offen', collapsed: new Set(), qt: null };
+const lpsView = { tab: 'woche', week: D.monday(TODAY), open: false, drag: null, hide: new Set(), q: '', sel: null, cf: 'offen', collapsed: new Set(), qt: null, split: false, assign: null, msel: new Set(), undo: [], noClick: false };
 
 function crewFor(t) {
+  if (t.crew) return t.crew;
+  const x = crewGuess(t);
+  return !S?.lps?.crews || S.lps.crews.includes(x) ? x : S.lps.crews[0] || x;
+}
+function crewGuess(t) {
   const n = t.name;
   if (/aushub|baugrube|erd/i.test(n)) return 'NU Erdbau';
   if (/treppe|stützen|binder|sockel/i.test(n) && /halle|treppe/i.test(n)) return 'NU Fertigteilmontage';
@@ -1719,7 +1764,11 @@ function setLps(open) {
   $('#lps').hidden = !open; $('main.work').hidden = open;
   $('#btnLps').setAttribute('aria-pressed', open);
   $('#btnLps').textContent = open ? '3D-Modell' : 'Last Planner';
-  if (open) renderLps(); else { resize(); renderAll(); }
+  const cv = renderer.domElement;
+  if (open && lpsView.split) $('#lps3dVp').append(cv); else if (cv.parentElement !== host) host.prepend(cv);
+  $('#lps').classList.toggle('split', lpsView.split); $('#lps3d').hidden = !lpsView.split;
+  lps3dControls();
+  if (open) { renderLps(); applyColors(); requestAnimationFrame(resize); } else { resize(); renderAll(); if (lpsView.split) requestAnimationFrame(frame); }
 }
 $('#btnLps').addEventListener('click', () => setLps(!lpsView.open));
 
@@ -1740,7 +1789,7 @@ const ICON = {
 const stIcon = s => `<span class="sti ${s}" title="${{ offen: 'zugesagt', erledigt: 'erledigt', nicht: 'nicht erledigt' }[s]}">${s === 'erledigt' ? ICON.ok : s === 'nicht' ? ICON.no : ICON.open}</span>`;
 const ppcCls = p => p == null ? '' : p >= .8 ? 'good' : p >= .6 ? 'mid' : 'bad';
 const pct = p => p == null ? '–' : Math.round(p * 100) + ' %';
-function taskCrew(t) { const k = lpsK().find(c => c.taskId === t.id); return k?.crew || crewFor(t); }
+function taskCrew(t) { if (t.crew) return t.crew; const k = lpsK().find(c => c.taskId === t.id); return k?.crew || crewFor(t); }
 function overdueCons() { return lpsC().filter(c => !c.erledigt && c.bis && c.bis < TODAY); }
 
 /* Hauptaufbau */
@@ -1759,11 +1808,16 @@ function renderLps() {
     </div>
     <span class="sp"></span>
     <label class="search"><input id="lps-q" type="search" placeholder="Suchen …" aria-label="Zusagen und Vorgänge durchsuchen" value="${esc(lpsView.q)}"></label>
+    <button class="btn small" data-undo ${lpsView.undo.length ? '' : 'disabled'} title="Letzte Verschiebung oder Zuordnung zurücknehmen (Strg+Z)">↶ Rückgängig</button>
+    <button class="btn small ${lpsView.split ? 'on' : ''}" data-split aria-pressed="${lpsView.split}">3D daneben</button>
     <span class="ppc ${ppcCls(q.p)}" title="Prozent erledigter Zusagen in KW ${D.kw(mon)}">PPC ${pct(q.p)}</span>
     <button class="btn primary small" data-newcommit>${ICON.plus} Zusage</button>`;
   $('#lpsSide').innerHTML = lpsSidebar(mon);
+  const tw = $('#lpsBody .tl-wrap'), sc = [tw?.scrollLeft || 0, tw?.scrollTop || 0, $('#lpsBody').scrollTop, $('#lpsDrawer').scrollTop, lpsView.tab];
   $('#lpsBody').innerHTML = { woche: lpsWoche, zeit: lpsZeit, hind: lpsHind, kpi: lpsKpi }[lpsView.tab](mon);
-  renderDrawer();
+  const tw2 = $('#lpsBody .tl-wrap'); if (tw2 && sc[4] === lpsView.renderedTab) { tw2.scrollLeft = sc[0]; tw2.scrollTop = sc[1]; } if (sc[4] === lpsView.renderedTab) $('#lpsBody').scrollTop = sc[2];
+  lpsView.renderedTab = lpsView.tab;
+  renderDrawer(); $('#lpsDrawer').scrollTop = sc[3];
 }
 function lpsSidebar(mon) {
   const k = lpsK().filter(c => c.week === mon), q = ppc(mon);
@@ -1813,40 +1867,6 @@ function lpsWoche(mon) {
         </div>`; }).join('') : '<div class="empty" style="grid-column:1/-1;margin:12px">Alle Kolonnen sind ausgeblendet.</div>'}
     </div></div>
     <p class="note">Zusage anklicken öffnet die Details rechts. Leeres Feld anklicken legt eine neue Zusage an, Karten lassen sich auf andere Tage oder Kolonnen ziehen.</p>`;
-}
-
-/* Vorschau: Balkenplan der nächsten 6 Wochen, gruppiert nach Abschnitt */
-function lpsZeit(mon) {
-  const W = 6, days = []; for (let w = 0; w < W; w++) weekDays(D.add(mon, w * 7)).forEach(d => days.push(d));
-  const N = days.length, end = days[N - 1];
-  const col = d => { let i = days.findIndex(x => x >= d); return i < 0 ? N : i; };
-  const list = lookahead(mon, W).filter(t => crewVis(taskCrew(t)) && matchQ(t.name, t.storey, taskCrew(t)));
-  const groups = []; list.forEach(t => { const g = t.storey || 'Ohne Abschnitt'; let G = groups.find(x => x.k === g); if (!G) groups.push(G = { k: g, ts: [] }); G.ts.push(t); });
-  groups.sort((a, b) => S.storeys.indexOf(a.k) - S.storeys.indexOf(b.k));
-  const ti = days.indexOf(TODAY);
-  const ms = milestoneStates().filter(m => !m.done && m.soll >= mon && m.soll <= end);
-  const sel = lpsView.sel;
-  const bar = t => {
-    const a = col(t.start), b = Math.min(N, col(D.add(t.end, 1))), oc = openCons(t).length, p = taskIst(t, TODAY).p;
-    const thisWk = lpsK().some(c => c.taskId === t.id && c.week === mon && c.status !== 'nicht');
-    return `<div class="gbar2 ${oc ? 'blocked' : 'free'} ${thisWk ? 'committed' : ''}" style="grid-column:${a + 1} / ${Math.max(a + 2, b + 1)};--k:${crewCol(taskCrew(t))}" data-lpstask="${t.id}" title="${esc(t.name)} · ${D.short(t.start)}–${D.short(t.end)}${oc ? ` · ${oc} Hindernisse offen` : ' · frei'}">
-      <i class="prog" style="width:${p * 100}%"></i><span>${esc(t.name)}</span>${oc ? `<em>${ICON.warn}${oc}</em>` : ''}</div>`;
-  };
-  return `<div class="lps-bar"><span class="note">${list.length} Vorgänge · <b class="okc">${list.filter(t => !openCons(t).length).length} frei</b> · <b class="badc">${list.filter(t => openCons(t).length).length} mit offenen Hindernissen</b>. Balken anklicken für Hindernisse und Freigabe.</span></div>
-  <div class="tl-wrap"><div class="ggrid" style="--n:${N}">
-    <div class="gh lab gh1"></div>
-    ${Array.from({ length: W }, (_, w) => `<div class="gh wkh" style="grid-column:span 5">KW ${D.kw(D.add(mon, w * 7))}<small class="num">${D.short(D.add(mon, w * 7))}</small></div>`).join('')}
-    <div class="gh lab">Vorgang</div>
-    ${days.map((d, i) => `<div class="gh dh ${i === ti ? 'today' : ''} ${i % 5 === 0 ? 'wkstart' : ''}">${'MDMDF'[i % 5]}</div>`).join('')}
-    ${ms.length ? `<div class="glab msl">Meilensteine</div><div class="grow2 msrow" style="grid-column:2 / -1">${ms.map(m => `<span class="msd" style="left:calc(${(col(m.soll) + .5) / N * 100}%)" title="${esc(m.name)} · ${D.de(m.soll)}"><i></i><small>${esc(m.name)}</small></span>`).join('')}</div>` : ''}
-    ${groups.map(G => { const c = lpsView.collapsed.has(G.k);
-      return `<button class="ggroup" data-gtoggle="${esc(G.k)}" aria-expanded="${!c}"><span class="${c ? '' : 'rot'}">${ICON.chev}</span>${esc(G.k)}<small class="num">${G.ts.length}</small></button>
-      ${c ? '' : G.ts.map(t => { const oc = openCons(t).length;
-        return `<button class="glab ${sel?.type === 'task' && sel.id === t.id ? 'sel' : ''}" data-lpstask="${t.id}"><i style="background:${crewCol(taskCrew(t))}"></i><span>${esc(t.name)}</span>${oc ? `<em class="badc">${ICON.warn}${oc}</em>` : '<em class="okc">frei</em>'}</button>
-        <div class="grow2 ${sel?.type === 'task' && sel.id === t.id ? 'sel' : ''}" style="grid-column:2 / -1"><div class="gbars" style="--n:${N}">
-          ${ti >= 0 ? `<i class="nowline" style="left:calc(${(ti + .5) / N * 100}%)"></i>` : ''}${bar(t)}</div></div>`; }).join('')}`; }).join('') || '<div class="empty" style="grid-column:1/-1;margin:12px">Keine Vorgänge im Zeitraum.</div>'}
-  </div></div>
-  <div class="legend2"><span><i class="lg free"></i>frei</span><span><i class="lg blocked"></i>Hindernis offen</span><span><i class="lg committed"></i>in KW ${D.kw(mon)} zugesagt</span><span><i class="lg prog"></i>Ist-Fortschritt</span><span><i class="lg now"></i>heute</span></div>`;
 }
 
 /* Hindernisliste */
@@ -1913,7 +1933,8 @@ function renderDrawer() {
   const s = lpsView.sel, el = $('#lpsDrawer');
   if (!s) { el.hidden = true; el.innerHTML = ''; $('#lps').classList.remove('withdrawer'); return; }
   el.hidden = false; $('#lps').classList.add('withdrawer');
-  el.innerHTML = s.type === 'task' ? drawerTask(taskMap[s.id]) : drawerCommit(s.draft || lpsK().find(c => c.id === s.id), !!s.draft);
+  el.innerHTML = s.type === 'task' ? drawerTask(taskMap[s.id]) : s.type === 'msel' ? drawerMsel() : drawerCommit(s.draft || lpsK().find(c => c.id === s.id), !!s.draft);
+  if (!lpsView.sel) { el.hidden = true; $('#lps').classList.remove('withdrawer'); }
 }
 function drawerCommit(c, isNew) {
   if (!c) { lpsView.sel = null; return ''; }
@@ -1933,30 +1954,6 @@ function drawerCommit(c, isNew) {
     <div class="dact">${isNew ? '' : `<button class="btn" type="button" data-lpsdel="${c.id}">Löschen</button>`}<span class="sp"></span>${t ? `<button class="btn" type="button" data-show3d="${t.id}">Im Modell</button>` : ''}<button class="btn primary" type="submit">Speichern</button></div>
   </form>`;
 }
-function drawerTask(t) {
-  if (!t) { lpsView.sel = null; return ''; }
-  const cs = lpsC().filter(c => c.taskId === t.id), oc = cs.filter(c => !c.erledigt), ti = taskIst(t, TODAY), mon = lpsView.week;
-  const sp = taskSpanInWeek(t, mon), has = lpsK().some(c => c.week === mon && c.taskId === t.id);
-  return `<header class="dh2"><span class="kind" style="--k:${crewCol(taskCrew(t))}">Vorgang · ${esc(t.storey || '')}</span><button class="iconbtn" data-dclose aria-label="Schließen">${ICON.x}</button></header>
-  <div class="dbody">
-    <h3>${esc(t.name)}</h3>
-    <div class="freestate ${oc.length ? 'blocked' : 'free'}">${oc.length ? `${ICON.warn} ${oc.length} Hindernis${oc.length > 1 ? 'se' : ''} offen – noch nicht frei` : `${ICON.ok} Frei für den Wochenplan`}</div>
-    <dl class="kv num"><dt>Soll</dt><dd>${D.de(t.start)} – ${D.de(t.end)} · ${t.dur} AT</dd><dt>Kolonne</dt><dd>${esc(taskCrew(t))}</dd><dt>Ist</dt><dd>${ti.els.length ? Math.round(ti.p * 100) + ' % fertig' : 'ohne Bauteile'}</dd></dl>
-    ${sp && !has && !oc.length ? `<button class="btn primary" data-plantask="${t.id}">${ICON.plus} In KW ${D.kw(mon)} einplanen</button>` : has ? `<p class="note">In KW ${D.kw(mon)} bereits zugesagt.</p>` : ''}
-    <h4>Hindernisse</h4>
-    <div class="conlist">${cs.length ? cs.map(c => { const late = !c.erledigt && c.bis && c.bis < TODAY;
-      return `<label class="con2 ${c.erledigt ? 'done' : ''}"><input type="checkbox" data-con="${c.id}" ${c.erledigt ? 'checked' : ''}><span><span class="kat">${esc(c.kat)}</span><b>${esc(c.text)}</b><small class="num ${late ? 'badc' : ''}">${esc(c.wer || '–')} · bis ${D.de(c.bis)}${late ? ' · überfällig' : ''}</small></span><button type="button" class="iconbtn" data-condel="${c.id}" aria-label="Hindernis löschen">${ICON.x}</button></label>`; }).join('') : '<p class="note">Keine Hindernisse erfasst.</p>'}</div>
-    <form class="dform addcon" data-lpsform="con" data-task="${t.id}">
-      <div class="two"><label class="field"><span>Art</span><select id="h-kat" name="kat">${LPS_KAT.map(k => `<option>${k}</option>`).join('')}</select></label>
-        <label class="field"><span>Ausräumen bis</span><input id="h-bis" type="date" name="bis" value="${D.addWD(t.start, -3) < TODAY ? TODAY : D.addWD(t.start, -3)}"></label></div>
-      <label class="field"><span>Was fehlt</span><input id="h-text" name="text" required placeholder="z. B. Schalplan freigegeben"></label>
-      <label class="field"><span>Wer räumt es aus</span><input id="h-wer" name="wer" placeholder="Planer, Einkauf, Polier, NU …"></label>
-      <div class="dact"><span class="sp"></span><button class="btn" type="submit">${ICON.plus} Hindernis anlegen</button></div>
-    </form>
-    <div class="dact"><button class="btn" data-show3d="${t.id}">Im Modell zeigen</button></div>
-  </div>`;
-}
-
 function lpsChanged() { save(); renderLps(); }
 function newCommit(crew, day, taskId) {
   const t = taskMap[taskId], sp = t ? taskSpanInWeek(t, lpsView.week) : null;
@@ -2033,11 +2030,299 @@ $('#lps').addEventListener('drop', e => {
 });
 $('#lps').addEventListener('dragend', () => { lpsView.drag = null; document.querySelectorAll('.lane.over,.dragging').forEach(x => x.classList.remove('over', 'dragging')); });
 function show3d(taskId) {
+  if (lpsView.split) { lpsView.sel = { type: 'task', id: taskId }; renderLps(); applyColors(); const g0 = elsArr().find(x => x.taskId === taskId); if (g0) flyTo(g0.guid); else toast('Dieser Vorgang hat keine Bauteile im Modell.'); return; }
   setLps(false);
   view.selTask = taskId; view.sel = new Set(elsArr().filter(x => x.taskId === taskId).map(x => x.guid));
   view.tab = 'termine'; applyColors(); renderPanel();
   const g = [...view.sel][0]; if (g) flyTo(g); else toast('Dieser Vorgang hat keine Bauteile im Modell.');
 }
+
+/* Vorschau: Balkenplan der nächsten 6 Wochen, gruppiert nach Abschnitt – Balken und Abschnitte verschiebbar */
+function lpsZeit(mon) {
+  const W = 6, days = []; for (let w = 0; w < W; w++) weekDays(D.add(mon, w * 7)).forEach(d => days.push(d));
+  const N = days.length, end = days[N - 1];
+  const col = d => { let i = days.findIndex(x => x >= d); return i < 0 ? N : i; };
+  const list = lookahead(mon, W).filter(t => crewVis(taskCrew(t)) && matchQ(t.name, t.storey, taskCrew(t)));
+  const groups = []; list.forEach(t => { const g = t.storey || 'Ohne Abschnitt'; let G = groups.find(x => x.k === g); if (!G) groups.push(G = { k: g, ts: [] }); G.ts.push(t); });
+  groups.sort((a, b) => S.storeys.indexOf(a.k) - S.storeys.indexOf(b.k));
+  const ti = days.indexOf(TODAY);
+  const ms = milestoneStates().filter(m => !m.done && m.soll >= mon && m.soll <= end);
+  const sel = lpsView.sel, selT = sel?.type === 'task' ? sel.id : null;
+  const span = (s, e) => { const a = col(s), b = Math.min(N, col(D.add(e, 1))); return `${a + 1} / ${Math.max(a + 2, b + 1)}`; };
+  const bar = t => {
+    const oc = openCons(t).length, p = taskIst(t, TODAY).p;
+    const thisWk = lpsK().some(c => c.taskId === t.id && c.week === mon && c.status !== 'nicht');
+    const nEl = elsArr().filter(e => e.taskId === t.id).length;
+    return `<div class="gbar2 ${oc ? 'blocked' : 'free'} ${thisWk ? 'committed' : ''} ${selT === t.id ? 'selbar' : ''}" style="grid-column:${span(t.start, t.end)};--k:${crewCol(taskCrew(t))}" data-lpstask="${t.id}" data-drag="task" title="${esc(t.name)} · ${D.short(t.start)}–${D.short(t.end)} · ${t.dur} AT${oc ? ` · ${oc} Hindernisse offen` : ' · frei'} · ${nEl} Bauteile. Ziehen verschiebt, rechter Rand ändert die Dauer.">
+      <i class="prog" style="width:${p * 100}%"></i><span>${esc(t.name)}</span>${oc ? `<em>${ICON.warn}${oc}</em>` : ''}<b class="grip" aria-hidden="true"></b></div>`;
+  };
+  return `<div class="lps-bar"><span class="note">${list.length} Vorgänge · <b class="okc">${list.filter(t => !openCons(t).length).length} frei</b> · <b class="badc">${list.filter(t => openCons(t).length).length} mit offenen Hindernissen</b>. Balken ziehen verschiebt, rechter Rand ändert die Dauer, der dunkle Abschnittsbalken verschiebt den ganzen Bereich.</span></div>
+  <div class="tl-wrap" id="ganttWrap"><div class="ggrid" style="--n:${N}">
+    <div class="gh lab gh1"></div>
+    ${Array.from({ length: W }, (_, w) => `<div class="gh wkh" style="grid-column:span 5">KW ${D.kw(D.add(mon, w * 7))}<small class="num">${D.short(D.add(mon, w * 7))}</small></div>`).join('')}
+    <div class="gh lab">Vorgang</div>
+    ${days.map((d, i) => `<div class="gh dh ${i === ti ? 'today' : ''} ${i % 5 === 0 ? 'wkstart' : ''}">${'MDMDF'[i % 5]}</div>`).join('')}
+    ${ms.length ? `<div class="glab msl">Meilensteine</div><div class="grow2 msrow" style="grid-column:2 / -1">${ms.map(m => `<span class="msd" style="left:calc(${(col(m.soll) + .5) / N * 100}%)" title="${esc(m.name)} · ${D.de(m.soll)}"><i></i><small>${esc(m.name)}</small></span>`).join('')}</div>` : ''}
+    ${groups.map(G => { const c = lpsView.collapsed.has(G.k);
+      const gs = G.ts.map(t => t.start).sort()[0], ge = G.ts.map(t => t.end).sort().pop();
+      return `<button class="ggroup" data-gtoggle="${esc(G.k)}" aria-expanded="${!c}"><span class="${c ? '' : 'rot'}">${ICON.chev}</span>${esc(G.k)}<small class="num">${G.ts.length}</small></button>
+      <div class="grow2 grp" style="grid-column:2 / -1"><div class="gbars" style="--n:${N}">${ti >= 0 ? `<i class="nowline" style="left:calc(${(ti + .5) / N * 100}%)"></i>` : ''}
+        <div class="gsum" style="grid-column:${span(gs, ge)}" data-drag="group" data-group="${esc(G.k)}" title="Abschnitt ${esc(G.k)} ${D.short(gs)}–${D.short(ge)} – ziehen verschiebt alle ${G.ts.length} Vorgänge"><span>${esc(G.k)}</span></div></div></div>
+      ${c ? '' : G.ts.map(t => { const oc = openCons(t).length;
+        return `<button class="glab ${selT === t.id ? 'sel' : ''}" data-lpstask="${t.id}"><i style="background:${crewCol(taskCrew(t))}"></i><span>${esc(t.name)}</span>${oc ? `<em class="badc">${ICON.warn}${oc}</em>` : '<em class="okc">frei</em>'}</button>
+        <div class="grow2 ${selT === t.id ? 'sel' : ''}" style="grid-column:2 / -1"><div class="gbars" style="--n:${N}">
+          ${ti >= 0 ? `<i class="nowline" style="left:calc(${(ti + .5) / N * 100}%)"></i>` : ''}${bar(t)}</div></div>`; }).join('')}`; }).join('') || '<div class="empty" style="grid-column:1/-1;margin:12px">Keine Vorgänge im Zeitraum.</div>'}
+  </div></div>
+  <div class="legend2"><span><i class="lg free"></i>frei</span><span><i class="lg blocked"></i>Hindernis offen</span><span><i class="lg committed"></i>in KW ${D.kw(mon)} zugesagt</span><span><i class="lg prog"></i>Ist-Fortschritt</span><span><i class="lg grp"></i>Abschnitt</span><span><i class="lg now"></i>heute</span></div>`;
+}
+
+/* Rückgängig für Verschieben und Zuordnen */
+function planSnap() { return { tasks: structuredClone(S.tasks), el: Object.fromEntries(elsArr().map(e => [e.guid, e.taskId])) }; }
+function pushUndo() { lpsView.undo.push(planSnap()); if (lpsView.undo.length > 30) lpsView.undo.shift(); }
+function lpsUndo() {
+  const u = lpsView.undo.pop(); if (!u) return;
+  S.tasks = u.tasks; for (const e of elsArr()) e.taskId = u.el[e.guid] ?? null;
+  afterPlanChange(); toast('Rückgängig gemacht.');
+}
+function afterPlanChange() { reindex(); computeRange(); renderTicks(); save(); renderLps(); applyColors(); }
+
+/* Balken ziehen */
+let gdrag = null;
+$('#lps').addEventListener('pointerdown', e => {
+  const b = e.target.closest('[data-drag]'); if (!b || e.button !== 0) return;
+  const lane = b.closest('.gbars'); if (!lane) return;
+  const r = b.getBoundingClientRect(), dayW = lane.getBoundingClientRect().width / +getComputedStyle(lane).getPropertyValue('--n');
+  gdrag = { el: b, kind: b.dataset.drag, id: b.dataset.lpstask || b.dataset.group, x0: e.clientX, dayW, mode: b.dataset.drag === 'task' && e.clientX > r.right - 10 ? 'dur' : 'move', dd: 0, w0: r.width };
+  b.setPointerCapture(e.pointerId); b.classList.add('dragging'); e.preventDefault();
+});
+$('#lps').addEventListener('pointermove', e => {
+  if (!gdrag) { const b = e.target.closest('[data-drag="task"]'); if (b) b.style.cursor = e.clientX > b.getBoundingClientRect().right - 10 ? 'ew-resize' : 'grab'; return; }
+  const dd = Math.round((e.clientX - gdrag.x0) / gdrag.dayW); if (dd === gdrag.dd) return; gdrag.dd = dd;
+  if (gdrag.mode === 'dur') gdrag.el.style.width = Math.max(gdrag.dayW * .8, gdrag.w0 + dd * gdrag.dayW) + 'px';
+  else gdrag.el.style.transform = `translateX(${dd * gdrag.dayW}px)`;
+  let tip = '';
+  if (gdrag.kind === 'task') { const t = taskMap[gdrag.id]; tip = gdrag.mode === 'dur' ? `${Math.max(1, t.dur + dd)} AT` : `${D.short(D.addWD(t.start, dd))} – ${D.short(D.addWD(t.end, dd))}`; }
+  else tip = `${dd > 0 ? '+' : ''}${dd} AT`;
+  gdrag.el.dataset.tip = tip;
+});
+function endDrag(e) {
+  if (!gdrag) return; const g = gdrag; gdrag = null;
+  g.el.classList.remove('dragging');
+  if (!g.dd) { g.el.style.transform = ''; g.el.style.width = ''; delete g.el.dataset.tip; if (g.kind === 'task') { lpsView.sel = { type: 'task', id: g.id }; renderLps(); applyColors(); } return; }
+  lpsView.noClick = true; setTimeout(() => lpsView.noClick = false, 0);
+  pushUndo();
+  const blocked = [];
+  const moveTask = (t, dd) => { const want = D.addWD(t.start, dd); t.fix = want; return want; };
+  if (g.kind === 'task') {
+    const t = taskMap[g.id];
+    if (g.mode === 'dur') { t.dur = Math.max(1, t.dur + g.dd); reindex(); toast(`„${t.name}“: ${t.dur} AT, Ende ${D.de(t.end)}.`); }
+    else { const want = moveTask(t, g.dd); reindex(); if (taskMap[g.id].start !== want) blocked.push(taskMap[g.id]); else toast(`„${t.name}“ beginnt jetzt am ${D.de(want)}.`); }
+  } else {
+    const ts = S.tasks.filter(t => (t.storey || 'Ohne Abschnitt') === g.id && !taskDone(t));
+    const wants = ts.map(t => [t.id, moveTask(t, g.dd)]);
+    reindex();
+    wants.forEach(([id, w]) => { if (taskMap[id].start !== w && taskMap[id].start > w) blocked.push(taskMap[id]); });
+    if (!blocked.length) toast(`Abschnitt ${g.id}: ${ts.length} Vorgänge um ${g.dd > 0 ? '+' : ''}${g.dd} AT verschoben.`);
+  }
+  if (blocked.length) {
+    const t = blocked[0], pr = (t.preds || []).map(p => taskMap[p.id]?.name).filter(Boolean);
+    toast(`„${t.name}“ kann frühestens am ${D.de(t.start)} beginnen${pr.length ? ` – Vorgänger: ${pr.join(', ')}` : ''}. Abhängigkeit im Detailbereich lösen, falls parallel gearbeitet werden kann.`, 6500);
+    if (g.kind === 'task') lpsView.sel = { type: 'task', id: t.id };
+  }
+  afterPlanChange();
+}
+$('#lps').addEventListener('pointerup', endDrag);
+$('#lps').addEventListener('pointercancel', endDrag);
+$('#lps').addEventListener('click', e => { if (lpsView.noClick) { e.stopImmediatePropagation(); e.preventDefault(); } }, true);
+
+/* 3D-Modell neben dem Plan */
+function lpsSplit(on) {
+  lpsView.split = on;
+  const cv = renderer.domElement;
+  if (on) { $('#lps3dVp').append(cv); } else { host.prepend(cv); lpsView.assign = null; lpsView.msel.clear(); }
+  $('#lps').classList.toggle('split', on);
+  $('#lps3d').hidden = !on;
+  lps3dControls(); renderLps(); applyColors();
+  requestAnimationFrame(() => { resize(); if (on) frame(); });
+}
+function lps3dControls() {
+  if (!lpsView.open || !lpsView.split) { orbit.mouseButtons.RIGHT = THREE.MOUSE.PAN; setTool(view.tool === 'walk' ? 'select' : view.tool); return; }
+  orbit.enabled = true;
+  const a = !!lpsView.assign;
+  orbit.mouseButtons.LEFT = a ? -1 : THREE.MOUSE.ROTATE;
+  orbit.mouseButtons.RIGHT = a ? THREE.MOUSE.ROTATE : THREE.MOUSE.PAN;
+  orbit.touches.ONE = a ? -1 : THREE.TOUCH.ROTATE;
+  const t = a ? taskMap[lpsView.assign] : null;
+  $('#lps3dHint').innerHTML = a
+    ? `<b>Zuordnen zu „${esc(t?.name || '')}“</b> – Bauteile anklicken oder überstreichen. Ein schon zugeordnetes Bauteil anklicken nimmt es wieder heraus. Rechte Maustaste dreht. <button class="btn small primary" data-assignoff>Fertig</button>`
+    : 'Bauteil anklicken zeigt seinen Vorgang. Mit Shift mehrere Bauteile wählen – daraus einen Vorgang anlegen oder zuordnen.';
+  $('#lps3d').classList.toggle('assigning', a);
+}
+let mdown = null, mpaint = null;
+function lps3dKeyFn() {
+  const cache = new Map(), at = lpsView.assign;
+  return e => {
+    if (at) return e.taskId === at ? 'k' + (crewIdx(taskCrew(taskMap[at])) % 8) : e.taskId ? 'beton' : 'ghost';
+    const t = taskMap[e.taskId]; if (!t) return 'ghost';
+    if (istAt(e, view.date) >= 2) return 'beton';
+    if (!cache.has(t.id)) cache.set(t.id, 'k' + (crewIdx(taskCrew(t)) % 8));
+    return cache.get(t.id);
+  };
+}
+function lpsSelSet() {
+  const s = new Set(lpsView.msel), id = lpsView.assign || (lpsView.sel?.type === 'task' ? lpsView.sel.id : null);
+  if (id && !lpsView.assign) for (const e of elsArr()) if (e.taskId === id) s.add(e.guid);
+  return s;
+}
+function lpsPD(ev) {
+  if (!lpsView.split) return;
+  mdown = { x: ev.clientX, y: ev.clientY, shift: ev.shiftKey || ev.ctrlKey || ev.metaKey };
+  if (lpsView.assign && ev.button === 0) {
+    const g = pick(ev); const e = g && S.elements[g];
+    mpaint = { add: !(e && e.taskId === lpsView.assign), done: new Set(), changed: 0 };
+    pushUndo(); assignAt(ev);
+  }
+}
+function assignAt(ev) {
+  const g = pick(ev); if (!g || mpaint.done.has(g)) return;
+  const e = S.elements[g]; if (!e || e.cat === 'Aushub' && false) return;
+  mpaint.done.add(g);
+  const want = mpaint.add ? lpsView.assign : null;
+  if (e.taskId !== want) { e.taskId = want; mpaint.changed++; applyColors(); }
+}
+function lpsPM(ev) { if (mpaint) assignAt(ev); }
+function lpsPU(ev) {
+  if (mpaint) { const m = mpaint; mpaint = null; mdown = null; if (m.changed) { toast(`${m.changed} Bauteil${m.changed > 1 ? 'e' : ''} ${m.add ? 'zugeordnet' : 'herausgenommen'}.`); afterPlanChange(); } else lpsView.undo.pop(); return; }
+  if (!mdown || ev.target !== renderer.domElement) { mdown = null; return; }
+  const moved = Math.hypot(ev.clientX - mdown.x, ev.clientY - mdown.y) > 5, sh = mdown.shift; mdown = null;
+  if (moved || ev.button !== 0) return;
+  const g = pick(ev), e = g && S.elements[g];
+  if (sh) { if (g) lpsView.msel.has(g) ? lpsView.msel.delete(g) : lpsView.msel.add(g); lpsView.sel = lpsView.msel.size ? { type: 'msel' } : null; }
+  else if (!e) { lpsView.msel.clear(); lpsView.sel = null; }
+  else if (e.taskId && taskMap[e.taskId]) { lpsView.msel.clear(); lpsView.sel = { type: 'task', id: e.taskId }; revealTask(e.taskId); }
+  else { lpsView.msel = new Set([g]); lpsView.sel = { type: 'msel' }; }
+  renderLps(); applyColors();
+}
+function revealTask(id) {
+  const t = taskMap[id]; if (!t) return;
+  if (lpsView.tab !== 'zeit') return;
+  // Vorgang außerhalb des Vorschau-Fensters: Woche dorthin legen
+  const end = D.add(lpsView.week, 41);
+  if (t.end < lpsView.week || t.start > end) lpsView.week = D.monday(t.start < TODAY ? TODAY : t.start);
+  lpsView.collapsed.delete(t.storey || 'Ohne Abschnitt');
+  setTimeout(() => document.querySelector(`.glab[data-lpstask="${id}"]`)?.scrollIntoView({ block: 'nearest', inline: 'nearest' }), 30);
+}
+
+/* Auswahl aus dem Modell */
+function drawerMsel() {
+  const els = [...lpsView.msel].map(g => S.elements[g]).filter(Boolean);
+  if (!els.length) { lpsView.sel = null; return ''; }
+  const cats = {}; els.forEach(e => cats[e.cat] = (cats[e.cat] || 0) + 1);
+  const st = Object.entries(els.reduce((a, e) => (a[e.storey] = (a[e.storey] || 0) + 1, a), {})).sort((a, b) => b[1] - a[1])[0][0];
+  const vol = els.reduce((a, e) => a + (e.vol || 0), 0);
+  const name = `${st} · ${Object.keys(cats).slice(0, 2).join(' & ')}`;
+  const first = els[0];
+  return `<header class="dh2"><span class="kind" style="--k:var(--accent)">Auswahl im Modell</span><button class="iconbtn" data-dclose aria-label="Schließen">${ICON.x}</button></header>
+  <div class="dbody">
+    <h3>${els.length} Bauteil${els.length > 1 ? 'e' : ''} gewählt</h3>
+    <dl class="kv num"><dt>Volumen</dt><dd>${fmtN(vol, 2)} m³</dd>${Object.entries(cats).map(([k, n]) => `<dt>${esc(k)}</dt><dd>${n}</dd>`).join('')}</dl>
+    <div class="dact"><button class="btn small" data-mselmore="cat">+ alle ${esc(first.cat)} in ${esc(first.storey)}</button><button class="btn small" data-mselmore="storey">+ alles in ${esc(first.storey)}</button><button class="btn small" data-mselclear>Auswahl leeren</button></div>
+    <h4>Zu bestehendem Vorgang</h4>
+    <form class="dform" data-lpsform="massign"><label class="field"><span>Vorgang</span><select id="ma-task" name="taskId">${S.tasks.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join('')}</select></label>
+      <div class="dact"><span class="sp"></span><button class="btn" type="submit">Zuordnen</button></div></form>
+    <h4>Neuen Vorgang anlegen</h4>
+    <form class="dform" data-lpsform="newtask">
+      <label class="field"><span>Name</span><input id="nt-name" name="name" required value="${esc(name)}"></label>
+      <div class="two"><label class="field"><span>Abschnitt</span><select id="nt-st" name="storey">${[...new Set([...S.storeys, st])].map(s => `<option ${s === st ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select></label>
+        <label class="field"><span>Dauer (AT)</span><input id="nt-dur" name="dur" type="number" min="1" value="${Math.max(1, Math.min(10, Math.ceil(vol / 20)))}"></label></div>
+      <div class="two"><label class="field"><span>Kolonne / NU</span><select id="nt-crew" name="crew">${S.lps.crews.map(c => `<option ${c === crewFor({ name }) ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></label>
+        <label class="field"><span>Nach Vorgang</span><select id="nt-pred" name="pred"><option value="">frei terminieren</option>${S.tasks.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join('')}</select></label></div>
+      <label class="field"><span>Frühester Beginn</span><input id="nt-fix" name="fix" type="date" value="${lpsView.week < TODAY ? TODAY : lpsView.week}"></label>
+      <div class="dact"><span class="sp"></span><button class="btn primary" type="submit">${ICON.plus} Vorgang anlegen</button></div>
+    </form>
+  </div>`;
+}
+
+/* Vorgang im Detailbereich */
+function drawerTask(t) {
+  if (!t) { lpsView.sel = null; return ''; }
+  const cs = lpsC().filter(c => c.taskId === t.id), oc = cs.filter(c => !c.erledigt), ti = taskIst(t, TODAY), mon = lpsView.week;
+  const sp = taskSpanInWeek(t, mon), has = lpsK().some(c => c.week === mon && c.taskId === t.id);
+  const nEl = elsArr().filter(e => e.taskId === t.id).length, assigning = lpsView.assign === t.id;
+  const succ = S.tasks.filter(x => (x.preds || []).some(p => p.id === t.id));
+  return `<header class="dh2"><span class="kind" style="--k:${crewCol(taskCrew(t))}">Vorgang · ${esc(t.storey || '')}</span><button class="iconbtn" data-dclose aria-label="Schließen">${ICON.x}</button></header>
+  <div class="dbody">
+    <h3>${esc(t.name)}</h3>
+    <div class="freestate ${oc.length ? 'blocked' : 'free'}">${oc.length ? `${ICON.warn} ${oc.length} Hindernis${oc.length > 1 ? 'se' : ''} offen – noch nicht frei` : `${ICON.ok} Frei für den Wochenplan`}</div>
+    <dl class="kv num"><dt>Soll</dt><dd>${D.de(t.start)} – ${D.de(t.end)} · ${t.dur} AT</dd><dt>Ist</dt><dd>${ti.els.length ? Math.round(ti.p * 100) + ' % fertig' : 'ohne Bauteile'}</dd></dl>
+    <form class="dform inline" data-lpsform="taskmeta" data-task="${t.id}">
+      <div class="two"><label class="field"><span>Kolonne / NU</span><select id="tm-crew" name="crew">${S.lps.crews.map(c => `<option ${c === taskCrew(t) ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></label>
+        <label class="field"><span>Dauer (AT)</span><input id="tm-dur" name="dur" type="number" min="1" value="${t.dur}"></label></div>
+      <label class="field"><span>Frühester Beginn ${t.fix ? '' : '(aus Vorgängern)'}</span><input id="tm-fix" name="fix" type="date" value="${t.fix || ''}"></label>
+    </form>
+    ${sp && !has && !oc.length ? `<button class="btn primary" data-plantask="${t.id}">${ICON.plus} In KW ${D.kw(mon)} einplanen</button>` : has ? `<p class="note">In KW ${D.kw(mon)} bereits zugesagt.</p>` : ''}
+    <h4>Bauteile im Modell · ${nEl}</h4>
+    <div class="dact">${lpsView.split
+      ? `<button class="btn ${assigning ? 'primary' : ''}" data-assign="${t.id}" aria-pressed="${assigning}">${assigning ? 'Zuordnen beenden' : 'Bauteile zuordnen'}</button>${nEl ? `<button class="btn" data-fly="${t.id}">Zeigen</button>` : ''}`
+      : `<button class="btn" data-splitassign="${t.id}">3D öffnen und zuordnen</button>`}</div>
+    <h4>Abhängigkeiten</h4>
+    <div class="deps">${(t.preds || []).length ? t.preds.map(p => `<div class="dep"><span>nach <b>${esc(taskMap[p.id]?.name || p.id)}</b> <small>${p.typ === 'AA' ? 'Anfang–Anfang' : 'Ende–Anfang'}${p.lag ? ` · ${p.lag > 0 ? '+' : ''}${p.lag} AT` : ''}</small></span><button class="iconbtn" data-depdel="${t.id}|${p.id}" aria-label="Abhängigkeit lösen" title="Abhängigkeit lösen">${ICON.x}</button></div>`).join('') : '<p class="note">Keine Vorgänger – Beginn frei wählbar.</p>'}
+      ${succ.length ? `<p class="note">Nachfolger: ${succ.map(x => esc(x.name)).join(', ')}</p>` : ''}</div>
+    <form class="dform addcon" data-lpsform="dep" data-task="${t.id}">
+      <label class="field"><span>Vorgänger hinzufügen</span><select id="dp-id" name="id">${S.tasks.filter(x => x.id !== t.id && !(t.preds || []).some(p => p.id === x.id)).map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select></label>
+      <div class="two"><label class="field"><span>Art</span><select id="dp-typ" name="typ"><option value="EA">Ende–Anfang</option><option value="AA">Anfang–Anfang</option></select></label>
+        <label class="field"><span>Versatz (AT)</span><input id="dp-lag" name="lag" type="number" value="0"></label></div>
+      <div class="dact"><span class="sp"></span><button class="btn" type="submit">Verknüpfen</button></div>
+    </form>
+    <h4>Hindernisse</h4>
+    <div class="conlist">${cs.length ? cs.map(c => { const late = !c.erledigt && c.bis && c.bis < TODAY;
+      return `<label class="con2 ${c.erledigt ? 'done' : ''}"><input type="checkbox" data-con="${c.id}" ${c.erledigt ? 'checked' : ''}><span><span class="kat">${esc(c.kat)}</span><b>${esc(c.text)}</b><small class="num ${late ? 'badc' : ''}">${esc(c.wer || '–')} · bis ${D.de(c.bis)}${late ? ' · überfällig' : ''}</small></span><button type="button" class="iconbtn" data-condel="${c.id}" aria-label="Hindernis löschen">${ICON.x}</button></label>`; }).join('') : '<p class="note">Keine Hindernisse erfasst.</p>'}</div>
+    <form class="dform addcon" data-lpsform="con" data-task="${t.id}">
+      <div class="two"><label class="field"><span>Art</span><select id="h-kat" name="kat">${LPS_KAT.map(k => `<option>${k}</option>`).join('')}</select></label>
+        <label class="field"><span>Ausräumen bis</span><input id="h-bis" type="date" name="bis" value="${D.addWD(t.start, -3) < TODAY ? TODAY : D.addWD(t.start, -3)}"></label></div>
+      <label class="field"><span>Was fehlt</span><input id="h-text" name="text" required placeholder="z. B. Schalplan freigegeben"></label>
+      <label class="field"><span>Wer räumt es aus</span><input id="h-wer" name="wer" placeholder="Planer, Einkauf, Polier, NU …"></label>
+      <div class="dact"><span class="sp"></span><button class="btn" type="submit">${ICON.plus} Hindernis anlegen</button></div>
+    </form>
+    <div class="dact"><button class="btn" data-taskdel="${t.id}" ${nEl ? 'disabled title="Erst Bauteile herausnehmen"' : ''}>Vorgang löschen</button></div>
+  </div>`;
+}
+
+/* Ereignisse für Split, Zuordnung, Abhängigkeiten */
+$('#lps').addEventListener('click', e => {
+  const t = e.target;
+  if (t.closest('[data-split]')) return lpsSplit(!lpsView.split);
+  if (t.closest('[data-undo]')) return lpsUndo();
+  if (t.closest('[data-assignoff]')) { lpsView.assign = null; lps3dControls(); renderLps(); return applyColors(); }
+  const as = t.closest('[data-assign]'); if (as) { lpsView.assign = lpsView.assign === as.dataset.assign ? null : as.dataset.assign; lpsView.msel.clear(); lps3dControls(); renderLps(); return applyColors(); }
+  const sa = t.closest('[data-splitassign]'); if (sa) { lpsView.assign = sa.dataset.splitassign; return lpsSplit(true); }
+  const fl = t.closest('[data-fly]'); if (fl) { const g = elsArr().find(x => x.taskId === fl.dataset.fly); if (g) flyTo(g.guid); return; }
+  const dd = t.closest('[data-depdel]'); if (dd) { const [tid, pid] = dd.dataset.depdel.split('|'); pushUndo(); const x = taskMap[tid]; x.preds = x.preds.filter(p => p.id !== pid); if (!x.fix) x.fix = x.start; afterPlanChange(); return toast('Abhängigkeit gelöst – der Vorgang lässt sich jetzt frei verschieben.'); }
+  const td = t.closest('[data-taskdel]'); if (td) { pushUndo(); const id = td.dataset.taskdel; S.tasks = S.tasks.filter(x => x.id !== id); S.tasks.forEach(x => x.preds = (x.preds || []).filter(p => p.id !== id)); lpsView.sel = null; afterPlanChange(); return toast('Vorgang gelöscht.'); }
+  const mm = t.closest('[data-mselmore]'); if (mm) { const f = S.elements[[...lpsView.msel][0]]; elsArr().filter(x => x.storey === f.storey && (mm.dataset.mselmore === 'storey' || x.cat === f.cat)).forEach(x => lpsView.msel.add(x.guid)); renderLps(); return applyColors(); }
+  if (t.closest('[data-mselclear]')) { lpsView.msel.clear(); lpsView.sel = null; renderLps(); return applyColors(); }
+}, true);
+$('#lps').addEventListener('change', e => {
+  const f = e.target.closest('[data-lpsform="taskmeta"]'); if (!f) return;
+  const t = taskMap[f.dataset.task], v = e.target.value; pushUndo();
+  if (e.target.name === 'crew') t.crew = v;
+  if (e.target.name === 'dur') t.dur = Math.max(1, Math.round(+v) || 1);
+  if (e.target.name === 'fix') t.fix = v || null;
+  afterPlanChange();
+});
+$('#lps').addEventListener('submit', e => {
+  const f = e.target, fd = new FormData(f);
+  if (f.dataset.lpsform === 'dep') { e.preventDefault(); e.stopImmediatePropagation(); pushUndo(); const t = taskMap[f.dataset.task]; t.preds = [...(t.preds || []), { id: fd.get('id'), typ: fd.get('typ'), lag: Math.round(+fd.get('lag') || 0) }];
+    try { reindex(); } catch { t.preds.pop(); toast('Das ergibt einen Zirkelbezug.'); } afterPlanChange(); return; }
+  if (f.dataset.lpsform === 'massign') { e.preventDefault(); e.stopImmediatePropagation(); pushUndo(); const id = fd.get('taskId'); lpsView.msel.forEach(g => S.elements[g].taskId = id); toast(`${lpsView.msel.size} Bauteile „${taskMap[id].name}“ zugeordnet.`); lpsView.msel.clear(); lpsView.sel = { type: 'task', id }; afterPlanChange(); return; }
+  if (f.dataset.lpsform === 'newtask') { e.preventDefault(); e.stopImmediatePropagation(); pushUndo();
+    const id = 't' + (Math.max(0, ...S.tasks.map(x => +String(x.id).replace(/\D/g, '') || 0)) + 1), pred = fd.get('pred');
+    const t = { id, name: String(fd.get('name')).trim(), storey: fd.get('storey'), dur: Math.max(1, +fd.get('dur') || 1), preds: pred ? [{ id: pred, typ: 'EA', lag: 0 }] : [], fix: fd.get('fix') || null, crew: fd.get('crew'), vergaben: [], start: null, end: null };
+    S.tasks.push(t); lpsView.msel.forEach(g => S.elements[g].taskId = id);
+    toast(`Vorgang „${t.name}“ mit ${lpsView.msel.size} Bauteilen angelegt.`); lpsView.msel.clear(); lpsView.sel = { type: 'task', id }; lpsView.tab = 'zeit'; afterPlanChange(); revealTask(id); return; }
+}, true);
+addEventListener('keydown', e => { if (lpsView.open && (e.ctrlKey || e.metaKey) && e.key === 'z' && !e.target.closest('input,textarea,select')) { e.preventDefault(); lpsUndo(); } });
+new ResizeObserver(() => { if (lpsView.split) resize(); }).observe($('#lps3dVp'));
 
 /* ---------- Gemeinsamer Speicher (Riedel-Tools / Supabase) ----------
    Läuft nur, wenn die Seite in den Riedel-Tools mit Anmeldung geöffnet ist (assets/auth-gate.js).
