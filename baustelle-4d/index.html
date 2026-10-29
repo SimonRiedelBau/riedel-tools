@@ -19,7 +19,7 @@
   --brand:#ff0000; --accent:#d10a0a; --accent-fg:#ffffff;
   --st-ghost:#8d979e; --st-arbeit:#e0951a; --st-fertig:#3a9459; --st-abgenommen:#2a78ad;
   --st-verzug:#e04a2b; --st-vorsprung:#6a5acd; --st-beton:#9aa0a5;
-  --v0:#b4434b; --v1:#e0951a; --v2:#2a78ad; --v3:#3a9459; --mangel:#c2187a; --erde:#8a6a3f; --note:#fdf0a6; --note-ok:#e3f1dc; --note-bad:#f8e0dc; --note-fg:#2b2a20; --note-edge:#e2c94a;
+  --v0:#b4434b; --v1:#e0951a; --v2:#2a78ad; --v3:#3a9459; --mangel:#c2187a; --erde:#8a6a3f; --note:#fdf0a6; --note-ok:#e3f1dc; --note-bad:#f8e0dc; --note-fg:#2b2a20; --note-edge:#e2c94a; --k0:#2f6fb0; --k1:#3a8f57; --k2:#d07a26; --k3:#8a57b3; --k4:#c03d6a; --k5:#1f8f8c; --k6:#a88418; --k7:#5b6a78;
   --f-display:"Barlow Semi Condensed","Arial Narrow",system-ui,sans-serif;
   --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
   --f-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Consolas,monospace;
@@ -30,13 +30,13 @@
   --viewport:#0f1214; --grid:#2b3238; --accent:#ff3b30; --accent-fg:#ffffff;
   --st-ghost:#7d878e; --st-arbeit:#f0a72c; --st-fertig:#4cb36f; --st-abgenommen:#4a9bd4;
   --st-verzug:#ff6a48; --st-vorsprung:#9488ee; --st-beton:#7f868c;
-  --v0:#e0606a; --v1:#f0a72c; --v2:#4a9bd4; --v3:#4cb36f; --mangel:#e84aa6; --erde:#a7865a; --note:#4b4526; --note-ok:#24382a; --note-bad:#45292a; --note-fg:#f0ead0; --note-edge:#b59a2e; color-scheme:dark}}
+  --v0:#e0606a; --v1:#f0a72c; --v2:#4a9bd4; --v3:#4cb36f; --mangel:#e84aa6; --erde:#a7865a; --note:#4b4526; --note-ok:#24382a; --note-bad:#45292a; --note-fg:#f0ead0; --note-edge:#b59a2e; --k0:#5b9de0; --k1:#5cbf7d; --k2:#f0a052; --k3:#b088dc; --k4:#e46c96; --k5:#4cc2be; --k6:#d6b347; --k7:#93a3b2; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#121518; --panel:#191d21; --raise:#21262b; --fg:#e6e9eb; --muted:#97a1a8; --line:#2c3338;
   --viewport:#0f1214; --grid:#2b3238; --accent:#ff3b30; --accent-fg:#ffffff;
   --st-ghost:#7d878e; --st-arbeit:#f0a72c; --st-fertig:#4cb36f; --st-abgenommen:#4a9bd4;
   --st-verzug:#ff6a48; --st-vorsprung:#9488ee; --st-beton:#7f868c;
-  --v0:#e0606a; --v1:#f0a72c; --v2:#4a9bd4; --v3:#4cb36f; --mangel:#e84aa6; --erde:#a7865a; --note:#4b4526; --note-ok:#24382a; --note-bad:#45292a; --note-fg:#f0ead0; --note-edge:#b59a2e; color-scheme:dark}
+  --v0:#e0606a; --v1:#f0a72c; --v2:#4a9bd4; --v3:#4cb36f; --mangel:#e84aa6; --erde:#a7865a; --note:#4b4526; --note-ok:#24382a; --note-bad:#45292a; --note-fg:#f0ead0; --note-edge:#b59a2e; --k0:#5b9de0; --k1:#5cbf7d; --k2:#f0a052; --k3:#b088dc; --k4:#e46c96; --k5:#4cc2be; --k6:#d6b347; --k7:#93a3b2; color-scheme:dark}
 
 [hidden]{display:none!important}
 html,body{height:100%}
@@ -198,72 +198,167 @@ table.tab tfoot td{font-weight:600;border-bottom:0}
 html:has(> .rb-bar) body{height:calc(100% - var(--rb-bar-h, 48px))}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--panel);padding:9px 14px;border-radius:var(--r);font-size:13px;z-index:30;max-width:calc(100% - 32px)}
 
-/* Last Planner */
-.lps{display:grid;grid-template-rows:auto 1fr;grid-template-columns:minmax(0,1fr);min-height:0;min-width:0;background:var(--bg)}
-.lps-head{min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;padding:0 16px;background:var(--panel);border-bottom:1px solid var(--line)}
-.lps-head .tabs{border-bottom:0;min-width:0;max-width:100%}
-.weeknav{display:flex;align-items:center;gap:8px;margin-left:auto;padding:6px 0;flex-wrap:wrap}
-.weeknav .wk{display:flex;flex-direction:column;line-height:1.1;min-width:120px}
-.weeknav .wk strong{font:700 18px/1 var(--f-display);letter-spacing:.03em}
+/* Last Planner – Aufbau wie gängige Taktplanungs-Tools: Werkzeugleiste, Filterleiste links, Plan in der Mitte, Details rechts */
+.lps{position:relative;display:grid;grid-template-rows:auto minmax(0,1fr);grid-template-columns:232px minmax(0,1fr);min-height:0;min-width:0;background:var(--bg)}
+.lps.withdrawer{grid-template-columns:232px minmax(0,1fr) 360px}
+.lps-head{grid-column:1/-1;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:8px 16px;background:var(--panel);border-bottom:1px solid var(--line)}
+.lps-head .sp,.dact .sp{flex:1}
+.lseg{max-width:100%;overflow-x:auto;scrollbar-width:none}
+.lseg button{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.lseg button[aria-selected="true"]{background:var(--fg);color:var(--panel)}
+.cnt{font:600 10.5px/1 var(--f-mono);background:var(--raise);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:2px 5px}
+.cnt.bad{background:var(--st-verzug);border-color:var(--st-verzug);color:#fff}
+.lseg button[aria-selected="true"] .cnt:not(.bad){background:transparent;color:inherit;border-color:currentColor}
+.weeknav{display:flex;align-items:center;gap:6px}
+.weeknav .wk{display:flex;flex-direction:column;line-height:1.1;min-width:104px;text-align:center}
+.weeknav .wk strong{font:700 17px/1 var(--f-display);letter-spacing:.03em}
 .weeknav .wk span{font-size:11.5px;color:var(--muted)}
-.ppc{font:600 13px/1 var(--f-display);letter-spacing:.05em;padding:6px 9px;border-radius:var(--r);border:1px solid var(--line);background:var(--raise)}
-.ppc.good{color:var(--st-fertig);border-color:currentColor}.ppc.mid{color:var(--st-arbeit);border-color:currentColor}.ppc.bad{color:var(--st-verzug);border-color:currentColor}
-.lps-body{overflow:auto;padding:14px 16px 32px;display:flex;flex-direction:column;gap:14px;min-height:0;min-width:0}
-.lps-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;font-size:13px}
-.lps-bar .sp{flex:1}
-.note-legend{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
-.note-legend .stick{width:14px;height:14px;min-height:0;padding:0;display:inline-block;box-shadow:none;transform:none;margin-left:6px;pointer-events:none}
-.note-hint{font-size:12px;color:var(--muted);max-width:75ch;margin:0}
-.board-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--panel)}
-.board{display:grid;grid-template-columns:170px repeat(5,minmax(128px,1fr));min-width:820px}
-.bh{padding:8px 10px;font:600 13px/1 var(--f-display);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line);border-left:1px solid var(--line)}
-.bh.crewh{border-left:0}
-.bh.today{color:var(--accent)}
-.bh span{font:500 12px var(--f-body);letter-spacing:0;text-transform:none;margin-left:4px}
-.crew{padding:10px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:2px;background:var(--raise)}
-.crew span{font:600 15px/1.15 var(--f-display);letter-spacing:.02em}
-.crew small{color:var(--muted);font-size:11.5px}
-.lane{grid-column:2 / span 5;position:relative;border-bottom:1px solid var(--line);min-height:96px}
+.iconbtn{width:30px;height:30px;display:inline-grid;place-items:center;border:1px solid var(--line);background:var(--raise);border-radius:var(--r);padding:0;color:var(--fg);flex:none}
+.iconbtn:hover{border-color:var(--muted)}
+.iconbtn svg,.btn svg{width:14px;height:14px;flex:none}
+.search input{border:1px solid var(--line);background:var(--raise);border-radius:var(--r);padding:5px 9px;width:170px;font-size:13px}
+.ppc{font:600 13px/1 var(--f-display);letter-spacing:.05em;padding:7px 9px;border-radius:var(--r);border:1px solid var(--line);background:var(--raise);white-space:nowrap}
+.ppc.good,.tile .good,.goodc{color:var(--st-fertig)}.ppc.mid,.tile .mid,.midc{color:var(--st-arbeit)}.ppc.bad,.tile .bad,.badc{color:var(--st-verzug)}
+.ppc.good,.ppc.mid,.ppc.bad{border-color:currentColor}
+.okc{color:var(--st-fertig)}
+.btn.primary-soft{background:color-mix(in srgb,var(--st-fertig) 14%,var(--panel));border-color:color-mix(in srgb,var(--st-fertig) 45%,var(--line));color:var(--fg)}
+.btn.warn-soft{background:color-mix(in srgb,var(--st-verzug) 12%,var(--panel));border-color:color-mix(in srgb,var(--st-verzug) 45%,var(--line));color:var(--fg)}
+.btn.warn-soft svg{color:var(--st-verzug)}
+
+/* Filterleiste */
+.lps-side{background:var(--panel);border-right:1px solid var(--line);overflow:auto;padding:14px 12px 24px;display:flex;flex-direction:column;gap:20px;min-height:0}
+.side-sec{display:flex;flex-direction:column;gap:8px}
+.side-sec h4{margin:0;font:600 12px/1 var(--f-display);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.crews{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.crewbtn{width:100%;display:grid;grid-template-columns:12px minmax(0,1fr) auto;gap:8px;align-items:center;border:0;background:transparent;padding:6px 6px;border-radius:5px;text-align:left;font-size:13px}
+.crewbtn:hover{background:var(--raise)}
+.crewbtn i{width:12px;height:12px;border-radius:3px}
+.crewbtn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.crewbtn b{font:500 11.5px var(--f-mono);color:var(--muted)}
+.crewbtn.off{color:var(--muted)}.crewbtn.off i{background:transparent!important;box-shadow:inset 0 0 0 1.5px var(--st-ghost)}
+.crew-add{display:flex;gap:6px}
+.crew-add input{flex:1;min-width:0;border:1px solid var(--line);border-radius:5px;padding:5px 8px;background:var(--raise);font-size:12.5px}
+.wkstat .stack{display:flex;height:8px;border-radius:4px;overflow:hidden;background:var(--raise);border:1px solid var(--line)}
+.stack .s-ok{background:var(--st-fertig)}.stack .s-no{background:var(--st-verzug)}.stack .s-op{background:var(--st-ghost);opacity:.45}
+.wkstat dl{display:grid;grid-template-columns:1fr auto;gap:4px 8px;margin:8px 0 0;font-size:12.5px}
+.wkstat dt{display:flex;align-items:center;gap:6px;color:var(--muted)}.wkstat dd{margin:0;font-weight:600}
+.mslist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:12.5px}
+.mslist li{display:grid;grid-template-columns:12px minmax(0,1fr) auto;gap:8px;align-items:center}
+.mslist small{color:var(--muted)}
+.dia{width:9px;height:9px;transform:rotate(45deg);border:2px solid var(--fg);display:block;margin-left:1px}
+
+/* Statussymbole */
+.sti{width:18px;height:18px;border-radius:50%;display:inline-grid;place-items:center;flex:none;color:var(--muted)}
+.sti svg{width:12px;height:12px}
+.sti.erledigt{background:var(--st-fertig);color:#fff}
+.sti.nicht{background:var(--st-verzug);color:#fff}
+
+/* Planfläche */
+.lps-body{overflow:auto;padding:12px 16px 32px;display:flex;flex-direction:column;gap:12px;min-height:0;min-width:0}
+.lps-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;font-size:13px;min-height:30px}
+.tl-wrap{overflow:auto;border:1px solid var(--line);border-radius:8px;background:var(--panel);max-width:100%}
+.nowline{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--accent);opacity:.7;pointer-events:none;z-index:1}
+
+/* Wochenplan */
+.wgrid{display:grid;grid-template-columns:168px repeat(5,minmax(140px,1fr));min-width:868px}
+.wh{position:sticky;top:0;z-index:3;background:var(--panel);padding:8px 10px;border-bottom:1px solid var(--line);border-left:1px solid var(--line);display:flex;align-items:baseline;gap:6px;font-size:12px;color:var(--muted)}
+.wh span{font:600 12px/1 var(--f-display);letter-spacing:.08em;text-transform:uppercase}
+.wh b{font-size:15px;color:var(--fg);font-weight:600}
+.wh.lab{border-left:0;font:600 12px/1 var(--f-display);letter-spacing:.08em;text-transform:uppercase}
+.wh.today span,.wh.today b{color:var(--accent)}
+.wl{padding:10px 10px 10px 12px;border-bottom:1px solid var(--line);box-shadow:inset 4px 0 0 var(--k);display:flex;flex-direction:column;gap:2px;background:var(--panel)}
+.wl b{font:600 14px/1.15 var(--f-display);letter-spacing:.02em}
+.wl small{color:var(--muted);font-size:11.5px}
+.lane{grid-column:2 / span 5;position:relative;border-bottom:1px solid var(--line);min-height:84px}
+.lane.over{background:color-mix(in srgb,var(--accent) 5%,transparent)}
 .lane .cells{position:absolute;inset:0;display:grid;grid-template-columns:repeat(5,1fr)}
-.cell{border:0;border-left:1px solid var(--line);background:transparent;display:flex;align-items:flex-end;justify-content:center;padding-bottom:4px;color:transparent;font-size:16px}
-.cell.today{background:color-mix(in srgb,var(--accent) 5%,transparent)}
-.cell:hover,.cell:focus-visible{color:var(--muted);background:color-mix(in srgb,var(--fg) 4%,transparent)}
-.lane .notes{position:relative;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));grid-auto-flow:row dense;gap:6px;padding:8px 6px 30px;pointer-events:none}
-.stick{pointer-events:auto;background:var(--note);color:var(--note-fg);border-radius:2px;padding:7px 9px 8px;min-height:58px;font-size:12.5px;line-height:1.3;display:flex;flex-direction:column;gap:3px;cursor:grab;box-shadow:0 1px 0 rgb(0 0 0 / .06),0 3px 8px -4px rgb(0 0 0 / .35);border-top:4px solid var(--note-edge);min-width:0;overflow-wrap:anywhere}
-.stick:nth-child(3n+2){transform:rotate(-.6deg)}.stick:nth-child(3n){transform:rotate(.5deg)}
-.stick b{font-weight:600}
-.stick small{font-size:11px;opacity:.75}
-.stick.erledigt{background:var(--note-ok);border-top-color:var(--st-fertig)}
-.stick.nicht{background:var(--note-bad);border-top-color:var(--st-verzug)}
-.stick .ok{color:var(--st-fertig);opacity:1;font-weight:600}
-.stick .why{color:var(--st-verzug);opacity:1;font-weight:600}
-.crew-add{display:flex;gap:6px;max-width:420px}
-.crew-add input{flex:1;min-width:0;border:1px solid var(--line);border-radius:5px;padding:5px 8px;background:var(--panel)}
-.la{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;align-items:start}
-.la-week{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:10px;display:flex;flex-direction:column;gap:8px;min-width:0}
-.la-week header{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;padding-bottom:6px;border-bottom:1px solid var(--line)}
-.la-week header strong{font:700 17px/1 var(--f-display)}
-.la-week header span:last-child{margin-left:auto;font-size:12px}
-.la-task{display:flex;flex-direction:column;gap:5px;padding:8px;border-radius:5px;border:1px solid var(--line);border-left:4px solid var(--st-fertig);background:var(--raise)}
-.la-task.blocked{border-left-color:var(--st-verzug)}
-.la-top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
-.la-top .gname{font-size:13px}
-.con{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:6px;align-items:start;font-size:12.5px;padding:4px 0;border-top:1px dashed var(--line)}
-.con b{font-weight:600}
-.con small{display:block;color:var(--muted);font-size:11.5px}
-.con small.late{color:var(--st-verzug);font-weight:600}
-.con.done span{text-decoration:line-through;color:var(--muted)}
-.con .x{border:0;background:transparent;color:var(--muted);font-size:16px;line-height:1;padding:0 2px}
-.la-task .btn.small{align-self:flex-start}
+.cell{border:0;border-left:1px solid var(--line);background:transparent;display:flex;align-items:flex-end;justify-content:flex-end;padding:0 6px 6px 0;color:transparent}
+.cell svg{width:14px;height:14px}
+.cell.today{background:color-mix(in srgb,var(--accent) 4%,transparent)}
+.cell:hover,.cell:focus-visible{color:var(--muted);background:color-mix(in srgb,var(--fg) 3.5%,transparent)}
+.lane .cards{position:relative;z-index:2;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));grid-auto-flow:row dense;gap:6px;padding:8px 6px 28px;pointer-events:none}
+.card2{pointer-events:auto;min-width:0;background:color-mix(in srgb,var(--k) 11%,var(--panel));border:1px solid color-mix(in srgb,var(--k) 32%,var(--line));border-left:4px solid var(--k);border-radius:6px;padding:6px 8px;display:flex;flex-direction:column;gap:3px;cursor:pointer;font-size:12.5px;line-height:1.3;box-shadow:0 1px 2px rgb(0 0 0 / .06)}
+.card2:hover{box-shadow:0 2px 8px -2px rgb(0 0 0 / .2)}
+.card2.sel{outline:2px solid var(--fg);outline-offset:1px}
+.card2.dragging{opacity:.5}
+.card2 .c-top{display:flex;justify-content:space-between;gap:6px;align-items:flex-start}
+.card2 .c-top b{font-weight:600;overflow-wrap:anywhere;min-width:0}
+.card2 .c-meta{display:flex;flex-wrap:wrap;gap:2px 8px;font-size:11.5px;color:var(--muted)}
+.card2 .c-meta span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.card2 .why{color:var(--st-verzug);font-weight:600}
+.card2 .cwarn{display:inline-flex;align-items:center;gap:3px;color:var(--st-verzug);font-weight:600}
+.card2 .cwarn svg{width:12px;height:12px}
+.card2.erledigt{background:color-mix(in srgb,var(--k) 6%,var(--panel))}
+.card2.erledigt .c-top b{color:var(--muted)}
+.card2.nicht{border-color:color-mix(in srgb,var(--st-verzug) 55%,var(--line));border-left-color:var(--k)}
+
+/* Vorschau als Balkenplan */
+.ggrid{display:grid;grid-template-columns:260px repeat(var(--n),minmax(26px,1fr));min-width:calc(260px + var(--n) * 26px);font-size:12.5px}
+.gh{position:sticky;z-index:3;background:var(--panel);border-bottom:1px solid var(--line)}
+.gh.wkh{top:0;padding:6px 8px;border-left:1px solid var(--line);font:600 12.5px/1 var(--f-display);letter-spacing:.06em;text-transform:uppercase;display:flex;gap:6px;align-items:baseline;white-space:nowrap;overflow:hidden}
+.gh.wkh small{font:400 11px var(--f-body);color:var(--muted);letter-spacing:0;text-transform:none}
+.gh.gh1{top:0}
+.gh.dh{top:26px;text-align:center;font:500 10.5px/1 var(--f-mono);color:var(--muted);padding:4px 0}
+.gh.dh.wkstart{border-left:1px solid var(--line)}
+.gh.dh.today{color:var(--accent);font-weight:700}
+.gh.lab{top:26px;left:0;z-index:4;padding:4px 10px;font:600 11.5px/1 var(--f-display);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-right:1px solid var(--line)}
+.gh.lab.gh1{top:0;z-index:4;border-right:1px solid var(--line)}
+.ggroup{grid-column:1/-1;position:sticky;left:0;display:flex;align-items:center;gap:6px;border:0;border-bottom:1px solid var(--line);background:var(--raise);padding:6px 10px;font:600 13px/1 var(--f-display);letter-spacing:.06em;text-transform:uppercase;text-align:left}
+.ggroup span{display:inline-flex;transition:transform .15s}.ggroup span.rot{transform:rotate(90deg)}
+.ggroup svg{width:12px;height:12px}
+.ggroup small{font:500 11px var(--f-mono);color:var(--muted);margin-left:2px}
+.glab{position:sticky;left:0;z-index:2;grid-column:1;display:grid;grid-template-columns:10px minmax(0,1fr) auto;gap:8px;align-items:center;height:36px;padding:0 10px;border:0;border-bottom:1px solid var(--line);border-right:1px solid var(--line);background:var(--panel);text-align:left;font-size:12.5px}
+.glab:hover,.glab.sel{background:var(--raise)}
+.glab.sel{box-shadow:inset 3px 0 0 var(--fg)}
+.glab i{width:10px;height:10px;border-radius:3px}
+.glab span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.glab em{font-style:normal;font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:3px}
+.glab em svg{width:11px;height:11px}
+.glab.msl{cursor:default;font:600 11.5px/1 var(--f-display);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);grid-template-columns:1fr}
+.grow2{position:relative;border-bottom:1px solid var(--line);min-width:0}
+.grow2.sel{background:color-mix(in srgb,var(--fg) 3%,transparent)}
+.gbars{position:relative;display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));align-items:center;height:36px;background-image:linear-gradient(to right,var(--line) 1px,transparent 1px);background-size:calc(100% / var(--n) * 5) 100%}
+.gbar2{position:relative;height:22px;border-radius:4px;overflow:hidden;display:flex;align-items:center;gap:4px;padding:0 6px;cursor:pointer;background:color-mix(in srgb,var(--k) 20%,var(--panel));border:1px solid var(--k);font-size:11.5px;font-weight:500;z-index:2;min-width:0}
+.gbar2 .prog{position:absolute;left:0;top:0;bottom:0;background:color-mix(in srgb,var(--k) 50%,var(--panel))}
+.gbar2 span{position:relative;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1}
+.gbar2 em{position:relative;display:inline-flex;align-items:center;gap:2px;font-style:normal;font-weight:700;color:var(--st-verzug);background:var(--panel);border-radius:3px;padding:0 3px;font-size:11px}
+.gbar2 em svg{width:11px;height:11px}
+.gbar2.blocked{background-image:repeating-linear-gradient(135deg,color-mix(in srgb,var(--st-verzug) 20%,transparent) 0 4px,transparent 4px 8px);border-style:dashed}
+.gbar2.committed{box-shadow:0 0 0 2px var(--panel),0 0 0 4px var(--st-abgenommen)}
+.msrow{height:36px}
+.msd{position:absolute;top:6px;transform:translateX(-5px);display:flex;align-items:center;gap:5px;white-space:nowrap;font-size:11px;color:var(--muted);z-index:2}
+.msd i{width:10px;height:10px;transform:rotate(45deg);background:var(--fg);display:block}
+.legend2{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--muted)}
+.legend2 span{display:inline-flex;align-items:center;gap:6px}
+.lg{width:22px;height:10px;border-radius:3px;display:inline-block;border:1px solid var(--k0);background:color-mix(in srgb,var(--k0) 20%,var(--panel))}
+.lg.blocked{border-style:dashed;background-image:repeating-linear-gradient(135deg,color-mix(in srgb,var(--st-verzug) 30%,transparent) 0 3px,transparent 3px 6px)}
+.lg.committed{box-shadow:0 0 0 2px var(--st-abgenommen)}
+.lg.prog{background:color-mix(in srgb,var(--k0) 50%,var(--panel))}
+.lg.now{width:2px;height:12px;border:0;background:var(--accent)}
+
+/* Hindernisliste */
+.tblwrap{border:1px solid var(--line);border-radius:8px;background:var(--panel)}
+.htab th{position:sticky;top:0;background:var(--panel);z-index:1}
+.htab td,.htab th{text-align:left!important;white-space:normal!important;vertical-align:top;padding:8px 10px}
+.htab td:first-child{width:30px}
+.htab tbody tr{cursor:pointer}
+.htab tbody tr:hover td{background:var(--raise)}
+.htab tr.done td{color:var(--muted)}.htab tr.done b{text-decoration:line-through}
+.htab .kat,.con2 .kat{display:block;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-top:2px}
+.tdot{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;vertical-align:0}
+
+/* Kennzahlen */
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
-.tile{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:12px;display:flex;flex-direction:column;gap:2px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:2px}
 .tile span{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
 .tile strong{font:700 28px/1.1 var(--f-display)}
 .tile small{font-size:12px;color:var(--muted)}
-.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px}
-.kcard{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;display:flex;flex-direction:column;gap:10px;min-width:0}
-.kcard h2{font:700 15px/1.1 var(--f-display);text-transform:uppercase;letter-spacing:.07em;margin:0;color:var(--muted)}
-.chart{width:100%;min-width:420px;height:auto;display:block}
+.kpi-grid{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:12px}
+.kcard.full{grid-column:1/-1}
+@media (max-width:1000px){.kpi-grid{grid-template-columns:minmax(0,1fr)}}
+.kcard{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.kcard h2{font:700 14px/1.1 var(--f-display);text-transform:uppercase;letter-spacing:.07em;margin:0;color:var(--muted)}
+.chart{width:100%;height:auto;display:block}
 .chart .grid{stroke:var(--line);stroke-width:1}
 .chart .target{stroke:var(--fg);stroke-dasharray:4 4;stroke-width:1.2;opacity:.6}
 .chart .lbl{fill:var(--muted);font:11px var(--f-body)}
@@ -271,9 +366,53 @@ html:has(> .rb-bar) body{height:calc(100% - var(--rb-bar-h, 48px))}
 .pareto{display:grid;grid-template-columns:minmax(0,170px) minmax(0,1fr) 26px;gap:8px;align-items:center;font-size:12.5px}
 .pareto .bar{height:12px;background:var(--raise);border-radius:2px;overflow:hidden}
 .pareto .bar i{display:block;height:100%;background:var(--st-verzug)}
-.stat{border:0;padding:0;margin:0}
-.stat label{display:flex;gap:6px;align-items:center;border:1px solid var(--line);border-radius:6px;padding:7px 8px;font-size:13px;color:var(--fg)}
-@media (max-width:900px){.lps{overflow:visible}.lps-body{overflow:visible}.weeknav{margin-left:0}}
+
+/* Details rechts */
+.lps-drawer{background:var(--panel);border-left:1px solid var(--line);overflow:auto;min-height:0}
+.dh2{position:sticky;top:0;z-index:2;background:var(--panel);display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.dh2 .kind{display:inline-flex;align-items:center;gap:8px;font:600 12.5px/1 var(--f-display);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.dh2 .kind::before{content:"";width:10px;height:10px;border-radius:3px;background:var(--k)}
+.dform,.dbody{padding:14px;display:flex;flex-direction:column;gap:12px}
+.dbody .dform{padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--raise)}
+.dbody h3{font:600 19px/1.2 var(--f-display);margin:0}
+.dbody h4{margin:4px 0 0;font:600 12px/1 var(--f-display);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.dform fieldset{border:0;padding:0;margin:0}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stseg{display:grid;grid-template-columns:repeat(3,1fr);width:100%}
+.stseg label{display:flex;align-items:center;justify-content:center;gap:5px;padding:6px 4px;border-radius:4px;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer;white-space:nowrap}
+.stseg input{position:absolute;opacity:0;pointer-events:none}
+.stseg label:has(input:checked){background:var(--fg);color:var(--panel)}
+.stseg label:has(input:focus-visible){outline:2px solid var(--accent)}
+.dwarn{display:grid;grid-template-columns:16px 1fr;gap:8px;padding:10px;border-radius:6px;background:color-mix(in srgb,var(--st-verzug) 10%,var(--panel));border:1px solid color-mix(in srgb,var(--st-verzug) 40%,var(--line));font-size:12.5px}
+.dwarn svg{width:16px;height:16px;color:var(--st-verzug)}
+.dwarn small{display:block;color:var(--muted);margin-top:2px}
+.dact{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.freestate{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:6px;font-weight:600;font-size:13px}
+.freestate svg{width:15px;height:15px}
+.freestate.free{background:color-mix(in srgb,var(--st-fertig) 12%,var(--panel));color:var(--st-fertig)}
+.freestate.blocked{background:color-mix(in srgb,var(--st-verzug) 10%,var(--panel));color:var(--st-verzug)}
+.conlist{display:flex;flex-direction:column}
+.con2{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:start;padding:8px 0;border-top:1px solid var(--line);font-size:13px}
+.con2:first-child{border-top:0}
+.con2 b{font-weight:600;display:block}
+.con2 small{display:block;color:var(--muted);font-size:11.5px}
+.con2.done b{text-decoration:line-through;color:var(--muted)}
+.con2 .iconbtn{width:24px;height:24px;background:transparent;border-color:transparent;color:var(--muted)}
+
+@media (max-width:1180px){
+  .lps.withdrawer{grid-template-columns:232px minmax(0,1fr)}
+  .lps-drawer{grid-row:2;grid-column:1/-1;position:absolute;right:0;top:0;bottom:0;width:min(380px,100%);z-index:8;box-shadow:-12px 0 30px -12px rgb(0 0 0 / .35)}
+}
+@media (max-width:900px){
+  .lps,.lps.withdrawer{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr);overflow:visible}
+  .lps-side{border-right:0;border-bottom:1px solid var(--line);flex-direction:row;overflow-x:auto;padding:8px 16px;gap:12px}
+  .lps-side .side-sec:not(:first-child),.lps-side h4,.crew-add{display:none}
+  .crews{flex-direction:row;gap:4px}
+  .crewbtn{white-space:nowrap;border:1px solid var(--line);border-radius:14px;padding:4px 10px;width:auto}
+  .lps-body{overflow:visible}
+  .lps-drawer{position:fixed;top:auto;left:0;right:0;bottom:0;width:100%;max-height:85vh;border-left:0;border-top:1px solid var(--line);border-radius:12px 12px 0 0;z-index:15}
+  .search input{width:130px}
+}
 @media (max-width:900px){
   .app{height:auto;min-height:100%}
   main.work{grid-template-columns:minmax(0,1fr)}
@@ -357,7 +496,7 @@ html:has(> .rb-bar) body{height:calc(100% - var(--rb-bar-h, 48px))}
       <div class="pane" id="pane"></div>
     </aside>
   </main>
-  <section class="lps" id="lps" hidden aria-label="Last Planner"><div class="lps-head" id="lpsHead"></div><div class="lps-body" id="lpsBody"></div></section>
+  <section class="lps" id="lps" hidden aria-label="Last Planner"><div class="lps-head" id="lpsHead"></div><aside class="lps-side" id="lpsSide" aria-label="Filter"></aside><div class="lps-body" id="lpsBody"></div><aside class="lps-drawer" id="lpsDrawer" hidden aria-label="Details"></aside></section>
 </div>
 <div class="modal" id="modal" hidden></div>
 <div class="toast" id="toast" hidden></div>
@@ -1493,7 +1632,7 @@ addEventListener('keydown', e => { if (e.key === 'Escape') $('#modal').hidden = 
 const LPS_KAT = ['Planung / Info', 'Material', 'Personal', 'Gerät', 'Vorleistung', 'Platz / Zugang', 'Genehmigung / Abnahme', 'Witterung'];
 const LPS_GRUND = ['Planung / Info fehlt', 'Material nicht da', 'Personal fehlt', 'Gerät fehlt / defekt', 'Vorleistung nicht fertig', 'Witterung', 'Überplant / zu knapp', 'Änderung durch AG', 'Sonstiges'];
 const WD = ['Mo', 'Di', 'Mi', 'Do', 'Fr'];
-const lpsView = { tab: 'woche', week: D.monday(TODAY), open: false, drag: null };
+const lpsView = { tab: 'woche', week: D.monday(TODAY), open: false, drag: null, hide: new Set(), q: '', sel: null, cf: 'offen', collapsed: new Set(), qt: null };
 
 function crewFor(t) {
   const n = t.name;
@@ -1584,75 +1723,156 @@ function setLps(open) {
 }
 $('#btnLps').addEventListener('click', () => setLps(!lpsView.open));
 
+/* Darstellungshilfen */
+const crewIdx = cr => Math.max(0, S.lps.crews.indexOf(cr));
+const crewCol = cr => `var(--k${crewIdx(cr) % 8})`;
+const crewVis = cr => !lpsView.hide.has(cr);
+const matchQ = (...xs) => !lpsView.q || xs.some(x => String(x || '').toLowerCase().includes(lpsView.q));
+const ICON = {
+  ok: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  no: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+  open: '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>',
+  warn: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2l6.5 11.5h-13z" fill="currentColor"/><path d="M8 6.5v3.2M8 11.6v.1" stroke="var(--panel)" stroke-width="1.6" stroke-linecap="round"/></svg>',
+  x: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+  chev: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  plus: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>'
+};
+const stIcon = s => `<span class="sti ${s}" title="${{ offen: 'zugesagt', erledigt: 'erledigt', nicht: 'nicht erledigt' }[s]}">${s === 'erledigt' ? ICON.ok : s === 'nicht' ? ICON.no : ICON.open}</span>`;
+const ppcCls = p => p == null ? '' : p >= .8 ? 'good' : p >= .6 ? 'mid' : 'bad';
+const pct = p => p == null ? '–' : Math.round(p * 100) + ' %';
+function taskCrew(t) { const k = lpsK().find(c => c.taskId === t.id); return k?.crew || crewFor(t); }
+function overdueCons() { return lpsC().filter(c => !c.erledigt && c.bis && c.bis < TODAY); }
+
+/* Hauptaufbau */
 function renderLps() {
   if (!lpsView.open) return;
   const mon = lpsView.week, q = ppc(mon), fri = D.add(mon, 4);
+  const oc = lpsC().filter(c => !c.erledigt).length, od = overdueCons().length;
+  const views = [['woche', 'Wochenplan'], ['zeit', 'Vorschau 6 Wochen'], ['hind', 'Hindernisse', oc, od], ['kpi', 'Kennzahlen']];
   $('#lpsHead').innerHTML = `
-    <nav class="tabs" role="tablist">${[['woche', 'Wochenplan'], ['vorschau', 'Vorschau 6 Wochen'], ['kpi', 'Kennzahlen']].map(([k, l]) => `<button role="tab" data-ltab="${k}" aria-selected="${lpsView.tab === k}">${l}</button>`).join('')}</nav>
-    <div class="weeknav"><button class="btn small" data-wk="-1" aria-label="Woche zurück">‹</button>
-      <div class="wk"><strong class="num">KW ${D.kw(mon)}</strong><span class="num">${D.short(mon)}–${D.short(fri)}${mon === D.monday(TODAY) ? ' · diese Woche' : ''}</span></div>
-      <button class="btn small" data-wk="1" aria-label="Woche vor">›</button>
-      ${mon !== D.monday(TODAY) ? '<button class="btn small" data-wk="0">Heute</button>' : ''}
-      <span class="ppc ${q.p == null ? '' : q.p >= .8 ? 'good' : q.p >= .6 ? 'mid' : 'bad'}" title="Prozent erledigter Zusagen">PPC ${q.p == null ? '–' : Math.round(q.p * 100) + ' %'}</span></div>`;
-  $('#lpsBody').innerHTML = lpsView.tab === 'woche' ? lpsWoche(mon) : lpsView.tab === 'vorschau' ? lpsVorschau(mon) : lpsKpi(mon);
+    <div class="seg lseg" role="tablist" aria-label="Ansicht">${views.map(([k, l, n, bad]) => `<button role="tab" data-ltab="${k}" aria-selected="${lpsView.tab === k}">${l}${n ? `<span class="cnt ${bad ? 'bad' : ''}">${n}</span>` : ''}</button>`).join('')}</div>
+    <div class="weeknav">
+      <button class="iconbtn" data-wk="-1" aria-label="Woche zurück"><span style="transform:rotate(180deg);display:inline-flex">${ICON.chev}</span></button>
+      <div class="wk"><strong class="num">KW ${D.kw(mon)}</strong><span class="num">${D.short(mon)} – ${D.short(fri)}</span></div>
+      <button class="iconbtn" data-wk="1" aria-label="Woche vor">${ICON.chev}</button>
+      <button class="btn small" data-wk="0" ${mon === D.monday(TODAY) ? 'disabled' : ''}>Heute</button>
+    </div>
+    <span class="sp"></span>
+    <label class="search"><input id="lps-q" type="search" placeholder="Suchen …" aria-label="Zusagen und Vorgänge durchsuchen" value="${esc(lpsView.q)}"></label>
+    <span class="ppc ${ppcCls(q.p)}" title="Prozent erledigter Zusagen in KW ${D.kw(mon)}">PPC ${pct(q.p)}</span>
+    <button class="btn primary small" data-newcommit>${ICON.plus} Zusage</button>`;
+  $('#lpsSide').innerHTML = lpsSidebar(mon);
+  $('#lpsBody').innerHTML = { woche: lpsWoche, zeit: lpsZeit, hind: lpsHind, kpi: lpsKpi }[lpsView.tab](mon);
+  renderDrawer();
+}
+function lpsSidebar(mon) {
+  const k = lpsK().filter(c => c.week === mon), q = ppc(mon);
+  const ms = milestoneStates().filter(m => !m.done).slice(0, 4);
+  return `<section class="side-sec"><h4>Kolonnen &amp; Gewerke</h4>
+      <ul class="crews">${S.lps.crews.map(cr => { const n = k.filter(c => c.crew === cr).length;
+        return `<li><button class="crewbtn ${crewVis(cr) ? '' : 'off'}" data-crewtoggle="${esc(cr)}" aria-pressed="${crewVis(cr)}" title="Ein- oder ausblenden"><i style="background:${crewCol(cr)}"></i><span>${esc(cr)}</span><b class="num">${n || ''}</b></button></li>`; }).join('')}</ul>
+      <form class="crew-add" data-lpsform="crew"><input id="lps-crew" name="crew" placeholder="Kolonne / NU hinzufügen" aria-label="Neue Kolonne"><button class="iconbtn" type="submit" aria-label="Hinzufügen">${ICON.plus}</button></form></section>
+    <section class="side-sec"><h4>KW ${D.kw(mon)}</h4>
+      <div class="wkstat"><div class="stack" title="erledigt / nicht erledigt / offen">
+        <i class="s-ok" style="flex:${q.done}"></i><i class="s-no" style="flex:${q.nicht}"></i><i class="s-op" style="flex:${q.offen}"></i></div>
+        <dl class="num"><dt>${stIcon('erledigt')} Erledigt</dt><dd>${q.done}</dd><dt>${stIcon('nicht')} Nicht erledigt</dt><dd>${q.nicht}</dd><dt>${stIcon('offen')} Offen</dt><dd>${q.offen}</dd></dl></div></section>
+    <section class="side-sec"><h4>Nächste Meilensteine</h4>
+      ${ms.length ? `<ul class="mslist">${ms.map(m => `<li><i class="dia"></i><span>${esc(m.name)}</span><small class="num">${D.short(m.soll)}</small></li>`).join('')}</ul>` : '<p class="note">Alle Meilensteine erreicht.</p>'}</section>`;
 }
 
+/* Wochenplan: Bahnen je Kolonne, Karten über die Tage */
 function lpsWoche(mon) {
-  const days = weekDays(mon), k = lpsK().filter(c => c.week === mon);
+  const days = weekDays(mon), all = lpsK().filter(c => c.week === mon);
+  const k = all.filter(c => crewVis(c.crew) && matchQ(c.text, taskMap[c.taskId]?.name, c.crew));
   const active = S.tasks.filter(t => taskSpanInWeek(t, mon) && !taskDone(t));
-  const committed = new Set(k.map(c => c.taskId));
+  const committed = new Set(all.map(c => c.taskId));
   const free = active.filter(t => !committed.has(t.id) && !openCons(t).length);
   const blocked = active.filter(t => !committed.has(t.id) && openCons(t).length);
-  const q = ppc(mon);
+  const ti = days.indexOf(TODAY), sel = lpsView.sel;
   const card = c => {
-    const t = taskMap[c.taskId];
-    return `<div class="stick ${c.status}" draggable="true" data-commit="${c.id}" style="grid-column:${c.day + 1} / span ${c.len}" tabindex="0" role="button" aria-label="Zusage ${esc(c.text)} bearbeiten">
-      <b>${esc(c.text)}</b>
-      ${c.status === 'nicht' ? `<small class="why">✕ ${esc(c.grund || 'ohne Grund')}</small>` : c.status === 'erledigt' ? '<small class="ok">✓ erledigt</small>' : ''}
-      ${t && t.name !== c.text ? `<small>${esc(t.name)}</small>` : ''}</div>`;
+    const t = taskMap[c.taskId], oc = t ? openCons(t).length : 0;
+    return `<div class="card2 ${c.status} ${sel?.type === 'commit' && sel.id === c.id ? 'sel' : ''}" draggable="true" data-commit="${c.id}" style="grid-column:${c.day + 1} / span ${c.len};--k:${crewCol(c.crew)}" tabindex="0" role="button" aria-label="Zusage ${esc(c.text)}">
+      <div class="c-top"><b>${esc(c.text)}</b>${stIcon(c.status)}</div>
+      <div class="c-meta">${t && t.name !== c.text ? `<span>${esc(t.name)}</span>` : ''}${c.status === 'nicht' ? `<span class="why">${esc(c.grund || 'ohne Grund')}</span>` : ''}${oc && c.status === 'offen' ? `<span class="cwarn" title="${oc} offene Hindernisse">${ICON.warn}${oc}</span>` : ''}</div></div>`;
   };
+  const crews = S.lps.crews.filter(crewVis);
   return `<div class="lps-bar">
-      <span class="note-legend"><i class="stick offen"></i>zugesagt <i class="stick erledigt"></i>erledigt <i class="stick nicht"></i>nicht erledigt</span>
-      <span class="muted num">${q.n} Zusagen · ${q.done} erledigt · ${q.nicht} nicht erledigt · ${q.offen} offen</span>
-      <span class="sp"></span>
-      ${free.length ? `<button class="btn primary small" data-lpsact="takefree">${free.length} freie Vorgänge einplanen</button>` : ''}
-      ${blocked.length ? `<button class="btn small" data-ltab="vorschau" title="${esc(blocked.map(t => t.name).join(', '))}">${blocked.length} Vorgänge nicht frei</button>` : ''}
+      ${free.length ? `<button class="btn small primary-soft" data-lpsact="takefree">${ICON.plus} ${free.length} freie Vorgänge einplanen</button>` : ''}
+      ${blocked.length ? `<button class="btn small warn-soft" data-ltab="zeit">${ICON.warn} ${blocked.length} Vorgänge diese Woche blockiert</button>` : ''}
+      ${!free.length && !blocked.length ? '<span class="note">Alle Vorgänge dieser Woche sind eingeplant.</span>' : ''}
     </div>
-    <div class="board-wrap"><div class="board">
-      <div class="bh crewh">Kolonne / NU</div>
-      ${days.map((d, i) => `<div class="bh ${d === TODAY ? 'today' : ''}">${WD[i]} <span class="num">${D.short(d)}</span></div>`).join('')}
-      ${S.lps.crews.map(cr => `
-        <div class="crew"><span>${esc(cr)}</span><small class="num">${k.filter(c => c.crew === cr).length} Zusagen</small></div>
+    <div class="tl-wrap"><div class="wgrid" style="--days:5">
+      <div class="wh lab">Kolonne</div>
+      ${days.map((d, i) => `<div class="wh ${i === ti ? 'today' : ''}"><span>${WD[i]}</span><b class="num">${D.parse(d).getUTCDate()}.</b></div>`).join('')}
+      ${crews.length ? crews.map(cr => { const n = k.filter(c => c.crew === cr);
+        return `<div class="wl" style="--k:${crewCol(cr)}"><b>${esc(cr)}</b><small class="num">${n.length} Zusagen</small></div>
         <div class="lane" data-crew="${esc(cr)}">
-          <div class="cells">${days.map((d, i) => `<button class="cell ${d === TODAY ? 'today' : ''}" data-cell="${i}" aria-label="Zusage ${esc(cr)} ${WD[i]} anlegen"><span>+</span></button>`).join('')}</div>
-          <div class="notes">${k.filter(c => c.crew === cr).sort((a, b) => a.day - b.day).map(card).join('')}</div>
-        </div>`).join('')}
+          <div class="cells">${days.map((d, i) => `<button class="cell ${i === ti ? 'today' : ''}" data-cell="${i}" aria-label="Neue Zusage ${esc(cr)} ${WD[i]}">${ICON.plus}</button>`).join('')}</div>
+          ${ti >= 0 ? `<i class="nowline" style="left:calc(${(ti + .5) / 5 * 100}%)"></i>` : ''}
+          <div class="cards">${n.sort((a, b) => a.day - b.day).map(card).join('')}</div>
+        </div>`; }).join('') : '<div class="empty" style="grid-column:1/-1;margin:12px">Alle Kolonnen sind ausgeblendet.</div>'}
     </div></div>
-    <form class="crew-add" data-lpsform="crew"><input id="lps-crew" name="crew" placeholder="Kolonne oder NU hinzufügen" aria-label="Neue Kolonne"><button class="btn small" type="submit">Hinzufügen</button></form>
-    <p class="note-hint">Zusage antippen zum Bearbeiten oder Abhaken. Am Rechner Zettel per Drag & Drop auf anderen Tag oder andere Kolonne ziehen. Nur freie Arbeit zusagen: Hindernisse vorher in der Vorschau ausräumen.</p>`;
+    <p class="note">Zusage anklicken öffnet die Details rechts. Leeres Feld anklicken legt eine neue Zusage an, Karten lassen sich auf andere Tage oder Kolonnen ziehen.</p>`;
 }
 
-function lpsVorschau(mon) {
-  const weeks = [0, 1, 2, 3, 4, 5].map(i => D.add(mon, i * 7)), seen = new Set();
-  const all = lookahead(mon);
-  const freeN = all.filter(t => !openCons(t).length).length;
-  return `<div class="lps-bar"><span class="muted">${all.length} Vorgänge in den nächsten 6 Wochen · <b style="color:var(--fg)">${freeN} frei</b> · ${all.length - freeN} mit offenen Hindernissen</span></div>
-  <div class="la">${weeks.map(w => {
-    const ts = all.filter(t => !seen.has(t.id) && t.start <= D.add(w, 6)); ts.forEach(t => seen.add(t.id));
-    const onW = S.tasks.filter(t => taskSpanInWeek(t, w) && !taskDone(t));
-    return `<section class="la-week"><header><strong class="num">KW ${D.kw(w)}</strong><span class="num muted">${D.short(w)}–${D.short(D.add(w, 4))}</span><span class="muted num">${onW.filter(t => !openCons(t).length).length}/${onW.length} frei</span></header>
-      ${ts.length ? ts.map(t => {
-        const cs = lpsC().filter(c => c.taskId === t.id), op = cs.filter(c => !c.erledigt);
-        return `<div class="la-task ${op.length ? 'blocked' : 'free'}">
-          <div class="la-top"><span class="gname" data-lpstask="${t.id}">${esc(t.name)}</span><span class="chip" style="color:var(${op.length ? '--st-verzug' : '--st-fertig'})">${op.length ? op.length + ' offen' : 'frei'}</span></div>
-          <div class="note num">Soll ${D.short(t.start)}–${D.short(t.end)} · ${esc(crewFor(t))}</div>
-          ${cs.map(c => { const late = !c.erledigt && c.bis && c.bis < TODAY; return `<label class="con ${c.erledigt ? 'done' : ''}"><input type="checkbox" data-con="${c.id}" ${c.erledigt ? 'checked' : ''}><span><b>${esc(c.kat)}</b> ${esc(c.text)}<small class="num ${late ? 'late' : ''}">${esc(c.wer || '–')} · bis ${D.short(c.bis)}${late ? ' · überfällig' : ''}</small></span><button type="button" class="x" data-condel="${c.id}" aria-label="Hindernis löschen">×</button></label>`; }).join('')}
-          <button class="btn small" data-conadd="${t.id}">+ Hindernis</button>
-        </div>`; }).join('') : '<div class="note">Keine neuen Vorgänge.</div>'}
-    </section>`; }).join('')}</div>
-  <p class="note-hint">Ein Vorgang ist frei, wenn alle Hindernisse ausgeräumt sind (Pläne, Material, Personal, Gerät, Vorleistung, Platz, Abnahmen, Witterung). Nur freie Vorgänge wandern in den Wochenplan.</p>`;
+/* Vorschau: Balkenplan der nächsten 6 Wochen, gruppiert nach Abschnitt */
+function lpsZeit(mon) {
+  const W = 6, days = []; for (let w = 0; w < W; w++) weekDays(D.add(mon, w * 7)).forEach(d => days.push(d));
+  const N = days.length, end = days[N - 1];
+  const col = d => { let i = days.findIndex(x => x >= d); return i < 0 ? N : i; };
+  const list = lookahead(mon, W).filter(t => crewVis(taskCrew(t)) && matchQ(t.name, t.storey, taskCrew(t)));
+  const groups = []; list.forEach(t => { const g = t.storey || 'Ohne Abschnitt'; let G = groups.find(x => x.k === g); if (!G) groups.push(G = { k: g, ts: [] }); G.ts.push(t); });
+  groups.sort((a, b) => S.storeys.indexOf(a.k) - S.storeys.indexOf(b.k));
+  const ti = days.indexOf(TODAY);
+  const ms = milestoneStates().filter(m => !m.done && m.soll >= mon && m.soll <= end);
+  const sel = lpsView.sel;
+  const bar = t => {
+    const a = col(t.start), b = Math.min(N, col(D.add(t.end, 1))), oc = openCons(t).length, p = taskIst(t, TODAY).p;
+    const thisWk = lpsK().some(c => c.taskId === t.id && c.week === mon && c.status !== 'nicht');
+    return `<div class="gbar2 ${oc ? 'blocked' : 'free'} ${thisWk ? 'committed' : ''}" style="grid-column:${a + 1} / ${Math.max(a + 2, b + 1)};--k:${crewCol(taskCrew(t))}" data-lpstask="${t.id}" title="${esc(t.name)} · ${D.short(t.start)}–${D.short(t.end)}${oc ? ` · ${oc} Hindernisse offen` : ' · frei'}">
+      <i class="prog" style="width:${p * 100}%"></i><span>${esc(t.name)}</span>${oc ? `<em>${ICON.warn}${oc}</em>` : ''}</div>`;
+  };
+  return `<div class="lps-bar"><span class="note">${list.length} Vorgänge · <b class="okc">${list.filter(t => !openCons(t).length).length} frei</b> · <b class="badc">${list.filter(t => openCons(t).length).length} mit offenen Hindernissen</b>. Balken anklicken für Hindernisse und Freigabe.</span></div>
+  <div class="tl-wrap"><div class="ggrid" style="--n:${N}">
+    <div class="gh lab gh1"></div>
+    ${Array.from({ length: W }, (_, w) => `<div class="gh wkh" style="grid-column:span 5">KW ${D.kw(D.add(mon, w * 7))}<small class="num">${D.short(D.add(mon, w * 7))}</small></div>`).join('')}
+    <div class="gh lab">Vorgang</div>
+    ${days.map((d, i) => `<div class="gh dh ${i === ti ? 'today' : ''} ${i % 5 === 0 ? 'wkstart' : ''}">${'MDMDF'[i % 5]}</div>`).join('')}
+    ${ms.length ? `<div class="glab msl">Meilensteine</div><div class="grow2 msrow" style="grid-column:2 / -1">${ms.map(m => `<span class="msd" style="left:calc(${(col(m.soll) + .5) / N * 100}%)" title="${esc(m.name)} · ${D.de(m.soll)}"><i></i><small>${esc(m.name)}</small></span>`).join('')}</div>` : ''}
+    ${groups.map(G => { const c = lpsView.collapsed.has(G.k);
+      return `<button class="ggroup" data-gtoggle="${esc(G.k)}" aria-expanded="${!c}"><span class="${c ? '' : 'rot'}">${ICON.chev}</span>${esc(G.k)}<small class="num">${G.ts.length}</small></button>
+      ${c ? '' : G.ts.map(t => { const oc = openCons(t).length;
+        return `<button class="glab ${sel?.type === 'task' && sel.id === t.id ? 'sel' : ''}" data-lpstask="${t.id}"><i style="background:${crewCol(taskCrew(t))}"></i><span>${esc(t.name)}</span>${oc ? `<em class="badc">${ICON.warn}${oc}</em>` : '<em class="okc">frei</em>'}</button>
+        <div class="grow2 ${sel?.type === 'task' && sel.id === t.id ? 'sel' : ''}" style="grid-column:2 / -1"><div class="gbars" style="--n:${N}">
+          ${ti >= 0 ? `<i class="nowline" style="left:calc(${(ti + .5) / N * 100}%)"></i>` : ''}${bar(t)}</div></div>`; }).join('')}`; }).join('') || '<div class="empty" style="grid-column:1/-1;margin:12px">Keine Vorgänge im Zeitraum.</div>'}
+  </div></div>
+  <div class="legend2"><span><i class="lg free"></i>frei</span><span><i class="lg blocked"></i>Hindernis offen</span><span><i class="lg committed"></i>in KW ${D.kw(mon)} zugesagt</span><span><i class="lg prog"></i>Ist-Fortschritt</span><span><i class="lg now"></i>heute</span></div>`;
 }
 
+/* Hindernisliste */
+function lpsHind() {
+  const f = lpsView.cf, all = lpsC();
+  const isOver = c => !c.erledigt && c.bis && c.bis < TODAY;
+  const cnt = { offen: all.filter(c => !c.erledigt).length, over: all.filter(isOver).length, done: all.filter(c => c.erledigt).length, alle: all.length };
+  const list = all.filter(c => f === 'alle' || (f === 'offen' && !c.erledigt) || (f === 'over' && isOver(c)) || (f === 'done' && c.erledigt))
+    .filter(c => { const t = taskMap[c.taskId]; return matchQ(c.text, c.kat, c.wer, t?.name) && (!t || crewVis(taskCrew(t))); })
+    .sort((a, b) => (a.erledigt - b.erledigt) || String(a.bis || '9').localeCompare(String(b.bis || '9')));
+  return `<div class="lps-bar"><div class="seg">${[['offen', 'Offen'], ['over', 'Überfällig'], ['done', 'Erledigt'], ['alle', 'Alle']].map(([k, l]) => `<button data-cf="${k}" aria-pressed="${f === k}">${l} <span class="num">${cnt[k]}</span></button>`).join('')}</div>
+      <span class="note">Neues Hindernis: Vorgang in der Vorschau oder hier in der Liste anklicken.</span></div>
+    <div class="tw tblwrap"><table class="tab htab"><thead><tr><th></th><th>Hindernis</th><th>Vorgang</th><th>Zuständig</th><th>Ausräumen bis</th><th>Start Vorgang</th></tr></thead><tbody>
+    ${list.length ? list.map(c => { const t = taskMap[c.taskId], buf = t ? D.wdBetween(TODAY, t.start) : null;
+      return `<tr class="${c.erledigt ? 'done' : ''} ${isOver(c) ? 'over' : ''}" data-lpstask="${c.taskId}">
+        <td><input type="checkbox" data-con="${c.id}" ${c.erledigt ? 'checked' : ''} aria-label="${esc(c.text)} erledigt"></td>
+        <td><b>${esc(c.text)}</b><span class="kat">${esc(c.kat)}</span></td>
+        <td>${t ? `<span class="tdot" style="background:${crewCol(taskCrew(t))}"></span>${esc(t.name)}` : '–'}</td>
+        <td>${esc(c.wer || '–')}</td>
+        <td class="num ${isOver(c) ? 'badc' : ''}">${D.de(c.bis)}${isOver(c) ? ' · überfällig' : ''}</td>
+        <td class="num">${t ? `${D.short(t.start)}${buf != null && !c.erledigt && t.start >= TODAY ? ` <small class="${buf <= 5 ? 'badc' : 'muted'}">in ${buf} AT</small>` : ''}` : '–'}</td></tr>`; }).join('')
+      : `<tr><td colspan="6"><div class="empty">Keine Hindernisse in dieser Auswahl.</div></td></tr>`}
+    </tbody></table></div>`;
+}
+
+/* Kennzahlen */
 function lpsKpi(mon) {
   const weeks = Array.from({ length: 8 }, (_, i) => D.add(mon, (i - 7) * 7));
   const data = weeks.map(w => ({ w, ...ppc(w) }));
@@ -1663,122 +1883,155 @@ function lpsKpi(mon) {
       : `<rect x="${x}" y="${y(d.p)}" width="${w}" height="${H - pb - y(d.p)}" rx="2" style="fill:var(${d.p >= .8 ? '--st-fertig' : d.p >= .6 ? '--st-arbeit' : '--st-verzug'})"/><text x="${x + w / 2}" y="${y(d.p) - 4}" class="val" text-anchor="middle">${Math.round(d.p * 100)}</text>`; }).join('');
   const xl = data.map((d, i) => `<text x="${pl + i * bw + bw / 2}" y="${H - 8}" class="lbl" text-anchor="middle">KW ${D.kw(d.w)}</text>`).join('');
   const grid = [0, .5, 1].map(v => `<line x1="${pl}" x2="${W - pr + 4}" y1="${y(v)}" y2="${y(v)}" class="grid"/><text x="${pl - 6}" y="${y(v) + 4}" class="lbl" text-anchor="end">${v * 100}</text>`).join('');
-  const reasons = {}; lpsK().filter(c => c.status === 'nicht' && weeks.includes(c.week)).forEach(c => reasons[c.grund || 'Sonstiges'] = (reasons[c.grund || 'Sonstiges'] || 0) + 1);
+  const inRange = lpsK().filter(c => weeks.includes(c.week));
+  const reasons = {}; inRange.filter(c => c.status === 'nicht').forEach(c => reasons[c.grund || 'Sonstiges'] = (reasons[c.grund || 'Sonstiges'] || 0) + 1);
   const rs = Object.entries(reasons).sort((a, b) => b[1] - a[1]), rmax = rs[0]?.[1] || 1;
   const done4 = data.slice(4).filter(d => d.p != null), avg = done4.length ? done4.reduce((a, d) => a + d.p, 0) / done4.length : null;
   const la = lookahead(D.monday(TODAY), 3), laFree = la.length ? la.filter(t => !openCons(t).length).length / la.length : null;
-  const oc = lpsC().filter(c => !c.erledigt), late = oc.filter(c => c.bis && c.bis < TODAY);
-  const tile = (l, v, s, tone) => `<div class="tile"><span>${l}</span><strong class="num" style="${tone ? `color:var(${tone})` : ''}">${v}</strong><small>${s}</small></div>`;
+  const oc = lpsC().filter(c => !c.erledigt), late = overdueCons();
+  const crewRows = S.lps.crews.map(cr => { const k = inRange.filter(c => c.crew === cr), d = k.filter(c => c.status === 'erledigt').length, n = k.filter(c => c.status === 'nicht').length; return { cr, n: k.length, d, nn: n, p: d + n ? d / (d + n) : null }; }).filter(r => r.n);
+  const tile = (l, v, s, cls) => `<div class="tile"><span>${l}</span><strong class="num ${cls || ''}">${v}</strong><small>${s}</small></div>`;
   const last = data[7].p != null ? data[7] : data[6];
   return `<div class="tiles">
-      ${tile('PPC ' + (last === data[7] ? 'gewählte Woche' : 'Vorwoche'), last.p == null ? '–' : Math.round(last.p * 100) + ' %', `${last.done} von ${last.done + last.nicht} Zusagen erledigt`, last.p == null ? '' : last.p >= .8 ? '--st-fertig' : last.p >= .6 ? '--st-arbeit' : '--st-verzug')}
-      ${tile('PPC Ø 4 Wochen', avg == null ? '–' : Math.round(avg * 100) + ' %', 'Ziel ≥ 80 %')}
-      ${tile('Vorschau 3 Wochen frei', laFree == null ? '–' : Math.round(laFree * 100) + ' %', `${la.length} Vorgänge betrachtet`)}
-      ${tile('Offene Hindernisse', oc.length, `${late.length} überfällig`, late.length ? '--st-verzug' : '')}
+      ${tile(last === data[7] ? `PPC KW ${D.kw(mon)}` : 'PPC Vorwoche', pct(last.p), `${last.done} von ${last.done + last.nicht} Zusagen erledigt`, ppcCls(last.p))}
+      ${tile('PPC Ø 4 Wochen', pct(avg), 'Ziel ≥ 80 %', ppcCls(avg))}
+      ${tile('Vorschau 3 Wochen frei', pct(laFree), `${la.length} Vorgänge betrachtet`)}
+      ${tile('Offene Hindernisse', oc.length, `${late.length} überfällig`, late.length ? 'bad' : '')}
     </div>
     <div class="kpi-grid">
       <section class="kcard"><h2>PPC je Woche</h2><div class="tw"><svg viewBox="0 0 ${W} ${H}" class="chart" role="img" aria-label="PPC der letzten 8 Wochen">${grid}<line x1="${pl}" x2="${W - pr + 4}" y1="${y(.8)}" y2="${y(.8)}" class="target"/><text x="${W - 2}" y="${y(.8) + 4}" class="lbl" text-anchor="end">Ziel 80</text>${bars}${xl}</svg></div></section>
       <section class="kcard"><h2>Abweichungsgründe · 8 Wochen</h2>
-        ${rs.length ? rs.map(([g, n]) => `<div class="pareto"><span>${esc(g)}</span><div class="bar"><i style="width:${n / rmax * 100}%"></i></div><b class="num">${n}</b></div>`).join('') : '<div class="empty">Keine Abweichungen erfasst.</div>'}
-        <p class="note-hint">Häufigste Gründe zuerst angehen – meist Planung, Material oder Vorleistung.</p></section>
+        ${rs.length ? rs.map(([g, n]) => `<div class="pareto"><span>${esc(g)}</span><div class="bar"><i style="width:${n / rmax * 100}%"></i></div><b class="num">${n}</b></div>`).join('') : '<div class="empty">Keine Abweichungen erfasst.</div>'}</section>
+      <section class="kcard full"><h2>PPC je Kolonne · 8 Wochen</h2>
+        <div class="tw"><table class="tab"><thead><tr><th>Kolonne / NU</th><th>Zusagen</th><th>erledigt</th><th>nicht</th><th>PPC</th></tr></thead><tbody>
+        ${crewRows.map(r => `<tr><td><span class="tdot" style="background:${crewCol(r.cr)}"></span>${esc(r.cr)}</td><td>${r.n}</td><td>${r.d}</td><td>${r.nn}</td><td class="${ppcCls(r.p)}c">${pct(r.p)}</td></tr>`).join('')}</tbody></table></div></section>
     </div>`;
 }
 
-/* Bearbeiten */
-function commitDialog(c, isNew) {
-  const m = $('#modal'); m.hidden = false;
-  const opts = S.tasks.map(t => `<option value="${t.id}" ${c.taskId === t.id ? 'selected' : ''}>${esc(t.name)}</option>`).join('');
-  m.innerHTML = `<form class="box" data-lpsform="commit" data-id="${c.id}" role="dialog" aria-modal="true" aria-labelledby="dlgC">
-    <h3 id="dlgC">${isNew ? 'Neue Zusage' : 'Zusage'} · KW ${D.kw(c.week)}</h3>
-    <div class="form" style="background:transparent;border:0;padding:0">
-      <label class="field full"><span>Was wird gemacht</span><input id="c-text" name="text" required value="${esc(c.text)}" placeholder="z. B. Wände Achse 1–3 schalen und betonieren"></label>
-      <label class="field"><span>Kolonne / NU</span><select id="c-crew" name="crew">${S.lps.crews.map(x => `<option ${x === c.crew ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>
-      <label class="field"><span>Vorgang</span><select id="c-task" name="taskId"><option value="">ohne Vorgang</option>${opts}</select></label>
-      <label class="field"><span>Ab</span><select id="c-day" name="day">${WD.map((d, i) => `<option value="${i}" ${c.day === i ? 'selected' : ''}>${d} ${D.short(D.add(c.week, i))}</option>`).join('')}</select></label>
-      <label class="field"><span>Tage</span><select id="c-len" name="len">${[1, 2, 3, 4, 5].map(n => `<option ${c.len === n ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
-      <fieldset class="field full stat"><span>Status</span><div class="statusrow" style="grid-template-columns:repeat(3,1fr)">
-        ${[['offen', 'Zugesagt'], ['erledigt', 'Erledigt'], ['nicht', 'Nicht erledigt']].map(([k, l]) => `<label><input type="radio" name="status" value="${k}" ${c.status === k ? 'checked' : ''}> ${l}</label>`).join('')}</div></fieldset>
-      <label class="field"><span>Grund, falls nicht erledigt</span><select id="c-grund" name="grund"><option value=""></option>${LPS_GRUND.map(g => `<option ${c.grund === g ? 'selected' : ''}>${g}</option>`).join('')}</select></label>
-      <label class="field"><span>Notiz</span><input id="c-notiz" name="notiz" value="${esc(c.notiz || '')}"></label>
-    </div>
+/* Detailbereich rechts */
+function renderDrawer() {
+  const s = lpsView.sel, el = $('#lpsDrawer');
+  if (!s) { el.hidden = true; el.innerHTML = ''; $('#lps').classList.remove('withdrawer'); return; }
+  el.hidden = false; $('#lps').classList.add('withdrawer');
+  el.innerHTML = s.type === 'task' ? drawerTask(taskMap[s.id]) : drawerCommit(s.draft || lpsK().find(c => c.id === s.id), !!s.draft);
+}
+function drawerCommit(c, isNew) {
+  if (!c) { lpsView.sel = null; return ''; }
+  const t = taskMap[c.taskId], oc = t ? openCons(t) : [];
+  return `<header class="dh2"><span class="kind" style="--k:${crewCol(c.crew)}">${isNew ? 'Neue Zusage' : 'Zusage'} · KW ${D.kw(c.week)}</span><button class="iconbtn" data-dclose aria-label="Schließen">${ICON.x}</button></header>
+  <form class="dform" data-lpsform="commit" data-id="${c.id}">
+    <label class="field"><span>Was wird gemacht</span><input id="c-text" name="text" required value="${esc(c.text)}" placeholder="z. B. Wände Achse 1–3 schalen"></label>
+    <fieldset class="field"><span>Status</span><div class="seg stseg">${[['offen', 'Zugesagt'], ['erledigt', 'Erledigt'], ['nicht', 'Nicht erledigt']].map(([k, l]) => `<label class="${k}"><input type="radio" name="status" value="${k}" ${c.status === k ? 'checked' : ''}>${stIcon(k)}${l}</label>`).join('')}</div></fieldset>
+    <label class="field grund" ${c.status === 'nicht' ? '' : 'hidden'}><span>Grund der Abweichung</span><select id="c-grund" name="grund"><option value="">bitte wählen</option>${LPS_GRUND.map(g => `<option ${c.grund === g ? 'selected' : ''}>${g}</option>`).join('')}</select></label>
+    <div class="two"><label class="field"><span>Kolonne / NU</span><select id="c-crew" name="crew">${S.lps.crews.map(x => `<option ${x === c.crew ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>
+      <label class="field"><span>Vorgang</span><select id="c-task" name="taskId"><option value="">ohne Vorgang</option>${S.tasks.map(x => `<option value="${x.id}" ${c.taskId === x.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label></div>
+    <div class="two"><label class="field"><span>Ab</span><select id="c-day" name="day">${WD.map((d, i) => `<option value="${i}" ${c.day === i ? 'selected' : ''}>${d} ${D.short(D.add(c.week, i))}</option>`).join('')}</select></label>
+      <label class="field"><span>Dauer</span><select id="c-len" name="len">${[1, 2, 3, 4, 5].map(n => `<option value="${n}" ${c.len === n ? 'selected' : ''}>${n} ${n > 1 ? 'Tage' : 'Tag'}</option>`).join('')}</select></label></div>
+    <label class="field"><span>Notiz</span><textarea id="c-notiz" name="notiz" rows="2">${esc(c.notiz || '')}</textarea></label>
+    ${oc.length ? `<div class="dwarn">${ICON.warn}<div><b>${oc.length} offene Hindernisse am Vorgang</b>${oc.map(x => `<small>${esc(x.kat)}: ${esc(x.text)}</small>`).join('')}</div></div>` : ''}
     <p class="note" id="c-msg"></p>
-    <div class="gedit" style="justify-content:space-between">${isNew ? '<span></span>' : `<button class="btn" type="button" data-lpsdel="${c.id}">Löschen</button>`}
-      <span class="gedit">${c.taskId ? `<button class="btn" type="button" data-show3d="${c.taskId}">Im Modell</button>` : ''}<button class="btn" type="button" data-close>Abbrechen</button><button class="btn primary" type="submit">Speichern</button></span></div>
+    <div class="dact">${isNew ? '' : `<button class="btn" type="button" data-lpsdel="${c.id}">Löschen</button>`}<span class="sp"></span>${t ? `<button class="btn" type="button" data-show3d="${t.id}">Im Modell</button>` : ''}<button class="btn primary" type="submit">Speichern</button></div>
   </form>`;
-  m._draft = isNew ? c : null;
-  setTimeout(() => $('#c-text')?.focus(), 0);
 }
-function conDialog(taskId) {
-  const t = taskMap[taskId], m = $('#modal'); m.hidden = false;
-  m.innerHTML = `<form class="box" data-lpsform="con" data-task="${taskId}" role="dialog" aria-modal="true" aria-labelledby="dlgH">
-    <h3 id="dlgH">Hindernis für „${esc(t.name)}“</h3>
-    <div class="form" style="background:transparent;border:0;padding:0">
-      <label class="field"><span>Art</span><select id="h-kat" name="kat">${LPS_KAT.map(k => `<option>${k}</option>`).join('')}</select></label>
-      <label class="field"><span>Ausräumen bis</span><input id="h-bis" type="date" name="bis" value="${D.addWD(t.start, -3) < TODAY ? TODAY : D.addWD(t.start, -3)}"></label>
-      <label class="field full"><span>Was fehlt</span><input id="h-text" name="text" required placeholder="z. B. Schalplan Decke freigegeben"></label>
-      <label class="field full"><span>Wer räumt es aus</span><input id="h-wer" name="wer" placeholder="Planer, Einkauf, Polier, NU …"></label>
-    </div>
-    <div class="gedit" style="justify-content:flex-end"><button class="btn" type="button" data-close>Abbrechen</button><button class="btn primary" type="submit">Hindernis anlegen</button></div></form>`;
-  setTimeout(() => $('#h-text')?.focus(), 0);
+function drawerTask(t) {
+  if (!t) { lpsView.sel = null; return ''; }
+  const cs = lpsC().filter(c => c.taskId === t.id), oc = cs.filter(c => !c.erledigt), ti = taskIst(t, TODAY), mon = lpsView.week;
+  const sp = taskSpanInWeek(t, mon), has = lpsK().some(c => c.week === mon && c.taskId === t.id);
+  return `<header class="dh2"><span class="kind" style="--k:${crewCol(taskCrew(t))}">Vorgang · ${esc(t.storey || '')}</span><button class="iconbtn" data-dclose aria-label="Schließen">${ICON.x}</button></header>
+  <div class="dbody">
+    <h3>${esc(t.name)}</h3>
+    <div class="freestate ${oc.length ? 'blocked' : 'free'}">${oc.length ? `${ICON.warn} ${oc.length} Hindernis${oc.length > 1 ? 'se' : ''} offen – noch nicht frei` : `${ICON.ok} Frei für den Wochenplan`}</div>
+    <dl class="kv num"><dt>Soll</dt><dd>${D.de(t.start)} – ${D.de(t.end)} · ${t.dur} AT</dd><dt>Kolonne</dt><dd>${esc(taskCrew(t))}</dd><dt>Ist</dt><dd>${ti.els.length ? Math.round(ti.p * 100) + ' % fertig' : 'ohne Bauteile'}</dd></dl>
+    ${sp && !has && !oc.length ? `<button class="btn primary" data-plantask="${t.id}">${ICON.plus} In KW ${D.kw(mon)} einplanen</button>` : has ? `<p class="note">In KW ${D.kw(mon)} bereits zugesagt.</p>` : ''}
+    <h4>Hindernisse</h4>
+    <div class="conlist">${cs.length ? cs.map(c => { const late = !c.erledigt && c.bis && c.bis < TODAY;
+      return `<label class="con2 ${c.erledigt ? 'done' : ''}"><input type="checkbox" data-con="${c.id}" ${c.erledigt ? 'checked' : ''}><span><span class="kat">${esc(c.kat)}</span><b>${esc(c.text)}</b><small class="num ${late ? 'badc' : ''}">${esc(c.wer || '–')} · bis ${D.de(c.bis)}${late ? ' · überfällig' : ''}</small></span><button type="button" class="iconbtn" data-condel="${c.id}" aria-label="Hindernis löschen">${ICON.x}</button></label>`; }).join('') : '<p class="note">Keine Hindernisse erfasst.</p>'}</div>
+    <form class="dform addcon" data-lpsform="con" data-task="${t.id}">
+      <div class="two"><label class="field"><span>Art</span><select id="h-kat" name="kat">${LPS_KAT.map(k => `<option>${k}</option>`).join('')}</select></label>
+        <label class="field"><span>Ausräumen bis</span><input id="h-bis" type="date" name="bis" value="${D.addWD(t.start, -3) < TODAY ? TODAY : D.addWD(t.start, -3)}"></label></div>
+      <label class="field"><span>Was fehlt</span><input id="h-text" name="text" required placeholder="z. B. Schalplan freigegeben"></label>
+      <label class="field"><span>Wer räumt es aus</span><input id="h-wer" name="wer" placeholder="Planer, Einkauf, Polier, NU …"></label>
+      <div class="dact"><span class="sp"></span><button class="btn" type="submit">${ICON.plus} Hindernis anlegen</button></div>
+    </form>
+    <div class="dact"><button class="btn" data-show3d="${t.id}">Im Modell zeigen</button></div>
+  </div>`;
 }
+
 function lpsChanged() { save(); renderLps(); }
+function newCommit(crew, day, taskId) {
+  const t = taskMap[taskId], sp = t ? taskSpanInWeek(t, lpsView.week) : null;
+  lpsView.sel = { type: 'commit', id: 'new', draft: { id: uid(), week: lpsView.week, taskId: taskId || '', text: t ? t.name : '', crew: crew || (t ? crewFor(t) : S.lps.crews[0]), day: sp ? sp.day : day || 0, len: sp ? sp.len : 1, status: 'offen', grund: '', notiz: '' } };
+  if (lpsView.tab !== 'woche') lpsView.tab = 'woche';
+  renderLps(); setTimeout(() => $('#c-text')?.focus(), 0);
+}
 
 $('#lps').addEventListener('click', e => {
   const t = e.target;
   const lt = t.closest('[data-ltab]'); if (lt) { lpsView.tab = lt.dataset.ltab; return renderLps(); }
-  const wk = t.closest('[data-wk]'); if (wk) { const n = +wk.dataset.wk; lpsView.week = n ? D.add(lpsView.week, 7 * n) : D.monday(TODAY); return renderLps(); }
-  const nt = t.closest('[data-commit]'); if (nt) return commitDialog(lpsK().find(c => c.id === nt.dataset.commit), false);
-  const cell = t.closest('[data-cell]');
-  if (cell) { const crew = cell.closest('[data-crew]').dataset.crew; return commitDialog({ id: uid(), week: lpsView.week, taskId: '', text: '', crew, day: +cell.dataset.cell, len: 1, status: 'offen', grund: '', notiz: '' }, true); }
+  const wk = t.closest('[data-wk]'); if (wk) { const n = +wk.dataset.wk; lpsView.week = n ? D.add(lpsView.week, 7 * n) : D.monday(TODAY); if (lpsView.sel?.draft) lpsView.sel = null; return renderLps(); }
+  if (t.closest('[data-dclose]')) { lpsView.sel = null; return renderLps(); }
+  if (t.closest('[data-newcommit]')) return newCommit();
+  const ct = t.closest('[data-crewtoggle]'); if (ct) { const c = ct.dataset.crewtoggle; lpsView.hide.has(c) ? lpsView.hide.delete(c) : lpsView.hide.add(c); return renderLps(); }
+  const cf = t.closest('[data-cf]'); if (cf) { lpsView.cf = cf.dataset.cf; return renderLps(); }
+  const gt = t.closest('[data-gtoggle]'); if (gt) { const g = gt.dataset.gtoggle; lpsView.collapsed.has(g) ? lpsView.collapsed.delete(g) : lpsView.collapsed.add(g); return renderLps(); }
+  const nt = t.closest('[data-commit]'); if (nt) { lpsView.sel = { type: 'commit', id: nt.dataset.commit }; return renderLps(); }
+  const cell = t.closest('[data-cell]'); if (cell) return newCommit(cell.closest('[data-crew]').dataset.crew, +cell.dataset.cell);
   if (t.closest('[data-lpsact="takefree"]')) {
     const mon = lpsView.week, have = new Set(lpsK().filter(c => c.week === mon).map(c => c.taskId));
     const free = S.tasks.filter(x => taskSpanInWeek(x, mon) && !taskDone(x) && !have.has(x.id) && !openCons(x).length);
     free.forEach(x => { const sp = taskSpanInWeek(x, mon); const crew = crewFor(x); if (!S.lps.crews.includes(crew)) S.lps.crews.push(crew); lpsK().push({ id: uid(), week: mon, taskId: x.id, text: x.name, crew, day: sp.day, len: sp.len, status: 'offen', grund: '', notiz: '' }); });
     toast(`${free.length} Vorgänge als Zusage eingeplant.`); return lpsChanged();
   }
-  const ca = t.closest('[data-conadd]'); if (ca) return conDialog(ca.dataset.conadd);
+  const pt = t.closest('[data-plantask]'); if (pt) return newCommit(null, 0, pt.dataset.plantask);
   const cd = t.closest('[data-condel]'); if (cd) { e.preventDefault(); S.lps.constraints = lpsC().filter(c => c.id !== cd.dataset.condel); return lpsChanged(); }
-  const lt2 = t.closest('[data-lpstask]'); if (lt2) { show3d(lt2.dataset.lpstask); }
+  const del = t.closest('[data-lpsdel]'); if (del) { S.lps.commits = lpsK().filter(c => c.id !== del.dataset.lpsdel); lpsView.sel = null; toast('Zusage gelöscht.'); return lpsChanged(); }
+  const s3 = t.closest('[data-show3d]'); if (s3) return show3d(s3.dataset.show3d);
+  if (t.closest('input,label.con2,select,textarea')) return;
+  const lt2 = t.closest('[data-lpstask]'); if (lt2) { lpsView.sel = { type: 'task', id: lt2.dataset.lpstask }; return renderLps(); }
 });
 $('#lps').addEventListener('change', e => {
-  const c = e.target.dataset.con; if (!c) return;
-  const x = lpsC().find(k => k.id === c); x.erledigt = e.target.checked;
+  const tg = e.target;
+  if (tg.name === 'status' && tg.closest('[data-lpsform=commit]')) { tg.closest('form').querySelector('.grund').hidden = tg.value !== 'nicht'; return; }
+  const c = tg.dataset.con; if (!c) return;
+  const x = lpsC().find(k => k.id === c); x.erledigt = tg.checked;
   const t = taskMap[x.taskId];
   if (x.erledigt && t && !openCons(t).length) toast(`„${t.name}“ ist jetzt frei für den Wochenplan.`);
   lpsChanged();
 });
-$('#lps').addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.dataset.commit) { e.preventDefault(); e.target.click(); } });
+$('#lps').addEventListener('input', e => { if (e.target.id === 'lps-q') { lpsView.q = e.target.value.trim().toLowerCase(); clearTimeout(lpsView.qt); lpsView.qt = setTimeout(() => { $('#lpsBody').innerHTML = { woche: lpsWoche, zeit: lpsZeit, hind: lpsHind, kpi: lpsKpi }[lpsView.tab](lpsView.week); }, 150); } });
+$('#lps').addEventListener('keydown', e => {
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.dataset.commit) { e.preventDefault(); e.target.click(); }
+  if (e.key === 'Escape' && lpsView.sel) { lpsView.sel = null; renderLps(); }
+});
 $('#lps').addEventListener('submit', e => {
   e.preventDefault(); const f = e.target, fd = new FormData(f);
-  if (f.dataset.lpsform === 'crew') { const n = String(fd.get('crew') || '').trim(); if (n && !S.lps.crews.includes(n)) { S.lps.crews.push(n); lpsChanged(); } }
+  if (f.dataset.lpsform === 'crew') { const n = String(fd.get('crew') || '').trim(); if (n && !S.lps.crews.includes(n)) { S.lps.crews.push(n); lpsChanged(); } return; }
+  if (f.dataset.lpsform === 'commit') {
+    const status = fd.get('status') || 'offen', grund = fd.get('grund') || '';
+    if (status === 'nicht' && !grund) { const m = $('#c-msg'); m.textContent = 'Bitte einen Grund wählen – daraus entsteht die Auswertung der Abweichungen.'; m.className = 'note badc'; return; }
+    let c = lpsK().find(k => k.id === f.dataset.id);
+    if (!c) { c = lpsView.sel.draft; lpsK().push(c); }
+    const day = +fd.get('day');
+    Object.assign(c, { text: String(fd.get('text')).trim(), crew: fd.get('crew'), taskId: fd.get('taskId') || '', day, len: Math.min(+fd.get('len'), 5 - day), status, grund: status === 'nicht' ? grund : '', notiz: String(fd.get('notiz') || '').trim() });
+    lpsView.sel = { type: 'commit', id: c.id };
+    toast('Zusage gespeichert.');
+    if (c.taskId && openCons(taskMap[c.taskId]).length && status === 'offen') toast('Gespeichert. Achtung: Der Vorgang hat noch offene Hindernisse.', 3500);
+    return lpsChanged();
+  }
+  if (f.dataset.lpsform === 'con') {
+    lpsC().push({ id: uid(), taskId: f.dataset.task, kat: fd.get('kat'), text: String(fd.get('text')).trim(), wer: String(fd.get('wer') || '').trim(), bis: fd.get('bis') || null, erledigt: false });
+    toast('Hindernis angelegt.'); return lpsChanged();
+  }
 });
-$('#lps').addEventListener('dragstart', e => { const n = e.target.closest?.('[data-commit]'); if (!n) return; lpsView.drag = n.dataset.commit; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', n.dataset.commit); });
-$('#lps').addEventListener('dragover', e => { if (lpsView.drag && e.target.closest('.lane')) { e.preventDefault(); } });
+$('#lps').addEventListener('dragstart', e => { const n = e.target.closest?.('[data-commit]'); if (!n) return; lpsView.drag = n.dataset.commit; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', n.dataset.commit); n.classList.add('dragging'); });
+$('#lps').addEventListener('dragover', e => { const l = e.target.closest('.lane'); if (lpsView.drag && l) { e.preventDefault(); document.querySelectorAll('.lane.over').forEach(x => x !== l && x.classList.remove('over')); l.classList.add('over'); } });
 $('#lps').addEventListener('drop', e => {
   const lane = e.target.closest('.lane'); if (!lane || !lpsView.drag) return; e.preventDefault();
   const c = lpsK().find(k => k.id === lpsView.drag); lpsView.drag = null; if (!c) return;
   const r = lane.getBoundingClientRect(), day = Math.max(0, Math.min(4, Math.floor((e.clientX - r.left) / r.width * 5)));
   c.crew = lane.dataset.crew; c.day = Math.min(day, 5 - c.len); lpsChanged();
 });
-$('#lps').addEventListener('dragend', () => { lpsView.drag = null; });
-// Dialoge laufen im gemeinsamen Modal
-$('#modal').addEventListener('submit', e => {
-  const f = e.target; if (!f.dataset.lpsform) return; e.preventDefault(); const fd = new FormData(f);
-  if (f.dataset.lpsform === 'commit') {
-    const status = fd.get('status') || 'offen', grund = fd.get('grund') || '';
-    if (status === 'nicht' && !grund) { $('#c-msg').textContent = 'Bitte einen Grund wählen – daraus lernt die Kennzahl, was den Ablauf bremst.'; $('#c-msg').style.color = 'var(--st-verzug)'; return; }
-    let c = lpsK().find(k => k.id === f.dataset.id); if (!c) { c = $('#modal')._draft; lpsK().push(c); }
-    Object.assign(c, { text: String(fd.get('text')).trim(), crew: fd.get('crew'), taskId: fd.get('taskId') || '', day: +fd.get('day'), len: Math.min(+fd.get('len'), 5 - +fd.get('day')), status, grund: status === 'nicht' ? grund : '', notiz: String(fd.get('notiz') || '').trim() });
-    if (c.taskId && openCons(taskMap[c.taskId]).length && status === 'offen') toast('Achtung: Der Vorgang hat noch offene Hindernisse.', 3500);
-  } else if (f.dataset.lpsform === 'con') {
-    lpsC().push({ id: uid(), taskId: f.dataset.task, kat: fd.get('kat'), text: String(fd.get('text')).trim(), wer: String(fd.get('wer') || '').trim(), bis: fd.get('bis') || null, erledigt: false });
-  }
-  $('#modal').hidden = true; lpsChanged();
-});
-$('#modal').addEventListener('click', e => {
-  const d = e.target.closest('[data-lpsdel]'); if (d) { S.lps.commits = lpsK().filter(c => c.id !== d.dataset.lpsdel); $('#modal').hidden = true; return lpsChanged(); }
-  const s = e.target.closest('[data-show3d]'); if (s) { $('#modal').hidden = true; show3d(s.dataset.show3d); }
-});
+$('#lps').addEventListener('dragend', () => { lpsView.drag = null; document.querySelectorAll('.lane.over,.dragging').forEach(x => x.classList.remove('over', 'dragging')); });
 function show3d(taskId) {
   setLps(false);
   view.selTask = taskId; view.sel = new Set(elsArr().filter(x => x.taskId === taskId).map(x => x.guid));
