@@ -1,0 +1,1414 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="icon" type="image/png" href="../assets/icons/favicon-32.png">
+<title>Baustelle 4D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+</head>
+<body>
+<style>
+/* Layout: Leitstand — 3D-Viewport links mit Zeitleiste, rechts Bauleitungs-Panel mit Reitern; auf dem Handy untereinander */
+:root{
+  --bg:#e9ecee; --panel:#fbfcfc; --raise:#f1f3f4; --fg:#191d20; --muted:#5a646b; --line:#d3d9dc;
+  --viewport:#d9dfe2; --grid:#b9c1c6;
+  --brand:#ff0000; --accent:#d10a0a; --accent-fg:#ffffff;
+  --st-ghost:#8d979e; --st-arbeit:#e0951a; --st-fertig:#3a9459; --st-abgenommen:#2a78ad;
+  --st-verzug:#e04a2b; --st-vorsprung:#6a5acd; --st-beton:#9aa0a5;
+  --v0:#b4434b; --v1:#e0951a; --v2:#2a78ad; --v3:#3a9459; --mangel:#c2187a; --erde:#8a6a3f;
+  --f-display:"Barlow Semi Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Consolas,monospace;
+  --r:6px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#121518; --panel:#191d21; --raise:#21262b; --fg:#e6e9eb; --muted:#97a1a8; --line:#2c3338;
+  --viewport:#0f1214; --grid:#2b3238; --accent:#ff3b30; --accent-fg:#ffffff;
+  --st-ghost:#7d878e; --st-arbeit:#f0a72c; --st-fertig:#4cb36f; --st-abgenommen:#4a9bd4;
+  --st-verzug:#ff6a48; --st-vorsprung:#9488ee; --st-beton:#7f868c;
+  --v0:#e0606a; --v1:#f0a72c; --v2:#4a9bd4; --v3:#4cb36f; --mangel:#e84aa6; --erde:#a7865a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121518; --panel:#191d21; --raise:#21262b; --fg:#e6e9eb; --muted:#97a1a8; --line:#2c3338;
+  --viewport:#0f1214; --grid:#2b3238; --accent:#ff3b30; --accent-fg:#ffffff;
+  --st-ghost:#7d878e; --st-arbeit:#f0a72c; --st-fertig:#4cb36f; --st-abgenommen:#4a9bd4;
+  --st-verzug:#ff6a48; --st-vorsprung:#9488ee; --st-beton:#7f868c;
+  --v0:#e0606a; --v1:#f0a72c; --v2:#4a9bd4; --v3:#4cb36f; --mangel:#e84aa6; --erde:#a7865a; color-scheme:dark}
+
+[hidden]{display:none!important}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font:14px/1.45 var(--f-body);margin:0}
+*{box-sizing:border-box}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mono{font-family:var(--f-mono);font-size:12px}
+.num{font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+
+.app{display:grid;grid-template-rows:auto 1fr;height:100%;min-height:0}
+header.top{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.mark{width:28px;height:28px;background:var(--brand);display:grid;place-items:center;color:#fff;font:700 13px/1 var(--f-display);letter-spacing:.04em;flex:none}
+.brand h1{font:700 19px/1 var(--f-display);letter-spacing:.02em;margin:0;text-transform:uppercase}
+.proj{display:flex;flex-direction:column;min-width:0}
+.proj input{border:0;background:transparent;padding:0;font-weight:600;font-size:13px;min-width:0;width:22ch}
+.proj small{color:var(--muted);font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+.score{display:flex;align-items:center;gap:14px;margin-left:auto;flex-wrap:wrap}
+.meter{width:180px}
+.meter .bar{position:relative;height:8px;background:var(--raise);border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.meter .bar i{position:absolute;inset:0 auto 0 0;display:block}
+.meter .bar .soll{background:repeating-linear-gradient(135deg,var(--st-ghost) 0 3px,transparent 3px 6px);opacity:.55}
+.meter .bar .ist{background:var(--st-fertig)}
+.meter .lab{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:3px}
+.meter .lab b{color:var(--fg);font-weight:600}
+.level{font:600 13px/1.1 var(--f-display);text-transform:uppercase;letter-spacing:.05em;padding:5px 9px;border:1px solid var(--line);border-radius:var(--r);background:var(--raise)}
+.level b{color:var(--accent)}
+.hdr-actions{display:flex;gap:6px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--raise);padding:6px 11px;border-radius:var(--r);font-size:13px;font-weight:500;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.btn.small{padding:3px 8px;font-size:12px}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+
+main.work{display:grid;grid-template-columns:minmax(0,1fr) 410px;min-height:0}
+.stage{position:relative;min-width:0;min-height:0;background:var(--viewport);display:grid;grid-template-rows:1fr auto}
+#view{position:relative;min-height:0;overflow:hidden}
+#view canvas{display:block;width:100%;height:100%;touch-action:none}
+.tools{position:absolute;top:10px;left:10px;right:10px;display:flex;flex-wrap:wrap;gap:8px;pointer-events:none}
+.tools>*{pointer-events:auto}
+.seg{display:inline-flex;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:2px;gap:2px}
+.seg button{border:0;background:transparent;padding:5px 10px;border-radius:4px;font-size:12.5px;font-weight:500;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--fg);color:var(--panel)}
+.seg select{border:0;background:transparent;font-size:12.5px;padding:4px 6px}
+.brushes{display:inline-flex;gap:4px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:3px 6px}
+.brushes button{width:22px;height:22px;border-radius:50%;border:2px solid transparent;padding:0}
+.brushes button[aria-pressed="true"]{border-color:var(--fg)}
+.legend{position:absolute;left:10px;bottom:10px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:6px 10px;display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;max-width:calc(100% - 20px)}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.dot{width:10px;height:10px;border-radius:2px;display:inline-block;flex:none}
+.dot.ghost{background:transparent;border:1.5px dashed var(--st-ghost)}
+.hint{position:absolute;right:10px;bottom:10px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:6px 10px;font-size:12px;max-width:300px}
+.banner{position:absolute;left:50%;top:64px;transform:translateX(-50%);background:var(--fg);color:var(--panel);padding:10px 18px;border-radius:var(--r);text-align:center;pointer-events:none;box-shadow:0 8px 30px rgb(0 0 0 / .25);transition:opacity .4s,transform .4s;max-width:calc(100% - 32px)}
+.banner small{display:block;font-size:11px;letter-spacing:.12em;text-transform:uppercase;opacity:.75}
+.banner strong{font:700 22px/1.15 var(--f-display);text-transform:uppercase;letter-spacing:.03em}
+.banner.off{opacity:0;transform:translate(-50%,-10px)}
+.cross{position:absolute;left:50%;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;pointer-events:none}
+.cross::before,.cross::after{content:"";position:absolute;background:var(--accent)}
+.cross::before{left:6px;top:0;width:2px;height:14px}.cross::after{top:6px;left:0;height:2px;width:14px}
+
+.timeline{background:var(--panel);border-top:1px solid var(--line);padding:10px 16px 12px;display:grid;grid-template-columns:auto auto 1fr auto;gap:8px 14px;align-items:center}
+.play{width:38px;height:38px;border-radius:50%;border:0;background:var(--accent);color:var(--accent-fg);display:grid;place-items:center}
+.play svg{width:16px;height:16px;fill:currentColor}
+.when{min-width:170px}
+.when strong{display:block;font:700 22px/1 var(--f-display);letter-spacing:.02em}
+.when span{font-size:11.5px;color:var(--muted);letter-spacing:.05em;text-transform:uppercase}
+.track{position:relative;min-width:0;padding-top:12px}
+.track input[type=range]{width:100%;accent-color:var(--accent);margin:0}
+.ticks{position:absolute;left:8px;right:8px;top:0;height:12px}
+.ticks i{position:absolute;top:0;width:8px;height:8px;margin-left:-4px;transform:rotate(45deg);background:var(--st-fertig);border:1px solid var(--panel)}
+.ticks i.open{background:var(--panel);border-color:var(--st-ghost)}
+.ticks b{position:absolute;top:-2px;width:2px;height:13px;margin-left:-1px;background:var(--accent)}
+.tl-right{display:flex;gap:6px;align-items:center}
+
+aside.panel{background:var(--panel);border-left:1px solid var(--line);display:grid;grid-template-rows:auto 1fr;min-height:0;min-width:0}
+.tabs{display:flex;overflow-x:auto;border-bottom:1px solid var(--line);scrollbar-width:thin}
+.tabs button{border:0;background:transparent;padding:11px 11px 9px;font:600 13.5px/1 var(--f-display);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);border-bottom:2px solid transparent;white-space:nowrap}
+.tabs button[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--accent)}
+.tabs .cnt{font:500 10.5px/1 var(--f-mono);background:var(--raise);border:1px solid var(--line);border-radius:8px;padding:1px 5px;margin-left:3px;vertical-align:1px}
+.pane{overflow:auto;padding:14px 16px 28px;min-height:0;display:flex;flex-direction:column;gap:16px}
+.pane h2{font:700 15px/1.1 var(--f-display);text-transform:uppercase;letter-spacing:.07em;margin:0;color:var(--muted)}
+.pane h3{font:600 17px/1.2 var(--f-display);margin:0;text-wrap:balance}
+.sect{display:flex;flex-direction:column;gap:8px}
+.kv{display:grid;grid-template-columns:110px minmax(0,1fr);gap:4px 10px;font-size:13px}
+.kv dt{color:var(--muted)}
+.kv dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.statusrow{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.statusrow button{border:1px solid var(--line);background:var(--raise);border-radius:var(--r);padding:7px 4px;font-size:12px;font-weight:500;display:flex;flex-direction:column;align-items:center;gap:4px}
+.statusrow button[aria-pressed="true"]{border-color:var(--fg);background:var(--panel);box-shadow:inset 0 0 0 1px var(--fg)}
+.list{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;padding:8px 10px;border-top:1px solid var(--line);font-size:13px;background:var(--panel)}
+.row:first-child{border-top:0}
+.row.click{cursor:pointer}.row.click:hover{background:var(--raise)}
+.row .t{font-weight:500;min-width:0}
+.row .s{grid-column:1/-1;color:var(--muted);font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;letter-spacing:.03em;padding:2px 7px;border-radius:10px;border:1px solid currentColor;white-space:nowrap;line-height:1.4}
+.warn{display:grid;grid-template-columns:4px minmax(0,1fr);gap:0 10px;padding:8px 10px 8px 0;font-size:13px;border-top:1px solid var(--line)}
+.warn:first-child{border-top:0}
+.warn::before{content:"";background:var(--c,var(--st-verzug));border-radius:0 2px 2px 0}
+.warn small{display:block;color:var(--muted);font-size:12px}
+.lvl{display:grid;grid-template-columns:70px minmax(0,1fr) 44px;gap:8px;align-items:center;font-size:12.5px}
+.lvl .bar{height:10px;background:var(--raise);border:1px solid var(--line);border-radius:3px;position:relative;overflow:hidden}
+.lvl .bar i{position:absolute;inset:0 auto 0 0;background:var(--st-fertig)}
+.lvl .bar u{position:absolute;top:-1px;bottom:-1px;width:2px;background:var(--fg);opacity:.6}
+.ms{display:grid;grid-template-columns:18px minmax(0,1fr) auto;gap:8px;align-items:center;font-size:13px;padding:6px 0;border-top:1px dashed var(--line)}
+.ms:first-child{border-top:0}
+.ms .d{width:12px;height:12px;transform:rotate(45deg);border:2px solid var(--st-ghost);margin-left:3px}
+.ms.done .d{background:var(--st-fertig);border-color:var(--st-fertig)}
+.gantt{font-size:12.5px}
+.grow{display:grid;grid-template-columns:minmax(0,1fr);gap:4px;padding:8px 0;border-top:1px solid var(--line)}
+.grow:first-child{border-top:0}
+.grow.sel .gname{color:var(--accent)}
+.ghead{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.gname{font-weight:600;cursor:pointer;min-width:0}
+.gbar{position:relative;height:12px;background:var(--raise);border-radius:2px}
+.gbar .p{position:absolute;top:2px;bottom:2px;border:1px solid var(--st-ghost);border-radius:2px;background:var(--panel)}
+.gbar .p i{position:absolute;inset:0 auto 0 0;background:var(--st-fertig);opacity:.85}
+.gbar .now{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--accent)}
+.gedit{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.gedit input[type=date]{font-size:12px;padding:2px 4px;border:1px solid var(--line);border-radius:4px;background:var(--panel)}
+.field{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted);min-width:0}
+.field input,.field select,.field textarea{font-size:13.5px;color:var(--fg);background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:6px 8px;width:100%}
+.field textarea{min-height:76px;resize:vertical}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px;border:1px solid var(--line);border-radius:var(--r);background:var(--raise)}
+.form .full{grid-column:1/-1}
+.form .act{grid-column:1/-1;display:flex;gap:6px;justify-content:flex-end}
+.card{border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.card .top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.card .sum{font:600 16px/1 var(--f-display);font-variant-numeric:tabular-nums}
+.card details summary{cursor:pointer;font-size:12px;color:var(--muted)}
+.card label.ck{display:flex;gap:6px;font-size:12.5px;align-items:center;padding:2px 0}
+.thumbs{display:flex;flex-wrap:wrap;gap:6px}
+.thumbs img{width:72px;height:54px;object-fit:cover;border-radius:4px;border:1px solid var(--line)}
+table.tab{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
+table.tab th,table.tab td{padding:6px 6px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+table.tab th:first-child,table.tab td:first-child{text-align:left;white-space:normal}
+table.tab th{font-weight:600;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+table.tab tfoot td{font-weight:600;border-bottom:0}
+.tw{overflow-x:auto}
+.empty{border:1px dashed var(--line);border-radius:var(--r);padding:16px;color:var(--muted);font-size:13px;text-align:center}
+.note{font-size:12px;color:var(--muted)}
+.chat{display:flex;flex-direction:column;gap:8px}
+.msg{padding:8px 11px;border-radius:10px;font-size:13.5px;max-width:92%;white-space:pre-wrap;overflow-wrap:anywhere}
+.msg.u{align-self:flex-end;background:var(--fg);color:var(--panel);border-bottom-right-radius:3px}
+.msg.a{align-self:flex-start;background:var(--raise);border:1px solid var(--line);border-bottom-left-radius:3px}
+.sugg{display:flex;flex-wrap:wrap;gap:6px}
+.sugg .btn{white-space:normal;text-align:left}
+.prop{border-color:var(--fg)}
+
+.modal{position:fixed;inset:0;background:rgb(0 0 0 / .45);display:grid;place-items:center;padding:16px;z-index:20}
+.modal .box{background:var(--panel);border:1px solid var(--line);border-radius:8px;width:min(640px,100%);max-height:100%;overflow:auto;padding:18px;display:flex;flex-direction:column;gap:12px}
+.modal textarea{width:100%;min-height:160px;font:12px/1.4 var(--f-mono);background:var(--raise);border:1px solid var(--line);border-radius:5px;padding:8px}
+.busy{position:absolute;inset:0;display:grid;place-items:center;background:color-mix(in srgb,var(--viewport) 70%,transparent);z-index:5;font:600 16px var(--f-display);letter-spacing:.06em;text-transform:uppercase}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--panel);padding:9px 14px;border-radius:var(--r);font-size:13px;z-index:30;max-width:calc(100% - 32px)}
+
+@media (max-width:900px){
+  .app{height:auto;min-height:100%}
+  main.work{grid-template-columns:minmax(0,1fr)}
+  .stage{height:68vh;min-height:420px}
+  aside.panel{border-left:0;border-top:1px solid var(--line)}
+  .pane{overflow:visible}
+  .score{margin-left:0}
+  .meter{width:140px}
+  .timeline{grid-template-columns:auto 1fr auto}
+  .timeline .track{grid-column:1/-1;order:5}
+  .hint{display:none}
+}
+@media (prefers-reduced-motion:reduce){.banner{transition:none}}
+</style>
+
+<div class="app">
+  <header class="top">
+    <div class="brand"><div class="mark" aria-hidden="true">4D</div><h1>Baustelle 4D</h1></div>
+    <div class="proj">
+      <small id="projSrc">Beispieldaten</small>
+      <input id="projName" aria-label="Projektname" value="Demo-Rohbau Bürogebäude">
+    </div>
+    <div class="score">
+      <div class="level" id="levelChip" title="Aktuelle Bauebene">Ebene –</div>
+      <div class="meter" title="Fortschritt nach Betonvolumen">
+        <div class="bar"><i class="soll" id="mSoll"></i><i class="ist" id="mIst"></i></div>
+        <div class="lab"><span>Ist <b id="mIstT" class="num">0 %</b></span><span>Soll <b id="mSollT" class="num">0 %</b></span></div>
+      </div>
+      <div class="hdr-actions">
+        <label class="btn primary" for="ifcFile">IFC laden</label>
+        <input type="file" id="ifcFile" accept=".ifc" hidden>
+        <button class="btn" id="btnDemo">Demo</button>
+        <button class="btn" id="btnData">Daten</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="work">
+    <section class="stage">
+      <div id="view">
+        <div class="tools">
+          <div class="seg" role="group" aria-label="Ansicht" id="modeSeg">
+            <button data-mode="ist" aria-pressed="true">Ist</button>
+            <button data-mode="soll" aria-pressed="false">Soll</button>
+            <button data-mode="vergleich" aria-pressed="false">Soll/Ist</button>
+            <button data-mode="vergabe" aria-pressed="false">Vergabe</button>
+          </div>
+          <div class="seg" role="group" aria-label="Werkzeug" id="toolSeg">
+            <button data-tool="select" aria-pressed="true">Auswahl</button>
+            <button data-tool="paint" aria-pressed="false">Malen</button>
+            <button data-tool="walk" aria-pressed="false">Begehung</button>
+          </div>
+          <div class="brushes" id="brushes" hidden aria-label="Status zum Malen"></div>
+          <div class="seg"><select id="storeyFilter" aria-label="Geschosse anzeigen"></select></div>
+        </div>
+        <div class="cross" id="cross" hidden></div>
+        <div class="legend" id="legend"></div>
+        <div class="hint" id="hint">Klick wählt ein Bauteil, Shift-Klick mehrere. Ziehen dreht, rechte Maustaste verschiebt.</div>
+        <div class="banner off" id="banner" aria-live="polite"><small>Meilenstein erreicht</small><strong id="bannerT"></strong></div>
+        <div class="busy" id="busy" hidden>IFC wird gelesen …</div>
+      </div>
+      <div class="timeline">
+        <button class="play" id="play" aria-label="Bauablauf abspielen"><svg viewBox="0 0 16 16" id="playIco"><path d="M3 1.5v13l11-6.5z"/></svg></button>
+        <div class="when"><strong class="num" id="whenD">–</strong><span id="whenK">–</span></div>
+        <div class="track">
+          <div class="ticks" id="ticks"></div>
+          <input type="range" id="slider" min="0" max="100" value="0" aria-label="Stichtag">
+        </div>
+        <div class="tl-right">
+          <button class="btn small" id="btnToday">Heute</button>
+          <select class="btn small" id="speed" aria-label="Abspielgeschwindigkeit"><option value="220">1×</option><option value="90" selected>2×</option><option value="35">5×</option></select>
+        </div>
+      </div>
+    </section>
+
+    <aside class="panel">
+      <nav class="tabs" role="tablist" id="tabs"></nav>
+      <div class="pane" id="pane"></div>
+    </aside>
+  </main>
+</div>
+<div class="modal" id="modal" hidden></div>
+<div class="toast" id="toast" hidden></div>
+
+<script type="importmap">
+{"imports":{
+  "three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+  "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+
+/* ---------- Hilfen ---------- */
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmtN = (n, d = 1) => (n ?? 0).toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d });
+const fmtE = n => (n ?? 0).toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+const uid = () => Math.random().toString(36).slice(2, 10);
+const D = {
+  parse(s) { const [y, m, d] = s.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d)); },
+  fmt(dt) { return dt.toISOString().slice(0, 10); },
+  add(s, n) { const d = D.parse(s); d.setUTCDate(d.getUTCDate() + n); return D.fmt(d); },
+  diff(a, b) { return Math.round((D.parse(b) - D.parse(a)) / 864e5); },
+  isWE(s) { const w = D.parse(s).getUTCDay(); return w === 0 || w === 6; },
+  addWD(s, n) { let d = s, k = 0; if (n < 0) { while (k < -n) { d = D.add(d, -1); if (!D.isWE(d)) k++; } return d; } while (D.isWE(d)) d = D.add(d, 1); while (k < n) { d = D.add(d, 1); if (!D.isWE(d)) k++; } return d; },
+  wdBetween(a, b) { let n = 0, d = a; while (d < b) { d = D.add(d, 1); if (!D.isWE(d)) n++; } return n; },
+  monday(s) { const w = (D.parse(s).getUTCDay() + 6) % 7; return D.add(s, -w); },
+  kw(s) { const d = D.parse(s); const day = (d.getUTCDay() + 6) % 7; d.setUTCDate(d.getUTCDate() - day + 3); const fy = new Date(Date.UTC(d.getUTCFullYear(), 0, 4)); return 1 + Math.round(((d - fy) / 864e5 - 3 + ((fy.getUTCDay() + 6) % 7)) / 7); },
+  de(s) { return s ? D.parse(s).toLocaleDateString('de-DE', { timeZone: 'UTC', day: '2-digit', month: '2-digit', year: 'numeric' }) : '–'; },
+  short(s) { return s ? D.parse(s).toLocaleDateString('de-DE', { timeZone: 'UTC', day: '2-digit', month: '2-digit' }) : '–'; },
+  wd(s) { return D.parse(s).toLocaleDateString('de-DE', { timeZone: 'UTC', weekday: 'short' }); }
+};
+const now = new Date();
+const TODAY = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+function toast(msg, ms = 2600) { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => t.hidden = true, ms); }
+function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const GCH = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_$';
+const fakeGuid = r => Array.from({ length: 22 }, (_, i) => GCH[Math.floor(r() * (i ? 64 : 4))]).join('');
+
+const STATUS = [
+  { k: 'geplant', label: 'Geplant', tok: '--st-ghost' },
+  { k: 'inArbeit', label: 'In Arbeit', tok: '--st-arbeit' },
+  { k: 'fertig', label: 'Fertig', tok: '--st-fertig' },
+  { k: 'abgenommen', label: 'Abgenommen', tok: '--st-abgenommen' }
+];
+const VSTATUS = [
+  { label: 'Offen', tok: '--v0' }, { label: 'Angefragt', tok: '--v1' },
+  { label: 'Verhandlung', tok: '--v2' }, { label: 'Beauftragt', tok: '--v3' }
+];
+const MTYP = { mangel: 'Mangel', behinderung: 'Behinderung', bedenken: 'Bedenkenanzeige' };
+
+/* ---------- Zustand ---------- */
+// Struktur entspricht den späteren Supabase-Tabellen: elements, tasks, vergaben, maengel, tagebuch
+let S = null;
+let SPECS = [];          // Geometrie (nicht gespeichert)
+let taskMap = {}, vergMap = {};
+const view = { mode: 'ist', tool: 'select', brush: 2, date: TODAY, storey: 'alle', tab: 'uebersicht', sel: new Set(), selTask: null };
+const STORE = 'baustelle4d.v1';
+
+function reindex() {
+  for (const t of S.tasks) {   // ältere Stände ohne Abhängigkeiten
+    if (t.dur == null) t.dur = Math.max(1, D.wdBetween(D.add(t.start, -1), t.end));
+    if (!t.preds) { t.preds = []; t.fix = t.start; }
+    if (t.fix === undefined) t.fix = null;
+  }
+  S.projectStart ||= S.tasks.map(t => t.start).filter(Boolean).sort()[0] || TODAY;
+  try { schedule(S.tasks, S.projectStart); } catch (e) { toast(e.message); }
+  taskMap = Object.fromEntries(S.tasks.map(t => [t.id, t]));
+  vergMap = Object.fromEntries(S.vergaben.map(v => [v.id, v]));
+}
+let saveT;
+function save() {
+  clearTimeout(saveT);
+  saveT = setTimeout(() => {
+    try { localStorage.setItem(STORE, JSON.stringify(S)); }
+    catch (e) { toast('Browserspeicher voll oder gesperrt – bitte über „Daten“ sichern.'); }
+  }, 400);
+}
+function loadSaved() { try { const s = localStorage.getItem(STORE); return s ? JSON.parse(s) : null; } catch { return null; } }
+
+/* ---------- Status-Logik (aus Datumswerten abgeleitet) ---------- */
+function istAt(e, d) {
+  if (e.acceptDate && e.acceptDate <= d) return 3;
+  if (e.doneDate && e.doneDate <= d) return 2;
+  if (e.startDate && e.startDate <= d) return 1;
+  return 0;
+}
+function sollAt(e, d) {
+  const t = taskMap[e.taskId]; if (!t) return 0;
+  if (t.end < d) return 2; if (t.start <= d) return 1; return 0;
+}
+function setStatus(e, s, d) {
+  if (s === 0) { e.startDate = e.doneDate = e.acceptDate = null; return; }
+  if (s === 1) { e.startDate = d; e.doneDate = e.acceptDate = null; return; }
+  if (!e.startDate || e.startDate > d) e.startDate = d;
+  if (s === 2) { e.doneDate = d; e.acceptDate = null; return; }
+  if (!e.doneDate || e.doneDate > d) e.doneDate = d;
+  e.acceptDate = d;
+}
+function vergabeLevel(e) {
+  const t = taskMap[e.taskId]; if (!t || !t.vergaben?.length) return -1;
+  return Math.min(...t.vergaben.map(id => vergMap[id]?.status ?? 0));
+}
+function colorKey(e, d) {
+  const i = istAt(e, d);
+  switch (view.mode) {
+    case 'soll': return ['ghost', 'arbeit', 'fertig'][sollAt(e, d)];
+    case 'vergleich': {
+      const s = sollAt(e, d), ii = Math.min(i, 2);
+      if (ii < s) return 'verzug'; if (ii > s) return 'vorsprung';
+      return ['ghost', 'arbeit', 'beton'][ii];
+    }
+    case 'vergabe': { const v = vergabeLevel(e); return v < 0 ? 'ghost' : 'v' + v; }
+    default: return ['ghost', 'arbeit', 'fertig', 'abgenommen'][i];
+  }
+}
+const elsArr = () => Object.values(S.elements);
+function progressAt(d, filter = () => true) {
+  // Beton zählt; Aushub nur, wenn der Filter nichts anderes enthält
+  const A = [0, 0, 0], B = [0, 0, 0];
+  for (const e of elsArr()) { if (!filter(e)) continue; const v = e.vol || 0.01, X = e.cat === 'Aushub' ? A : B; X[0] += v; if (istAt(e, d) >= 2) X[1] += v; if (sollAt(e, d) >= 2) X[2] += v; }
+  const [tot, ist, soll] = B[0] ? B : A;
+  return { ist: tot ? ist / tot : 0, soll: tot ? soll / tot : 0, tot: B[0] };
+}
+
+/* ---------- Terminrechnung ---------- */
+// Vorgang: dur (AT), preds [{id, typ: 'EA'|'AA', lag}], fix = frühester Start
+function schedule(tasks, p0) {
+  const map = Object.fromEntries(tasks.map(t => [t.id, t])), done = new Set(), vis = new Set();
+  const calc = t => {
+    if (done.has(t.id)) return;
+    if (vis.has(t.id)) throw new Error(`Zirkelbezug bei „${t.name}“`);
+    vis.add(t.id);
+    let s = t.fix || p0;
+    for (const p of t.preds || []) {
+      const q = map[p.id]; if (!q) continue; calc(q);
+      const lag = Math.round(+p.lag || 0);
+      const c = p.typ === 'AA' ? D.addWD(q.start, lag) : D.addWD(q.end, 1 + lag);
+      if (c > s) s = c;
+    }
+    while (D.isWE(s)) s = D.add(s, 1);
+    t.start = s; t.end = D.addWD(s, Math.max(1, Math.round(t.dur || 1)) - 1);
+    vis.delete(t.id); done.add(t.id);
+  };
+  tasks.forEach(calc);
+}
+
+/* ---------- Demo: Verwaltungsgebäude + Halle in 2 Abschnitten ---------- */
+function buildDemo() {
+  const r = rng(41);
+  const specs = [], elements = {}, tasks = [], vergaben = [];
+  const V = (id, gewerk, nu, summe, status) => vergaben.push({ id, gewerk, nu, summe, status, datum: null });
+  V('v-erd', 'Erdarbeiten & Baugrube', 'Erdbau Schmitt (Beispiel)', 148000, 3);
+  V('v-beton', 'Transportbeton', 'Betonwerk Mainfranken (Beispiel)', 214000, 3);
+  V('v-bew', 'Bewehrung liefern & verlegen', 'Stahlbau Kraus (Beispiel)', 268500, 3);
+  V('v-ger', 'Fassadengerüst Verwaltung', 'Gerüstbau Haas (Beispiel)', 38400, 2);
+  V('v-ft', 'Fertigteiltreppen', '', 0, 1);
+  V('v-fth', 'Fertigteile Halle (Stützen, Binder, Sockel)', '', 0, 1);
+  V('v-ind', 'Industrieboden Halle', '', 0, 0);
+  V('v-abd', 'Attika-Abdichtung', '', 0, 0);
+  const start = D.add(D.monday(TODAY), -63);
+  const TYPE = { Aushub: 'IfcEarthworksCut', Bodenplatte: 'IfcSlab', Decke: 'IfcSlab', Hallensohle: 'IfcSlab', 'Außenwand': 'IfcWall', Innenwand: 'IfcWall', Attika: 'IfcWall', Sockelwand: 'IfcWall', 'Stütze': 'IfcColumn', Binder: 'IfcBeam', Fundament: 'IfcFooting' };
+  const mk = (guid, name, cat, storey, vol) => (elements[guid] = { guid, name, type: TYPE[cat] || 'IfcBuildingElement', cat, storey, vol, taskId: null, startDate: null, doneDate: null, acceptDate: null });
+  const box = (name, cat, storey, min, max) => {
+    const guid = fakeGuid(r);
+    specs.push({ guid, kind: 'box', min, max });
+    mk(guid, name, cat, storey, (max[0] - min[0]) * (max[1] - min[1]) * (max[2] - min[2]));
+    return guid;
+  };
+  const stair = (storey, y0, h) => {
+    const guid = fakeGuid(r), len = Math.hypot(4, h);
+    specs.push({ guid, kind: 'stair', x: 1.1, z0: 1.0, z1: 5.0, y0, h, w: 1.2, t: 0.2 });
+    mk(guid, `${storey} · Treppenlauf`, 'Treppe', storey, 1.2 * len * 0.2).type = 'IfcStairFlight';
+    return guid;
+  };
+  const P = (t, typ = 'EA', lag = 0) => ({ id: t.id, typ, lag });
+  const task = (name, storey, dur, guids, vergs, preds = [], grp = '') => {
+    const t = { id: 't' + (tasks.length + 1), name, storey, dur, preds, fix: null, vergaben: vergs, start: null, end: null, grp };
+    guids.forEach(g => elements[g].taskId = t.id); tasks.push(t); return t;
+  };
+
+  // Erdarbeiten laufen fortlaufend durch: Verwaltung → Halle 1 → Halle 2
+  const a1 = task('Aushub Baugrube Verwaltung', 'Erdbau', 8, [box('Baugrube Verwaltung', 'Aushub', 'Erdbau', [-1, -3.5, -1], [31, 0, 17])], ['v-erd']);
+  a1.fix = start;
+  const a2 = task('Aushub Halle Abschnitt 1', 'Erdbau', 5, [box('Aushub Halle Abschnitt 1', 'Aushub', 'Erdbau', [31, -0.6, -1], [60, 0, 25])], ['v-erd'], [P(a1)]);
+  const a3 = task('Aushub Halle Abschnitt 2', 'Erdbau', 5, [box('Aushub Halle Abschnitt 2', 'Aushub', 'Erdbau', [60, -0.6, -1], [91, 0, 25])], ['v-erd'], [P(a2)]);
+
+  // Verwaltungsgebäude, 3 Geschosse
+  const ST = [{ k: 'UG', y0: -3.0, h: 3.0 }, { k: 'EG', y0: 0, h: 3.2 }, { k: '1.OG', y0: 3.2, h: 3.2 }];
+  const T = 0.3, slab = 0.25, L = 30, W = 16;
+  const bp = task('Bodenplatte Verwaltung BA 1–4', 'UG', 8, [0, 1, 2, 3].map(i => box(`UG · Bodenplatte BA ${i + 1}`, 'Bodenplatte', 'UG', [i * 7.5, -3.3, 0], [(i + 1) * 7.5, -3.0, W])), ['v-beton', 'v-bew'], [P(a1)], 'verw');
+  let prev = bp;
+  ST.forEach((s, si) => {
+    const y0 = s.y0, yw = s.y0 + s.h - slab, aw = [];
+    ['Süd', 'Nord'].forEach((side, k) => [0, 1, 2].forEach(i => aw.push(box(`${s.k} · Außenwand ${side} ${i + 1}`, 'Außenwand', s.k, [i * 10, y0, k ? W - T : 0], [(i + 1) * 10, yw, k ? W : T]))));
+    aw.push(box(`${s.k} · Außenwand West`, 'Außenwand', s.k, [0, y0, T], [T, yw, W - T]));
+    aw.push(box(`${s.k} · Außenwand Ost`, 'Außenwand', s.k, [L - T, y0, T], [L, yw, W - T]));
+    const tAw = task(`${s.k} · Außenwände`, s.k, si === 0 ? 8 : 7, aw, si ? ['v-beton', 'v-bew', 'v-ger'] : ['v-beton', 'v-bew'], [P(prev)], 'verw');
+    const iw = [
+      box(`${s.k} · Treppenhauswand Ost`, 'Innenwand', s.k, [4.0, y0, T], [4.24, yw, 6.2]),
+      box(`${s.k} · Treppenhauswand Nord`, 'Innenwand', s.k, [T, y0, 6.0], [4.0, yw, 6.24]),
+      box(`${s.k} · Flurwand`, 'Innenwand', s.k, [8, y0, 9.0], [L - T, yw, 9.24]),
+      ...[8, 15, 22].map((x, i) => box(`${s.k} · Stütze S${i + 1}`, 'Stütze', s.k, [x - .15, y0, 4.35], [x + .15, yw, 4.65]))
+    ];
+    const tIw = task(`${s.k} · Innenwände & Stützen`, s.k, 5, iw, ['v-beton', 'v-bew'], [P(tAw)], 'verw');
+    const tTr = task(`${s.k} · Treppe`, s.k, 2, [stair(s.k, y0, s.h)], ['v-ft'], [P(tIw)], 'verw');
+    prev = task(`Decke über ${s.k}`, s.k, 7, [0, 1, 2].map(i => box(`${s.k} · Decke Abschnitt ${i + 1}`, 'Decke', s.k, [i * 10, yw, 0], [(i + 1) * 10, s.y0 + s.h, W])), ['v-beton', 'v-bew'], [P(tTr)], 'verw');
+  });
+  const top = 6.4;
+  const at = task('Attika Verwaltung', 'Dach', 3, [
+    box('Dach · Attika Süd', 'Attika', 'Dach', [0, top, 0], [L, top + .5, .2]),
+    box('Dach · Attika Nord', 'Attika', 'Dach', [0, top, W - .2], [L, top + .5, W]),
+    box('Dach · Attika West', 'Attika', 'Dach', [0, top, .2], [.2, top + .5, W - .2]),
+    box('Dach · Attika Ost', 'Attika', 'Dach', [L - .2, top, .2], [L, top + .5, W - .2])
+  ], ['v-beton', 'v-bew', 'v-abd'], [P(prev)], 'verw');
+
+  // Halle 60 × 24 m, zwei Abschnitte à 30 m; Fundamente laufen hinter dem Aushub her
+  const HW = 24, HH = 8;
+  const frames = [[30.5, 37.5, 45, 52.5], [60, 67.5, 75, 82.5, 89.5]];
+  const fundT = [], halle = [];
+  [0, 1].forEach(h => {
+    const S = `Halle ${h + 1}`, x0 = 30 + h * 30, x1 = x0 + 30, xs = frames[h];
+    const fu = [], co = [], bi = [], wa = [], so = [];
+    xs.forEach((x, i) => [0.25, HW - 0.25].forEach((z, k) => {
+      const lab = `${S} · Achse ${h * 4 + i + 1}${k ? 'B' : 'A'}`;
+      fu.push(box(`${lab} Köcherfundament`, 'Fundament', S, [x - 1, -1.2, z - 1], [x + 1, -0.2, z + 1]));
+      co.push(box(`${lab} Stütze`, 'Stütze', S, [x - .25, 0, z - .25], [x + .25, HH, z + .25]));
+    }));
+    xs.forEach((x, i) => bi.push(box(`${S} · Binder Achse ${h * 4 + i + 1}`, 'Binder', S, [x - .15, HH, 0], [x + .15, HH + 1.4, HW])));
+    wa.push(box(`${S} · Sockelwand Süd`, 'Sockelwand', S, [x0, 0, 0], [x1, 2.5, .2]));
+    wa.push(box(`${S} · Sockelwand Nord`, 'Sockelwand', S, [x0, 0, HW - .2], [x1, 2.5, HW]));
+    if (h === 1) wa.push(box(`${S} · Sockelwand Giebel Ost`, 'Sockelwand', S, [x1 - .2, 0, .2], [x1, 2.5, HW - .2]));
+    [0, 1].forEach(b => so.push(box(`${S} · Hallensohle BA ${b + 1}`, 'Hallensohle', S, [x0 + b * 15, -0.2, 0], [x0 + (b + 1) * 15, 0, HW])));
+    fundT.push(fu); halle.push({ S, co, bi, wa, so });
+  });
+  const f1 = task('Fundamente Halle 1', 'Halle 1', 6, fundT[0], ['v-beton', 'v-bew'], [P(a2)]);
+  const f2 = task('Fundamente Halle 2', 'Halle 2', 6, fundT[1], ['v-beton', 'v-bew'], [P(f1), P(a3)]);
+  // Erst Verwaltung komplett, dann Halle Abschnitt 1, dann Abschnitt 2
+  let hPrev = at;
+  halle.forEach((h, i) => {
+    const sT = task(`${h.S} · Stützen`, h.S, 4, h.co, ['v-fth'], [P(hPrev), P(i ? f2 : f1)], 'halle');
+    const bT = task(`${h.S} · Binder`, h.S, 3, h.bi, ['v-fth'], [P(sT)], 'halle');
+    const wT = task(`${h.S} · Sockelwände`, h.S, 3, h.wa, ['v-fth'], [P(bT)], 'halle');
+    hPrev = task(`${h.S} · Hallensohle`, h.S, 5, h.so, ['v-ind'], [P(wT)], 'halle');
+  });
+
+  schedule(tasks, start);
+
+  // Ist-Stand: Erdbau & Fundamente planmäßig, Verwaltung ab „Decke über UG“ 3 AT, ab EG Innenwände 4 AT Verzug
+  const verw = tasks.filter(t => t.grp === 'verw');
+  tasks.forEach(t => {
+    const k = verw.indexOf(t), shift = k >= 6 ? 4 : k >= 4 ? 3 : 0;
+    const g = Object.values(elements).filter(e => e.taskId === t.id);
+    const st = D.addWD(t.start, shift);
+    if (st > TODAY) return;
+    g.forEach((e, i) => {
+      e.startDate = st;
+      const done = D.addWD(st, Math.max(0, Math.ceil((i + 1) / g.length * t.dur) - 1));
+      if (done <= TODAY) { e.doneDate = done; const acc = D.addWD(done, 6); if (acc <= TODAY && e.cat !== 'Aushub') e.acceptDate = acc; }
+    });
+  });
+  tasks.forEach(t => delete t.grp);
+  const pick = (cat, storey, n = 0) => Object.values(elements).filter(e => e.cat === cat && e.storey === storey)[n]?.guid;
+  const maengel = [
+    { id: uid(), typ: 'mangel', guid: pick('Außenwand', 'UG', 1), titel: 'Kiesnest am Wandfuß, ca. 40 × 20 cm', status: 'offen', datum: D.addWD(start, 30), frist: D.addWD(TODAY, 3), wer: 'Polier' },
+    { id: uid(), typ: 'behinderung', guid: pick('Decke', 'EG', 2), titel: 'Bewehrungsplan Decke Abschnitt 3 fehlt (Index b)', status: 'offen', datum: D.addWD(TODAY, -3), frist: D.addWD(TODAY, 2), wer: 'Tragwerksplanung' },
+    { id: uid(), typ: 'bedenken', guid: pick('Fundament', 'Halle 2', 3), titel: 'Baugrund Achse 6 weicher als im Gutachten – Bodengutachter einschalten', status: 'offen', datum: D.addWD(TODAY, -4), frist: D.addWD(TODAY, 4), wer: 'Bodengutachter' },
+    { id: uid(), typ: 'mangel', guid: pick('Stütze', 'UG', 0), titel: 'Stütze S1 aus dem Lot (12 mm)', status: 'erledigt', datum: D.addWD(start, 26), frist: D.addWD(start, 32), wer: 'Polier' }
+  ];
+  const tagebuch = [
+    { id: uid(), datum: D.addWD(TODAY, -2), wetter: 'bewölkt, 12 °C', personal: 11, text: 'Verwaltung: Schalung EG Treppenhaus gestellt, Bewehrungsabnahme Decke Abschnitt 1 ohne Beanstandung.\nHalle: Köcherfundamente Abschnitt 2 Achsen 5–7 betoniert.', fotos: [], guids: [] },
+    { id: uid(), datum: D.addWD(TODAY, -1), wetter: 'Regen, 9 °C', personal: 9, text: 'Betonage Decke Abschnitt 1 wegen Starkregen auf morgen verschoben. Pumpe umbestellt.', fotos: [], guids: [] }
+  ];
+  return {
+    S: { v: 2, source: 'demo', file: null, project: { name: 'Demo: Verwaltung mit Halle' }, projectStart: start,
+      storeys: ['Erdbau', 'UG', 'EG', '1.OG', 'Dach', 'Halle 1', 'Halle 2'], elements, tasks, vergaben, maengel, tagebuch,
+      milestones: [
+        { name: 'Erdarbeiten abgeschlossen', cat: 'Aushub' }, { name: 'Bodenplatte Verwaltung', cat: 'Bodenplatte' },
+        { name: 'Rohbau Verwaltung', storeys: ['UG', 'EG', '1.OG', 'Dach'] }, { name: 'Halle Abschnitt 1', storey: 'Halle 1' },
+        { name: 'Halle Abschnitt 2', storey: 'Halle 2' }, { name: 'Richtfest – Rohbau fertig', all: true }] },
+    specs
+  };
+}
+/* ---------- 3D ---------- */
+const host = $('#view');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+host.prepend(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 5000);
+const orbit = new OrbitControls(camera, renderer.domElement);
+orbit.enableDamping = true;
+const walker = new PointerLockControls(camera, renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8f94, 1.6));
+const sun = new THREE.DirectionalLight(0xffffff, 1.8); sun.position.set(-30, 50, 25); scene.add(sun);
+const modelRoot = new THREE.Group(); scene.add(modelRoot);
+const pinRoot = new THREE.Group(); scene.add(pinRoot);
+let grid = null;
+const meshes = new Map();   // guid -> mesh
+
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim() || '#888';
+const MAT = {};
+const KEYTOK = { erde: '--erde', ghost: '--st-ghost', arbeit: '--st-arbeit', fertig: '--st-fertig', abgenommen: '--st-abgenommen', verzug: '--st-verzug', vorsprung: '--st-vorsprung', beton: '--st-beton', v0: '--v0', v1: '--v1', v2: '--v2', v3: '--v3' };
+let edgeMat, edgeSelMat;
+function buildMaterials() {
+  for (const [k, tok] of Object.entries(KEYTOK)) {
+    const ghost = k === 'ghost' || k === 'erde';
+    for (const sel of [false, true]) {
+      const m = new THREE.MeshStandardMaterial({ color: css(tok), roughness: .85, metalness: 0, transparent: ghost, opacity: ghost ? (sel ? .45 : k === 'erde' ? .32 : .07) : 1, depthWrite: !ghost, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
+      if (sel) { m.emissive = new THREE.Color(css('--accent')); m.emissiveIntensity = .45; }
+      (MAT[k + (sel ? '|s' : '')]?.dispose?.(), MAT[k + (sel ? '|s' : '')] = m);
+    }
+  }
+  MAT.pin?.dispose(); MAT.pin = new THREE.MeshBasicMaterial({ color: css('--mangel') });
+  edgeMat = new THREE.LineBasicMaterial({ color: css('--fg'), transparent: true, opacity: .22 });
+  edgeSelMat = new THREE.LineBasicMaterial({ color: css('--accent') });
+  scene.background = new THREE.Color(css('--viewport'));
+  if (grid) { scene.remove(grid); grid.geometry.dispose(); }
+  const b = modelBox();
+  const size = Math.max(40, Math.ceil(Math.max(b.max.x - b.min.x, b.max.z - b.min.z) * 1.6 / 5) * 5);
+  grid = new THREE.GridHelper(size, size / 2.5, css('--grid'), css('--grid'));
+  grid.position.set((b.min.x + b.max.x) / 2, b.min.y - 0.02, (b.min.z + b.max.z) / 2);
+  scene.add(grid);
+  meshes.forEach(m => m.userData.edges && (m.userData.edges.material = view.sel.has(m.userData.guid) ? edgeSelMat : edgeMat));
+}
+function modelBox() { const b = new THREE.Box3().setFromObject(modelRoot); return b.isEmpty() ? new THREE.Box3(new THREE.Vector3(-10, 0, -10), new THREE.Vector3(10, 5, 10)) : b; }
+
+function clearModel() {
+  meshes.forEach(m => { m.geometry.dispose(); m.userData.edges?.geometry.dispose(); });
+  meshes.clear(); modelRoot.clear(); pinRoot.clear();
+}
+function addMesh(guid, geom, withEdges = true) {
+  const m = new THREE.Mesh(geom, MAT.ghost);
+  m.userData.guid = guid;
+  if (withEdges) { const eg = new THREE.EdgesGeometry(geom, 30); const l = new THREE.LineSegments(eg, edgeMat); l.raycast = () => {}; m.add(l); m.userData.edges = l; }
+  modelRoot.add(m); meshes.set(guid, m);
+}
+function buildDemoMeshes(specs) {
+  clearModel();
+  for (const s of specs) {
+    let g;
+    if (s.kind === 'box') {
+      g = new THREE.BoxGeometry(s.max[0] - s.min[0], s.max[1] - s.min[1], s.max[2] - s.min[2]);
+      g.translate((s.min[0] + s.max[0]) / 2, (s.min[1] + s.max[1]) / 2, (s.min[2] + s.max[2]) / 2);
+    } else {
+      const len = Math.hypot(s.z1 - s.z0, s.h);
+      g = new THREE.BoxGeometry(s.w, s.t, len);
+      g.rotateX(-Math.atan2(s.h, s.z1 - s.z0));
+      g.translate(s.x, s.y0 + s.h / 2, (s.z0 + s.z1) / 2);
+    }
+    addMesh(s.guid, g);
+  }
+}
+function frame() {
+  const b = modelBox(), c = b.getCenter(new THREE.Vector3()), sz = b.getSize(new THREE.Vector3()).length();
+  orbit.target.copy(c);
+  camera.position.set(c.x - sz * .55, c.y + sz * .45, c.z + sz * .75);
+  camera.near = Math.max(.05, sz / 2000); camera.far = sz * 20; camera.updateProjectionMatrix();
+}
+function flyTo(guid) {
+  const m = meshes.get(guid); if (!m) return;
+  const b = new THREE.Box3().setFromObject(m), c = b.getCenter(new THREE.Vector3());
+  const off = camera.position.clone().sub(orbit.target);
+  const dist = Math.max(8, b.getSize(new THREE.Vector3()).length() * 2.2);
+  off.setLength(dist);
+  const fromP = camera.position.clone(), fromT = orbit.target.clone(), toP = c.clone().add(off);
+  const t0 = performance.now(), dur = matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : 600;
+  (function step() { const k = Math.min(1, (performance.now() - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+    camera.position.lerpVectors(fromP, toP, e); orbit.target.lerpVectors(fromT, c, e); if (k < 1) requestAnimationFrame(step); })();
+}
+
+function applyColors() {
+  const d = view.date;
+  const order = S.storeys;
+  const lim = view.storey === 'alle' ? Infinity : order.indexOf(view.storey);
+  for (const [g, m] of meshes) {
+    const e = S.elements[g]; if (!e) { m.visible = false; continue; }
+    const si = order.indexOf(e.storey);
+    const sel = view.sel.has(g);
+    let key = colorKey(e, d);
+    if (e.cat === 'Aushub') { if (key === 'ghost') key = 'erde'; else if (['fertig', 'abgenommen', 'beton'].includes(key)) key = null; }
+    m.visible = (si < 0 || si <= lim) && !!key;
+    if (!key) continue;
+    m.material = MAT[key + (sel ? '|s' : '')];
+    if (m.userData.edges) m.userData.edges.material = sel ? edgeSelMat : edgeMat;
+  }
+  // Mängel-Pins
+  pinRoot.clear();
+  const pinGeo = applyColors.geo ||= new THREE.ConeGeometry(.28, .8, 4).rotateX(Math.PI);
+  const pinMat = MAT.pin;
+  for (const m of S.maengel) {
+    if (m.status !== 'offen' || m.datum > d) continue;
+    const mesh = meshes.get(m.guid); if (!mesh || !mesh.visible) continue;
+    const b = new THREE.Box3().setFromObject(mesh);
+    const p = new THREE.Mesh(pinGeo, pinMat); p.position.set((b.min.x + b.max.x) / 2, b.max.y + .7, (b.min.z + b.max.z) / 2);
+    p.userData.guid = m.guid; pinRoot.add(p);
+  }
+}
+
+function resize() {
+  const w = host.clientWidth, h = host.clientHeight; if (!w || !h) return;
+  renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(host);
+
+/* Begehung */
+const keys = {};
+addEventListener('keydown', e => { keys[e.code] = true; });
+addEventListener('keyup', e => { keys[e.code] = false; });
+walker.addEventListener('unlock', () => {
+  if (view.tool !== 'walk') return;
+  const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
+  orbit.target.copy(camera.position).addScaledVector(dir, 12);
+  setTool('select');
+});
+document.addEventListener('pointerlockerror', () => { if (view.tool === 'walk') { toast('Begehung braucht Maus und Tastatur am Rechner.'); setTool('select'); } });
+let lastT = performance.now();
+function loop(t) {
+  const dt = Math.min(.05, (t - lastT) / 1000); lastT = t;
+  if (walker.isLocked) {
+    const sp = (keys.ShiftLeft || keys.ShiftRight ? 7 : 3) * dt;
+    if (keys.KeyW || keys.ArrowUp) walker.moveForward(sp);
+    if (keys.KeyS || keys.ArrowDown) walker.moveForward(-sp);
+    if (keys.KeyA || keys.ArrowLeft) walker.moveRight(-sp);
+    if (keys.KeyD || keys.ArrowRight) walker.moveRight(sp);
+    if (keys.KeyE) camera.position.y += sp; if (keys.KeyQ) camera.position.y -= sp;
+  } else orbit.update();
+  renderer.render(scene, camera);
+  requestAnimationFrame(loop);
+}
+
+/* Auswahl & Malen */
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+function pick(ev) {
+  const r = renderer.domElement.getBoundingClientRect();
+  ndc.set(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+  const hits = ray.intersectObjects([...pinRoot.children, ...[...meshes.values()].filter(m => m.visible)], false);
+  return hits[0]?.object.userData.guid || null;
+}
+let down = null, painting = false, painted = new Set();
+renderer.domElement.addEventListener('pointerdown', ev => {
+  if (view.tool === 'walk') return;
+  down = { x: ev.clientX, y: ev.clientY };
+  if (view.tool === 'paint' && ev.button === 0) { painting = true; painted.clear(); paintAt(ev); }
+});
+renderer.domElement.addEventListener('pointermove', ev => { if (painting) paintAt(ev); });
+addEventListener('pointerup', ev => {
+  if (painting) { painting = false; if (painted.size) { const n = painted.size; checkMilestones(true); save(); renderAll(); toast(`${n} Bauteil${n > 1 ? 'e' : ''} auf „${STATUS[view.brush].label}“ gesetzt (Stichtag ${D.de(view.date)})`); } down = null; return; }
+  if (!down || ev.target !== renderer.domElement) { down = null; return; }
+  const moved = Math.hypot(ev.clientX - down.x, ev.clientY - down.y) > 5; down = null;
+  if (moved || view.tool !== 'select' || ev.button !== 0) return;
+  const g = pick(ev);
+  if (ev.shiftKey || ev.ctrlKey || ev.metaKey) { if (g) view.sel.has(g) ? view.sel.delete(g) : view.sel.add(g); }
+  else { view.sel.clear(); if (g) view.sel.add(g); }
+  view.selTask = null;
+  if (view.sel.size) view.tab = 'bauteil';
+  applyColors(); renderPanel();
+});
+function paintAt(ev) {
+  const g = pick(ev); if (!g || painted.has(g)) return;
+  painted.add(g); setStatus(S.elements[g], view.brush, view.date);
+  applyColors();
+}
+
+/* ---------- Werkzeuge, Modi ---------- */
+function setTool(t) {
+  if (t === 'walk') {
+    try {
+      const b = modelBox(), c = b.getCenter(new THREE.Vector3());
+      const eye = (S.source === 'demo' ? 0 : b.min.y) + 1.7;
+      camera.position.set(b.min.x - 4, eye, c.z);
+      camera.lookAt(c.x, eye, c.z);
+      const p = walker.lock(); if (p?.catch) p.catch(() => { toast('Begehung braucht Maus und Tastatur am Rechner.'); setTool('select'); });
+    } catch { toast('Begehung braucht Maus und Tastatur am Rechner.'); t = 'select'; }
+  } else if (walker.isLocked) walker.unlock();
+  view.tool = t;
+  orbit.enabled = t !== 'walk';
+  orbit.mouseButtons.LEFT = t === 'paint' ? -1 : THREE.MOUSE.ROTATE;
+  orbit.touches.ONE = t === 'paint' ? -1 : THREE.TOUCH.ROTATE;
+  document.querySelectorAll('#toolSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.tool === t));
+  $('#brushes').hidden = t !== 'paint';
+  $('#cross').hidden = t !== 'walk';
+  $('#hint').textContent = {
+    select: 'Klick wählt ein Bauteil, Shift-Klick mehrere. Ziehen dreht, rechte Maustaste verschiebt.',
+    paint: `Über Bauteile streichen setzt „${STATUS[view.brush].label}“ zum Stichtag ${D.de(view.date)}. Rechte Maustaste dreht.`,
+    walk: 'W A S D laufen, Shift schneller, Q/E runter/hoch, Esc beendet.'
+  }[t];
+}
+function renderBrushes() {
+  $('#brushes').innerHTML = STATUS.map((s, i) => `<button title="${s.label}" aria-label="Pinsel ${s.label}" aria-pressed="${i === view.brush}" data-b="${i}" style="background:${i ? `var(${s.tok})` : 'transparent'};${i ? '' : 'border:2px dashed var(--st-ghost)'}"></button>`).join('');
+}
+$('#brushes').addEventListener('click', e => { const b = e.target.closest('[data-b]'); if (!b) return; view.brush = +b.dataset.b; renderBrushes(); setTool('paint'); });
+$('#toolSeg').addEventListener('click', e => { const b = e.target.closest('[data-tool]'); if (b) setTool(b.dataset.tool); });
+$('#modeSeg').addEventListener('click', e => {
+  const b = e.target.closest('[data-mode]'); if (!b) return;
+  view.mode = b.dataset.mode;
+  document.querySelectorAll('#modeSeg button').forEach(x => x.setAttribute('aria-pressed', x === b));
+  applyColors(); renderLegend();
+});
+$('#storeyFilter').addEventListener('change', e => { view.storey = e.target.value; applyColors(); });
+function renderStoreyFilter() {
+  $('#storeyFilter').innerHTML = `<option value="alle">Alle Geschosse</option>` + S.storeys.map(s => `<option value="${esc(s)}">bis ${esc(s)}</option>`).join('');
+  $('#storeyFilter').value = view.storey;
+}
+function renderLegend() {
+  const it = (tok, l, ghost) => `<span><i class="dot ${ghost ? 'ghost' : ''}" style="${ghost ? '' : `background:var(${tok})`}"></i>${l}</span>`;
+  const L = {
+    ist: [it('', 'Geplant', 1), it('--st-arbeit', 'In Arbeit'), it('--st-fertig', 'Fertig'), it('--st-abgenommen', 'Abgenommen')],
+    soll: [it('', 'Noch nicht dran', 1), it('--st-arbeit', 'Soll in Arbeit'), it('--st-fertig', 'Soll fertig')],
+    vergleich: [it('--st-verzug', 'Verzug'), it('--st-vorsprung', 'Vorsprung'), it('--st-arbeit', 'Planmäßig in Arbeit'), it('--st-beton', 'Planmäßig fertig'), it('', 'Noch nicht dran', 1)],
+    vergabe: [...VSTATUS.map((v, i) => it(v.tok, v.label)), it('', 'Keine Vergabe', 1)]
+  }[view.mode];
+  $('#legend').innerHTML = L.join('') + `<span><i class="dot" style="background:var(--mangel);transform:rotate(45deg)"></i>Offener Punkt</span>`;
+}
+
+/* ---------- Zeitleiste ---------- */
+let range = { a: TODAY, b: TODAY };
+function computeRange() {
+  const ds = S.tasks.flatMap(t => [t.start, t.end]).sort();
+  range = { a: D.add(ds[0] || TODAY, -3), b: D.add(ds[ds.length - 1] || TODAY, 7) };
+  if (TODAY < range.a) range.a = TODAY; if (TODAY > range.b) range.b = TODAY;
+  $('#slider').max = D.diff(range.a, range.b);
+}
+function setDate(d, fromPlay = false) {
+  const prev = view.date;
+  view.date = d < range.a ? range.a : d > range.b ? range.b : d;
+  $('#slider').value = D.diff(range.a, view.date);
+  $('#whenD').textContent = `${D.wd(view.date)} ${D.de(view.date)}`;
+  const delta = D.diff(TODAY, view.date);
+  $('#whenK').textContent = `KW ${D.kw(view.date)} · ${delta === 0 ? 'heute' : delta > 0 ? `in ${delta} Tagen` : `vor ${-delta} Tagen`}`;
+  if (fromPlay) milestoneCrossing(prev, view.date);
+  applyColors(); renderHeader();
+  if (!fromPlay || view.tab === 'uebersicht' || view.tab === 'termine') renderPanel();
+  if (view.tool === 'paint') setTool('paint');
+}
+function renderTicks() {
+  const n = D.diff(range.a, range.b) || 1, pos = d => (D.diff(range.a, d) / n * 100).toFixed(2) + '%';
+  $('#ticks').innerHTML = milestoneStates().map(m => `<i class="${m.done ? '' : 'open'}" style="left:${pos(m.done || m.soll)}" title="${esc(m.name)}"></i>`).join('') + `<b style="left:${pos(TODAY)}" title="Heute"></b>`;
+}
+$('#slider').addEventListener('input', e => { stopPlay(); setDate(D.add(range.a, +e.target.value)); });
+$('#btnToday').addEventListener('click', () => { stopPlay(); setDate(TODAY); });
+let playH = null;
+function stopPlay() { clearInterval(playH); playH = null; $('#playIco').innerHTML = '<path d="M3 1.5v13l11-6.5z"/>'; $('#play').setAttribute('aria-label', 'Bauablauf abspielen'); }
+$('#play').addEventListener('click', () => {
+  if (playH) return stopPlay();
+  if (view.date >= range.b) setDate(range.a);
+  $('#playIco').innerHTML = '<path d="M3 1.5h3.5v13H3zM9.5 1.5H13v13H9.5z"/>'; $('#play').setAttribute('aria-label', 'Anhalten');
+  const tick = () => { if (view.date >= range.b) return stopPlay(); setDate(D.add(view.date, 1), true); };
+  playH = setInterval(tick, +$('#speed').value);
+});
+$('#speed').addEventListener('change', () => { if (playH) { stopPlay(); $('#play').click(); } });
+
+/* ---------- Meilensteine & Spielstand ---------- */
+function msFilter(m) { return m.all ? () => true : m.cat ? e => e.cat === m.cat : m.storeys ? e => m.storeys.includes(e.storey) : e => e.storey === m.storey; }
+function milestoneStates() {
+  return (S.milestones || []).map(m => {
+    const els = elsArr().filter(msFilter(m)); if (!els.length) return null;
+    const allDone = els.every(e => e.doneDate);
+    const done = allDone ? els.map(e => e.doneDate).sort().pop() : null;
+    const soll = els.map(e => taskMap[e.taskId]?.end || '').sort().pop();
+    return { name: m.name, done, soll, els };
+  }).filter(Boolean);
+}
+function milestoneCrossing(a, b) {
+  const hit = milestoneStates().find(m => m.done && m.done > a && m.done <= b);
+  if (hit) showBanner(hit.name);
+}
+let knownDone = null;
+function checkMilestones(announce) {
+  const st = milestoneStates(), cur = new Set(st.filter(m => m.done && m.done <= view.date).map(m => m.name));
+  if (announce && knownDone) for (const n of cur) if (!knownDone.has(n)) { showBanner(n); break; }
+  knownDone = cur; renderTicks();
+}
+function showBanner(t) {
+  $('#bannerT').textContent = t; const b = $('#banner'); b.classList.remove('off');
+  clearTimeout(showBanner.h); showBanner.h = setTimeout(() => b.classList.add('off'), 2600);
+}
+function renderHeader() {
+  const p = progressAt(view.date);
+  $('#mIst').style.width = (p.ist * 100).toFixed(1) + '%'; $('#mSoll').style.width = (p.soll * 100).toFixed(1) + '%';
+  $('#mIstT').textContent = Math.round(p.ist * 100) + ' %'; $('#mSollT').textContent = Math.round(p.soll * 100) + ' %';
+  const lv = S.storeys.filter(s => elsArr().some(e => e.storey === s && e.cat !== 'Aushub'));
+  const idx = lv.findIndex(s => progressAt(view.date, e => e.storey === s).ist < .999);
+  $('#levelChip').innerHTML = idx < 0 ? 'Rohbau <b>fertig</b>' : `Ebene <b>${esc(lv[idx])}</b> · ${idx + 1}/${lv.length}`;
+  $('#projSrc').textContent = S.source === 'demo' ? 'Beispieldaten' : `IFC · ${S.file || ''}`;
+  $('#projName').value = S.project.name;
+}
+$('#projName').addEventListener('change', e => { S.project.name = e.target.value; save(); });
+
+/* ---------- Panel ---------- */
+const TABS = [['uebersicht', 'Übersicht'], ['bauteil', 'Bauteil'], ['termine', 'Termine'], ['chat', 'Ablauf-Chat'], ['vergaben', 'Vergaben'], ['maengel', 'Mängel'], ['tagebuch', 'Tagebuch'], ['aufmass', 'Aufmaß']];
+function renderTabs() {
+  const open = S.maengel.filter(m => m.status === 'offen').length;
+  $('#tabs').innerHTML = TABS.map(([k, l]) => `<button role="tab" data-tab="${k}" aria-selected="${view.tab === k}">${l}${k === 'maengel' && open ? `<span class="cnt">${open}</span>` : ''}${k === 'bauteil' && view.sel.size ? `<span class="cnt">${view.sel.size}</span>` : ''}</button>`).join('');
+}
+$('#tabs').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (b) { view.tab = b.dataset.tab; renderPanel(); } });
+function renderPanel() {
+  renderTabs();
+  const pane = $('#pane');
+  pane.innerHTML = ({ uebersicht: pUebersicht, bauteil: pBauteil, termine: pTermine, chat: pChat, vergaben: pVergaben, maengel: pMaengel, tagebuch: pTagebuch, aufmass: pAufmass })[view.tab]();
+}
+function renderAll() { reindex(); renderHeader(); renderTicks(); applyColors(); renderPanel(); }
+const chipS = i => `<span class="chip" style="color:var(${STATUS[i].tok})">${STATUS[i].label}</span>`;
+const chipV = i => `<span class="chip" style="color:var(${VSTATUS[i].tok})">${VSTATUS[i].label}</span>`;
+
+function taskIst(t, d = view.date) {
+  const els = elsArr().filter(e => e.taskId === t.id);
+  const tv = els.reduce((a, e) => a + (e.vol || .01), 0), dv = els.reduce((a, e) => a + (istAt(e, d) >= 2 ? (e.vol || .01) : 0), 0);
+  return { els, p: tv ? dv / tv : 0, finish: els.length && els.every(e => e.doneDate && e.doneDate <= d) ? els.map(e => e.doneDate).sort().pop() : null };
+}
+function warnings() {
+  const d = view.date, W = [];
+  for (const t of S.tasks) {
+    const ti = taskIst(t);
+    if (!ti.els.length) continue;
+    if (t.end < d && !ti.finish) W.push({ c: '--st-verzug', t: `${t.name}: ${D.wdBetween(t.end, d)} AT Verzug`, s: `Soll-Ende ${D.de(t.end)} · ${Math.round(ti.p * 100)} % fertig`, task: t.id });
+    else if (t.start < d && ti.p === 0 && !ti.els.some(e => istAt(e, d) >= 1)) W.push({ c: '--st-verzug', t: `${t.name}: Start überfällig`, s: `Soll-Beginn ${D.de(t.start)}`, task: t.id });
+    const ahead = D.wdBetween(d, t.start);
+    if (t.start >= d && ahead <= 15) {
+      const miss = (t.vergaben || []).map(id => vergMap[id]).filter(v => v && v.status < 3);
+      if (miss.length) W.push({ c: '--v1', t: `${t.name} startet in ${ahead} AT`, s: `Noch nicht beauftragt: ${miss.map(v => v.gewerk).join(', ')}`, task: t.id });
+    }
+  }
+  for (const m of S.maengel) if (m.status === 'offen' && m.frist && m.frist < d) W.push({ c: '--mangel', t: `${MTYP[m.typ]} überfällig: ${m.titel}`, s: `Frist ${D.de(m.frist)} · ${m.wer || '–'}`, guid: m.guid });
+  return W;
+}
+function pUebersicht() {
+  const p = progressAt(view.date), W = warnings(), ms = milestoneStates();
+  const vz = elsArr().filter(e => Math.min(istAt(e, view.date), 2) < sollAt(e, view.date)).length;
+  return `
+  <div class="sect"><h2>Stand ${D.de(view.date)}</h2>
+    <dl class="kv num">
+      <dt>Fortschritt Ist</dt><dd><b>${fmtN(p.ist * 100, 0)} %</b> von ${fmtN(p.tot, 0)} m³ Beton</dd>
+      <dt>Fortschritt Soll</dt><dd>${fmtN(p.soll * 100, 0)} % <span class="muted">(${p.ist >= p.soll ? '+' : '−'}${fmtN(Math.abs(p.ist - p.soll) * 100, 0)} Pkt.)</span></dd>
+      <dt>Bauteile im Verzug</dt><dd>${vz}</dd>
+      <dt>Offene Punkte</dt><dd>${S.maengel.filter(m => m.status === 'offen').length}</dd>
+    </dl></div>
+  <div class="sect"><h2>Achtung</h2>
+    ${W.length ? `<div class="list" style="border:0">${W.slice(0, 8).map(w => `<div class="warn row click" style="--c:var(${w.c})" ${w.task ? `data-task="${w.task}"` : ''} ${w.guid ? `data-guid="${w.guid}"` : ''}><div>${esc(w.t)}<small>${esc(w.s)}</small></div></div>`).join('')}</div>` : `<div class="empty">Keine Verzüge, Vergabelücken oder überfälligen Punkte zum Stichtag.</div>`}
+  </div>
+  <div class="sect"><h2>Ebenen</h2>
+    ${S.storeys.map(s => { const q = progressAt(view.date, e => e.storey === s); return `<div class="lvl num"><span>${esc(s)}</span><div class="bar" title="Ist ${Math.round(q.ist * 100)} %, Soll ${Math.round(q.soll * 100)} %"><i style="width:${q.ist * 100}%"></i><u style="left:${q.soll * 100}%"></u></div><span>${Math.round(q.ist * 100)} %</span></div>`; }).join('')}
+    <p class="note">Grüner Balken = Ist, Strich = Soll zum Stichtag.</p>
+  </div>
+  <div class="sect"><h2>Meilensteine</h2><div>
+    ${ms.map(m => { const done = m.done && m.done <= view.date; return `<div class="ms ${done ? 'done' : ''}"><i class="d"></i><span>${esc(m.name)}</span><span class="num muted">${done ? D.de(m.done) : 'Soll ' + D.short(m.soll)}</span></div>`; }).join('')}
+  </div></div>`;
+}
+function pBauteil() {
+  const sel = [...view.sel].map(g => S.elements[g]).filter(Boolean);
+  if (!sel.length) return `<div class="empty">Kein Bauteil gewählt. Im Modell anklicken – mit Shift mehrere – oder in „Termine“ einen Vorgang wählen.</div>`;
+  const cur = new Set(sel.map(e => istAt(e, view.date)));
+  const one = sel.length === 1 ? sel[0] : null;
+  const vol = sel.reduce((a, e) => a + (e.vol || 0), 0);
+  const statusBtns = `<div class="statusrow">${STATUS.map((s, i) => `<button data-set="${i}" aria-pressed="${cur.size === 1 && cur.has(i)}"><i class="dot ${i ? '' : 'ghost'}" style="${i ? `background:var(${s.tok})` : ''}"></i>${s.label}</button>`).join('')}</div>
+    <p class="note">Gilt zum Stichtag ${D.de(view.date)}. Schieber zurück stellen, um Ist-Daten nachzutragen.</p>`;
+  if (!one) return `<div class="sect"><h3>${sel.length} Bauteile gewählt</h3><dl class="kv num"><dt>Volumen</dt><dd>${fmtN(vol, 2)} m³</dd></dl></div><div class="sect"><h2>Status setzen</h2>${statusBtns}</div>
+    <div class="list">${sel.slice(0, 40).map(e => `<div class="row click" data-guid="${e.guid}"><span class="t">${esc(e.name)}</span>${chipS(istAt(e, view.date))}</div>`).join('')}</div>`;
+  const t = taskMap[one.taskId], mm = S.maengel.filter(m => m.guid === one.guid);
+  return `<div class="sect"><h3>${esc(one.name)}</h3>
+    <dl class="kv num">
+      <dt>Typ</dt><dd>${esc(one.type)} · ${esc(one.cat)}</dd>
+      <dt>Geschoss</dt><dd>${esc(one.storey)}</dd>
+      <dt>Volumen</dt><dd>${fmtN(one.vol, 2)} m³</dd>
+      <dt>Vorgang</dt><dd>${t ? `${esc(t.name)}<br><span class="muted">Soll ${D.de(t.start)} – ${D.de(t.end)}</span>` : '–'}</dd>
+      <dt>Vergaben</dt><dd>${t?.vergaben?.length ? t.vergaben.map(id => vergMap[id] ? `${esc(vergMap[id].gewerk)} ${chipV(vergMap[id].status)}` : '').join('<br>') : '–'}</dd>
+      <dt>Ist-Termine</dt><dd>Beginn ${D.de(one.startDate)}<br>Fertig ${D.de(one.doneDate)}<br>Abnahme ${D.de(one.acceptDate)}</dd>
+      <dt>IFC-GUID</dt><dd class="mono">${esc(one.guid)}</dd>
+    </dl></div>
+  <div class="sect"><h2>Status</h2>${statusBtns}</div>
+  <div class="sect"><h2>Offene Punkte</h2>
+    ${mm.length ? `<div class="list">${mm.map(rowMangel).join('')}</div>` : ''}
+    ${formMangel(one.guid)}
+  </div>`;
+}
+function rowMangel(m) {
+  const over = m.status === 'offen' && m.frist && m.frist < view.date;
+  return `<div class="row"><span class="t">${esc(m.titel)}</span><span class="chip" style="color:var(${m.status === 'offen' ? '--mangel' : '--st-fertig'})">${m.status === 'offen' ? MTYP[m.typ] : 'Erledigt'}</span>
+    <span class="s num">${esc(S.elements[m.guid]?.name || 'ohne Bauteil')} · Frist ${D.de(m.frist)}${over ? ' · <b style="color:var(--st-verzug)">überfällig</b>' : ''} · ${esc(m.wer || '–')}
+    · <button class="btn small" data-mtoggle="${m.id}">${m.status === 'offen' ? 'Erledigt' : 'Wieder öffnen'}</button>${m.guid ? ` <button class="btn small" data-goto="${m.guid}">Im Modell</button>` : ''}</span></div>`;
+}
+function formMangel(guid) {
+  return `<form class="form" data-form="mangel" data-guid="${esc(guid || '')}">
+    <label class="field"><span>Art</span><select id="m-typ" name="typ">${Object.entries(MTYP).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></label>
+    <label class="field"><span>Frist</span><input id="m-frist" type="date" name="frist" value="${D.addWD(view.date, 5)}"></label>
+    <label class="field full"><span>Beschreibung</span><input id="m-titel" name="titel" required placeholder="z. B. Abstandhalter fehlen am Wandkopf"></label>
+    <label class="field full"><span>Verantwortlich</span><input id="m-wer" name="wer" placeholder="NU, Planer, Polier …"></label>
+    <div class="act"><button class="btn primary" type="submit">Punkt erfassen</button></div></form>`;
+}
+function pTermine() {
+  const n = D.diff(range.a, range.b) || 1, pos = d => D.diff(range.a, d) / n * 100;
+  const list = [...S.tasks].sort((a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end));
+  const pend = S.tasks.map(t => t.end).sort().pop();
+  return `<div class="sect"><h2>Bauablauf · ${S.tasks.length} Vorgänge · Ende ${D.de(pend)}</h2>
+  <p class="note">Name anklicken markiert die Bauteile. Ein geänderter Beginn wird als „frühestens“ gesetzt, Nachfolger rücken automatisch mit. Abhängigkeiten änderst du am schnellsten im <button class="btn small" data-gotab="chat">Ablauf-Chat</button>.</p>
+  <div class="gantt">${list.map(t => { const ti = taskIst(t), late = t.end < view.date && ti.els.length && !ti.finish;
+    const preds = (t.preds || []).map(p => taskMap[p.id] ? `${esc(taskMap[p.id].name)}${p.typ === 'AA' ? ' (AA)' : ''}${p.lag ? ` ${p.lag > 0 ? '+' : ''}${p.lag} AT` : ''}` : '').filter(Boolean);
+    return `<div class="grow ${view.selTask === t.id ? 'sel' : ''}">
+      <div class="ghead"><span class="gname" data-task="${t.id}">${esc(t.name)}</span><span class="num ${late ? '' : 'muted'}" style="${late ? 'color:var(--st-verzug)' : ''}">${ti.els.length ? Math.round(ti.p * 100) + ' %' : 'ohne Bauteile'}</span></div>
+      <div class="gbar"><div class="p" style="left:${pos(t.start)}%;width:${Math.max(.8, pos(D.add(t.end, 1)) - pos(t.start))}%"><i style="width:${ti.p * 100}%"></i></div><div class="now" style="left:${pos(view.date)}%"></div></div>
+      <div class="gedit num"><input type="date" aria-label="Beginn ${esc(t.name)}" data-tstart="${t.id}" value="${t.start}"><span class="muted">bis</span><input type="date" aria-label="Ende ${esc(t.name)}" data-tend="${t.id}" value="${t.end}"><span class="muted">${t.dur} AT · ${ti.els.length} Bauteile</span></div>
+      <div class="note">${preds.length ? 'nach ' + preds.join(', ') : 'ohne Vorgänger'}${t.fix ? ` · frühestens ${D.de(t.fix)} <button class="btn small" data-unfix="${t.id}">lösen</button>` : ''}</div>
+    </div>`; }).join('')}</div></div>`;
+}
+
+/* ---------- Ablauf-Chat ---------- */
+const chat = { turns: [], draft: '', busy: false, pending: null, undo: [], err: '', ctl: null, t0: 0 };
+let sampleFn;   // undefined = lädt, null = nicht verfügbar
+if (window.claude?.use) window.claude.use('sample').then(s => { sampleFn = s; if (view.tab === 'chat') renderPanel(); }).catch(() => { sampleFn = null; });
+else sampleFn = null;
+
+function scheduleText() {
+  return [...S.tasks].sort((a, b) => a.start.localeCompare(b.start)).map(t => {
+    const ti = taskIst(t, TODAY);
+    const pr = (t.preds || []).map(p => `${p.id} ${p.typ || 'EA'}${p.lag ? (p.lag > 0 ? '+' : '') + p.lag : ''}`).join(', ') || '–';
+    return `${t.id} | ${t.name} | ${t.storey || '–'} | ${t.dur} AT | ${t.start} bis ${t.end} | nach: ${pr} | fix: ${t.fix || '–'} | Ist ${ti.els.length ? Math.round(ti.p * 100) + ' %' : '–'} | ${ti.els.length} Bauteile`;
+  }).join('\n');
+}
+function rulesText() {
+  return `Du bist Terminplaner in einem 4D-Bauleitungstool für den Rohbau. Der Bauleiter beschreibt in eigenen Worten, wie der Bauablauf geändert werden soll. Du übersetzt das in Änderungen am Terminplan.
+
+Terminrechnung des Tools:
+- "dur" = Dauer in Arbeitstagen (Mo–Fr).
+- "preds" = Vorgänger als Liste {"id","typ","lag"}. typ "EA" = Ende-Anfang (beginnt am Arbeitstag nach dem Ende des Vorgängers), "AA" = Anfang-Anfang (beginnt mit dem Vorgänger). "lag" in Arbeitstagen, negativ = Überlappung.
+- "fix" = frühester Beginn (YYYY-MM-DD) oder null. Ohne Vorgänger und ohne fix beginnt ein Vorgang am Projektstart.
+- Beginn und Ende rechnet das Tool selbst. Setze nie Beginn/Ende, sondern dur, preds und fix.
+- Vorgänge mit Bauteilen nie löschen. Keine Zirkelbezüge. Bereits fertige Vorgänge (Ist 100 %) nur ändern, wenn ausdrücklich verlangt.
+
+Antworte nur mit JSON in dieser Form:
+{"antwort":"Kurze Erklärung auf Deutsch (höchstens 4 Sätze): was du änderst und was das für die Termine bedeutet.",
+ "ops":[
+  {"op":"update","id":"t5","dur":6,"preds":[{"id":"t4","typ":"EA","lag":0}],"fix":null,"name":"neuer Name"},
+  {"op":"add","name":"Puffer Witterung","storey":"Halle 1","dur":5,"preds":[{"id":"t20","typ":"EA","lag":0}]},
+  {"op":"delete","id":"t31"},
+  {"op":"projektstart","date":"2026-08-03"}
+ ]}
+Bei "update" nur die Felder angeben, die sich ändern; "preds" ersetzt die Liste vollständig. Ist die Anweisung unklar, frage in "antwort" nach und gib "ops":[] zurück.
+
+Heute: ${TODAY}. Projektstart: ${S.projectStart}.
+Aktueller Terminplan (id | Name | Abschnitt | Dauer | Soll | Vorgänger | frühestens | Ist-Stand | Bauteile):
+${scheduleText()}`;
+}
+const okDate = s => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ''));
+function applyOps(base, ops, p0) {
+  const tasks = structuredClone(base); let start = p0; const notes = [];
+  const cleanPreds = (arr, selfId) => (Array.isArray(arr) ? arr : []).filter(p => p && p.id !== selfId && tasks.some(x => x.id === String(p.id)))
+    .map(p => ({ id: String(p.id), typ: p.typ === 'AA' ? 'AA' : 'EA', lag: Math.round(+p.lag || 0) }));
+  for (const o of ops || []) {
+    if (!o || typeof o !== 'object') continue;
+    if (o.op === 'projektstart') { if (okDate(o.date)) start = o.date; }
+    else if (o.op === 'update') {
+      const t = tasks.find(x => x.id === String(o.id)); if (!t) { notes.push(`Vorgang ${o.id} gibt es nicht.`); continue; }
+      if (o.dur != null) t.dur = Math.max(1, Math.round(+o.dur) || 1);
+      if (Array.isArray(o.preds)) t.preds = cleanPreds(o.preds, t.id);
+      if ('fix' in o) t.fix = okDate(o.fix) ? o.fix : null;
+      if (o.name) t.name = String(o.name).slice(0, 80);
+    } else if (o.op === 'add') {
+      const id = 't' + (Math.max(0, ...tasks.map(x => +String(x.id).replace(/\D/g, '') || 0)) + 1);
+      tasks.push({ id, name: String(o.name || 'Neuer Vorgang').slice(0, 80), storey: String(o.storey || ''), dur: Math.max(1, Math.round(+o.dur) || 1), preds: cleanPreds(o.preds, id), fix: okDate(o.fix) ? o.fix : null, vergaben: [], start: null, end: null });
+    } else if (o.op === 'delete') {
+      const id = String(o.id);
+      if (elsArr().some(e => e.taskId === id)) { notes.push(`„${taskMap[id]?.name || id}“ hat Bauteile und bleibt bestehen.`); continue; }
+      const i = tasks.findIndex(x => x.id === id); if (i < 0) continue;
+      tasks.splice(i, 1); tasks.forEach(x => x.preds = (x.preds || []).filter(p => p.id !== id));
+    }
+  }
+  schedule(tasks, start);
+  const diff = [];
+  for (const t of tasks) {
+    const o = taskMap[t.id];
+    if (!o) diff.push({ name: t.name, neu: true, a: t.start, b: t.end });
+    else if (o.start !== t.start || o.end !== t.end || o.name !== t.name) diff.push({ name: t.name, a0: o.start, b0: o.end, a: t.start, b: t.end, d: D.wdBetween(o.end < t.end ? o.end : t.end, o.end < t.end ? t.end : o.end) * (t.end >= o.end ? 1 : -1) });
+  }
+  for (const o of S.tasks) if (!tasks.some(t => t.id === o.id)) diff.push({ name: o.name, weg: true });
+  const end0 = S.tasks.map(t => t.end).sort().pop(), end1 = tasks.map(t => t.end).sort().pop();
+  return { tasks, start, notes, diff, end0, end1 };
+}
+const CHAT_ERR = {
+  rate_limited: 'Gerade zu viele Anfragen. Bitte kurz warten und erneut senden.',
+  not_granted: 'Ohne deine Freigabe kann der Chat nicht antworten.',
+  invalid_json: 'Die Antwort war nicht auswertbar. Bitte noch einmal oder einfacher formulieren.',
+  refused: 'Diese Anfrage wurde abgelehnt. Bitte anders formulieren.',
+  session_expired: 'Bitte bei claude.ai neu anmelden.',
+  prompt_too_large: 'Der Terminplan ist zu groß für eine Anfrage.',
+  cancelled: 'Abgebrochen.'
+};
+async function sendChat(text) {
+  if (!sampleFn || chat.busy || !text.trim()) return;
+  chat.turns.push({ role: 'user', content: text.trim() });
+  chat.draft = ''; chat.busy = true; chat.pending = null; chat.err = ''; chat.t0 = Date.now();
+  const ctl = chat.ctl = new AbortController();
+  renderChat();
+  const tick = setInterval(() => { const el = $('#chatWait'); if (el) el.textContent = `Rechne den Ablauf durch … ${Math.round((Date.now() - chat.t0) / 1000)} s`; }, 1000);
+  try {
+    const res = await sampleFn.json([{ role: 'user', content: rulesText() }, ...chat.turns.slice(-9)], { signal: ctl.signal });
+    const antwort = String(res?.antwort || '').trim() || 'Ich habe keine Erklärung mitgeschickt.';
+    const ops = Array.isArray(res?.ops) ? res.ops : [];
+    chat.turns.push({ role: 'assistant', content: antwort });
+    if (ops.length) {
+      try { const p = applyOps(S.tasks, ops, S.projectStart); if (p.diff.length) chat.pending = p; else chat.err = 'Der Vorschlag ändert keine Termine.' + (p.notes.length ? ' ' + p.notes.join(' ') : ''); }
+      catch (er) { chat.err = 'Der Vorschlag ist nicht umsetzbar: ' + er.message; }
+    }
+  } catch (e) {
+    chat.err = CHAT_ERR[e?.code] || 'Verbindung unterbrochen. Bitte erneut senden.';
+    if (['not_granted', 'sampling_disabled', 'not_declared', 'capability_disabled', 'capability_removed', 'tools_unavailable'].includes(e?.code)) sampleFn = null;
+  } finally { clearInterval(tick); chat.busy = false; chat.ctl = null; renderChat(); }
+}
+function applyPending() {
+  const p = chat.pending; if (!p) return;
+  chat.undo.push({ tasks: structuredClone(S.tasks), start: S.projectStart });
+  S.tasks = p.tasks; S.projectStart = p.start; chat.pending = null;
+  chat.turns.push({ role: 'user', content: '(Vorschlag übernommen)' });
+  reindex(); computeRange(); setDate(view.date); renderTicks(); save(); renderAll();
+  toast(`Ablauf geändert. Rohbauende ${D.de(p.end1)}.`);
+}
+function undoChat() {
+  const u = chat.undo.pop(); if (!u) return;
+  S.tasks = u.tasks; S.projectStart = u.start;
+  chat.turns.push({ role: 'user', content: '(Letzte Änderung rückgängig gemacht)' });
+  reindex(); computeRange(); setDate(view.date); renderTicks(); save(); renderAll();
+  toast('Letzte Änderung zurückgenommen.');
+}
+function renderChat() { if (view.tab === 'chat') renderPanel(); }
+const SUGG = [
+  'Halle Abschnitt 2 soll schon starten, wenn in Abschnitt 1 die Binder stehen',
+  'Hallensohle beider Abschnitte erst ganz am Ende am Stück',
+  'Fundamente Halle 2 parallel zu Fundamente Halle 1',
+  'Für die Attika 2 Arbeitstage mehr einplanen'
+];
+function pChat() {
+  const msgs = chat.turns.filter(t => !t.content.startsWith('(')).map(t => `<div class="msg ${t.role === 'user' ? 'u' : 'a'}">${esc(t.content)}</div>`).join('');
+  const p = chat.pending;
+  const prop = p ? `<div class="card prop"><div class="top"><h3>Vorschlag</h3><span class="num muted" style="font-size:12px">Rohbauende ${D.short(p.end0)} → <b style="color:var(${p.end1 > p.end0 ? '--st-verzug' : p.end1 < p.end0 ? '--st-fertig' : '--fg'})">${D.short(p.end1)}</b></span></div>
+    <div class="tw"><table class="tab"><thead><tr><th>Vorgang</th><th>bisher</th><th>neu</th><th>Ende</th></tr></thead><tbody>
+    ${p.diff.slice(0, 14).map(d => d.weg ? `<tr><td>${esc(d.name)}</td><td colspan="3">entfällt</td></tr>` : `<tr><td>${esc(d.name)}${d.neu ? ' <span class="chip" style="color:var(--st-abgenommen)">neu</span>' : ''}</td><td>${d.neu ? '–' : D.short(d.a0) + '–' + D.short(d.b0)}</td><td>${D.short(d.a)}–${D.short(d.b)}</td><td style="color:var(${d.d > 0 ? '--st-verzug' : d.d < 0 ? '--st-fertig' : '--muted'})">${d.neu ? '' : (d.d > 0 ? '+' : '') + d.d + ' AT'}</td></tr>`).join('')}
+    ${p.diff.length > 14 ? `<tr><td colspan="4" class="muted">… und ${p.diff.length - 14} weitere Vorgänge</td></tr>` : ''}</tbody></table></div>
+    ${p.notes.length ? `<p class="note">${esc(p.notes.join(' '))}</p>` : ''}
+    <div class="gedit" style="justify-content:flex-end"><button class="btn" data-chat="discard">Verwerfen</button><button class="btn primary" data-chat="apply">Übernehmen</button></div></div>` : '';
+  const off = sampleFn === null;
+  return `<div class="sect"><h2>Ablauf per Chat ändern</h2>
+    <p class="note">Schreib, wie gebaut werden soll – zum Beispiel Reihenfolgen, Überlappungen, Dauern oder Puffer. Du siehst die Terminverschiebungen vorher und entscheidest, ob sie übernommen werden.</p></div>
+    ${msgs ? `<div class="chat">${msgs}</div>` : `<div class="sugg">${SUGG.map(s => `<button class="btn small" data-sugg="${esc(s)}">${esc(s)}</button>`).join('')}</div>`}
+    ${chat.busy ? `<div class="msg a" id="chatWait">Rechne den Ablauf durch …</div>` : ''}
+    ${chat.err ? `<p class="note" style="color:var(--st-verzug)">${esc(chat.err)}</p>` : ''}
+    ${prop}
+    ${off ? `<div class="empty">Der Chat läuft nur, wenn diese Seite in claude.ai geöffnet ist und du die Nutzung von Claude erlaubst. Termine kannst du weiter unter „Termine“ ändern.</div>` : `
+    <form class="form" data-form="chat">
+      <label class="field full"><span>Deine Anweisung</span><textarea id="chat-in" name="msg" placeholder="z. B. Erst Halle Abschnitt 1 komplett fertig, dann Abschnitt 2. Erdarbeiten laufen durch.">${esc(chat.draft)}</textarea></label>
+      <div class="act">${chat.undo.length ? '<button class="btn" type="button" data-chat="undo">Letzte Änderung zurück</button>' : ''}${chat.busy ? '<button class="btn" type="button" data-chat="stop">Stopp</button>' : ''}<button class="btn primary" type="submit" ${chat.busy || sampleFn === undefined ? 'disabled' : ''}>Senden</button></div>
+    </form>`}`;
+}
+function pVergaben() {
+  const sum = S.vergaben.reduce((a, v) => a + (+v.summe || 0), 0);
+  return `<div class="sect"><h2>Vergaben · ${fmtE(sum)} beauftragt/geplant</h2>
+    <p class="note">Ansicht „Vergabe“ färbt das Modell nach dem schwächsten Vergabestand je Vorgang.</p>
+    ${S.vergaben.map(v => { const ts = S.tasks.filter(t => t.vergaben?.includes(v.id)); const firstStart = ts.map(t => t.start).sort()[0];
+      return `<div class="card"><div class="top"><div><h3>${esc(v.gewerk)}</h3><div class="muted" style="font-size:12.5px">${esc(v.nu || 'noch kein NU')}</div></div><div class="sum">${v.summe ? fmtE(v.summe) : '–'}</div></div>
+      <div class="gedit"><select class="btn small" data-vstatus="${v.id}" aria-label="Status ${esc(v.gewerk)}">${VSTATUS.map((s, i) => `<option value="${i}" ${v.status === i ? 'selected' : ''}>${s.label}</option>`).join('')}</select>
+        <span class="muted num" style="font-size:12px">${ts.length} Vorgänge${firstStart ? ` · benötigt ab ${D.de(firstStart)}` : ''}</span></div>
+      <details><summary>Vorgänge zuordnen</summary>${S.tasks.map(t => `<label class="ck"><input type="checkbox" data-vt="${v.id}|${t.id}" ${t.vergaben?.includes(v.id) ? 'checked' : ''}>${esc(t.name)}</label>`).join('')}</details></div>`; }).join('')}
+    </div>
+    <form class="form" data-form="vergabe"><label class="field full"><span>Gewerk / Leistung</span><input id="v-gewerk" name="gewerk" required placeholder="z. B. Abdichtung erdberührte Bauteile"></label>
+      <label class="field"><span>Nachunternehmer</span><input id="v-nu" name="nu"></label>
+      <label class="field"><span>Auftragssumme €</span><input id="v-summe" name="summe" type="number" min="0" step="100"></label>
+      <label class="field full"><span>Status</span><select id="v-status" name="status">${VSTATUS.map((s, i) => `<option value="${i}">${s.label}</option>`).join('')}</select></label>
+      <div class="act"><button class="btn primary" type="submit">Vergabe anlegen</button></div></form>`;
+}
+function pMaengel() {
+  const list = [...S.maengel].sort((a, b) => (a.status === b.status ? (a.frist || '').localeCompare(b.frist || '') : a.status === 'offen' ? -1 : 1));
+  return `<div class="sect"><h2>Mängel, Behinderungen, Bedenken</h2>
+    ${list.length ? `<div class="list">${list.map(rowMangel).join('')}</div>` : '<div class="empty">Noch keine Punkte erfasst.</div>'}</div>
+    <div class="sect"><h2>Neuer Punkt ${view.sel.size === 1 ? 'am gewählten Bauteil' : 'ohne Bauteil'}</h2>${formMangel(view.sel.size === 1 ? [...view.sel][0] : '')}</div>`;
+}
+function pTagebuch() {
+  const list = [...S.tagebuch].sort((a, b) => b.datum.localeCompare(a.datum));
+  return `<form class="form" data-form="tagebuch">
+      <label class="field"><span>Datum</span><input id="t-datum" type="date" name="datum" value="${view.date}"></label>
+      <label class="field"><span>Personal</span><input id="t-personal" type="number" min="0" name="personal" value="8"></label>
+      <label class="field full"><span>Wetter</span><input id="t-wetter" name="wetter" placeholder="z. B. sonnig, 14 °C"></label>
+      <label class="field full"><span>Bericht</span><textarea id="t-text" name="text" required placeholder="Leistungen, Lieferungen, Besonderheiten"></textarea></label>
+      <label class="field full"><span>Fotos</span><input id="t-fotos" type="file" name="fotos" accept="image/*" multiple></label>
+      <p class="note full">${view.sel.size ? `${view.sel.size} gewählte Bauteile werden verknüpft.` : 'Tipp: Bauteile im Modell wählen, um sie mit dem Eintrag zu verknüpfen.'}</p>
+      <div class="act"><button class="btn primary" type="submit">Eintrag speichern</button></div></form>
+    <div class="sect"><h2>Einträge</h2>
+    ${list.length ? list.map(t => `<div class="card"><div class="top"><h3 class="num">${D.wd(t.datum)} ${D.de(t.datum)}</h3><span class="muted num" style="font-size:12px">KW ${D.kw(t.datum)}</span></div>
+      <div class="muted" style="font-size:12.5px">${esc(t.wetter || '–')} · ${t.personal ?? '–'} Personen</div>
+      <div style="white-space:pre-wrap">${esc(t.text)}</div>
+      ${t.fotos?.length ? `<div class="thumbs">${t.fotos.map(f => `<img src="${f}" alt="Baustellenfoto ${D.de(t.datum)}">`).join('')}</div>` : ''}
+      ${t.guids?.length ? `<div><button class="btn small" data-selguids="${t.id}">${t.guids.length} Bauteile zeigen</button></div>` : ''}
+      <div><button class="btn small" data-tdate="${t.datum}">Stichtag auf diesen Tag</button></div></div>`).join('') : '<div class="empty">Noch keine Einträge.</div>'}</div>`;
+}
+function pAufmass() {
+  const rows = {}, st = {};
+  for (const e of elsArr()) {
+    const r = rows[e.cat] ||= { n: 0, v: 0, f: 0 }; r.n++; r.v += e.vol || 0; if (istAt(e, view.date) >= 2) r.f += e.vol || 0;
+    const s = st[e.storey] ||= { v: 0, f: 0 }; s.v += e.vol || 0; if (istAt(e, view.date) >= 2) s.f += e.vol || 0;
+  }
+  const tot = Object.values(rows).reduce((a, r) => ({ n: a.n + r.n, v: a.v + r.v, f: a.f + r.f }), { n: 0, v: 0, f: 0 });
+  return `<div class="sect"><h2>Aufmaß zum ${D.de(view.date)}</h2>
+    <div class="tw"><table class="tab"><thead><tr><th>Bauteil</th><th>Stk</th><th>Soll m³</th><th>Ist m³</th><th>%</th></tr></thead><tbody>
+    ${Object.entries(rows).map(([k, r]) => `<tr><td>${esc(k)}</td><td>${r.n}</td><td>${fmtN(r.v, 2)}</td><td>${fmtN(r.f, 2)}</td><td>${fmtN(r.v ? r.f / r.v * 100 : 0, 0)}</td></tr>`).join('')}
+    </tbody><tfoot><tr><td>Summe</td><td>${tot.n}</td><td>${fmtN(tot.v, 2)}</td><td>${fmtN(tot.f, 2)}</td><td>${fmtN(tot.v ? tot.f / tot.v * 100 : 0, 0)}</td></tr></tfoot></table></div></div>
+    <div class="sect"><h2>Nach Geschoss</h2><div class="tw"><table class="tab"><thead><tr><th>Geschoss</th><th>Soll m³</th><th>Ist m³</th><th>offen m³</th></tr></thead><tbody>
+    ${S.storeys.filter(s => st[s]).map(s => `<tr><td>${esc(s)}</td><td>${fmtN(st[s].v, 2)}</td><td>${fmtN(st[s].f, 2)}</td><td>${fmtN(st[s].v - st[s].f, 2)}</td></tr>`).join('')}</tbody></table></div>
+    <p class="note">Volumen aus der Modellgeometrie (geschlossene Körper), Aushub als Bodenvolumen. Grundlage für Abschlagsrechnung und Betonbestellung – vor Abrechnung gegen Pläne prüfen.</p></div>`;
+}
+
+/* Panel-Ereignisse */
+$('#pane').addEventListener('click', e => {
+  const t = e.target;
+  const set = t.closest('[data-set]');
+  if (set) { const s = +set.dataset.set; view.sel.forEach(g => setStatus(S.elements[g], s, view.date)); checkMilestones(true); save(); return renderAll(); }
+  const tk = t.closest('[data-task]');
+  if (tk && !t.closest('input,select,button')) { view.selTask = tk.dataset.task; view.sel = new Set(elsArr().filter(x => x.taskId === view.selTask).map(x => x.guid)); applyColors(); const g = [...view.sel][0]; if (g) flyTo(g); return renderPanel(); }
+  const gu = t.closest('[data-guid]:not(form)');
+  if (gu && gu.dataset.guid && !t.closest('button')) { view.sel = new Set([gu.dataset.guid]); view.tab = 'bauteil'; flyTo(gu.dataset.guid); applyColors(); return renderPanel(); }
+  if (t.dataset.goto) { view.sel = new Set([t.dataset.goto]); view.tab = 'bauteil'; flyTo(t.dataset.goto); applyColors(); return renderPanel(); }
+  if (t.dataset.mtoggle) { const m = S.maengel.find(x => x.id === t.dataset.mtoggle); m.status = m.status === 'offen' ? 'erledigt' : 'offen'; save(); return renderAll(); }
+  if (t.dataset.selguids) { const tb = S.tagebuch.find(x => x.id === t.dataset.selguids); view.sel = new Set(tb.guids); applyColors(); flyTo(tb.guids[0]); return renderPanel(); }
+  if (t.dataset.tdate) { stopPlay(); setDate(t.dataset.tdate); }
+  if (t.dataset.unfix) { taskMap[t.dataset.unfix].fix = null; reindex(); computeRange(); save(); setDate(view.date); renderTicks(); }
+  if (t.dataset.gotab) { view.tab = t.dataset.gotab; renderPanel(); }
+  if (t.dataset.sugg) { chat.draft = t.dataset.sugg; renderPanel(); $('#chat-in')?.focus(); }
+  const c = t.closest('[data-chat]')?.dataset.chat;
+  if (c === 'apply') applyPending();
+  if (c === 'discard') { chat.pending = null; chat.turns.push({ role: 'user', content: '(Vorschlag verworfen)' }); renderPanel(); }
+  if (c === 'undo') undoChat();
+  if (c === 'stop') chat.ctl?.abort();
+});
+$('#pane').addEventListener('input', e => { if (e.target.id === 'chat-in') chat.draft = e.target.value; });
+$('#pane').addEventListener('keydown', e => { if (e.target.id === 'chat-in' && e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sendChat(e.target.value); } });
+$('#pane').addEventListener('change', e => {
+  const t = e.target;
+  if (t.dataset.tstart || t.dataset.tend) {
+    const task = taskMap[t.dataset.tstart || t.dataset.tend]; if (!t.value) return;
+    if (t.dataset.tstart) task.fix = t.value;
+    else task.dur = Math.max(1, D.wdBetween(D.add(task.start, -1), t.value < task.start ? task.start : t.value));
+    reindex();
+    if (t.dataset.tstart && task.start !== t.value) toast(`Vorgänger lassen „${task.name}“ frühestens am ${D.de(task.start)} beginnen.`);
+    computeRange(); save(); setDate(view.date); renderTicks(); return;
+  }
+  if (t.dataset.vstatus) { vergMap[t.dataset.vstatus].status = +t.value; save(); return renderAll(); }
+  if (t.dataset.vt) { const [v, tid] = t.dataset.vt.split('|'); const task = taskMap[tid]; task.vergaben ||= []; t.checked ? task.vergaben.push(v) : task.vergaben = task.vergaben.filter(x => x !== v); save(); applyColors(); }
+});
+$('#pane').addEventListener('submit', async e => {
+  e.preventDefault();
+  const f = e.target, fd = new FormData(f);
+  if (f.dataset.form === 'chat') return sendChat(String(fd.get('msg') || ''));
+  if (f.dataset.form === 'mangel') {
+    S.maengel.push({ id: uid(), typ: fd.get('typ'), guid: f.dataset.guid || null, titel: fd.get('titel').trim(), status: 'offen', datum: view.date, frist: fd.get('frist') || null, wer: fd.get('wer').trim() });
+    toast('Punkt erfasst.');
+  } else if (f.dataset.form === 'vergabe') {
+    S.vergaben.push({ id: uid(), gewerk: fd.get('gewerk').trim(), nu: fd.get('nu').trim(), summe: +fd.get('summe') || 0, status: +fd.get('status'), datum: view.date });
+    toast('Vergabe angelegt. Unter „Vorgänge zuordnen“ verknüpfen.');
+  } else if (f.dataset.form === 'tagebuch') {
+    const fotos = [];
+    for (const file of f.querySelector('#t-fotos').files) fotos.push(await shrink(file));
+    S.tagebuch.push({ id: uid(), datum: fd.get('datum') || view.date, wetter: fd.get('wetter').trim(), personal: +fd.get('personal') || 0, text: fd.get('text').trim(), fotos, guids: [...view.sel] });
+    toast('Tagebucheintrag gespeichert.');
+  }
+  save(); renderAll();
+});
+function shrink(file) {
+  return new Promise(res => { const r = new FileReader(); r.onload = () => { const img = new Image(); img.onload = () => {
+    const k = Math.min(1, 900 / Math.max(img.width, img.height)), c = document.createElement('canvas');
+    c.width = img.width * k; c.height = img.height * k; c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); res(c.toDataURL('image/jpeg', .72)); };
+    img.onerror = () => res(r.result); img.src = r.result; }; r.readAsDataURL(file); });
+}
+
+/* ---------- IFC-Import ---------- */
+function loadScript(src) { return new Promise((ok, no) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = () => no(new Error('Skript nicht ladbar')); document.head.append(s); }); }
+const CAT = { IFCFOOTING: 'Fundamente', IFCWALL: 'Wände', IFCWALLSTANDARDCASE: 'Wände', IFCCOLUMN: 'Stützen', IFCBEAM: 'Unterzüge', IFCSLAB: 'Decken', IFCROOF: 'Dach', IFCSTAIR: 'Treppen', IFCSTAIRFLIGHT: 'Treppen', IFCRAMP: 'Treppen', IFCRAMPFLIGHT: 'Treppen', IFCWINDOW: 'Ausbau', IFCDOOR: 'Ausbau', IFCRAILING: 'Ausbau', IFCCURTAINWALL: 'Ausbau', IFCPLATE: 'Ausbau', IFCMEMBER: 'Sonstige', IFCBUILDINGELEMENTPROXY: 'Sonstige', IFCCOVERING: 'Ausbau', IFCPILE: 'Fundamente' };
+const SKIP = new Set(['IFCSPACE', 'IFCOPENINGELEMENT', 'IFCSITE', 'IFCANNOTATION', 'IFCVIRTUALELEMENT', 'IFCBUILDING', 'IFCBUILDINGSTOREY', 'IFCFURNISHINGELEMENT', 'IFCFLOWTERMINAL', 'IFCFLOWSEGMENT', 'IFCFLOWFITTING']);
+let ifcApi = null;
+async function loadIFC(file) {
+  stopPlay(); $('#busy').hidden = false; $('#busy').textContent = 'IFC-Leser wird geladen …';
+  await new Promise(r => setTimeout(r, 30));
+  try {
+    if (!window.WebIFC) await loadScript('https://cdn.jsdelivr.net/npm/web-ifc@0.0.78/web-ifc-api-iife.js');
+    if (!ifcApi) { ifcApi = new WebIFC.IfcAPI(); await ifcApi.Init(p => new URL(p, location.href).href, true); }
+    $('#busy').textContent = `${file.name} wird gelesen …`; await new Promise(r => setTimeout(r, 30));
+    const api = ifcApi, W = window.WebIFC;
+    const mid = api.OpenModel(new Uint8Array(await file.arrayBuffer()), { COORDINATE_TO_ORIGIN: true });
+    const stName = new Map(), storeyOf = new Map();
+    const sts = api.GetLineIDsWithType(mid, W.IFCBUILDINGSTOREY);
+    for (let i = 0; i < sts.size(); i++) { const s = api.GetLine(mid, sts.get(i)); stName.set(s.expressID, { name: s.Name?.value || `Geschoss ${i + 1}`, elev: +(s.Elevation?.value ?? i) }); }
+    const rels = api.GetLineIDsWithType(mid, W.IFCRELCONTAINEDINSPATIALSTRUCTURE);
+    for (let i = 0; i < rels.size(); i++) { const r = api.GetLine(mid, rels.get(i)); const st = r.RelatingStructure?.value; if (!stName.has(st)) continue; for (const e of r.RelatedElements || []) storeyOf.set(e.value, st); }
+    // Bauteile in Aggregaten (z. B. Treppe -> Läufe) erben das Geschoss
+    const agg = api.GetLineIDsWithType(mid, W.IFCRELAGGREGATES);
+    for (let i = 0; i < agg.size(); i++) { const r = api.GetLine(mid, agg.get(i)); const p = r.RelatingObject?.value; if (storeyOf.has(p)) for (const e of r.RelatedObjects || []) if (!storeyOf.has(e.value)) storeyOf.set(e.value, storeyOf.get(p)); }
+    const storeys = [...stName.values()].sort((a, b) => a.elev - b.elev);
+    const uniq = []; storeys.forEach(s => { let n = s.name, k = 2; while (uniq.includes(n)) n = `${s.name} (${k++})`; s.name = n; uniq.push(n); });
+    const elements = {}, geoms = [];
+    const mat = new THREE.Matrix4(), nm = new THREE.Matrix3(), v3 = new THREE.Vector3();
+    api.StreamAllMeshes(mid, mesh => {
+      const id = mesh.expressID, line = api.GetLine(mid, id);
+      const tname = api.GetNameFromTypeCode(line.type); const T = tname.toUpperCase();
+      if (SKIP.has(T)) return;
+      const pos = [], nor = [], idx = []; let base = 0;
+      for (let j = 0; j < mesh.geometries.size(); j++) {
+        const pg = mesh.geometries.get(j), g = api.GetGeometry(mid, pg.geometryExpressID);
+        const v = api.GetVertexArray(g.GetVertexData(), g.GetVertexDataSize()), ix = api.GetIndexArray(g.GetIndexData(), g.GetIndexDataSize());
+        mat.fromArray(pg.flatTransformation); nm.getNormalMatrix(mat);
+        for (let i = 0; i < v.length; i += 6) { v3.set(v[i], v[i + 1], v[i + 2]).applyMatrix4(mat); pos.push(v3.x, v3.y, v3.z); v3.set(v[i + 3], v[i + 4], v[i + 5]).applyMatrix3(nm).normalize(); nor.push(v3.x, v3.y, v3.z); }
+        for (let i = 0; i < ix.length; i++) idx.push(ix[i] + base);
+        base += v.length / 6; g.delete();
+      }
+      if (!idx.length) return;
+      const geom = new THREE.BufferGeometry();
+      geom.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      geom.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+      geom.setIndex(idx);
+      let vol = 0; const P = pos;
+      for (let i = 0; i < idx.length; i += 3) { const a = idx[i] * 3, b = idx[i + 1] * 3, c = idx[i + 2] * 3;
+        vol += (P[a] * (P[b + 1] * P[c + 2] - P[b + 2] * P[c + 1]) - P[a + 1] * (P[b] * P[c + 2] - P[b + 2] * P[c]) + P[a + 2] * (P[b] * P[c + 1] - P[b + 1] * P[c])) / 6; }
+      const guid = line.GlobalId?.value || 'id' + id;
+      const st = stName.get(storeyOf.get(id))?.name || 'Ohne Geschoss';
+      let cat = CAT[T] || 'Sonstige';
+      if (T === 'IFCSLAB' && (line.PredefinedType?.value === 'BASESLAB' || st === storeys[0]?.name && /boden|base|found|sohl/i.test(line.Name?.value || ''))) cat = 'Bodenplatte';
+      elements[guid] = { guid, name: line.Name?.value || tname, type: tname, cat, storey: st, vol: Math.abs(vol), taskId: null, startDate: null, doneDate: null, acceptDate: null };
+      geoms.push([guid, geom, idx.length < 60000]);
+    });
+    api.CloseModel(mid);
+    if (!geoms.length) throw new Error('Keine Bauteile mit Geometrie gefunden.');
+    const order = storeys.map(s => s.name); if (Object.values(elements).some(e => e.storey === 'Ohne Geschoss')) order.push('Ohne Geschoss');
+    const saved = loadSaved();
+    let next;
+    if (saved && saved.source === 'ifc' && saved.file === file.name) {
+      next = saved; next.storeys = order;
+      for (const g in elements) if (saved.elements[g]) Object.assign(elements[g], { taskId: saved.elements[g].taskId, startDate: saved.elements[g].startDate, doneDate: saved.elements[g].doneDate, acceptDate: saved.elements[g].acceptDate });
+      next.elements = elements;
+      toast('Gespeicherter Stand zu diesem Modell wiederhergestellt.');
+    } else next = autoPlan(elements, order, file.name);
+    S = next; reindex();
+    clearModel(); geoms.forEach(([g, geo, edges]) => addMesh(g, geo, edges && geoms.length < 4000));
+    afterModelChange(); frame();
+    toast(`${geoms.length} Bauteile in ${order.length} Geschossen geladen.`);
+  } catch (err) {
+    console.error(err);
+    toast('IFC konnte nicht gelesen werden: ' + (err.message || err), 6000);
+  } finally { $('#busy').hidden = true; }
+}
+function autoPlan(elements, order, fileName) {
+  const vergaben = [
+    { id: 'v-erd', gewerk: 'Erdarbeiten & Baugrube', nu: '', summe: 0, status: 0, datum: null },
+    { id: 'v-beton', gewerk: 'Transportbeton', nu: '', summe: 0, status: 0, datum: null },
+    { id: 'v-bew', gewerk: 'Bewehrung liefern & verlegen', nu: '', summe: 0, status: 0, datum: null },
+    { id: 'v-ger', gewerk: 'Gerüst', nu: '', summe: 0, status: 0, datum: null },
+    { id: 'v-ft', gewerk: 'Fertigteile / Treppen', nu: '', summe: 0, status: 0, datum: null },
+    { id: 'v-aus', gewerk: 'Fenster, Türen, Ausbau', nu: '', summe: 0, status: 0, datum: null }
+  ];
+  const groups = [['Fundamente & Bodenplatte', ['Fundamente', 'Bodenplatte'], ['v-erd', 'v-beton', 'v-bew']], ['Wände & Stützen', ['Wände', 'Stützen'], ['v-beton', 'v-bew', 'v-ger']], ['Unterzüge', ['Unterzüge'], ['v-beton', 'v-bew']], ['Treppen', ['Treppen'], ['v-ft']], ['Decken & Dach', ['Decken', 'Dach'], ['v-beton', 'v-bew']], ['Sonstige Bauteile', ['Sonstige'], []]];
+  const tasks = []; let start = TODAY; while (D.isWE(start)) start = D.add(start, 1);
+  const els = Object.values(elements); let prev = null;
+  const add = (name, storey, dur, g, vg) => {
+    const t = { id: 't' + (tasks.length + 1), name, storey, dur, preds: prev ? [{ id: prev.id, typ: 'EA', lag: 0 }] : [], fix: prev ? null : start, vergaben: vg, start: null, end: null };
+    g.forEach(e => e.taskId = t.id); tasks.push(t); prev = t;
+  };
+  order.forEach((st, si) => groups.forEach(([n, cats, vg]) => {
+    const g = els.filter(e => e.storey === st && cats.includes(e.cat)); if (!g.length) return;
+    const vol = g.reduce((a, e) => a + e.vol, 0);
+    add(`${st} · ${n}`, st, Math.max(2, Math.min(12, Math.ceil(vol / 25))), g, si === 0 ? vg.filter(v => v !== 'v-ger') : vg);
+  }));
+  const aus = els.filter(e => e.cat === 'Ausbau');
+  if (aus.length) add('Fenster, Türen, Ausbau', order[order.length - 1], 10, aus, ['v-aus']);
+  schedule(tasks, start);
+  const ms = [];
+  if (els.some(e => e.cat === 'Bodenplatte')) ms.push({ name: 'Bodenplatte betoniert', cat: 'Bodenplatte' });
+  order.forEach(s => ms.push({ name: `Rohbau ${s}`, storey: s }));
+  ms.push({ name: 'Richtfest – Rohbau fertig', all: true });
+  return { v: 2, source: 'ifc', file: fileName, project: { name: fileName.replace(/\.ifc$/i, '') }, projectStart: start, storeys: order, elements, tasks, vergaben, maengel: [], tagebuch: [], milestones: ms };
+}
+$('#ifcFile').addEventListener('change', e => { const f = e.target.files[0]; if (f) loadIFC(f); e.target.value = ''; });
+
+/* ---------- Daten ---------- */
+$('#btnDemo').addEventListener('click', () => {
+  const m = $('#modal'); m.hidden = false;
+  m.innerHTML = `<div class="box" role="dialog" aria-modal="true" aria-labelledby="dlgT"><h3 id="dlgT">Demo-Baustelle neu laden?</h3><p>Der aktuelle Stand in diesem Browser wird durch die Beispieldaten ersetzt. Vorher über „Daten“ sichern, falls du ihn behalten willst.</p>
+    <div class="gedit" style="justify-content:flex-end"><button class="btn" data-close>Abbrechen</button><button class="btn primary" id="doDemo">Demo laden</button></div></div>`;
+  $('#doDemo').onclick = () => { m.hidden = true; startDemo(); save(); };
+});
+$('#btnData').addEventListener('click', () => {
+  const m = $('#modal'); m.hidden = false;
+  m.innerHTML = `<div class="box" role="dialog" aria-modal="true" aria-labelledby="dlgD"><h3 id="dlgD">Daten sichern und übernehmen</h3>
+    <p class="note">Der Stand liegt nur in diesem Browser. Zum Sichern den Text kopieren und als .json ablegen. Die Geometrie bleibt im IFC – beim erneuten Laden derselben Datei werden die Daten über die GUIDs zugeordnet.</p>
+    <label class="field"><span>Export (${fmtN(JSON.stringify(S).length / 1024, 0)} KB)</span><textarea id="expTxt" readonly>${esc(JSON.stringify(S))}</textarea></label>
+    <div class="gedit"><button class="btn" id="copyBtn">Kopieren</button></div>
+    <label class="field"><span>Import – JSON einfügen oder Datei wählen</span><textarea id="impTxt" placeholder="{ … }"></textarea></label>
+    <div class="gedit" style="justify-content:space-between"><input type="file" id="impFile" accept=".json,application/json" aria-label="JSON-Datei wählen"><span><button class="btn" data-close>Schließen</button> <button class="btn primary" id="impBtn">Übernehmen</button></span></div></div>`;
+  $('#copyBtn').onclick = async () => { try { await navigator.clipboard.writeText(JSON.stringify(S)); toast('In die Zwischenablage kopiert.'); } catch { $('#expTxt').select(); toast('Text markiert – mit Strg+C kopieren.'); } };
+  $('#impFile').onchange = async e => { $('#impTxt').value = await e.target.files[0].text(); };
+  $('#impBtn').onclick = () => {
+    try {
+      const n = JSON.parse($('#impTxt').value);
+      if (!n.elements || !n.tasks) throw 0;
+      if (n.source === 'demo') { startDemo(n); }
+      else { S = n; reindex(); const known = [...meshes.keys()].filter(g => S.elements[g]).length; afterModelChange(); toast(known ? `Übernommen, ${known} Bauteile zugeordnet.` : 'Übernommen. Jetzt die passende IFC-Datei laden.', 4000); }
+      save(); m.hidden = true;
+    } catch { toast('Das ist kein gültiger Export dieser App.'); }
+  };
+});
+$('#modal').addEventListener('click', e => { if (e.target.id === 'modal' || e.target.closest('[data-close]')) $('#modal').hidden = true; });
+addEventListener('keydown', e => { if (e.key === 'Escape') $('#modal').hidden = true; });
+
+/* ---------- Start ---------- */
+function afterModelChange() {
+  view.sel.clear(); view.selTask = null; view.storey = 'alle';
+  computeRange(); buildMaterials(); renderStoreyFilter(); renderLegend(); renderBrushes();
+  knownDone = null; checkMilestones(false);
+  setDate(view.date >= range.a && view.date <= range.b ? view.date : TODAY);
+  renderAll();
+}
+function startDemo(state) {
+  const demo = buildDemo(); SPECS = demo.specs;
+  S = state && state.source === 'demo' && state.v === 2 ? state : demo.S;
+  // Geometrie-GUIDs sind deterministisch, aber bei anderem Startdatum gespeicherter Stand → frische Demo
+  if (!SPECS.every(s => S.elements[s.guid])) S = demo.S;
+  reindex(); buildDemoMeshes(SPECS); view.date = TODAY; afterModelChange(); frame();
+}
+const saved = loadSaved();
+if (saved && saved.source === 'ifc') {
+  startDemo();
+  toast(`Gespeicherter Stand zu „${saved.file}“ vorhanden – die IFC-Datei erneut laden, um weiterzumachen.`, 6000);
+} else startDemo(saved);
+
+const themeObs = () => { buildMaterials(); applyColors(); };
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', themeObs);
+new MutationObserver(themeObs).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+resize(); requestAnimationFrame(loop);
+</script>
+
+</body>
+</html>
