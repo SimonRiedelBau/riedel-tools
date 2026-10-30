@@ -246,6 +246,12 @@ html:has(> .rb-bar) body{height:calc(100% - var(--rb-bar-h, 48px))}
 .lvrow:first-child{border-top:0}
 .lvrow input{min-width:0;font-size:13.5px;border:1px solid var(--line);border-radius:5px;padding:4px 8px;background:var(--panel);color:var(--fg)}
 .lvrow .gedit{grid-column:1/-1}
+.hint.active{display:block!important;pointer-events:auto;border-color:var(--accent)}
+.lvdot{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:baseline}
+.lvrow.on{box-shadow:inset 3px 0 0 var(--accent)}
+.shiftbar select{font-size:12px;padding:3px 6px;border:1px solid var(--line);border-radius:5px;background:var(--panel);color:var(--fg)}
+.pstart{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:end}
+.weeknav input[type=date]{font-size:12px;padding:3px 6px;border:1px solid var(--line);border-radius:5px;background:var(--panel);color:var(--fg)}
 .tmeta{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding-top:6px}
 .tmeta .full{grid-column:1/-1}
 .gwarn{font-size:12px;color:var(--st-verzug)}
@@ -282,6 +288,7 @@ html:has(> .rb-bar) body{height:calc(100% - var(--rb-bar-h, 48px))}
 .wl b{font:600 14px/1.15 var(--f-display);letter-spacing:.02em}
 .wl small{color:var(--muted);font-size:11.5px}
 .lane{grid-column:2 / span 5;position:relative;border-bottom:1px solid var(--line);min-height:84px}
+.weeknav .iconbtn.over{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent)}
 .lane.over{background:color-mix(in srgb,var(--accent) 5%,transparent)}
 .lane .cells{position:absolute;inset:0;display:grid;grid-template-columns:repeat(5,1fr)}
 .cell{border:0;border-left:1px solid var(--line);background:transparent;display:flex;align-items:flex-end;justify-content:flex-end;padding:0 6px 6px 0;color:transparent}
@@ -509,6 +516,7 @@ html:has(> .rb-bar) body{height:calc(100% - var(--rb-bar-h, 48px))}
             <button data-mode="vergleich" aria-pressed="false">Soll/Ist</button>
             <button data-mode="vergabe" aria-pressed="false">Vergabe</button>
             <button data-mode="freigabe" aria-pressed="false" title="Last Planner: freie und blockierte Vorgänge der nächsten 6 Wochen">Freigabe</button>
+            <button data-mode="ebene" aria-pressed="false" title="Modell nach Ebenen / Bauabschnitten einfärben">Ebene/BA</button>
           </div>
           <div class="seg" role="group" aria-label="Werkzeug" id="toolSeg">
             <button data-tool="select" aria-pressed="true">Auswahl</button>
@@ -667,9 +675,12 @@ function colorKey(e, d) {
     }
     case 'vergabe': { const v = vergabeLevel(e); return v < 0 ? 'ghost' : 'v' + v; }
     case 'freigabe': return lpsKey(e, d);
+    case 'ebene': return lvKey(e);
     default: return ['ghost', 'arbeit', 'fertig', 'abgenommen'][i];
   }
 }
+const lvKey = e => { const i = S.storeys.indexOf(e.storey); return i < 0 ? 'ghost' : 'k' + (i % 8); };
+const lvCol = name => { const i = S.storeys.indexOf(name); return i < 0 ? 'var(--st-ghost)' : `var(--k${i % 8})`; };
 const elsArr = () => Object.values(S.elements);
 function progressAt(d, filter = () => true) {
   // Beton zählt; Aushub nur, wenn der Filter nichts anderes enthält
@@ -716,6 +727,23 @@ function setTaskDates(t, start, end) {
 }
 function predConflicts(t) {
   return (t.preds || []).map(p => ({ p, q: taskMap[p.id] })).filter(({ p, q }) => q && (p.typ === 'AA' ? t.start < D.addWD(q.start, Math.round(+p.lag || 0)) : t.start <= D.addWD(q.end, Math.round(+p.lag || 0)))).map(x => x.q);
+}
+const wdDiff = (a, b) => b >= a ? D.wdBetween(a, b) : -D.wdBetween(b, a);
+const planStart = () => S.tasks.map(t => t.start).sort()[0] || S.projectStart || TODAY;
+function shiftTasks(ts, dd) { if (dd) ts.forEach(t => setTaskDates(t, D.addWD(t.start, dd), D.addWD(t.end, dd))); return ts.length; }
+// Umfang beim Verschieben: nur dieser Vorgang, alle ab seinem Beginn, oder die ganze Ebene
+function shiftScope(t, scope) {
+  if (scope === 'later') return S.tasks.filter(x => x.start >= t.start);
+  if (scope === 'ebene') return S.tasks.filter(x => (x.storey || '') === (t.storey || ''));
+  return [t];
+}
+const shiftBar = (t, sid) => `<div class="gedit shiftbar"><select id="${sid}" data-shscope aria-label="Was mitverschieben"><option value="one">nur dieser Vorgang</option><option value="later">mit allen späteren</option><option value="ebene">ganze Ebene</option></select>
+  ${[[-5, '−1 Woche'], [-1, '−1 Tag'], [1, '+1 Tag'], [5, '+1 Woche']].map(([d, l]) => `<button type="button" class="btn small" data-shift="${t.id}|${d}">${l}</button>`).join('')}</div>`;
+function doShift(btn) {
+  const [id, dd] = btn.dataset.shift.split('|'), t = taskMap[id]; if (!t) return;
+  const scope = btn.closest('.shiftbar')?.querySelector('[data-shscope]')?.value || 'one';
+  const n = shiftTasks(shiftScope(t, scope), +dd);
+  toast(`${n > 1 ? n + ' Vorgänge' : '„' + t.name + '“'} um ${+dd > 0 ? '+' : ''}${dd} AT verschoben – jetzt ${D.de(t.start)} – ${D.de(t.end)}.`);
 }
 const newTaskId = () => 't' + (Math.max(0, ...S.tasks.map(x => +String(x.id).replace(/\D/g, '') || 0)) + 1);
 
@@ -953,7 +981,8 @@ function applyColors() {
     const e = S.elements[g]; if (!e) { m.visible = false; continue; }
     const si = order.indexOf(e.storey);
     const sel = lpsMode ? lsel.has(g) : view.sel.has(g);
-    let key = lpsMode ? lk(e) : colorKey(e, d);
+    let key = lpsMode ? lk(e) : view.lvPaint ? (e.storey === view.lvPaint ? lvKey(e) : 'ghost') : colorKey(e, d);
+    if (view.lvPaint && !lpsMode) { m.visible = true; m.material = MAT[key + (sel ? '|s' : '')]; if (m.userData.edges) m.userData.edges.material = sel ? edgeSelMat : edgeMat; continue; }
     if (e.cat === 'Aushub') { if (key === 'ghost') key = 'erde'; else if (['fertig', 'abgenommen', 'beton'].includes(key)) key = null; }
     m.visible = (si < 0 || si <= lim) && !!key;
     if (!key) continue;
@@ -1020,11 +1049,13 @@ renderer.domElement.addEventListener('pointerdown', ev => {
   if (lpsView.open) return lpsPD(ev);
   if (view.tool === 'walk') return;
   down = { x: ev.clientX, y: ev.clientY };
+  if (view.lvPaint && ev.button === 0) { const g = pick(ev); lvp = { add: !(g && S.elements[g].storey === view.lvPaint), done: new Set(), n: 0 }; lvPaintAt(ev); return; }
   if (view.tool === 'paint' && ev.button === 0) { painting = true; painted.clear(); paintAt(ev); }
 });
-renderer.domElement.addEventListener('pointermove', ev => { if (lpsView.open) return lpsPM(ev); if (painting) paintAt(ev); });
+renderer.domElement.addEventListener('pointermove', ev => { if (lpsView.open) return lpsPM(ev); if (lvp) return lvPaintAt(ev); if (painting) paintAt(ev); });
 addEventListener('pointerup', ev => {
   if (lpsView.open) return lpsPU(ev);
+  if (lvp) { const n = lvp.n, add = lvp.add; lvp = null; down = null; if (n) { save(); renderAll(); toast(add ? `${n} Bauteil${n > 1 ? 'e' : ''} in „${view.lvPaint}“ gelegt.` : `${n} Bauteil${n > 1 ? 'e' : ''} aus „${view.lvPaint}“ herausgenommen.`); } return; }
   if (painting) { painting = false; if (painted.size) { const n = painted.size; checkMilestones(true); save(); renderAll(); toast(`${n} Bauteil${n > 1 ? 'e' : ''} auf „${STATUS[view.brush].label}“ gesetzt (Stichtag ${D.de(view.date)})`); } down = null; return; }
   if (!down || ev.target !== renderer.domElement) { down = null; return; }
   const moved = Math.hypot(ev.clientX - down.x, ev.clientY - down.y) > 5; down = null;
@@ -1036,6 +1067,33 @@ addEventListener('pointerup', ev => {
   if (view.sel.size) view.tab = 'bauteil';
   applyColors(); renderPanel();
 });
+// Ebene/BA im Modell zuordnen: Anklicken oder Überstreichen legt Bauteile in die Ebene,
+// ein Bauteil, das schon drin ist, anklicken nimmt es heraus (zurück in seine IFC-Ebene bzw. „Ohne Ebene“).
+let lvp = null;
+function lvPaintAt(ev) {
+  const g = pick(ev); if (!g || lvp.done.has(g)) return;
+  lvp.done.add(g); const e = S.elements[g];
+  if (lvp.add && e.storey !== view.lvPaint) { e.storey = view.lvPaint; lvp.n++; }
+  else if (!lvp.add && e.storey === view.lvPaint) {
+    const back = e.ifcStorey && e.ifcStorey !== view.lvPaint ? e.ifcStorey : 'Ohne Ebene';
+    if (!S.storeys.includes(back)) S.storeys.push(back);
+    e.storey = back; lvp.n++;
+  }
+  applyColors();
+}
+function setLvPaint(name) {
+  view.lvPaint = name || null;
+  if (name) { setTool('select'); view.storey = 'alle'; $('#storeyFilter').value = 'alle'; }
+  orbit.mouseButtons.LEFT = name ? -1 : THREE.MOUSE.ROTATE;
+  orbit.mouseButtons.RIGHT = name ? THREE.MOUSE.ROTATE : THREE.MOUSE.PAN;
+  orbit.touches.ONE = name ? -1 : THREE.TOUCH.ROTATE;
+  $('#hint').innerHTML = name
+    ? `<b>Zuordnen zu „${esc(name)}“</b> – Bauteile anklicken oder überstreichen. Ein Bauteil der Ebene anklicken nimmt es heraus. Rechte Maustaste dreht. <button class="btn small primary" data-lvpaintoff>Fertig</button>`
+    : 'Klick wählt ein Bauteil, Shift-Klick mehrere. Ziehen dreht, rechte Maustaste verschiebt.';
+  $('#hint').classList.toggle('active', !!name);
+  applyColors(); renderPanel();
+}
+$('#hint').addEventListener('click', e => { if (e.target.closest('[data-lvpaintoff]')) setLvPaint(null); });
 function paintAt(ev) {
   const g = pick(ev); if (!g || painted.has(g)) return;
   painted.add(g); setStatus(S.elements[g], view.brush, view.date);
@@ -1044,6 +1102,7 @@ function paintAt(ev) {
 
 /* ---------- Werkzeuge, Modi ---------- */
 function setTool(t) {
+  if (view.lvPaint && t !== 'select') { view.lvPaint = null; $('#hint').classList.remove('active'); }
   if (t === 'walk') {
     try {
       const b = modelBox(), c = b.getCenter(new THREE.Vector3());
@@ -1089,7 +1148,8 @@ function renderLegend() {
     soll: [it('', 'Noch nicht dran', 1), it('--st-arbeit', 'Soll in Arbeit'), it('--st-fertig', 'Soll fertig')],
     vergleich: [it('--st-verzug', 'Verzug'), it('--st-vorsprung', 'Vorsprung'), it('--st-arbeit', 'Planmäßig in Arbeit'), it('--st-beton', 'Planmäßig fertig'), it('', 'Noch nicht dran', 1)],
     vergabe: [...VSTATUS.map((v, i) => it(v.tok, v.label)), it('', 'Keine Vergabe', 1)],
-    freigabe: [it('--st-fertig', 'Frei'), it('--st-verzug', 'Hindernis offen'), it('--st-abgenommen', 'Diese Woche zugesagt'), it('--st-beton', 'Fertig'), it('', 'Später', 1)]
+    freigabe: [it('--st-fertig', 'Frei'), it('--st-verzug', 'Hindernis offen'), it('--st-abgenommen', 'Diese Woche zugesagt'), it('--st-beton', 'Fertig'), it('', 'Später', 1)],
+    ebene: S.storeys.map((x, i) => it(`--k${i % 8}`, esc(x)))
   }[view.mode];
   $('#legend').innerHTML = L.join('') + `<span><i class="dot" style="background:var(--mangel);transform:rotate(45deg)"></i>Offener Punkt</span>`;
 }
@@ -1097,7 +1157,7 @@ function renderLegend() {
 /* ---------- Zeitleiste ---------- */
 let range = { a: TODAY, b: TODAY };
 function computeRange() {
-  const ds = S.tasks.flatMap(t => [t.start, t.end]).sort();
+  const ds = [...S.tasks.flatMap(t => [t.start, t.end]), ...(okDate(S.projectStart) ? [S.projectStart] : [])].sort();
   range = { a: D.add(ds[0] || TODAY, -3), b: D.add(ds[ds.length - 1] || TODAY, 7) };
   if (TODAY < range.a) range.a = TODAY; if (TODAY > range.b) range.b = TODAY;
   $('#slider').max = D.diff(range.a, range.b);
@@ -1170,7 +1230,7 @@ function renderHeader() {
 $('#projName').addEventListener('change', e => { S.project.name = e.target.value; save(); if (CL.on) CL.sb.from(T_PROJ).update({ name: e.target.value }).eq('id', CL.proj.id).then(() => {}); });
 
 /* ---------- Panel ---------- */
-const TABS = [['uebersicht', 'Übersicht'], ['bauteil', 'Bauteil'], ['termine', 'Termine'], ['ebenen', 'Ebenen'], ['chat', 'Ablauf-Chat'], ['vergaben', 'Vergaben'], ['maengel', 'Mängel'], ['tagebuch', 'Tagebuch'], ['aufmass', 'Aufmaß']];
+const TABS = [['uebersicht', 'Übersicht'], ['bauteil', 'Bauteil'], ['termine', 'Termine'], ['ebenen', 'Ebenen/BA'], ['chat', 'Ablauf-Chat'], ['vergaben', 'Vergaben'], ['maengel', 'Mängel'], ['tagebuch', 'Tagebuch'], ['aufmass', 'Aufmaß']];
 function renderTabs() {
   const open = S.maengel.filter(m => m.status === 'offen').length;
   $('#tabs').innerHTML = TABS.map(([k, l]) => `<button role="tab" data-tab="${k}" aria-selected="${view.tab === k}">${l}${k === 'maengel' && open ? `<span class="cnt">${open}</span>` : ''}${k === 'bauteil' && view.sel.size ? `<span class="cnt">${view.sel.size}</span>` : ''}</button>`).join('');
@@ -1281,11 +1341,17 @@ function pTermine() {
   const n = D.diff(range.a, range.b) || 1, pos = d => D.diff(range.a, d) / n * 100;
   const list = [...S.tasks].sort((a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end));
   const pend = S.tasks.map(t => t.end).sort().pop(), ns = view.sel.size;
-  const st0 = view.date < TODAY ? TODAY : view.date;
+  const st0 = S.projectStart > TODAY ? S.projectStart : view.date < TODAY ? TODAY : view.date;
   const lvOpts = cur => `<option value="">ohne Ebene</option>${S.storeys.map(x => `<option ${x === cur ? 'selected' : ''}>${esc(x)}</option>`).join('')}`;
   const crewOpts = cur => S.lps.crews.map(x => `<option ${x === cur ? 'selected' : ''}>${esc(x)}</option>`).join('');
   const selLv = ns ? Object.entries([...view.sel].reduce((a, g) => { const e = S.elements[g]; if (e) a[e.storey] = (a[e.storey] || 0) + 1; return a; }, {})).sort((a, b) => b[1] - a[1])[0]?.[0] : '';
-  return `<div class="sect"><h2>Neuer Vorgang</h2>
+  return `<div class="sect"><h2>Baubeginn</h2>
+  <div class="form pstart">
+    <label class="field"><span>Baubeginn</span><input id="p-start" type="date" data-pstart value="${S.projectStart || ''}"></label>
+    <label class="ck"><input type="checkbox" id="p-shift" ${S.tasks.length ? 'checked' : 'disabled'}>Ganzen Ablauf mitverschieben</label>
+    <p class="note full" style="margin:0">${S.tasks.length ? `Erster Vorgang beginnt am ${D.de(planStart())}. Mit Häkchen rücken alle Vorgänge so, dass der erste am Baubeginn startet (Abstände in Arbeitstagen bleiben gleich).` : 'Ab diesem Datum schlägt das Formular neue Vorgänge vor.'}</p>
+  </div></div>
+  <div class="sect"><h2>Neuer Vorgang</h2>
   <form class="form" data-form="task">
     <label class="field full"><span>Name</span><input id="nt2-name" name="name" required placeholder="z. B. EG · Wände schalen und betonieren"></label>
     <label class="field"><span>Beginn</span><input id="nt2-start" name="start" type="date" required value="${st0}"></label>
@@ -1306,10 +1372,11 @@ function pTermine() {
       <div class="gedit num"><input type="date" aria-label="Beginn ${esc(t.name)}" data-tstart="${t.id}" value="${t.start}"><span class="muted">bis</span><input type="date" aria-label="Ende ${esc(t.name)}" data-tend="${t.id}" value="${t.end}"><span class="muted">${t.dur} AT · ${esc(t.storey || 'ohne Ebene')} · ${ti.els.length} Bauteile</span></div>
       ${preds.length ? `<div class="note">nach ${preds.join(', ')}</div>` : ''}
       ${cf.length ? `<div class="gwarn">Beginnt vor dem Ende von ${cf.map(q => `„${esc(q.name)}“`).join(', ')}</div>` : ''}
-      <details><summary class="note">Bearbeiten</summary><div class="tmeta">
+      <details ${view.openTask === t.id ? 'open' : ''}><summary class="note" data-opentask="${t.id}">Bearbeiten</summary><div class="tmeta">
         <label class="field full"><span>Name</span><input id="tn-${t.id}" data-tname="${t.id}" value="${esc(t.name)}"></label>
         <label class="field"><span>Ebene</span><select id="ts-${t.id}" data-tstorey="${t.id}">${lvOpts(t.storey)}</select></label>
         <label class="field"><span>Kolonne / NU</span><select id="tc-${t.id}" data-tcrew="${t.id}">${crewOpts(taskCrew(t))}</select></label>
+        <div class="full">${shiftBar(t, 'sh-' + t.id)}</div>
         <div class="gedit full">${ns ? `<button class="btn small" data-tassign="${t.id}">${ns} gewählte Bauteile zuordnen</button>` : ''}<span class="sp" style="flex:1"></span><button class="btn small" data-tdel="${t.id}">Vorgang löschen</button></div>
       </div></details>
     </div>`; }).join('')}</div>` : '<div class="empty">Noch keine Vorgänge. Lege oben den ersten Vorgang mit Beginn und Ende an.</div>'}</div>`;
@@ -1319,12 +1386,13 @@ function pTermine() {
 function pEbenen() {
   const ns = view.sel.size, cnt = {};
   for (const e of elsArr()) cnt[e.storey] = (cnt[e.storey] || 0) + 1;
-  return `<div class="sect"><h2>Ebenen · ${S.storeys.length}</h2>
-    <p class="note">Ebenen gliedern das Modell, z. B. Geschosse oder Bauabschnitte. Reihenfolge von unten nach oben – danach richtet sich der Filter „bis Ebene …“. Bauteile im Modell wählen (Shift-Klick für mehrere) und hier einer Ebene zuordnen.</p>
-    ${S.storeys.length ? `<div class="list">${S.storeys.map((x, i) => `<div class="lvrow">
-      <input id="lv-${i}" data-lvren="${i}" value="${esc(x)}" aria-label="Name der Ebene">
+  return `<div class="sect"><h2>Ebenen / Bauabschnitte · ${S.storeys.length}</h2>
+    <p class="note">Ebenen gliedern das Modell, z. B. Geschosse oder Bauabschnitte (BA). Bauteile ordnest du am schnellsten mit <b>„Im Modell zuordnen“</b> zu: Bauteile anklicken oder überstreichen. Alternativ Bauteile wählen (Shift-Klick) und „… gewählte hierher“. Die Reihenfolge (unten → oben) gilt für den Filter „bis Ebene …“, die Ansicht „Ebene/BA“ färbt das Modell nach Ebenen.</p>
+    ${S.storeys.length ? `<div class="list">${S.storeys.map((x, i) => `<div class="lvrow ${view.lvPaint === x ? 'on' : ''}">
+      <span style="display:flex;align-items:center;min-width:0"><i class="lvdot" style="background:${lvCol(x)}"></i><input id="lv-${i}" data-lvren="${i}" value="${esc(x)}" aria-label="Name der Ebene" style="flex:1"></span>
       <span class="num muted">${cnt[x] || 0} Bauteile</span>
       <div class="gedit">
+        <button class="btn small ${view.lvPaint === x ? 'primary' : ''}" data-lvpaint="${i}" aria-pressed="${view.lvPaint === x}">${view.lvPaint === x ? 'Zuordnen beenden' : 'Im Modell zuordnen'}</button>
         <button class="iconbtn" data-lvmove="${i}|-1" ${i ? '' : 'disabled'} aria-label="Nach unten" title="Nach unten (früher)">↓</button>
         <button class="iconbtn" data-lvmove="${i}|1" ${i < S.storeys.length - 1 ? '' : 'disabled'} aria-label="Nach oben" title="Nach oben (später)">↑</button>
         ${cnt[x] ? `<button class="btn small" data-lvshow="${i}">Zeigen</button>` : ''}
@@ -1332,10 +1400,11 @@ function pEbenen() {
         <span style="flex:1"></span><button class="btn small" data-lvdel="${i}">Löschen</button>
       </div></div>`).join('')}</div>` : '<div class="empty">Noch keine Ebenen.</div>'}
   </div>
-  <div class="sect"><h2>Neue Ebene</h2>
+  <div class="sect"><h2>Neue Ebene / neuer BA</h2>
   <form class="form" data-form="ebene">
-    <label class="field full"><span>Name</span><input id="lv-new" name="name" required placeholder="z. B. Bauabschnitt 2 oder 2.OG"></label>
+    <label class="field full"><span>Name</span><input id="lv-new" name="name" required placeholder="z. B. BA 2 oder 2.OG"></label>
     ${ns ? `<label class="ck full"><input type="checkbox" name="withsel" checked>Die ${ns} gewählten Bauteile in diese Ebene legen</label>` : ''}
+    <label class="ck full"><input type="checkbox" name="paint" checked>Danach direkt im Modell zuordnen</label>
     <div class="act"><button class="btn primary" type="submit">Ebene anlegen</button></div>
   </form></div>`;
 }
@@ -1358,6 +1427,7 @@ function renameStorey(old, neu) {
     if (m.storeys) m.storeys = m.storeys.map(x => x === old ? neu : x);
   }
   if (view.storey === old) view.storey = neu;
+  if (view.lvPaint === old) view.lvPaint = neu;
   return true;
 }
 function deleteStorey(name, target) {
@@ -1367,6 +1437,7 @@ function deleteStorey(name, target) {
   S.milestones = (S.milestones || []).filter(m => m.storey !== name);
   for (const m of S.milestones) if (m.storeys) m.storeys = m.storeys.filter(x => x !== name);
   if (view.storey === name) view.storey = 'alle';
+  if (view.lvPaint === name) setLvPaint(null);
 }
 function moveToStorey(guids, name) {
   let n = 0;
@@ -1389,7 +1460,7 @@ function pickDialog(title, text, options, okLabel, cb) {
     <div class="gedit" style="justify-content:flex-end;margin-top:12px"><button class="btn" data-close>Abbrechen</button><button class="btn primary" id="pdOk">${esc(okLabel)}</button></div></div>`;
   $('#pdOk').onclick = () => { const v = options ? $('#pdSel').value : null; m.hidden = true; cb(v); };
 }
-function afterStoreyChange() { renderStoreyFilter(); save(); renderAll(); }
+function afterStoreyChange() { renderStoreyFilter(); renderLegend(); save(); renderAll(); }
 
 /* ---------- Ablauf-Chat ---------- */
 const chat = { turns: [], draft: '', busy: false, pending: null, undo: [], err: '', ctl: null, t0: 0 };
@@ -1601,14 +1672,17 @@ $('#pane').addEventListener('click', e => {
   if (t.dataset.mtoggle) { const m = S.maengel.find(x => x.id === t.dataset.mtoggle); m.status = m.status === 'offen' ? 'erledigt' : 'offen'; save(); return renderAll(); }
   if (t.dataset.selguids) { const tb = S.tagebuch.find(x => x.id === t.dataset.selguids); view.sel = new Set(tb.guids); applyColors(); flyTo(tb.guids[0]); return renderPanel(); }
   if (t.dataset.tdate) { stopPlay(); setDate(t.dataset.tdate); }
+  if (t.dataset.opentask) view.openTask = t.closest('details').open ? null : t.dataset.opentask;
+  if (t.dataset.shift) { view.openTask = t.dataset.shift.split('|')[0]; doShift(t); reindex(); computeRange(); save(); setDate(view.date); renderTicks(); return; }
   if (t.dataset.tassign) { const id = t.dataset.tassign; view.sel.forEach(g => { if (S.elements[g]) S.elements[g].taskId = id; }); toast(`${view.sel.size} Bauteile „${taskMap[id].name}“ zugeordnet.`); save(); return renderAll(); }
   if (t.dataset.tdel) {
     const x = taskMap[t.dataset.tdel], nEl = elsArr().filter(e => e.taskId === x.id).length;
     return pickDialog(`Vorgang „${x.name}“ löschen?`, nEl ? `${nEl} Bauteile verlieren damit ihre Zuordnung (Ist-Stand bleibt erhalten).` : 'Der Vorgang hat keine Bauteile.', null, 'Löschen', () => { deleteTask(x.id); computeRange(); save(); renderAll(); toast('Vorgang gelöscht.'); });
   }
-  const lv = t.closest('[data-lvmove],[data-lvshow],[data-lvput],[data-lvdel]');
+  const lv = t.closest('[data-lvmove],[data-lvshow],[data-lvput],[data-lvdel],[data-lvpaint]');
   if (lv) {
     const d = lv.dataset;
+    if (d.lvpaint) { const name = S.storeys[+d.lvpaint]; return setLvPaint(view.lvPaint === name ? null : name); }
     if (d.lvmove) { const [i, k] = d.lvmove.split('|').map(Number), j = i + k; [S.storeys[i], S.storeys[j]] = [S.storeys[j], S.storeys[i]]; return afterStoreyChange(); }
     const name = S.storeys[+(d.lvshow ?? d.lvput ?? d.lvdel)];
     if (d.lvshow) { view.sel = new Set(elsArr().filter(e => e.storey === name).map(e => e.guid)); applyColors(); const g = [...view.sel][0]; if (g) flyTo(g); return renderPanel(); }
@@ -1638,6 +1712,14 @@ $('#pane').addEventListener('change', e => {
     reindex();
     const cf = predConflicts(task); if (cf.length) toast(`Hinweis: „${task.name}“ beginnt vor dem Ende von „${cf[0].name}“.`, 4000);
     computeRange(); save(); setDate(view.date); renderTicks(); return;
+  }
+  if ('pstart' in t.dataset) {
+    if (!okDate(t.value)) return;
+    let ns = 0;
+    if ($('#p-shift')?.checked && S.tasks.length) { const dd = wdDiff(planStart(), t.value); ns = shiftTasks(S.tasks, dd); }
+    S.projectStart = t.value;
+    reindex(); computeRange(); save(); setDate(view.date); renderTicks(); renderAll();
+    toast(ns ? `Baubeginn ${D.de(t.value)} – ${ns} Vorgänge verschoben.` : `Baubeginn auf ${D.de(t.value)} gesetzt.`); return;
   }
   if (t.dataset.tname) { const v = t.value.trim(); if (v) { taskMap[t.dataset.tname].name = v.slice(0, 80); save(); renderAll(); } return; }
   if (t.dataset.tstorey) { taskMap[t.dataset.tstorey].storey = t.value; save(); return renderAll(); }
@@ -1673,7 +1755,9 @@ $('#pane').addEventListener('submit', async e => {
   if (f.dataset.form === 'ebene') {
     const name = addStorey(fd.get('name')); if (!name) return;
     const n = fd.get('withsel') ? moveToStorey(view.sel, name) : 0;
-    toast(`Ebene „${name}“ angelegt${n ? `, ${n} Bauteile zugeordnet` : ''}.`); return afterStoreyChange();
+    toast(`Ebene „${name}“ angelegt${n ? `, ${n} Bauteile zugeordnet` : ''}.`); afterStoreyChange();
+    if (fd.get('paint')) setLvPaint(name);
+    return;
   }
   if (f.dataset.form === 'mangel') {
     S.maengel.push({ id: uid(), typ: fd.get('typ'), guid: f.dataset.guid || null, titel: fd.get('titel').trim(), status: 'offen', datum: view.date, frist: fd.get('frist') || null, wer: fd.get('wer').trim() });
@@ -1973,6 +2057,7 @@ function renderLps() {
       <div class="wk"><strong class="num">KW ${D.kw(mon)}</strong><span class="num">${D.short(mon)} – ${D.short(fri)}</span></div>
       <button class="iconbtn" data-wk="1" aria-label="Woche vor">${ICON.chev}</button>
       <button class="btn small" data-wk="0" ${mon === D.monday(TODAY) ? 'disabled' : ''}>Heute</button>
+      <input type="date" id="lps-go" data-wkgo value="${mon}" aria-label="Zu Datum springen" title="Zu beliebiger Woche springen">
     </div>
     <span class="sp"></span>
     <label class="search"><input id="lps-q" type="search" placeholder="Suchen …" aria-label="Zusagen und Vorgänge durchsuchen" value="${esc(lpsView.q)}"></label>
@@ -2036,7 +2121,7 @@ function lpsWoche(mon) {
           <div class="cards">${n.sort((a, b) => a.day - b.day).map(card).join('')}</div>
         </div>`; }).join('') : '<div class="empty" style="grid-column:1/-1;margin:12px">Alle Kolonnen sind ausgeblendet.</div>'}
     </div></div>
-    <p class="note">Zusage anklicken öffnet die Details rechts. Leeres Feld anklicken legt eine neue Zusage an, Karten lassen sich auf andere Tage oder Kolonnen ziehen.</p>`;
+    <p class="note">Zusage anklicken öffnet die Details rechts. Leeres Feld anklicken legt eine neue Zusage an. Karten lassen sich auf andere Tage oder Kolonnen ziehen – auf ◀ / ▶ oben in die Vor- bzw. Folgewoche.</p>`;
 }
 
 /* Hindernisliste */
@@ -2116,6 +2201,8 @@ function drawerCommit(c, isNew) {
     <label class="field grund" ${c.status === 'nicht' ? '' : 'hidden'}><span>Grund der Abweichung</span><select id="c-grund" name="grund"><option value="">bitte wählen</option>${LPS_GRUND.map(g => `<option ${c.grund === g ? 'selected' : ''}>${g}</option>`).join('')}</select></label>
     <div class="two"><label class="field"><span>Kolonne / NU</span><select id="c-crew" name="crew">${S.lps.crews.map(x => `<option ${x === c.crew ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>
       <label class="field"><span>Vorgang</span><select id="c-task" name="taskId"><option value="">ohne Vorgang</option>${S.tasks.map(x => `<option value="${x.id}" ${c.taskId === x.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label></div>
+    <div class="two"><label class="field"><span>Woche (beliebiger Tag)</span><input id="c-week" name="week" type="date" value="${c.week}"></label>
+      <div class="field"><span>Woche verschieben</span><div class="gedit"><button type="button" class="btn small" data-cweek="-1">◀ Vorwoche</button><button type="button" class="btn small" data-cweek="1">Folgewoche ▶</button></div></div></div>
     <div class="two"><label class="field"><span>Ab</span><select id="c-day" name="day">${WD.map((d, i) => `<option value="${i}" ${c.day === i ? 'selected' : ''}>${d} ${D.short(D.add(c.week, i))}</option>`).join('')}</select></label>
       <label class="field"><span>Dauer</span><select id="c-len" name="len">${[1, 2, 3, 4, 5].map(n => `<option value="${n}" ${c.len === n ? 'selected' : ''}>${n} ${n > 1 ? 'Tage' : 'Tag'}</option>`).join('')}</select></label></div>
     <label class="field"><span>Notiz</span><textarea id="c-notiz" name="notiz" rows="2">${esc(c.notiz || '')}</textarea></label>
@@ -2172,6 +2259,7 @@ $('#lps').addEventListener('click', e => {
     free.forEach(x => { const sp = taskSpanInWeek(x, mon); const crew = crewFor(x); if (!S.lps.crews.includes(crew)) S.lps.crews.push(crew); lpsK().push({ id: uid(), week: mon, taskId: x.id, text: x.name, crew, day: sp.day, len: sp.len, status: 'offen', grund: '', notiz: '' }); });
     toast(`${free.length} Vorgänge als Zusage eingeplant.`); return lpsChanged();
   }
+  const cw = t.closest('[data-cweek]'); if (cw) { const inp = $('#c-week'); if (inp) { inp.value = D.add(D.monday(inp.value || lpsView.week), 7 * +cw.dataset.cweek); inp.dispatchEvent(new Event('change', { bubbles: true })); } return; }
   const pt = t.closest('[data-plantask]'); if (pt) return newCommit(null, 0, pt.dataset.plantask);
   const cd = t.closest('[data-condel]'); if (cd) { e.preventDefault(); S.lps.constraints = lpsC().filter(c => c.id !== cd.dataset.condel); return lpsChanged(); }
   const del = t.closest('[data-lpsdel]'); if (del) { S.lps.commits = lpsK().filter(c => c.id !== del.dataset.lpsdel); lpsView.sel = null; toast('Zusage gelöscht.'); return lpsChanged(); }
@@ -2182,6 +2270,7 @@ $('#lps').addEventListener('click', e => {
 $('#lps').addEventListener('change', e => {
   const tg = e.target;
   if (tg.name === 'status' && tg.closest('[data-lpsform=commit]')) { tg.closest('form').querySelector('.grund').hidden = tg.value !== 'nicht'; return; }
+  if ('wkgo' in tg.dataset) { if (okDate(tg.value)) { lpsView.week = D.monday(tg.value); renderLps(); } return; }
   if (tg.dataset.crewren) { const old = S.lps.crews[+tg.dataset.crewren]; if (renameCrew(old, tg.value)) { toast(`Kolonne umbenannt in „${tg.value.trim()}“.`); lpsChanged(); } else tg.value = old; return; }
   const c = tg.dataset.con; if (!c) return;
   const x = lpsC().find(k => k.id === c); x.erledigt = tg.checked;
@@ -2203,8 +2292,10 @@ $('#lps').addEventListener('submit', e => {
     let c = lpsK().find(k => k.id === f.dataset.id);
     if (!c) { c = lpsView.sel.draft; lpsK().push(c); }
     const day = +fd.get('day');
+    if (okDate(fd.get('week'))) c.week = D.monday(fd.get('week'));
     Object.assign(c, { text: String(fd.get('text')).trim(), crew: fd.get('crew'), taskId: fd.get('taskId') || '', day, len: Math.min(+fd.get('len'), 5 - day), status, grund: status === 'nicht' ? grund : '', notiz: String(fd.get('notiz') || '').trim() });
     lpsView.sel = { type: 'commit', id: c.id };
+    if (c.week !== lpsView.week) { lpsView.week = c.week; toast(`Zusage gespeichert – liegt jetzt in KW ${D.kw(c.week)}.`); } else
     toast('Zusage gespeichert.');
     if (c.taskId && openCons(taskMap[c.taskId]).length && status === 'offen') toast('Gespeichert. Achtung: Der Vorgang hat noch offene Hindernisse.', 3500);
     return lpsChanged();
@@ -2215,14 +2306,16 @@ $('#lps').addEventListener('submit', e => {
   }
 });
 $('#lps').addEventListener('dragstart', e => { const n = e.target.closest?.('[data-commit]'); if (!n) return; lpsView.drag = n.dataset.commit; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', n.dataset.commit); n.classList.add('dragging'); });
-$('#lps').addEventListener('dragover', e => { const l = e.target.closest('.lane'); if (lpsView.drag && l) { e.preventDefault(); document.querySelectorAll('.lane.over').forEach(x => x !== l && x.classList.remove('over')); l.classList.add('over'); } });
+$('#lps').addEventListener('dragover', e => { const wb = e.target.closest('[data-wk="-1"],[data-wk="1"]'); document.querySelectorAll('.weeknav .over').forEach(x => x !== wb && x.classList.remove('over')); if (lpsView.drag && wb) { e.preventDefault(); wb.classList.add('over'); return; } const l = e.target.closest('.lane'); if (lpsView.drag && l) { e.preventDefault(); document.querySelectorAll('.lane.over').forEach(x => x !== l && x.classList.remove('over')); l.classList.add('over'); } });
 $('#lps').addEventListener('drop', e => {
+  const wb = e.target.closest('[data-wk="-1"],[data-wk="1"]');
+  if (wb && lpsView.drag) { e.preventDefault(); const c = lpsK().find(k => k.id === lpsView.drag); lpsView.drag = null; if (!c) return; c.week = D.add(c.week, 7 * +wb.dataset.wk); lpsView.week = c.week; lpsView.sel = { type: 'commit', id: c.id }; toast(`Zusage nach KW ${D.kw(c.week)} verschoben.`); return lpsChanged(); }
   const lane = e.target.closest('.lane'); if (!lane || !lpsView.drag) return; e.preventDefault();
   const c = lpsK().find(k => k.id === lpsView.drag); lpsView.drag = null; if (!c) return;
   const r = lane.getBoundingClientRect(), day = Math.max(0, Math.min(4, Math.floor((e.clientX - r.left) / r.width * 5)));
   c.crew = lane.dataset.crew; c.day = Math.min(day, 5 - c.len); lpsChanged();
 });
-$('#lps').addEventListener('dragend', () => { lpsView.drag = null; document.querySelectorAll('.lane.over,.dragging').forEach(x => x.classList.remove('over', 'dragging')); });
+$('#lps').addEventListener('dragend', () => { lpsView.drag = null; document.querySelectorAll('.over,.dragging').forEach(x => x.classList.remove('over', 'dragging')); });
 function show3d(taskId) {
   if (lpsView.split) { lpsView.sel = { type: 'task', id: taskId }; renderLps(); applyColors(); const g0 = elsArr().find(x => x.taskId === taskId); if (g0) flyTo(g0.guid); else toast('Dieser Vorgang hat keine Bauteile im Modell.'); return; }
   setLps(false);
@@ -2286,21 +2379,36 @@ $('#lps').addEventListener('pointerdown', e => {
   const b = e.target.closest('[data-drag]'); if (!b || e.button !== 0) return;
   const lane = b.closest('.gbars'); if (!lane) return;
   const r = b.getBoundingClientRect(), dayW = lane.getBoundingClientRect().width / +getComputedStyle(lane).getPropertyValue('--n');
-  gdrag = { el: b, kind: b.dataset.drag, id: b.dataset.lpstask || b.dataset.group, x0: e.clientX, dayW, mode: b.dataset.drag === 'task' && e.clientX > r.right - 10 ? 'dur' : 'move', dd: 0, w0: r.width };
+  gdrag = { el: b, kind: b.dataset.drag, id: b.dataset.lpstask || b.dataset.group, x0: e.clientX, dayW, mode: b.dataset.drag === 'task' && e.clientX > r.right - 10 ? 'dur' : 'move', dd: 0, px: 0, auto: 0, dir: 0, timer: null, lane, w0: r.width };
   b.setPointerCapture(e.pointerId); b.classList.add('dragging'); e.preventDefault();
 });
+// Am Rand der Vorschau läuft das Verschieben weiter (Tag für Tag), so weit man den Balken dort hält.
+function dragShow() {
+  const g = gdrag, dd = g.px + g.auto; g.dd = dd;
+  if (g.mode === 'dur') g.el.style.width = Math.max(g.dayW * .8, g.w0 + g.px * g.dayW) + 'px';
+  else g.el.style.transform = `translateX(${g.px * g.dayW}px)`;
+  let tip = '';
+  if (g.kind === 'task') { const t = taskMap[g.id]; tip = g.mode === 'dur' ? `${Math.max(1, t.dur + dd)} AT · bis ${D.short(D.addWD(t.end, dd))}` : `${D.short(D.addWD(t.start, dd))} – ${D.short(D.addWD(t.end, dd))}`; }
+  else tip = `${dd > 0 ? '+' : ''}${dd} AT`;
+  if (g.auto) tip += g.dir > 0 ? ' ▶▶' : ' ◀◀';
+  g.el.dataset.tip = tip;
+}
 $('#lps').addEventListener('pointermove', e => {
   if (!gdrag) { const b = e.target.closest('[data-drag="task"]'); if (b) b.style.cursor = e.clientX > b.getBoundingClientRect().right - 10 ? 'ew-resize' : 'grab'; return; }
-  const dd = Math.round((e.clientX - gdrag.x0) / gdrag.dayW); if (dd === gdrag.dd) return; gdrag.dd = dd;
-  if (gdrag.mode === 'dur') gdrag.el.style.width = Math.max(gdrag.dayW * .8, gdrag.w0 + dd * gdrag.dayW) + 'px';
-  else gdrag.el.style.transform = `translateX(${dd * gdrag.dayW}px)`;
-  let tip = '';
-  if (gdrag.kind === 'task') { const t = taskMap[gdrag.id]; tip = gdrag.mode === 'dur' ? `${Math.max(1, t.dur + dd)} AT` : `${D.short(D.addWD(t.start, dd))} – ${D.short(D.addWD(t.end, dd))}`; }
-  else tip = `${dd > 0 ? '+' : ''}${dd} AT`;
-  gdrag.el.dataset.tip = tip;
+  const g = gdrag, lr = g.lane.getBoundingClientRect(), wr = ($('#ganttWrap') || g.lane).getBoundingClientRect();
+  const left = Math.max(lr.left, wr.left), right = Math.min(lr.right, wr.right);
+  const x = Math.max(left, Math.min(right, e.clientX));
+  g.px = Math.round((x - g.x0) / g.dayW);
+  const dir = e.clientX > right - 24 ? 1 : e.clientX < left + 24 && g.mode === 'move' ? -1 : 0;
+  if (dir !== g.dir) {
+    clearInterval(g.timer); g.timer = null; g.dir = dir;
+    if (dir) g.timer = setInterval(() => { if (gdrag !== g) return clearInterval(g.timer); g.auto += dir; dragShow(); }, 120);
+  }
+  dragShow();
 });
 function endDrag(e) {
   if (!gdrag) return; const g = gdrag; gdrag = null;
+  clearInterval(g.timer);
   g.el.classList.remove('dragging');
   if (!g.dd) { g.el.style.transform = ''; g.el.style.width = ''; delete g.el.dataset.tip; if (g.kind === 'task') { lpsView.sel = { type: 'task', id: g.id }; renderLps(); applyColors(); } return; }
   lpsView.noClick = true; setTimeout(() => lpsView.noClick = false, 0);
@@ -2310,6 +2418,8 @@ function endDrag(e) {
     const t = taskMap[g.id];
     if (g.mode === 'dur') { setTaskDates(t, null, D.addWD(t.end, g.dd)); toast(`„${t.name}“: ${t.dur} AT, Ende ${D.de(t.end)}.`); }
     else { moveTask(t, g.dd); toast(`„${t.name}“: ${D.de(t.start)} – ${D.de(t.end)}.`); }
+    lpsView.sel = { type: 'task', id: t.id };
+    if (t.end < lpsView.week || t.start > D.add(lpsView.week, 41)) lpsView.week = D.monday(t.start);
   } else {
     const ts = S.tasks.filter(t => (t.storey || 'Ohne Ebene') === g.id && !taskDone(t));
     ts.forEach(t => moveTask(t, g.dd));
@@ -2451,6 +2561,7 @@ function drawerTask(t) {
       <div class="two"><label class="field"><span>Kolonne / NU</span><select id="tm-crew" name="crew">${S.lps.crews.map(c => `<option ${c === taskCrew(t) ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></label>
         <label class="field"><span>Ebene</span><select id="tm-st" name="storey"><option value="">ohne Ebene</option>${S.storeys.map(x => `<option ${x === t.storey ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label></div>
     </form>
+    ${shiftBar(t, 'lsh-' + t.id)}
     ${sp && !has && !oc.length ? `<button class="btn primary" data-plantask="${t.id}">${ICON.plus} In KW ${D.kw(mon)} einplanen</button>` : has ? `<p class="note">In KW ${D.kw(mon)} bereits zugesagt.</p>` : ''}
     <h4>Bauteile im Modell · ${nEl}</h4>
     <div class="dact">${lpsView.split
@@ -2484,6 +2595,7 @@ function drawerTask(t) {
 $('#lps').addEventListener('click', e => {
   const t = e.target;
   if (t.closest('[data-split]')) return lpsSplit(!lpsView.split);
+  const sh = t.closest('[data-shift]'); if (sh) { pushUndo(); const sc = sh.closest('.shiftbar').querySelector('[data-shscope]').value; doShift(sh); afterPlanChange(); revealTask(sh.dataset.shift.split('|')[0]); const s2 = $('#lpsDrawer [data-shscope]'); if (s2) s2.value = sc; return; }
   if (t.closest('[data-undo]')) return lpsUndo();
   if (t.closest('[data-assignoff]')) { lpsView.assign = null; lps3dControls(); renderLps(); return applyColors(); }
   const as = t.closest('[data-assign]'); if (as) { lpsView.assign = lpsView.assign === as.dataset.assign ? null : as.dataset.assign; lpsView.msel.clear(); lps3dControls(); renderLps(); return applyColors(); }
