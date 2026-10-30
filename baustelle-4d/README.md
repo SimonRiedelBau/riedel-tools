@@ -3,6 +3,16 @@
 Baufortschritt am IFC-Modell: 4D-Ablauf, Status je Bauteil, Soll/Ist, Last Planner (Wochenplan, Vorschau, PPC),
 Vergaben, Mängel, Bautagebuch und Aufmaß.
 
+## Termine, Ebenen, Kolonnen
+- **Termine** legst du selbst fest: Beginn und Ende je Vorgang (Reiter „Termine“, Last Planner oder Ablauf-Chat).
+  Nichts verschiebt sich automatisch; Abhängigkeiten sind nur ein Hinweis und werden markiert, wenn sie nicht passen.
+- Beim Laden einer IFC-Datei werden **keine Vorgänge vorgegeben** – Vorgänge legst du unter „Termine“ an und ordnest
+  die gewählten Bauteile direkt zu.
+- **Ebenen** (Reiter „Ebenen“): anlegen, umbenennen, sortieren, löschen. Bauteile im Modell wählen (Shift-Klick) und
+  einer Ebene zuordnen – auch im Reiter „Bauteil“ oder im Last Planner bei „3D daneben“.
+- **Kolonnen** im Last Planner über „Bearbeiten“ umbenennen oder löschen. Beim Löschen gehen Zusagen und Vorgänge an
+  eine andere Kolonne.
+
 ## Gemeinsamer Stand
 - In den Riedel-Tools (mit Anmeldung) gibt es oben den Button **Projekte**. Dort wird ein geladenes IFC-Modell als
   gemeinsames Projekt angelegt. Das IFC liegt danach im privaten Bucket `baustelle-4d`, alle Daten in `b4d_daten`.

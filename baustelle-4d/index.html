@@ -170,7 +170,7 @@ aside.panel{background:var(--panel);border-left:1px solid var(--line);display:gr
 .card .top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
 .card .sum{font:600 16px/1 var(--f-display);font-variant-numeric:tabular-nums}
 .card details summary{cursor:pointer;font-size:12px;color:var(--muted)}
-.card label.ck{display:flex;gap:6px;font-size:12.5px;align-items:center;padding:2px 0}
+label.ck{display:flex;gap:6px;font-size:12.5px;align-items:center;padding:2px 0}
 .thumbs{display:flex;flex-wrap:wrap;gap:6px}
 .thumbs img{width:72px;height:54px;object-fit:cover;border-radius:4px;border:1px solid var(--line)}
 table.tab{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
@@ -237,6 +237,18 @@ html:has(> .rb-bar) body{height:calc(100% - var(--rb-bar-h, 48px))}
 .crewbtn b{font:500 11.5px var(--f-mono);color:var(--muted)}
 .crewbtn.off{color:var(--muted)}.crewbtn.off i{background:transparent!important;box-shadow:inset 0 0 0 1.5px var(--st-ghost)}
 .crew-add{display:flex;gap:6px}
+.side-sec h4.hrow{display:flex;justify-content:space-between;align-items:center;gap:6px}
+.side-sec h4 .btn{text-transform:none;letter-spacing:0}
+.crewedit{display:grid;grid-template-columns:12px minmax(0,1fr) auto;gap:6px;align-items:center;padding:2px 0}
+.crewedit i{width:12px;height:12px;border-radius:3px}
+.crewedit input{min-width:0;border:1px solid var(--line);border-radius:5px;padding:4px 6px;background:var(--raise);font-size:12.5px}
+.lvrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 8px;padding:8px 10px;border-top:1px solid var(--line);background:var(--panel);font-size:13px}
+.lvrow:first-child{border-top:0}
+.lvrow input{min-width:0;font-size:13.5px;border:1px solid var(--line);border-radius:5px;padding:4px 8px;background:var(--panel);color:var(--fg)}
+.lvrow .gedit{grid-column:1/-1}
+.tmeta{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding-top:6px}
+.tmeta .full{grid-column:1/-1}
+.gwarn{font-size:12px;color:var(--st-verzug)}
 .crew-add input{flex:1;min-width:0;border:1px solid var(--line);border-radius:5px;padding:5px 8px;background:var(--raise);font-size:12.5px}
 .wkstat .stack{display:flex;height:8px;border-radius:4px;overflow:hidden;background:var(--raise);border:1px solid var(--line)}
 .stack .s-ok{background:var(--st-fertig)}.stack .s-no{background:var(--st-verzug)}.stack .s-op{background:var(--st-ghost);opacity:.45}
@@ -504,7 +516,7 @@ html:has(> .rb-bar) body{height:calc(100% - var(--rb-bar-h, 48px))}
             <button data-tool="walk" aria-pressed="false">Begehung</button>
           </div>
           <div class="brushes" id="brushes" hidden aria-label="Status zum Malen"></div>
-          <div class="seg"><select id="storeyFilter" aria-label="Geschosse anzeigen"></select></div>
+          <div class="seg"><select id="storeyFilter" aria-label="Ebenen anzeigen"></select></div>
         </div>
         <div class="cross" id="cross" hidden></div>
         <div class="legend" id="legend"></div>
@@ -602,6 +614,9 @@ function reindex() {
   }
   S.lps ||= { crews: ['Kolonne 1', 'Kolonne 2', 'NU Erdbau', 'NU Bewehrung'], commits: [], constraints: [] };
   S.projectStart ||= S.tasks.map(t => t.start).filter(Boolean).sort()[0] || TODAY;
+  S.storeys ||= [];
+  const lv = new Set(S.storeys);   // jede Ebene, in der Bauteile liegen, steht in der Liste
+  for (const e of Object.values(S.elements)) if (e.storey && !lv.has(e.storey)) { lv.add(e.storey); S.storeys.push(e.storey); }
   try { schedule(S.tasks, S.projectStart); } catch (e) { toast(e.message); }
   taskMap = Object.fromEntries(S.tasks.map(t => [t.id, t]));
   vergMap = Object.fromEntries(S.vergaben.map(v => [v.id, v]));
@@ -665,11 +680,18 @@ function progressAt(d, filter = () => true) {
 }
 
 /* ---------- Terminrechnung ---------- */
-// Vorgang: dur (AT), preds [{id, typ: 'EA'|'AA', lag}], fix = frühester Start
+// Beginn und Ende legt der Bauleiter selbst fest (start/end) – nichts verschiebt sich automatisch.
+// Nur Vorgänge ohne eigene Termine (alte Stände, Demo) werden einmalig aus dur/preds/fix berechnet.
+// Abhängigkeiten bleiben als Hinweis: predConflicts() meldet, wenn ein Vorgang vor seinem Vorgänger liegt.
 function schedule(tasks, p0) {
   const map = Object.fromEntries(tasks.map(t => [t.id, t])), done = new Set(), vis = new Set();
   const calc = t => {
     if (done.has(t.id)) return;
+    if (okDate(t.start) && okDate(t.end)) {
+      if (t.end < t.start) t.end = t.start;
+      t.dur = Math.max(1, D.wdBetween(D.add(t.start, -1), t.end));
+      done.add(t.id); return;
+    }
     if (vis.has(t.id)) throw new Error(`Zirkelbezug bei „${t.name}“`);
     vis.add(t.id);
     let s = t.fix || p0;
@@ -685,6 +707,17 @@ function schedule(tasks, p0) {
   };
   tasks.forEach(calc);
 }
+const okDate = s => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ''));
+function setTaskDates(t, start, end) {
+  if (okDate(start)) t.start = start;
+  if (okDate(end)) t.end = end;
+  if (t.end < t.start) t.end = t.start;
+  t.dur = Math.max(1, D.wdBetween(D.add(t.start, -1), t.end)); t.fix = null;
+}
+function predConflicts(t) {
+  return (t.preds || []).map(p => ({ p, q: taskMap[p.id] })).filter(({ p, q }) => q && (p.typ === 'AA' ? t.start < D.addWD(q.start, Math.round(+p.lag || 0)) : t.start <= D.addWD(q.end, Math.round(+p.lag || 0)))).map(x => x.q);
+}
+const newTaskId = () => 't' + (Math.max(0, ...S.tasks.map(x => +String(x.id).replace(/\D/g, '') || 0)) + 1);
 
 /* ---------- Demo: Verwaltungsgebäude + Halle in 2 Abschnitten ---------- */
 function buildDemo() {
@@ -1046,7 +1079,7 @@ $('#modeSeg').addEventListener('click', e => {
 });
 $('#storeyFilter').addEventListener('change', e => { view.storey = e.target.value; applyColors(); });
 function renderStoreyFilter() {
-  $('#storeyFilter').innerHTML = `<option value="alle">Alle Geschosse</option>` + S.storeys.map(s => `<option value="${esc(s)}">bis ${esc(s)}</option>`).join('');
+  $('#storeyFilter').innerHTML = `<option value="alle">Alle Ebenen</option>` + S.storeys.map(s => `<option value="${esc(s)}">bis ${esc(s)}</option>`).join('');
   $('#storeyFilter').value = view.storey;
 }
 function renderLegend() {
@@ -1137,7 +1170,7 @@ function renderHeader() {
 $('#projName').addEventListener('change', e => { S.project.name = e.target.value; save(); if (CL.on) CL.sb.from(T_PROJ).update({ name: e.target.value }).eq('id', CL.proj.id).then(() => {}); });
 
 /* ---------- Panel ---------- */
-const TABS = [['uebersicht', 'Übersicht'], ['bauteil', 'Bauteil'], ['termine', 'Termine'], ['chat', 'Ablauf-Chat'], ['vergaben', 'Vergaben'], ['maengel', 'Mängel'], ['tagebuch', 'Tagebuch'], ['aufmass', 'Aufmaß']];
+const TABS = [['uebersicht', 'Übersicht'], ['bauteil', 'Bauteil'], ['termine', 'Termine'], ['ebenen', 'Ebenen'], ['chat', 'Ablauf-Chat'], ['vergaben', 'Vergaben'], ['maengel', 'Mängel'], ['tagebuch', 'Tagebuch'], ['aufmass', 'Aufmaß']];
 function renderTabs() {
   const open = S.maengel.filter(m => m.status === 'offen').length;
   $('#tabs').innerHTML = TABS.map(([k, l]) => `<button role="tab" data-tab="${k}" aria-selected="${view.tab === k}">${l}${k === 'maengel' && open ? `<span class="cnt">${open}</span>` : ''}${k === 'bauteil' && view.sel.size ? `<span class="cnt">${view.sel.size}</span>` : ''}</button>`).join('');
@@ -1146,7 +1179,7 @@ $('#tabs').addEventListener('click', e => { const b = e.target.closest('[data-ta
 function renderPanel() {
   renderTabs();
   const pane = $('#pane');
-  pane.innerHTML = ({ uebersicht: pUebersicht, bauteil: pBauteil, termine: pTermine, chat: pChat, vergaben: pVergaben, maengel: pMaengel, tagebuch: pTagebuch, aufmass: pAufmass })[view.tab]();
+  pane.innerHTML = ({ uebersicht: pUebersicht, bauteil: pBauteil, termine: pTermine, ebenen: pEbenen, chat: pChat, vergaben: pVergaben, maengel: pMaengel, tagebuch: pTagebuch, aufmass: pAufmass })[view.tab]();
   hydrateFotos();
 }
 function renderAll() { reindex(); renderHeader(); renderTicks(); applyColors(); renderPanel(); if (lpsView.open) renderLps(); }
@@ -1205,19 +1238,25 @@ function pBauteil() {
   const vol = sel.reduce((a, e) => a + (e.vol || 0), 0);
   const statusBtns = `<div class="statusrow">${STATUS.map((s, i) => `<button data-set="${i}" aria-pressed="${cur.size === 1 && cur.has(i)}"><i class="dot ${i ? '' : 'ghost'}" style="${i ? `background:var(${s.tok})` : ''}"></i>${s.label}</button>`).join('')}</div>
     <p class="note">Gilt zum Stichtag ${D.de(view.date)}. Schieber zurück stellen, um Ist-Daten nachzutragen.</p>`;
-  if (!one) return `<div class="sect"><h3>${sel.length} Bauteile gewählt</h3><dl class="kv num"><dt>Volumen</dt><dd>${fmtN(vol, 2)} m³</dd></dl></div><div class="sect"><h2>Status setzen</h2>${statusBtns}</div>
+  const lvs = new Set(sel.map(e => e.storey)), tks = new Set(sel.map(e => e.taskId || ''));
+  const assign = `<div class="sect"><h2>Zuordnen</h2><div class="form">
+    <label class="field"><span>Ebene</span><select id="sel-storey" data-selstorey>${lvs.size > 1 ? '<option value="" selected>– verschiedene –</option>' : ''}${S.storeys.map(x => `<option ${lvs.size === 1 && lvs.has(x) ? 'selected' : ''}>${esc(x)}</option>`).join('')}<option value="__neu">+ Neue Ebene …</option></select></label>
+    <label class="field"><span>Vorgang</span><select id="sel-task" data-seltask>${tks.size > 1 ? '<option value="__x" selected>– verschiedene –</option>' : ''}<option value="" ${tks.size === 1 && tks.has('') ? 'selected' : ''}>ohne Vorgang</option>${S.tasks.map(x => `<option value="${x.id}" ${tks.size === 1 && tks.has(x.id) ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label>
+  </div></div>`;
+  if (!one) return `<div class="sect"><h3>${sel.length} Bauteile gewählt</h3><dl class="kv num"><dt>Volumen</dt><dd>${fmtN(vol, 2)} m³</dd></dl></div>${assign}<div class="sect"><h2>Status setzen</h2>${statusBtns}</div>
     <div class="list">${sel.slice(0, 40).map(e => `<div class="row click" data-guid="${e.guid}"><span class="t">${esc(e.name)}</span>${chipS(istAt(e, view.date))}</div>`).join('')}</div>`;
   const t = taskMap[one.taskId], mm = S.maengel.filter(m => m.guid === one.guid);
   return `<div class="sect"><h3>${esc(one.name)}</h3>
     <dl class="kv num">
       <dt>Typ</dt><dd>${esc(one.type)} · ${esc(one.cat)}</dd>
-      <dt>Geschoss</dt><dd>${esc(one.storey)}</dd>
+      <dt>Ebene</dt><dd>${esc(one.storey)}${one.ifcStorey && one.ifcStorey !== one.storey ? ` <span class="muted">(IFC: ${esc(one.ifcStorey)})</span>` : ''}</dd>
       <dt>Volumen</dt><dd>${fmtN(one.vol, 2)} m³</dd>
       <dt>Vorgang</dt><dd>${t ? `${esc(t.name)}<br><span class="muted">Soll ${D.de(t.start)} – ${D.de(t.end)}</span>` : '–'}</dd>
       <dt>Vergaben</dt><dd>${t?.vergaben?.length ? t.vergaben.map(id => vergMap[id] ? `${esc(vergMap[id].gewerk)} ${chipV(vergMap[id].status)}` : '').join('<br>') : '–'}</dd>
       <dt>Ist-Termine</dt><dd>Beginn ${D.de(one.startDate)}<br>Fertig ${D.de(one.doneDate)}<br>Abnahme ${D.de(one.acceptDate)}</dd>
       <dt>IFC-GUID</dt><dd class="mono">${esc(one.guid)}</dd>
     </dl></div>
+  ${assign}
   <div class="sect"><h2>Status</h2>${statusBtns}</div>
   <div class="sect"><h2>Offene Punkte</h2>
     ${mm.length ? `<div class="list">${mm.map(rowMangel).join('')}</div>` : ''}
@@ -1241,18 +1280,116 @@ function formMangel(guid) {
 function pTermine() {
   const n = D.diff(range.a, range.b) || 1, pos = d => D.diff(range.a, d) / n * 100;
   const list = [...S.tasks].sort((a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end));
-  const pend = S.tasks.map(t => t.end).sort().pop();
-  return `<div class="sect"><h2>Bauablauf · ${S.tasks.length} Vorgänge · Ende ${D.de(pend)}</h2>
-  <p class="note">Name anklicken markiert die Bauteile. Ein geänderter Beginn wird als „frühestens“ gesetzt, Nachfolger rücken automatisch mit. Abhängigkeiten änderst du am schnellsten im <button class="btn small" data-gotab="chat">Ablauf-Chat</button>.</p>
-  <div class="gantt">${list.map(t => { const ti = taskIst(t), late = t.end < view.date && ti.els.length && !ti.finish;
+  const pend = S.tasks.map(t => t.end).sort().pop(), ns = view.sel.size;
+  const st0 = view.date < TODAY ? TODAY : view.date;
+  const lvOpts = cur => `<option value="">ohne Ebene</option>${S.storeys.map(x => `<option ${x === cur ? 'selected' : ''}>${esc(x)}</option>`).join('')}`;
+  const crewOpts = cur => S.lps.crews.map(x => `<option ${x === cur ? 'selected' : ''}>${esc(x)}</option>`).join('');
+  const selLv = ns ? Object.entries([...view.sel].reduce((a, g) => { const e = S.elements[g]; if (e) a[e.storey] = (a[e.storey] || 0) + 1; return a; }, {})).sort((a, b) => b[1] - a[1])[0]?.[0] : '';
+  return `<div class="sect"><h2>Neuer Vorgang</h2>
+  <form class="form" data-form="task">
+    <label class="field full"><span>Name</span><input id="nt2-name" name="name" required placeholder="z. B. EG · Wände schalen und betonieren"></label>
+    <label class="field"><span>Beginn</span><input id="nt2-start" name="start" type="date" required value="${st0}"></label>
+    <label class="field"><span>Ende</span><input id="nt2-end" name="end" type="date" required value="${D.addWD(st0, 4)}"></label>
+    <label class="field"><span>Ebene</span><select id="nt2-st" name="storey">${lvOpts(selLv)}</select></label>
+    <label class="field"><span>Kolonne / NU</span><select id="nt2-crew" name="crew">${crewOpts(S.lps.crews[0])}</select></label>
+    ${ns ? `<label class="ck full"><input type="checkbox" name="withsel" checked>Die ${ns} gewählten Bauteile diesem Vorgang zuordnen</label>` : `<p class="note full">Tipp: Erst Bauteile im Modell wählen (Shift-Klick für mehrere), dann werden sie dem neuen Vorgang gleich zugeordnet.</p>`}
+    <div class="act"><button class="btn primary" type="submit">Vorgang anlegen</button></div>
+  </form></div>
+  <div class="sect"><h2>Bauablauf · ${S.tasks.length} Vorgänge${pend ? ` · Ende ${D.de(pend)}` : ''}</h2>
+  <p class="note">Beginn und Ende legst du selbst fest – nichts verschiebt sich automatisch. Name anklicken markiert die Bauteile im Modell.</p>
+  ${list.length ? `<div class="gantt">${list.map(t => { const ti = taskIst(t), late = t.end < view.date && ti.els.length && !ti.finish;
     const preds = (t.preds || []).map(p => taskMap[p.id] ? `${esc(taskMap[p.id].name)}${p.typ === 'AA' ? ' (AA)' : ''}${p.lag ? ` ${p.lag > 0 ? '+' : ''}${p.lag} AT` : ''}` : '').filter(Boolean);
+    const cf = predConflicts(t);
     return `<div class="grow ${view.selTask === t.id ? 'sel' : ''}">
       <div class="ghead"><span class="gname" data-task="${t.id}">${esc(t.name)}</span><span class="num ${late ? '' : 'muted'}" style="${late ? 'color:var(--st-verzug)' : ''}">${ti.els.length ? Math.round(ti.p * 100) + ' %' : 'ohne Bauteile'}</span></div>
       <div class="gbar"><div class="p" style="left:${pos(t.start)}%;width:${Math.max(.8, pos(D.add(t.end, 1)) - pos(t.start))}%"><i style="width:${ti.p * 100}%"></i></div><div class="now" style="left:${pos(view.date)}%"></div></div>
-      <div class="gedit num"><input type="date" aria-label="Beginn ${esc(t.name)}" data-tstart="${t.id}" value="${t.start}"><span class="muted">bis</span><input type="date" aria-label="Ende ${esc(t.name)}" data-tend="${t.id}" value="${t.end}"><span class="muted">${t.dur} AT · ${ti.els.length} Bauteile</span></div>
-      <div class="note">${preds.length ? 'nach ' + preds.join(', ') : 'ohne Vorgänger'}${t.fix ? ` · frühestens ${D.de(t.fix)} <button class="btn small" data-unfix="${t.id}">lösen</button>` : ''}</div>
-    </div>`; }).join('')}</div></div>`;
+      <div class="gedit num"><input type="date" aria-label="Beginn ${esc(t.name)}" data-tstart="${t.id}" value="${t.start}"><span class="muted">bis</span><input type="date" aria-label="Ende ${esc(t.name)}" data-tend="${t.id}" value="${t.end}"><span class="muted">${t.dur} AT · ${esc(t.storey || 'ohne Ebene')} · ${ti.els.length} Bauteile</span></div>
+      ${preds.length ? `<div class="note">nach ${preds.join(', ')}</div>` : ''}
+      ${cf.length ? `<div class="gwarn">Beginnt vor dem Ende von ${cf.map(q => `„${esc(q.name)}“`).join(', ')}</div>` : ''}
+      <details><summary class="note">Bearbeiten</summary><div class="tmeta">
+        <label class="field full"><span>Name</span><input id="tn-${t.id}" data-tname="${t.id}" value="${esc(t.name)}"></label>
+        <label class="field"><span>Ebene</span><select id="ts-${t.id}" data-tstorey="${t.id}">${lvOpts(t.storey)}</select></label>
+        <label class="field"><span>Kolonne / NU</span><select id="tc-${t.id}" data-tcrew="${t.id}">${crewOpts(taskCrew(t))}</select></label>
+        <div class="gedit full">${ns ? `<button class="btn small" data-tassign="${t.id}">${ns} gewählte Bauteile zuordnen</button>` : ''}<span class="sp" style="flex:1"></span><button class="btn small" data-tdel="${t.id}">Vorgang löschen</button></div>
+      </div></details>
+    </div>`; }).join('')}</div>` : '<div class="empty">Noch keine Vorgänge. Lege oben den ersten Vorgang mit Beginn und Ende an.</div>'}</div>`;
 }
+
+/* ---------- Ebenen ---------- */
+function pEbenen() {
+  const ns = view.sel.size, cnt = {};
+  for (const e of elsArr()) cnt[e.storey] = (cnt[e.storey] || 0) + 1;
+  return `<div class="sect"><h2>Ebenen · ${S.storeys.length}</h2>
+    <p class="note">Ebenen gliedern das Modell, z. B. Geschosse oder Bauabschnitte. Reihenfolge von unten nach oben – danach richtet sich der Filter „bis Ebene …“. Bauteile im Modell wählen (Shift-Klick für mehrere) und hier einer Ebene zuordnen.</p>
+    ${S.storeys.length ? `<div class="list">${S.storeys.map((x, i) => `<div class="lvrow">
+      <input id="lv-${i}" data-lvren="${i}" value="${esc(x)}" aria-label="Name der Ebene">
+      <span class="num muted">${cnt[x] || 0} Bauteile</span>
+      <div class="gedit">
+        <button class="iconbtn" data-lvmove="${i}|-1" ${i ? '' : 'disabled'} aria-label="Nach unten" title="Nach unten (früher)">↓</button>
+        <button class="iconbtn" data-lvmove="${i}|1" ${i < S.storeys.length - 1 ? '' : 'disabled'} aria-label="Nach oben" title="Nach oben (später)">↑</button>
+        ${cnt[x] ? `<button class="btn small" data-lvshow="${i}">Zeigen</button>` : ''}
+        ${ns ? `<button class="btn small" data-lvput="${i}">${ns} gewählte hierher</button>` : ''}
+        <span style="flex:1"></span><button class="btn small" data-lvdel="${i}">Löschen</button>
+      </div></div>`).join('')}</div>` : '<div class="empty">Noch keine Ebenen.</div>'}
+  </div>
+  <div class="sect"><h2>Neue Ebene</h2>
+  <form class="form" data-form="ebene">
+    <label class="field full"><span>Name</span><input id="lv-new" name="name" required placeholder="z. B. Bauabschnitt 2 oder 2.OG"></label>
+    ${ns ? `<label class="ck full"><input type="checkbox" name="withsel" checked>Die ${ns} gewählten Bauteile in diese Ebene legen</label>` : ''}
+    <div class="act"><button class="btn primary" type="submit">Ebene anlegen</button></div>
+  </form></div>`;
+}
+function addStorey(name) {
+  const n = String(name || '').trim();
+  if (!n) return null;
+  if (S.storeys.includes(n)) { toast(`Die Ebene „${n}“ gibt es schon.`); return n; }
+  S.storeys.push(n); (S.milestones ||= []).push({ name: `Rohbau ${n}`, storey: n });
+  return n;
+}
+function renameStorey(old, neu) {
+  neu = String(neu || '').trim();
+  if (!neu || neu === old) return false;
+  if (S.storeys.includes(neu)) { toast(`Die Ebene „${neu}“ gibt es schon.`); return false; }
+  S.storeys = S.storeys.map(x => x === old ? neu : x);
+  for (const e of elsArr()) if (e.storey === old) e.storey = neu;
+  for (const t of S.tasks) if (t.storey === old) t.storey = neu;
+  for (const m of S.milestones || []) {
+    if (m.storey === old) { m.storey = neu; if (m.name === `Rohbau ${old}`) m.name = `Rohbau ${neu}`; }
+    if (m.storeys) m.storeys = m.storeys.map(x => x === old ? neu : x);
+  }
+  if (view.storey === old) view.storey = neu;
+  return true;
+}
+function deleteStorey(name, target) {
+  for (const e of elsArr()) if (e.storey === name) e.storey = target;
+  for (const t of S.tasks) if (t.storey === name) t.storey = target || '';
+  S.storeys = S.storeys.filter(x => x !== name);
+  S.milestones = (S.milestones || []).filter(m => m.storey !== name);
+  for (const m of S.milestones) if (m.storeys) m.storeys = m.storeys.filter(x => x !== name);
+  if (view.storey === name) view.storey = 'alle';
+}
+function moveToStorey(guids, name) {
+  let n = 0;
+  for (const g of guids) { const e = S.elements[g]; if (e && e.storey !== name) { e.storey = name; n++; } }
+  return n;
+}
+function deleteTask(id) {
+  S.tasks = S.tasks.filter(x => x.id !== id);
+  S.tasks.forEach(x => x.preds = (x.preds || []).filter(p => p.id !== id));
+  for (const e of elsArr()) if (e.taskId === id) e.taskId = null;
+  for (const c of S.lps.commits) if (c.taskId === id) c.taskId = '';
+  S.lps.constraints = S.lps.constraints.filter(c => c.taskId !== id);
+  if (view.selTask === id) view.selTask = null;
+}
+// Auswahl-Dialog: options = [[value, label]], cb(value)
+function pickDialog(title, text, options, okLabel, cb) {
+  const m = $('#modal'); m.hidden = false;
+  m.innerHTML = `<div class="box" role="dialog" aria-modal="true" aria-labelledby="pdT"><h3 id="pdT">${esc(title)}</h3><p>${esc(text)}</p>
+    ${options ? `<label class="field"><span>Übernehmen nach</span><select id="pdSel">${options.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join('')}</select></label>` : ''}
+    <div class="gedit" style="justify-content:flex-end;margin-top:12px"><button class="btn" data-close>Abbrechen</button><button class="btn primary" id="pdOk">${esc(okLabel)}</button></div></div>`;
+  $('#pdOk').onclick = () => { const v = options ? $('#pdSel').value : null; m.hidden = true; cb(v); };
+}
+function afterStoreyChange() { renderStoreyFilter(); save(); renderAll(); }
 
 /* ---------- Ablauf-Chat ---------- */
 const chat = { turns: [], draft: '', busy: false, pending: null, undo: [], err: '', ctl: null, t0: 0 };
@@ -1264,50 +1401,46 @@ function scheduleText() {
   return [...S.tasks].sort((a, b) => a.start.localeCompare(b.start)).map(t => {
     const ti = taskIst(t, TODAY);
     const pr = (t.preds || []).map(p => `${p.id} ${p.typ || 'EA'}${p.lag ? (p.lag > 0 ? '+' : '') + p.lag : ''}`).join(', ') || '–';
-    return `${t.id} | ${t.name} | ${t.storey || '–'} | ${t.dur} AT | ${t.start} bis ${t.end} | nach: ${pr} | fix: ${t.fix || '–'} | Ist ${ti.els.length ? Math.round(ti.p * 100) + ' %' : '–'} | ${ti.els.length} Bauteile`;
-  }).join('\n');
+    return `${t.id} | ${t.name} | ${t.storey || '–'} | ${t.start} bis ${t.end} (${t.dur} AT) | nach: ${pr} | Ist ${ti.els.length ? Math.round(ti.p * 100) + ' %' : '–'} | ${ti.els.length} Bauteile`;
+  }).join('\n') || '(noch keine Vorgänge)';
 }
 function rulesText() {
   return `Du bist Terminplaner in einem 4D-Bauleitungstool für den Rohbau. Der Bauleiter beschreibt in eigenen Worten, wie der Bauablauf geändert werden soll. Du übersetzt das in Änderungen am Terminplan.
 
-Terminrechnung des Tools:
-- "dur" = Dauer in Arbeitstagen (Mo–Fr).
-- "preds" = Vorgänger als Liste {"id","typ","lag"}. typ "EA" = Ende-Anfang (beginnt am Arbeitstag nach dem Ende des Vorgängers), "AA" = Anfang-Anfang (beginnt mit dem Vorgänger). "lag" in Arbeitstagen, negativ = Überlappung.
-- "fix" = frühester Beginn (YYYY-MM-DD) oder null. Ohne Vorgänger und ohne fix beginnt ein Vorgang am Projektstart.
-- Beginn und Ende rechnet das Tool selbst. Setze nie Beginn/Ende, sondern dur, preds und fix.
-- Vorgänge mit Bauteilen nie löschen. Keine Zirkelbezüge. Bereits fertige Vorgänge (Ist 100 %) nur ändern, wenn ausdrücklich verlangt.
+Regeln des Tools:
+- Jeder Vorgang hat feste Termine "start" und "end" (YYYY-MM-DD, beide einschließlich), die der Bauleiter festlegt. Das Tool rechnet nichts nach und verschiebt keine Nachfolger.
+- Sollen beim Verschieben Folgevorgänge mitrücken, gib für jeden betroffenen Vorgang selbst neue Termine an. Arbeitstage sind Mo–Fr.
+- "nach" in der Liste sind Abhängigkeiten nur zur Orientierung.
+- Ebenen (Feld "storey") gibt es: ${S.storeys.join(', ') || '–'}.
+- Vorgänge mit Bauteilen nie löschen. Bereits fertige Vorgänge (Ist 100 %) nur ändern, wenn ausdrücklich verlangt.
 
 Antworte nur mit JSON in dieser Form:
 {"antwort":"Kurze Erklärung auf Deutsch (höchstens 4 Sätze): was du änderst und was das für die Termine bedeutet.",
  "ops":[
-  {"op":"update","id":"t5","dur":6,"preds":[{"id":"t4","typ":"EA","lag":0}],"fix":null,"name":"neuer Name"},
-  {"op":"add","name":"Puffer Witterung","storey":"Halle 1","dur":5,"preds":[{"id":"t20","typ":"EA","lag":0}]},
-  {"op":"delete","id":"t31"},
-  {"op":"projektstart","date":"2026-08-03"}
+  {"op":"update","id":"t5","start":"2026-11-02","end":"2026-11-13","name":"neuer Name","storey":"EG"},
+  {"op":"add","name":"Puffer Witterung","storey":"Halle 1","start":"2026-11-16","end":"2026-11-20"},
+  {"op":"delete","id":"t31"}
  ]}
-Bei "update" nur die Felder angeben, die sich ändern; "preds" ersetzt die Liste vollständig. Ist die Anweisung unklar, frage in "antwort" nach und gib "ops":[] zurück.
+Bei "update" nur die Felder angeben, die sich ändern. Ist die Anweisung unklar, frage in "antwort" nach und gib "ops":[] zurück.
 
-Heute: ${TODAY}. Projektstart: ${S.projectStart}.
-Aktueller Terminplan (id | Name | Abschnitt | Dauer | Soll | Vorgänger | frühestens | Ist-Stand | Bauteile):
+Heute: ${TODAY}.
+Aktueller Terminplan (id | Name | Ebene | Soll | Vorgänger | Ist-Stand | Bauteile):
 ${scheduleText()}`;
 }
-const okDate = s => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ''));
 function applyOps(base, ops, p0) {
-  const tasks = structuredClone(base); let start = p0; const notes = [];
-  const cleanPreds = (arr, selfId) => (Array.isArray(arr) ? arr : []).filter(p => p && p.id !== selfId && tasks.some(x => x.id === String(p.id)))
-    .map(p => ({ id: String(p.id), typ: p.typ === 'AA' ? 'AA' : 'EA', lag: Math.round(+p.lag || 0) }));
+  const tasks = structuredClone(base); const start = p0; const notes = [];
   for (const o of ops || []) {
     if (!o || typeof o !== 'object') continue;
-    if (o.op === 'projektstart') { if (okDate(o.date)) start = o.date; }
-    else if (o.op === 'update') {
+    if (o.op === 'update') {
       const t = tasks.find(x => x.id === String(o.id)); if (!t) { notes.push(`Vorgang ${o.id} gibt es nicht.`); continue; }
-      if (o.dur != null) t.dur = Math.max(1, Math.round(+o.dur) || 1);
-      if (Array.isArray(o.preds)) t.preds = cleanPreds(o.preds, t.id);
-      if ('fix' in o) t.fix = okDate(o.fix) ? o.fix : null;
+      if (okDate(o.start) || okDate(o.end)) setTaskDates(t, o.start, o.end);
       if (o.name) t.name = String(o.name).slice(0, 80);
+      if (typeof o.storey === 'string') t.storey = o.storey;
     } else if (o.op === 'add') {
+      if (!okDate(o.start)) { notes.push(`„${o.name || 'Neuer Vorgang'}“ ohne Beginn – nicht angelegt.`); continue; }
       const id = 't' + (Math.max(0, ...tasks.map(x => +String(x.id).replace(/\D/g, '') || 0)) + 1);
-      tasks.push({ id, name: String(o.name || 'Neuer Vorgang').slice(0, 80), storey: String(o.storey || ''), dur: Math.max(1, Math.round(+o.dur) || 1), preds: cleanPreds(o.preds, id), fix: okDate(o.fix) ? o.fix : null, vergaben: [], start: null, end: null });
+      const t = { id, name: String(o.name || 'Neuer Vorgang').slice(0, 80), storey: String(o.storey || ''), dur: 1, preds: [], fix: null, vergaben: [], start: o.start, end: okDate(o.end) ? o.end : o.start };
+      setTaskDates(t, t.start, t.end); tasks.push(t);
     } else if (o.op === 'delete') {
       const id = String(o.id);
       if (elsArr().some(e => e.taskId === id)) { notes.push(`„${taskMap[id]?.name || id}“ hat Bauteile und bleibt bestehen.`); continue; }
@@ -1315,7 +1448,6 @@ function applyOps(base, ops, p0) {
       tasks.splice(i, 1); tasks.forEach(x => x.preds = (x.preds || []).filter(p => p.id !== id));
     }
   }
-  schedule(tasks, start);
   const diff = [];
   for (const t of tasks) {
     const o = taskMap[t.id];
@@ -1373,10 +1505,10 @@ function undoChat() {
 }
 function renderChat() { if (view.tab === 'chat') renderPanel(); }
 const SUGG = [
-  'Halle Abschnitt 2 soll schon starten, wenn in Abschnitt 1 die Binder stehen',
-  'Hallensohle beider Abschnitte erst ganz am Ende am Stück',
+  'Halle 2 komplett eine Woche später, alle Vorgänge dort mitschieben',
   'Fundamente Halle 2 parallel zu Fundamente Halle 1',
-  'Für die Attika 2 Arbeitstage mehr einplanen'
+  'Für die Attika 2 Arbeitstage mehr einplanen',
+  'Lege für jede Ebene einen Vorgang „Decke betonieren“ an, je 5 Arbeitstage hintereinander ab nächstem Montag'
 ];
 function pChat() {
   const msgs = chat.turns.filter(t => !t.content.startsWith('(')).map(t => `<div class="msg ${t.role === 'user' ? 'u' : 'a'}">${esc(t.content)}</div>`).join('');
@@ -1389,7 +1521,7 @@ function pChat() {
     <div class="gedit" style="justify-content:flex-end"><button class="btn" data-chat="discard">Verwerfen</button><button class="btn primary" data-chat="apply">Übernehmen</button></div></div>` : '';
   const off = sampleFn === null;
   return `<div class="sect"><h2>Ablauf per Chat ändern</h2>
-    <p class="note">Schreib, wie gebaut werden soll – zum Beispiel Reihenfolgen, Überlappungen, Dauern oder Puffer. Du siehst die Terminverschiebungen vorher und entscheidest, ob sie übernommen werden.</p></div>
+    <p class="note">Schreib, wie gebaut werden soll – zum Beispiel Verschiebungen, Dauern oder neue Vorgänge. Du siehst die geänderten Termine vorher und entscheidest, ob sie übernommen werden.</p></div>
     ${msgs ? `<div class="chat">${msgs}</div>` : `<div class="sugg">${SUGG.map(s => `<button class="btn small" data-sugg="${esc(s)}">${esc(s)}</button>`).join('')}</div>`}
     ${chat.busy ? `<div class="msg a" id="chatWait">Rechne den Ablauf durch …</div>` : ''}
     ${chat.err ? `<p class="note" style="color:var(--st-verzug)">${esc(chat.err)}</p>` : ''}
@@ -1469,7 +1601,24 @@ $('#pane').addEventListener('click', e => {
   if (t.dataset.mtoggle) { const m = S.maengel.find(x => x.id === t.dataset.mtoggle); m.status = m.status === 'offen' ? 'erledigt' : 'offen'; save(); return renderAll(); }
   if (t.dataset.selguids) { const tb = S.tagebuch.find(x => x.id === t.dataset.selguids); view.sel = new Set(tb.guids); applyColors(); flyTo(tb.guids[0]); return renderPanel(); }
   if (t.dataset.tdate) { stopPlay(); setDate(t.dataset.tdate); }
-  if (t.dataset.unfix) { taskMap[t.dataset.unfix].fix = null; reindex(); computeRange(); save(); setDate(view.date); renderTicks(); }
+  if (t.dataset.tassign) { const id = t.dataset.tassign; view.sel.forEach(g => { if (S.elements[g]) S.elements[g].taskId = id; }); toast(`${view.sel.size} Bauteile „${taskMap[id].name}“ zugeordnet.`); save(); return renderAll(); }
+  if (t.dataset.tdel) {
+    const x = taskMap[t.dataset.tdel], nEl = elsArr().filter(e => e.taskId === x.id).length;
+    return pickDialog(`Vorgang „${x.name}“ löschen?`, nEl ? `${nEl} Bauteile verlieren damit ihre Zuordnung (Ist-Stand bleibt erhalten).` : 'Der Vorgang hat keine Bauteile.', null, 'Löschen', () => { deleteTask(x.id); computeRange(); save(); renderAll(); toast('Vorgang gelöscht.'); });
+  }
+  const lv = t.closest('[data-lvmove],[data-lvshow],[data-lvput],[data-lvdel]');
+  if (lv) {
+    const d = lv.dataset;
+    if (d.lvmove) { const [i, k] = d.lvmove.split('|').map(Number), j = i + k; [S.storeys[i], S.storeys[j]] = [S.storeys[j], S.storeys[i]]; return afterStoreyChange(); }
+    const name = S.storeys[+(d.lvshow ?? d.lvput ?? d.lvdel)];
+    if (d.lvshow) { view.sel = new Set(elsArr().filter(e => e.storey === name).map(e => e.guid)); applyColors(); const g = [...view.sel][0]; if (g) flyTo(g); return renderPanel(); }
+    if (d.lvput) { const n = moveToStorey(view.sel, name); toast(`${n} Bauteile in „${name}“ gelegt.`); return afterStoreyChange(); }
+    if (d.lvdel) {
+      const n = elsArr().filter(e => e.storey === name).length, others = S.storeys.filter(x => x !== name);
+      if (n && !others.length) return toast('Die letzte Ebene mit Bauteilen kann nicht gelöscht werden – erst eine weitere Ebene anlegen.');
+      return pickDialog(`Ebene „${name}“ löschen?`, n ? `Die ${n} Bauteile dieser Ebene werden in eine andere Ebene gelegt.` : 'Die Ebene enthält keine Bauteile.', n ? others.map(x => [x, x]) : null, 'Löschen', v => { deleteStorey(name, v || ''); toast(`Ebene „${name}“ gelöscht.`); afterStoreyChange(); });
+    }
+  }
   if (t.dataset.gotab) { view.tab = t.dataset.gotab; renderPanel(); }
   if (t.dataset.sugg) { chat.draft = t.dataset.sugg; renderPanel(); $('#chat-in')?.focus(); }
   const c = t.closest('[data-chat]')?.dataset.chat;
@@ -1484,11 +1633,25 @@ $('#pane').addEventListener('change', e => {
   const t = e.target;
   if (t.dataset.tstart || t.dataset.tend) {
     const task = taskMap[t.dataset.tstart || t.dataset.tend]; if (!t.value) return;
-    if (t.dataset.tstart) task.fix = t.value;
-    else task.dur = Math.max(1, D.wdBetween(D.add(task.start, -1), t.value < task.start ? task.start : t.value));
+    if (t.dataset.tstart) setTaskDates(task, t.value, task.end < t.value ? D.addWD(t.value, task.dur - 1) : task.end);
+    else { if (t.value < task.start) toast('Das Ende liegt vor dem Beginn – Ende auf den Beginn gesetzt.'); setTaskDates(task, null, t.value); }
     reindex();
-    if (t.dataset.tstart && task.start !== t.value) toast(`Vorgänger lassen „${task.name}“ frühestens am ${D.de(task.start)} beginnen.`);
+    const cf = predConflicts(task); if (cf.length) toast(`Hinweis: „${task.name}“ beginnt vor dem Ende von „${cf[0].name}“.`, 4000);
     computeRange(); save(); setDate(view.date); renderTicks(); return;
+  }
+  if (t.dataset.tname) { const v = t.value.trim(); if (v) { taskMap[t.dataset.tname].name = v.slice(0, 80); save(); renderAll(); } return; }
+  if (t.dataset.tstorey) { taskMap[t.dataset.tstorey].storey = t.value; save(); return renderAll(); }
+  if (t.dataset.tcrew) { taskMap[t.dataset.tcrew].crew = t.value; save(); return renderAll(); }
+  if (t.dataset.lvren) { const old = S.storeys[+t.dataset.lvren]; if (renameStorey(old, t.value)) { toast(`Ebene umbenannt in „${t.value.trim()}“.`); afterStoreyChange(); } else t.value = old; return; }
+  if ('selstorey' in t.dataset) {
+    let name = t.value; if (!name) return;
+    if (name === '__neu') { view.tab = 'ebenen'; renderPanel(); $('#lv-new')?.focus(); return; }
+    const n = moveToStorey(view.sel, name); toast(`${n} Bauteile in „${name}“ gelegt.`); return afterStoreyChange();
+  }
+  if ('seltask' in t.dataset) {
+    if (t.value === '__x') return;
+    view.sel.forEach(g => { if (S.elements[g]) S.elements[g].taskId = t.value || null; });
+    toast(t.value ? `${view.sel.size} Bauteile „${taskMap[t.value].name}“ zugeordnet.` : `${view.sel.size} Bauteile ohne Vorgang.`); save(); return renderAll();
   }
   if (t.dataset.vstatus) { vergMap[t.dataset.vstatus].status = +t.value; save(); return renderAll(); }
   if (t.dataset.vt) { const [v, tid] = t.dataset.vt.split('|'); const task = taskMap[tid]; task.vergaben ||= []; t.checked ? task.vergaben.push(v) : task.vergaben = task.vergaben.filter(x => x !== v); save(); applyColors(); }
@@ -1497,6 +1660,21 @@ $('#pane').addEventListener('submit', async e => {
   e.preventDefault();
   const f = e.target, fd = new FormData(f);
   if (f.dataset.form === 'chat') return sendChat(String(fd.get('msg') || ''));
+  if (f.dataset.form === 'task') {
+    const start = fd.get('start'), end = fd.get('end');
+    if (!okDate(start) || !okDate(end)) return toast('Bitte Beginn und Ende angeben.');
+    const t = { id: newTaskId(), name: String(fd.get('name')).trim().slice(0, 80), storey: fd.get('storey') || '', dur: 1, preds: [], fix: null, crew: fd.get('crew') || undefined, vergaben: [], start, end };
+    setTaskDates(t, start, end); S.tasks.push(t);
+    let n = 0; if (fd.get('withsel')) view.sel.forEach(g => { if (S.elements[g]) { S.elements[g].taskId = t.id; n++; } });
+    view.selTask = t.id;
+    toast(`Vorgang „${t.name}“ angelegt${n ? ` mit ${n} Bauteilen` : ''}: ${D.de(t.start)} – ${D.de(t.end)}.`);
+    reindex(); computeRange(); save(); setDate(view.date); return renderAll();
+  }
+  if (f.dataset.form === 'ebene') {
+    const name = addStorey(fd.get('name')); if (!name) return;
+    const n = fd.get('withsel') ? moveToStorey(view.sel, name) : 0;
+    toast(`Ebene „${name}“ angelegt${n ? `, ${n} Bauteile zugeordnet` : ''}.`); return afterStoreyChange();
+  }
   if (f.dataset.form === 'mangel') {
     S.maengel.push({ id: uid(), typ: fd.get('typ'), guid: f.dataset.guid || null, titel: fd.get('titel').trim(), status: 'offen', datum: view.date, frist: fd.get('frist') || null, wer: fd.get('wer').trim() });
     toast('Punkt erfasst.');
@@ -1569,7 +1747,7 @@ async function parseIFC(buf, name) {
       const st = stName.get(storeyOf.get(id))?.name || 'Ohne Geschoss';
       let cat = CAT[T] || 'Sonstige';
       if (T === 'IFCSLAB' && (line.PredefinedType?.value === 'BASESLAB' || st === storeys[0]?.name && /boden|base|found|sohl/i.test(line.Name?.value || ''))) cat = 'Bodenplatte';
-      elements[guid] = { guid, name: line.Name?.value || tname, type: tname, cat, storey: st, vol: Math.abs(vol), taskId: null, startDate: null, doneDate: null, acceptDate: null };
+      elements[guid] = { guid, name: line.Name?.value || tname, type: tname, cat, storey: st, ifcStorey: st, vol: Math.abs(vol), taskId: null, startDate: null, doneDate: null, acceptDate: null };
       geoms.push([guid, geom, idx.length < 60000]);
     });
   } finally { api.CloseModel(mid); }
@@ -1588,14 +1766,15 @@ async function loadIFC(file) {
     const saved = loadSaved();
     let next;
     if (saved && saved.source === 'ifc' && saved.file === file.name) {
-      next = saved; next.storeys = order;
-      for (const g in elements) if (saved.elements[g]) Object.assign(elements[g], { taskId: saved.elements[g].taskId, startDate: saved.elements[g].startDate, doneDate: saved.elements[g].doneDate, acceptDate: saved.elements[g].acceptDate });
+      next = saved;
+      for (const g in elements) { const x = saved.elements[g]; if (x) Object.assign(elements[g], { taskId: x.taskId, startDate: x.startDate, doneDate: x.doneDate, acceptDate: x.acceptDate, storey: x.storey || elements[g].storey }); }
+      next.storeys = [...new Set([...(saved.storeys || []), ...order])];
       next.elements = elements;
       toast('Gespeicherter Stand zu diesem Modell wiederhergestellt.');
     } else next = autoPlan(elements, order, file.name);
     S = next; reindex(); showModel(geoms);
     afterModelChange(); frame(); save();
-    toast(CL.ready ? `${geoms.length} Bauteile geladen. Unter „Projekte“ kannst du das Modell fürs Team freigeben.` : `${geoms.length} Bauteile in ${order.length} Geschossen geladen.`, 4500);
+    toast(CL.ready ? `${geoms.length} Bauteile geladen. Unter „Projekte“ kannst du das Modell fürs Team freigeben.` : `${geoms.length} Bauteile in ${order.length} Ebenen geladen. Vorgänge und Termine legst du unter „Termine“ selbst an.`, 5500);
   } catch (err) {
     console.error(err);
     toast('IFC konnte nicht gelesen werden: ' + (err.message || err), 6000);
@@ -1610,21 +1789,9 @@ function autoPlan(elements, order, fileName) {
     { id: 'v-ft', gewerk: 'Fertigteile / Treppen', nu: '', summe: 0, status: 0, datum: null },
     { id: 'v-aus', gewerk: 'Fenster, Türen, Ausbau', nu: '', summe: 0, status: 0, datum: null }
   ];
-  const groups = [['Fundamente & Bodenplatte', ['Fundamente', 'Bodenplatte'], ['v-erd', 'v-beton', 'v-bew']], ['Wände & Stützen', ['Wände', 'Stützen'], ['v-beton', 'v-bew', 'v-ger']], ['Unterzüge', ['Unterzüge'], ['v-beton', 'v-bew']], ['Treppen', ['Treppen'], ['v-ft']], ['Decken & Dach', ['Decken', 'Dach'], ['v-beton', 'v-bew']], ['Sonstige Bauteile', ['Sonstige'], []]];
+  // Keine vorgefertigten Vorgänge und Termine: Der Bauleiter legt Vorgänge mit eigenen Terminen an.
   const tasks = []; let start = TODAY; while (D.isWE(start)) start = D.add(start, 1);
-  const els = Object.values(elements); let prev = null;
-  const add = (name, storey, dur, g, vg) => {
-    const t = { id: 't' + (tasks.length + 1), name, storey, dur, preds: prev ? [{ id: prev.id, typ: 'EA', lag: 0 }] : [], fix: prev ? null : start, vergaben: vg, start: null, end: null };
-    g.forEach(e => e.taskId = t.id); tasks.push(t); prev = t;
-  };
-  order.forEach((st, si) => groups.forEach(([n, cats, vg]) => {
-    const g = els.filter(e => e.storey === st && cats.includes(e.cat)); if (!g.length) return;
-    const vol = g.reduce((a, e) => a + e.vol, 0);
-    add(`${st} · ${n}`, st, Math.max(2, Math.min(12, Math.ceil(vol / 25))), g, si === 0 ? vg.filter(v => v !== 'v-ger') : vg);
-  }));
-  const aus = els.filter(e => e.cat === 'Ausbau');
-  if (aus.length) add('Fenster, Türen, Ausbau', order[order.length - 1], 10, aus, ['v-aus']);
-  schedule(tasks, start);
+  const els = Object.values(elements);
   const ms = [];
   if (els.some(e => e.cat === 'Bodenplatte')) ms.push({ name: 'Bodenplatte betoniert', cat: 'Bodenplatte' });
   order.forEach(s => ms.push({ name: `Rohbau ${s}`, storey: s }));
@@ -1656,7 +1823,8 @@ $('#btnData').addEventListener('click', () => {
       if (!n.elements || !n.tasks) throw 0;
       if (CL.on) {
         if (n.source === 'demo') throw 0;
-        for (const e of Object.values(S.elements)) { const x = n.elements[e.guid]; Object.assign(e, { taskId: x?.taskId ?? null, startDate: x?.startDate ?? null, doneDate: x?.doneDate ?? null, acceptDate: x?.acceptDate ?? null }); }
+        for (const e of Object.values(S.elements)) { const x = n.elements[e.guid]; Object.assign(e, { taskId: x?.taskId ?? null, startDate: x?.startDate ?? null, doneDate: x?.doneDate ?? null, acceptDate: x?.acceptDate ?? null, storey: x?.storey || e.ifcStorey || e.storey }); }
+        if (Array.isArray(n.storeys)) S.storeys = n.storeys;
         Object.assign(S, { tasks: n.tasks, vergaben: n.vergaben || [], milestones: n.milestones || S.milestones, maengel: n.maengel || [], tagebuch: n.tagebuch || [], projectStart: n.projectStart || S.projectStart, lps: n.lps || S.lps });
         reindex(); afterModelChange(); toast('Übernommen und für alle gespeichert.');
       } else if (n.source === 'demo') { startDemo(n); }
@@ -1822,9 +1990,11 @@ function renderLps() {
 function lpsSidebar(mon) {
   const k = lpsK().filter(c => c.week === mon), q = ppc(mon);
   const ms = milestoneStates().filter(m => !m.done).slice(0, 4);
-  return `<section class="side-sec"><h4>Kolonnen &amp; Gewerke</h4>
-      <ul class="crews">${S.lps.crews.map(cr => { const n = k.filter(c => c.crew === cr).length;
-        return `<li><button class="crewbtn ${crewVis(cr) ? '' : 'off'}" data-crewtoggle="${esc(cr)}" aria-pressed="${crewVis(cr)}" title="Ein- oder ausblenden"><i style="background:${crewCol(cr)}"></i><span>${esc(cr)}</span><b class="num">${n || ''}</b></button></li>`; }).join('')}</ul>
+  const ed = lpsView.crewEdit;
+  return `<section class="side-sec"><h4 class="hrow">Kolonnen &amp; Gewerke<button class="btn small ${ed ? 'primary' : ''}" data-crewedit aria-pressed="${!!ed}">${ed ? 'Fertig' : 'Bearbeiten'}</button></h4>
+      <ul class="crews">${S.lps.crews.map((cr, i) => { const n = k.filter(c => c.crew === cr).length;
+        return ed ? `<li class="crewedit"><i style="background:${crewCol(cr)}"></i><input id="crew-${i}" data-crewren="${i}" value="${esc(cr)}" aria-label="Name der Kolonne"><button class="iconbtn" data-crewdel="${i}" aria-label="${esc(cr)} löschen" title="Löschen">${ICON.x}</button></li>`
+          : `<li><button class="crewbtn ${crewVis(cr) ? '' : 'off'}" data-crewtoggle="${esc(cr)}" aria-pressed="${crewVis(cr)}" title="Ein- oder ausblenden"><i style="background:${crewCol(cr)}"></i><span>${esc(cr)}</span><b class="num">${n || ''}</b></button></li>`; }).join('')}</ul>
       <form class="crew-add" data-lpsform="crew"><input id="lps-crew" name="crew" placeholder="Kolonne / NU hinzufügen" aria-label="Neue Kolonne"><button class="iconbtn" type="submit" aria-label="Hinzufügen">${ICON.plus}</button></form></section>
     <section class="side-sec"><h4>KW ${D.kw(mon)}</h4>
       <div class="wkstat"><div class="stack" title="erledigt / nicht erledigt / offen">
@@ -1955,6 +2125,22 @@ function drawerCommit(c, isNew) {
   </form>`;
 }
 function lpsChanged() { save(); renderLps(); }
+function renameCrew(old, neu) {
+  neu = String(neu || '').trim();
+  if (!neu || neu === old) return false;
+  if (S.lps.crews.includes(neu)) { toast(`Die Kolonne „${neu}“ gibt es schon.`); return false; }
+  for (const t of S.tasks) if (taskCrew(t) === old) t.crew = neu;   // vor dem Umbenennen, sonst greift die Vermutung
+  S.lps.crews = S.lps.crews.map(x => x === old ? neu : x);
+  for (const c of lpsK()) if (c.crew === old) c.crew = neu;
+  if (lpsView.hide.delete(old)) lpsView.hide.add(neu);
+  return true;
+}
+function deleteCrew(cr, target) {
+  for (const t of S.tasks) if (taskCrew(t) === cr) t.crew = target;
+  S.lps.crews = S.lps.crews.filter(x => x !== cr);
+  for (const c of lpsK()) if (c.crew === cr) c.crew = target;
+  lpsView.hide.delete(cr);
+}
 function newCommit(crew, day, taskId) {
   const t = taskMap[taskId], sp = t ? taskSpanInWeek(t, lpsView.week) : null;
   lpsView.sel = { type: 'commit', id: 'new', draft: { id: uid(), week: lpsView.week, taskId: taskId || '', text: t ? t.name : '', crew: crew || (t ? crewFor(t) : S.lps.crews[0]), day: sp ? sp.day : day || 0, len: sp ? sp.len : 1, status: 'offen', grund: '', notiz: '' } };
@@ -1968,6 +2154,13 @@ $('#lps').addEventListener('click', e => {
   const wk = t.closest('[data-wk]'); if (wk) { const n = +wk.dataset.wk; lpsView.week = n ? D.add(lpsView.week, 7 * n) : D.monday(TODAY); if (lpsView.sel?.draft) lpsView.sel = null; return renderLps(); }
   if (t.closest('[data-dclose]')) { lpsView.sel = null; return renderLps(); }
   if (t.closest('[data-newcommit]')) return newCommit();
+  if (t.closest('[data-crewedit]')) { lpsView.crewEdit = !lpsView.crewEdit; return renderLps(); }
+  const cdl = t.closest('[data-crewdel]'); if (cdl) {
+    const cr = S.lps.crews[+cdl.dataset.crewdel], others = S.lps.crews.filter(x => x !== cr);
+    if (!others.length) return toast('Die letzte Kolonne kann nicht gelöscht werden.');
+    const nk = lpsK().filter(c => c.crew === cr).length, nt = S.tasks.filter(x => taskCrew(x) === cr).length;
+    return pickDialog(`Kolonne „${cr}“ löschen?`, nk || nt ? `${nk} Zusagen und ${nt} Vorgänge dieser Kolonne gehen an eine andere Kolonne.` : 'Die Kolonne hat keine Zusagen oder Vorgänge.', others.map(x => [x, x]), 'Löschen', v => { deleteCrew(cr, v); toast(`Kolonne „${cr}“ gelöscht.`); afterPlanChange(); });
+  }
   const ct = t.closest('[data-crewtoggle]'); if (ct) { const c = ct.dataset.crewtoggle; lpsView.hide.has(c) ? lpsView.hide.delete(c) : lpsView.hide.add(c); return renderLps(); }
   const cf = t.closest('[data-cf]'); if (cf) { lpsView.cf = cf.dataset.cf; return renderLps(); }
   const gt = t.closest('[data-gtoggle]'); if (gt) { const g = gt.dataset.gtoggle; lpsView.collapsed.has(g) ? lpsView.collapsed.delete(g) : lpsView.collapsed.add(g); return renderLps(); }
@@ -1989,6 +2182,7 @@ $('#lps').addEventListener('click', e => {
 $('#lps').addEventListener('change', e => {
   const tg = e.target;
   if (tg.name === 'status' && tg.closest('[data-lpsform=commit]')) { tg.closest('form').querySelector('.grund').hidden = tg.value !== 'nicht'; return; }
+  if (tg.dataset.crewren) { const old = S.lps.crews[+tg.dataset.crewren]; if (renameCrew(old, tg.value)) { toast(`Kolonne umbenannt in „${tg.value.trim()}“.`); lpsChanged(); } else tg.value = old; return; }
   const c = tg.dataset.con; if (!c) return;
   const x = lpsC().find(k => k.id === c); x.erledigt = tg.checked;
   const t = taskMap[x.taskId];
@@ -2037,13 +2231,13 @@ function show3d(taskId) {
   const g = [...view.sel][0]; if (g) flyTo(g); else toast('Dieser Vorgang hat keine Bauteile im Modell.');
 }
 
-/* Vorschau: Balkenplan der nächsten 6 Wochen, gruppiert nach Abschnitt – Balken und Abschnitte verschiebbar */
+/* Vorschau: Balkenplan der nächsten 6 Wochen, gruppiert nach Ebene – Balken und Ebenen verschiebbar */
 function lpsZeit(mon) {
   const W = 6, days = []; for (let w = 0; w < W; w++) weekDays(D.add(mon, w * 7)).forEach(d => days.push(d));
   const N = days.length, end = days[N - 1];
   const col = d => { let i = days.findIndex(x => x >= d); return i < 0 ? N : i; };
   const list = lookahead(mon, W).filter(t => crewVis(taskCrew(t)) && matchQ(t.name, t.storey, taskCrew(t)));
-  const groups = []; list.forEach(t => { const g = t.storey || 'Ohne Abschnitt'; let G = groups.find(x => x.k === g); if (!G) groups.push(G = { k: g, ts: [] }); G.ts.push(t); });
+  const groups = []; list.forEach(t => { const g = t.storey || 'Ohne Ebene'; let G = groups.find(x => x.k === g); if (!G) groups.push(G = { k: g, ts: [] }); G.ts.push(t); });
   groups.sort((a, b) => S.storeys.indexOf(a.k) - S.storeys.indexOf(b.k));
   const ti = days.indexOf(TODAY);
   const ms = milestoneStates().filter(m => !m.done && m.soll >= mon && m.soll <= end);
@@ -2056,7 +2250,7 @@ function lpsZeit(mon) {
     return `<div class="gbar2 ${oc ? 'blocked' : 'free'} ${thisWk ? 'committed' : ''} ${selT === t.id ? 'selbar' : ''}" style="grid-column:${span(t.start, t.end)};--k:${crewCol(taskCrew(t))}" data-lpstask="${t.id}" data-drag="task" title="${esc(t.name)} · ${D.short(t.start)}–${D.short(t.end)} · ${t.dur} AT${oc ? ` · ${oc} Hindernisse offen` : ' · frei'} · ${nEl} Bauteile. Ziehen verschiebt, rechter Rand ändert die Dauer.">
       <i class="prog" style="width:${p * 100}%"></i><span>${esc(t.name)}</span>${oc ? `<em>${ICON.warn}${oc}</em>` : ''}<b class="grip" aria-hidden="true"></b></div>`;
   };
-  return `<div class="lps-bar"><span class="note">${list.length} Vorgänge · <b class="okc">${list.filter(t => !openCons(t).length).length} frei</b> · <b class="badc">${list.filter(t => openCons(t).length).length} mit offenen Hindernissen</b>. Balken ziehen verschiebt, rechter Rand ändert die Dauer, der dunkle Abschnittsbalken verschiebt den ganzen Bereich.</span></div>
+  return `<div class="lps-bar"><span class="note">${list.length} Vorgänge · <b class="okc">${list.filter(t => !openCons(t).length).length} frei</b> · <b class="badc">${list.filter(t => openCons(t).length).length} mit offenen Hindernissen</b>. Balken ziehen verschiebt, rechter Rand ändert die Dauer, der dunkle Ebenenbalken verschiebt alle Vorgänge der Ebene.</span></div>
   <div class="tl-wrap" id="ganttWrap"><div class="ggrid" style="--n:${N}">
     <div class="gh lab gh1"></div>
     ${Array.from({ length: W }, (_, w) => `<div class="gh wkh" style="grid-column:span 5">KW ${D.kw(D.add(mon, w * 7))}<small class="num">${D.short(D.add(mon, w * 7))}</small></div>`).join('')}
@@ -2067,13 +2261,13 @@ function lpsZeit(mon) {
       const gs = G.ts.map(t => t.start).sort()[0], ge = G.ts.map(t => t.end).sort().pop();
       return `<button class="ggroup" data-gtoggle="${esc(G.k)}" aria-expanded="${!c}"><span class="${c ? '' : 'rot'}">${ICON.chev}</span>${esc(G.k)}<small class="num">${G.ts.length}</small></button>
       <div class="grow2 grp" style="grid-column:2 / -1"><div class="gbars" style="--n:${N}">${ti >= 0 ? `<i class="nowline" style="left:calc(${(ti + .5) / N * 100}%)"></i>` : ''}
-        <div class="gsum" style="grid-column:${span(gs, ge)}" data-drag="group" data-group="${esc(G.k)}" title="Abschnitt ${esc(G.k)} ${D.short(gs)}–${D.short(ge)} – ziehen verschiebt alle ${G.ts.length} Vorgänge"><span>${esc(G.k)}</span></div></div></div>
+        <div class="gsum" style="grid-column:${span(gs, ge)}" data-drag="group" data-group="${esc(G.k)}" title="Ebene ${esc(G.k)} ${D.short(gs)}–${D.short(ge)} – ziehen verschiebt alle ${G.ts.length} Vorgänge"><span>${esc(G.k)}</span></div></div></div>
       ${c ? '' : G.ts.map(t => { const oc = openCons(t).length;
         return `<button class="glab ${selT === t.id ? 'sel' : ''}" data-lpstask="${t.id}"><i style="background:${crewCol(taskCrew(t))}"></i><span>${esc(t.name)}</span>${oc ? `<em class="badc">${ICON.warn}${oc}</em>` : '<em class="okc">frei</em>'}</button>
         <div class="grow2 ${selT === t.id ? 'sel' : ''}" style="grid-column:2 / -1"><div class="gbars" style="--n:${N}">
           ${ti >= 0 ? `<i class="nowline" style="left:calc(${(ti + .5) / N * 100}%)"></i>` : ''}${bar(t)}</div></div>`; }).join('')}`; }).join('') || '<div class="empty" style="grid-column:1/-1;margin:12px">Keine Vorgänge im Zeitraum.</div>'}
   </div></div>
-  <div class="legend2"><span><i class="lg free"></i>frei</span><span><i class="lg blocked"></i>Hindernis offen</span><span><i class="lg committed"></i>in KW ${D.kw(mon)} zugesagt</span><span><i class="lg prog"></i>Ist-Fortschritt</span><span><i class="lg grp"></i>Abschnitt</span><span><i class="lg now"></i>heute</span></div>`;
+  <div class="legend2"><span><i class="lg free"></i>frei</span><span><i class="lg blocked"></i>Hindernis offen</span><span><i class="lg committed"></i>in KW ${D.kw(mon)} zugesagt</span><span><i class="lg prog"></i>Ist-Fortschritt</span><span><i class="lg grp"></i>Ebene</span><span><i class="lg now"></i>heute</span></div>`;
 }
 
 /* Rückgängig für Verschieben und Zuordnen */
@@ -2111,23 +2305,15 @@ function endDrag(e) {
   if (!g.dd) { g.el.style.transform = ''; g.el.style.width = ''; delete g.el.dataset.tip; if (g.kind === 'task') { lpsView.sel = { type: 'task', id: g.id }; renderLps(); applyColors(); } return; }
   lpsView.noClick = true; setTimeout(() => lpsView.noClick = false, 0);
   pushUndo();
-  const blocked = [];
-  const moveTask = (t, dd) => { const want = D.addWD(t.start, dd); t.fix = want; return want; };
+  const moveTask = (t, dd) => setTaskDates(t, D.addWD(t.start, dd), D.addWD(t.end, dd));
   if (g.kind === 'task') {
     const t = taskMap[g.id];
-    if (g.mode === 'dur') { t.dur = Math.max(1, t.dur + g.dd); reindex(); toast(`„${t.name}“: ${t.dur} AT, Ende ${D.de(t.end)}.`); }
-    else { const want = moveTask(t, g.dd); reindex(); if (taskMap[g.id].start !== want) blocked.push(taskMap[g.id]); else toast(`„${t.name}“ beginnt jetzt am ${D.de(want)}.`); }
+    if (g.mode === 'dur') { setTaskDates(t, null, D.addWD(t.end, g.dd)); toast(`„${t.name}“: ${t.dur} AT, Ende ${D.de(t.end)}.`); }
+    else { moveTask(t, g.dd); toast(`„${t.name}“: ${D.de(t.start)} – ${D.de(t.end)}.`); }
   } else {
-    const ts = S.tasks.filter(t => (t.storey || 'Ohne Abschnitt') === g.id && !taskDone(t));
-    const wants = ts.map(t => [t.id, moveTask(t, g.dd)]);
-    reindex();
-    wants.forEach(([id, w]) => { if (taskMap[id].start !== w && taskMap[id].start > w) blocked.push(taskMap[id]); });
-    if (!blocked.length) toast(`Abschnitt ${g.id}: ${ts.length} Vorgänge um ${g.dd > 0 ? '+' : ''}${g.dd} AT verschoben.`);
-  }
-  if (blocked.length) {
-    const t = blocked[0], pr = (t.preds || []).map(p => taskMap[p.id]?.name).filter(Boolean);
-    toast(`„${t.name}“ kann frühestens am ${D.de(t.start)} beginnen${pr.length ? ` – Vorgänger: ${pr.join(', ')}` : ''}. Abhängigkeit im Detailbereich lösen, falls parallel gearbeitet werden kann.`, 6500);
-    if (g.kind === 'task') lpsView.sel = { type: 'task', id: t.id };
+    const ts = S.tasks.filter(t => (t.storey || 'Ohne Ebene') === g.id && !taskDone(t));
+    ts.forEach(t => moveTask(t, g.dd));
+    toast(`Ebene ${g.id}: ${ts.length} Vorgänge um ${g.dd > 0 ? '+' : ''}${g.dd} AT verschoben.`);
   }
   afterPlanChange();
 }
@@ -2209,7 +2395,7 @@ function revealTask(id) {
   // Vorgang außerhalb des Vorschau-Fensters: Woche dorthin legen
   const end = D.add(lpsView.week, 41);
   if (t.end < lpsView.week || t.start > end) lpsView.week = D.monday(t.start < TODAY ? TODAY : t.start);
-  lpsView.collapsed.delete(t.storey || 'Ohne Abschnitt');
+  lpsView.collapsed.delete(t.storey || 'Ohne Ebene');
   setTimeout(() => document.querySelector(`.glab[data-lpstask="${id}"]`)?.scrollIntoView({ block: 'nearest', inline: 'nearest' }), 30);
 }
 
@@ -2227,17 +2413,20 @@ function drawerMsel() {
     <h3>${els.length} Bauteil${els.length > 1 ? 'e' : ''} gewählt</h3>
     <dl class="kv num"><dt>Volumen</dt><dd>${fmtN(vol, 2)} m³</dd>${Object.entries(cats).map(([k, n]) => `<dt>${esc(k)}</dt><dd>${n}</dd>`).join('')}</dl>
     <div class="dact"><button class="btn small" data-mselmore="cat">+ alle ${esc(first.cat)} in ${esc(first.storey)}</button><button class="btn small" data-mselmore="storey">+ alles in ${esc(first.storey)}</button><button class="btn small" data-mselclear>Auswahl leeren</button></div>
+    <h4>Ebene</h4>
+    <form class="dform" data-lpsform="mstorey"><div class="two"><label class="field"><span>In Ebene legen</span><select id="ms-st" name="storey">${S.storeys.map(s => `<option ${s === st ? 'selected' : ''}>${esc(s)}</option>`).join('')}<option value="__neu">+ Neue Ebene …</option></select></label>
+      <label class="field"><span>Neue Ebene</span><input id="ms-new" name="neu" placeholder="nur bei „Neue Ebene“"></label></div>
+      <div class="dact"><span class="sp"></span><button class="btn" type="submit">Ebene zuweisen</button></div></form>
     <h4>Zu bestehendem Vorgang</h4>
-    <form class="dform" data-lpsform="massign"><label class="field"><span>Vorgang</span><select id="ma-task" name="taskId">${S.tasks.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join('')}</select></label>
-      <div class="dact"><span class="sp"></span><button class="btn" type="submit">Zuordnen</button></div></form>
+    ${S.tasks.length ? `<form class="dform" data-lpsform="massign"><label class="field"><span>Vorgang</span><select id="ma-task" name="taskId">${S.tasks.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join('')}</select></label>
+      <div class="dact"><span class="sp"></span><button class="btn" type="submit">Zuordnen</button></div></form>` : '<p class="note">Noch keine Vorgänge angelegt.</p>'}
     <h4>Neuen Vorgang anlegen</h4>
     <form class="dform" data-lpsform="newtask">
       <label class="field"><span>Name</span><input id="nt-name" name="name" required value="${esc(name)}"></label>
-      <div class="two"><label class="field"><span>Abschnitt</span><select id="nt-st" name="storey">${[...new Set([...S.storeys, st])].map(s => `<option ${s === st ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select></label>
-        <label class="field"><span>Dauer (AT)</span><input id="nt-dur" name="dur" type="number" min="1" value="${Math.max(1, Math.min(10, Math.ceil(vol / 20)))}"></label></div>
-      <div class="two"><label class="field"><span>Kolonne / NU</span><select id="nt-crew" name="crew">${S.lps.crews.map(c => `<option ${c === crewFor({ name }) ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></label>
-        <label class="field"><span>Nach Vorgang</span><select id="nt-pred" name="pred"><option value="">frei terminieren</option>${S.tasks.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join('')}</select></label></div>
-      <label class="field"><span>Frühester Beginn</span><input id="nt-fix" name="fix" type="date" value="${lpsView.week < TODAY ? TODAY : lpsView.week}"></label>
+      <div class="two"><label class="field"><span>Ebene</span><select id="nt-st" name="storey">${[...new Set([...S.storeys, st])].map(s => `<option ${s === st ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select></label>
+        <label class="field"><span>Kolonne / NU</span><select id="nt-crew" name="crew">${S.lps.crews.map(c => `<option ${c === crewFor({ name }) ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></label></div>
+      <div class="two"><label class="field"><span>Beginn</span><input id="nt-start" name="start" type="date" required value="${lpsView.week < TODAY ? TODAY : lpsView.week}"></label>
+        <label class="field"><span>Ende</span><input id="nt-end" name="end" type="date" required value="${D.addWD(lpsView.week < TODAY ? TODAY : lpsView.week, 4)}"></label></div>
       <div class="dact"><span class="sp"></span><button class="btn primary" type="submit">${ICON.plus} Vorgang anlegen</button></div>
     </form>
   </div>`;
@@ -2256,9 +2445,11 @@ function drawerTask(t) {
     <div class="freestate ${oc.length ? 'blocked' : 'free'}">${oc.length ? `${ICON.warn} ${oc.length} Hindernis${oc.length > 1 ? 'se' : ''} offen – noch nicht frei` : `${ICON.ok} Frei für den Wochenplan`}</div>
     <dl class="kv num"><dt>Soll</dt><dd>${D.de(t.start)} – ${D.de(t.end)} · ${t.dur} AT</dd><dt>Ist</dt><dd>${ti.els.length ? Math.round(ti.p * 100) + ' % fertig' : 'ohne Bauteile'}</dd></dl>
     <form class="dform inline" data-lpsform="taskmeta" data-task="${t.id}">
+      <label class="field"><span>Name</span><input id="tm-name" name="name" value="${esc(t.name)}"></label>
+      <div class="two"><label class="field"><span>Beginn</span><input id="tm-start" name="start" type="date" value="${t.start}"></label>
+        <label class="field"><span>Ende</span><input id="tm-end" name="end" type="date" value="${t.end}"></label></div>
       <div class="two"><label class="field"><span>Kolonne / NU</span><select id="tm-crew" name="crew">${S.lps.crews.map(c => `<option ${c === taskCrew(t) ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></label>
-        <label class="field"><span>Dauer (AT)</span><input id="tm-dur" name="dur" type="number" min="1" value="${t.dur}"></label></div>
-      <label class="field"><span>Frühester Beginn ${t.fix ? '' : '(aus Vorgängern)'}</span><input id="tm-fix" name="fix" type="date" value="${t.fix || ''}"></label>
+        <label class="field"><span>Ebene</span><select id="tm-st" name="storey"><option value="">ohne Ebene</option>${S.storeys.map(x => `<option ${x === t.storey ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label></div>
     </form>
     ${sp && !has && !oc.length ? `<button class="btn primary" data-plantask="${t.id}">${ICON.plus} In KW ${D.kw(mon)} einplanen</button>` : has ? `<p class="note">In KW ${D.kw(mon)} bereits zugesagt.</p>` : ''}
     <h4>Bauteile im Modell · ${nEl}</h4>
@@ -2266,7 +2457,8 @@ function drawerTask(t) {
       ? `<button class="btn ${assigning ? 'primary' : ''}" data-assign="${t.id}" aria-pressed="${assigning}">${assigning ? 'Zuordnen beenden' : 'Bauteile zuordnen'}</button>${nEl ? `<button class="btn" data-fly="${t.id}">Zeigen</button>` : ''}`
       : `<button class="btn" data-splitassign="${t.id}">3D öffnen und zuordnen</button>`}</div>
     <h4>Abhängigkeiten</h4>
-    <div class="deps">${(t.preds || []).length ? t.preds.map(p => `<div class="dep"><span>nach <b>${esc(taskMap[p.id]?.name || p.id)}</b> <small>${p.typ === 'AA' ? 'Anfang–Anfang' : 'Ende–Anfang'}${p.lag ? ` · ${p.lag > 0 ? '+' : ''}${p.lag} AT` : ''}</small></span><button class="iconbtn" data-depdel="${t.id}|${p.id}" aria-label="Abhängigkeit lösen" title="Abhängigkeit lösen">${ICON.x}</button></div>`).join('') : '<p class="note">Keine Vorgänger – Beginn frei wählbar.</p>'}
+    <p class="note">Nur zur Kontrolle – Termine verschieben sich dadurch nicht.</p>
+    <div class="deps">${(t.preds || []).length ? t.preds.map(p => { const bad = predConflicts({ ...t, preds: [p] }).length; return `<div class="dep"><span>nach <b>${esc(taskMap[p.id]?.name || p.id)}</b> <small>${p.typ === 'AA' ? 'Anfang–Anfang' : 'Ende–Anfang'}${p.lag ? ` · ${p.lag > 0 ? '+' : ''}${p.lag} AT` : ''}</small>${bad ? ' <small class="badc">· passt nicht zu den Terminen</small>' : ''}</span><button class="iconbtn" data-depdel="${t.id}|${p.id}" aria-label="Abhängigkeit lösen" title="Abhängigkeit lösen">${ICON.x}</button></div>`; }).join('') : '<p class="note">Keine Vorgänger.</p>'}
       ${succ.length ? `<p class="note">Nachfolger: ${succ.map(x => esc(x.name)).join(', ')}</p>` : ''}</div>
     <form class="dform addcon" data-lpsform="dep" data-task="${t.id}">
       <label class="field"><span>Vorgänger hinzufügen</span><select id="dp-id" name="id">${S.tasks.filter(x => x.id !== t.id && !(t.preds || []).some(p => p.id === x.id)).map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select></label>
@@ -2284,7 +2476,7 @@ function drawerTask(t) {
       <label class="field"><span>Wer räumt es aus</span><input id="h-wer" name="wer" placeholder="Planer, Einkauf, Polier, NU …"></label>
       <div class="dact"><span class="sp"></span><button class="btn" type="submit">${ICON.plus} Hindernis anlegen</button></div>
     </form>
-    <div class="dact"><button class="btn" data-taskdel="${t.id}" ${nEl ? 'disabled title="Erst Bauteile herausnehmen"' : ''}>Vorgang löschen</button></div>
+    <div class="dact"><button class="btn" data-taskdel="${t.id}">Vorgang löschen${nEl ? ` (${nEl} Bauteile werden frei)` : ''}</button></div>
   </div>`;
 }
 
@@ -2297,8 +2489,8 @@ $('#lps').addEventListener('click', e => {
   const as = t.closest('[data-assign]'); if (as) { lpsView.assign = lpsView.assign === as.dataset.assign ? null : as.dataset.assign; lpsView.msel.clear(); lps3dControls(); renderLps(); return applyColors(); }
   const sa = t.closest('[data-splitassign]'); if (sa) { lpsView.assign = sa.dataset.splitassign; return lpsSplit(true); }
   const fl = t.closest('[data-fly]'); if (fl) { const g = elsArr().find(x => x.taskId === fl.dataset.fly); if (g) flyTo(g.guid); return; }
-  const dd = t.closest('[data-depdel]'); if (dd) { const [tid, pid] = dd.dataset.depdel.split('|'); pushUndo(); const x = taskMap[tid]; x.preds = x.preds.filter(p => p.id !== pid); if (!x.fix) x.fix = x.start; afterPlanChange(); return toast('Abhängigkeit gelöst – der Vorgang lässt sich jetzt frei verschieben.'); }
-  const td = t.closest('[data-taskdel]'); if (td) { pushUndo(); const id = td.dataset.taskdel; S.tasks = S.tasks.filter(x => x.id !== id); S.tasks.forEach(x => x.preds = (x.preds || []).filter(p => p.id !== id)); lpsView.sel = null; afterPlanChange(); return toast('Vorgang gelöscht.'); }
+  const dd = t.closest('[data-depdel]'); if (dd) { const [tid, pid] = dd.dataset.depdel.split('|'); pushUndo(); const x = taskMap[tid]; x.preds = x.preds.filter(p => p.id !== pid); afterPlanChange(); return toast('Abhängigkeit gelöst.'); }
+  const td = t.closest('[data-taskdel]'); if (td) { pushUndo(); deleteTask(td.dataset.taskdel); lpsView.sel = null; afterPlanChange(); return toast('Vorgang gelöscht – mit „Rückgängig“ zurückholen.'); }
   const mm = t.closest('[data-mselmore]'); if (mm) { const f = S.elements[[...lpsView.msel][0]]; elsArr().filter(x => x.storey === f.storey && (mm.dataset.mselmore === 'storey' || x.cat === f.cat)).forEach(x => lpsView.msel.add(x.guid)); renderLps(); return applyColors(); }
   if (t.closest('[data-mselclear]')) { lpsView.msel.clear(); lpsView.sel = null; renderLps(); return applyColors(); }
 }, true);
@@ -2306,19 +2498,25 @@ $('#lps').addEventListener('change', e => {
   const f = e.target.closest('[data-lpsform="taskmeta"]'); if (!f) return;
   const t = taskMap[f.dataset.task], v = e.target.value; pushUndo();
   if (e.target.name === 'crew') t.crew = v;
-  if (e.target.name === 'dur') t.dur = Math.max(1, Math.round(+v) || 1);
-  if (e.target.name === 'fix') t.fix = v || null;
+  if (e.target.name === 'storey') t.storey = v;
+  if (e.target.name === 'name' && v.trim()) t.name = v.trim().slice(0, 80);
+  if (e.target.name === 'start' && okDate(v)) setTaskDates(t, v, t.end < v ? D.addWD(v, t.dur - 1) : t.end);
+  if (e.target.name === 'end' && okDate(v)) setTaskDates(t, null, v);
   afterPlanChange();
 });
 $('#lps').addEventListener('submit', e => {
   const f = e.target, fd = new FormData(f);
   if (f.dataset.lpsform === 'dep') { e.preventDefault(); e.stopImmediatePropagation(); pushUndo(); const t = taskMap[f.dataset.task]; t.preds = [...(t.preds || []), { id: fd.get('id'), typ: fd.get('typ'), lag: Math.round(+fd.get('lag') || 0) }];
     try { reindex(); } catch { t.preds.pop(); toast('Das ergibt einen Zirkelbezug.'); } afterPlanChange(); return; }
+  if (f.dataset.lpsform === 'mstorey') { e.preventDefault(); e.stopImmediatePropagation();
+    let name = fd.get('storey'); if (name === '__neu') name = addStorey(fd.get('neu'));
+    if (!name) return toast('Bitte einen Namen für die neue Ebene eingeben.');
+    const n = moveToStorey(lpsView.msel, name); toast(`${n} Bauteile in „${name}“ gelegt.`); renderStoreyFilter(); save(); renderLps(); return applyColors(); }
   if (f.dataset.lpsform === 'massign') { e.preventDefault(); e.stopImmediatePropagation(); pushUndo(); const id = fd.get('taskId'); lpsView.msel.forEach(g => S.elements[g].taskId = id); toast(`${lpsView.msel.size} Bauteile „${taskMap[id].name}“ zugeordnet.`); lpsView.msel.clear(); lpsView.sel = { type: 'task', id }; afterPlanChange(); return; }
   if (f.dataset.lpsform === 'newtask') { e.preventDefault(); e.stopImmediatePropagation(); pushUndo();
-    const id = 't' + (Math.max(0, ...S.tasks.map(x => +String(x.id).replace(/\D/g, '') || 0)) + 1), pred = fd.get('pred');
-    const t = { id, name: String(fd.get('name')).trim(), storey: fd.get('storey'), dur: Math.max(1, +fd.get('dur') || 1), preds: pred ? [{ id: pred, typ: 'EA', lag: 0 }] : [], fix: fd.get('fix') || null, crew: fd.get('crew'), vergaben: [], start: null, end: null };
-    S.tasks.push(t); lpsView.msel.forEach(g => S.elements[g].taskId = id);
+    const id = newTaskId();
+    const t = { id, name: String(fd.get('name')).trim(), storey: fd.get('storey'), dur: 1, preds: [], fix: null, crew: fd.get('crew'), vergaben: [], start: fd.get('start'), end: fd.get('end') };
+    setTaskDates(t, t.start, t.end); S.tasks.push(t); lpsView.msel.forEach(g => S.elements[g].taskId = id);
     toast(`Vorgang „${t.name}“ mit ${lpsView.msel.size} Bauteilen angelegt.`); lpsView.msel.clear(); lpsView.sel = { type: 'task', id }; lpsView.tab = 'zeit'; afterPlanChange(); revealTask(id); return; }
 }, true);
 addEventListener('keydown', e => { if (lpsView.open && (e.ctrlKey || e.metaKey) && e.key === 'z' && !e.target.closest('input,textarea,select')) { e.preventDefault(); lpsUndo(); } });
@@ -2338,7 +2536,8 @@ const isLocalFoto = f => typeof f === 'string' && f.startsWith('data:');
 function records(st = S) {
   const m = new Map();
   m.set('plan|plan', JSON.stringify({ project: st.project, projectStart: st.projectStart, tasks: st.tasks, vergaben: st.vergaben, milestones: st.milestones, crews: st.lps?.crews || [],
-    elTask: Object.fromEntries(Object.values(st.elements).filter(e => e.taskId).map(e => [e.guid, e.taskId])) }));
+    elTask: Object.fromEntries(Object.values(st.elements).filter(e => e.taskId).map(e => [e.guid, e.taskId])),
+    storeys: st.storeys, elStorey: Object.fromEntries(Object.values(st.elements).filter(e => e.ifcStorey && e.storey !== e.ifcStorey).map(e => [e.guid, e.storey])) }));
   for (const e of Object.values(st.elements)) if (e.startDate || e.doneDate || e.acceptDate) m.set('bauteil|' + e.guid, JSON.stringify({ s: e.startDate, d: e.doneDate, a: e.acceptDate }));
   for (const c of st.lps?.commits || []) m.set('zusage|' + c.id, JSON.stringify(c));
   for (const c of st.lps?.constraints || []) m.set('hindernis|' + c.id, JSON.stringify(c));
@@ -2356,6 +2555,8 @@ function applyRec(art, id, d, del) {
       if (Array.isArray(d.tasks)) S.tasks = d.tasks; if (Array.isArray(d.vergaben)) S.vergaben = d.vergaben; if (Array.isArray(d.milestones)) S.milestones = d.milestones;
       if (Array.isArray(d.crews)) S.lps.crews = d.crews;
       if (d.elTask) for (const e of Object.values(S.elements)) e.taskId = d.elTask[e.guid] ?? null;
+      if (d.elStorey) for (const e of Object.values(S.elements)) e.storey = d.elStorey[e.guid] ?? e.ifcStorey ?? e.storey;
+      if (Array.isArray(d.storeys)) S.storeys = [...d.storeys];
       return;
     case 'bauteil': { const e = S.elements[id]; if (!e) return; e.startDate = del ? null : d.s || null; e.doneDate = del ? null : d.d || null; e.acceptDate = del ? null : d.a || null; return; }
     case 'zusage': return putById(S.lps.commits, id, del ? null : d);
@@ -2381,7 +2582,7 @@ function setSync(state) {
 /* Lokale Kopie je Projekt: Arbeiten ohne Netz, Nachholen beim nächsten Start */
 const cacheKey = id => STORE + '.cloud.' + id;
 function saveCloudLocal() {
-  try { localStorage.setItem(cacheKey(CL.proj.id), JSON.stringify({ S: { ...S, elements: Object.fromEntries(Object.values(S.elements).filter(e => e.startDate || e.doneDate || e.acceptDate || e.taskId).map(e => [e.guid, { taskId: e.taskId, startDate: e.startDate, doneDate: e.doneDate, acceptDate: e.acceptDate }])) }, snap: Object.fromEntries(CL.snap), planVer: CL.planVer })); }
+  try { localStorage.setItem(cacheKey(CL.proj.id), JSON.stringify({ S: { ...S, elements: Object.fromEntries(Object.values(S.elements).filter(e => e.startDate || e.doneDate || e.acceptDate || e.taskId || e.storey !== e.ifcStorey).map(e => [e.guid, { taskId: e.taskId, startDate: e.startDate, doneDate: e.doneDate, acceptDate: e.acceptDate, storey: e.storey }])) }, snap: Object.fromEntries(CL.snap), planVer: CL.planVer })); }
   catch { /* Speicher voll: Stand liegt trotzdem in der Datenbank, sobald online */ }
 }
 function cloudSaveLater() {
@@ -2509,7 +2710,7 @@ async function cloudOpen(row) {
     try {
       const c = JSON.parse(localStorage.getItem(cacheKey(row.id)) || 'null');
       if (c?.S) {
-        const loc = { ...c.S, elements: Object.fromEntries(Object.entries(S.elements).map(([g, e]) => [g, { ...e, taskId: null, startDate: null, doneDate: null, acceptDate: null, ...(c.S.elements[g] || {}) }])) };
+        const loc = { ...c.S, elements: Object.fromEntries(Object.entries(S.elements).map(([g, e]) => [g, { ...e, taskId: null, startDate: null, doneDate: null, acceptDate: null, storey: e.ifcStorey ?? e.storey, ...(c.S.elements[g] || {}) }])) };
         const lr = records(loc), ls = new Map(Object.entries(c.snap || {}));
         for (const [k, v] of lr) if (ls.get(k) !== v && k !== 'plan|plan') { const [a, id] = splitKey(k); applyRec(a, id, JSON.parse(v), false); pending++; }
         for (const k of ls.keys()) if (!lr.has(k) && k !== 'plan|plan') { const [a, id] = splitKey(k); applyRec(a, id, null, true); pending++; }
