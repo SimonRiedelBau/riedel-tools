@@ -8,8 +8,13 @@ Vergaben, Mängel, Bautagebuch und Aufmaß.
   Nichts verschiebt sich automatisch; Abhängigkeiten sind nur ein Hinweis und werden markiert, wenn sie nicht passen.
 - Beim Laden einer IFC-Datei werden **keine Vorgänge vorgegeben** – Vorgänge legst du unter „Termine“ an und ordnest
   die gewählten Bauteile direkt zu.
-- **Ebenen** (Reiter „Ebenen“): anlegen, umbenennen, sortieren, löschen. Bauteile im Modell wählen (Shift-Klick) und
-  einer Ebene zuordnen – auch im Reiter „Bauteil“ oder im Last Planner bei „3D daneben“.
+- **Baubeginn** frei wählbar (Reiter „Termine“), auf Wunsch rückt der ganze Ablauf mit.
+- **Verschieben ohne Grenze**: In der Vorschau des Last Planners läuft ein Balken weiter, solange man ihn am Rand hält.
+  Dazu Knöpfe −1/+1 Tag bzw. Woche – nur der Vorgang, mit allen späteren oder die ganze Ebene. Zusagen im Wochenplan
+  per Ziehen auf ◀ / ▶ oder über das Feld „Woche“ in andere Wochen; oben im Kopf springt ein Datumsfeld in jede Woche.
+- **Ebenen / Bauabschnitte** (Reiter „Ebenen/BA“): anlegen, umbenennen, sortieren, löschen. „Im Modell zuordnen“:
+  Bauteile anklicken oder überstreichen legt sie in die Ebene. Alternativ Bauteile wählen (Shift-Klick) und zuordnen –
+  auch im Reiter „Bauteil“ oder im Last Planner bei „3D daneben“. Ansicht „Ebene/BA“ färbt das Modell nach Ebenen.
 - **Kolonnen** im Last Planner über „Bearbeiten“ umbenennen oder löschen. Beim Löschen gehen Zusagen und Vorgänge an
   eine andere Kolonne.
 
