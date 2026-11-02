@@ -26,6 +26,14 @@ window.RB_PROJEKTE = {
           art: 'TOOL',
           datum: '2026-10-01',
           notiz: 'Grundlage Plan 26-24_OST_AH_V00, eigene Flächen mit Linienhöhen (Rampen) einzeichnen, Plan hinterlegen, Höhen per Ziehen änderbar, Export PDF und DXF'
+        },
+        {
+          titel: 'Aushub-Abgleich – Gelände-Aufmaß gegen Aushubsohlen',
+          rubrik: 'Mengen & Abrechnung',
+          href: 'ostermeier-taufkirchen/aushub-abgleich.html',
+          art: 'TOOL',
+          datum: '2026-11-02',
+          notiz: 'VIBW-Aufmaß vom 19.10.2026 gegen Plan 26-24_OST_AH_V00: wo noch abzutragen und wo aufzufüllen ist, Mengen im Baufeld, Mieten. Gebäudelage geschätzt und verschiebbar'
         }
       ]
     }
