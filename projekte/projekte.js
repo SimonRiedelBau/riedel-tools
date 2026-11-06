@@ -34,6 +34,14 @@ window.RB_PROJEKTE = {
           art: 'TOOL',
           datum: '2026-11-02',
           notiz: 'VIBW-Aufmaß vom 19.10.2026 gegen Plan 26-24_OST_AH_V00: wo noch abzutragen und wo aufzufüllen ist, Mengen im Baufeld, Mieten. Gebäudelage geschätzt und verschiebbar'
+        },
+        {
+          titel: 'Massenermittlung Rohbau aus IFC-Modell (Stand 05.11.2026)',
+          rubrik: 'Mengen & Abrechnung',
+          href: 'ostermeier-taufkirchen/massenermittlung-ifc-rohbau.xlsx',
+          art: 'EXCEL',
+          datum: '2026-11-06',
+          notiz: 'Aus STRAKON-Tragwerksmodell (IFC4) Halle und Verwaltung: Positionen je Titel mit m³, m², Stück, t, Betongüten, Fertigteile, Einbauteile, Bauteilliste und Prüfprotokoll. Bewehrung nur geschätzt (Annahmen-Blatt)'
         }
       ]
     }
