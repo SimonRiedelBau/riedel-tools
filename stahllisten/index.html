@@ -137,6 +137,9 @@ dialog form{display:flex;flex-direction:column;max-height:calc(100vh - 26px)}
 .items table td{padding:4px 6px}
 .items input{width:110px;text-align:right}
 .items select{width:130px}
+.items input.dl-typ{width:150px;text-align:left}
+.items input.dl-ort{width:130px;text-align:left}
+.items input.dl-n{width:62px}
 .hint{font-size:13px;color:var(--muted);margin:8px 0 0}
 .hint.ok{color:var(--ok)}.hint.bad{color:var(--red-ink)}.hint.warn{color:var(--warn)}
 .listpick{max-height:240px;overflow:auto;border:1px solid var(--rule);background:var(--surface)}
@@ -232,7 +235,16 @@ header.top > .logo-riedel, header.top > .mark, #whoMail, #btnLogout{display:none
     <label class="wide">Bauteil / Inhalt<input id="plTitle" placeholder="z. B. Bodenplatte Achse 1–6, obere Lage"></label>
     <label class="wide">Plan-Datei<input id="plFile" type="file" accept="application/pdf,image/*,.dwg,.dxf"></label>
   </div>
-  <p class="hint" id="plFileInfo"></p><div id="plChk"></div></div>
+  <p class="hint" id="plFileInfo"></p>
+  <div class="items">
+    <h3>Dübelleisten</h3>
+    <p class="hint" style="margin:0 0 6px">Mengen aus dem Plan je Typ eintragen (z. B. „HDB 10/3 – 250“, „Dura 2-10/180“). Gesamtlänge = Stück × Länge.</p>
+    <div class="scroll"><table><thead><tr><th>Typ / Bezeichnung</th><th class="n">Stück</th><th class="n">Länge je Stück m</th><th class="n">Gesamt m</th><th>Lage / Bemerkung</th><th>Status</th><th></th></tr></thead><tbody id="plDl"></tbody>
+    <tfoot><tr class="sum"><td>Summe</td><td class="n" id="plDlStk"></td><td></td><td class="n" id="plDlM"></td><td colspan="3"></td></tr></tfoot></table></div>
+    <datalist id="dlTypen"></datalist>
+    <button class="btn sec sm" type="button" id="plDlAdd" style="margin-top:8px">+ Dübelleiste</button>
+  </div>
+  <div id="plChk"></div></div>
   <div class="df"><button class="btn sec left" id="plDel" type="button" hidden>Plan löschen</button><button class="btn sec" value="cancel">Abbrechen</button><button class="btn" value="ok">Speichern</button></div>
 </form></dialog>
 
@@ -410,6 +422,7 @@ function describe(art,old,d){
     if((old.due||'')!==(d.due||'')) ch.push('Liefertermin '+(dDE(d.due)||'–'));
     if(JSON.stringify(old.listIds||[])!==JSON.stringify(d.listIds||[])) ch.push('Listen geändert');
   }
+  if(art==='plan'&&dlText(old)!==dlText(d)) ch.push('Dübelleisten: '+(dlText(d)||'–'));
   if(old.pruefen&&!d.pruefen) ch.push('als geprüft markiert');
   if(art!=='plan'&&Math.abs(kgL(old)-kgL(d))>0.05) ch.push(`Gewicht ${fmt(kgL(old),1)} → ${fmt(kgL(d),1)} kg`);
   if(!ch.length&&(['title','date','nr','lief','note','ls','ebene'].some(k=>(old[k]||'')!==(d[k]||''))||(old.mattenNetto||0)!==(d.mattenNetto||0)||JSON.stringify(old.lfm||[])!==JSON.stringify(d.lfm||[]))) ch.push('bearbeitet');
@@ -509,6 +522,18 @@ const ebeneOf=l=>l.ebene||ebeneAuto(l);
 const ZUB=[['dl','Dübelleisten'],['lenton','Lenton'],['hbt','HBT'],['iso','Iso./Tron.']];
 const ZUB_ST=[['','–'],['noetig','benötigt'],['bestellt','bestellt'],['geliefert','geliefert']];
 const zubText=l=>ZUB.filter(([k])=>l.zub?.[k]).map(([k,n])=>n+' '+(ZUB_ST.find(s=>s[0]===l.zub[k])||['',''])[1]).join(', ');
+// Dübelleisten je Plan: [{typ, stk, len (m je Stück), ort, st: ''|'bestellt'|'geliefert'}]
+const DL_ST=[['','offen'],['bestellt','bestellt'],['geliefert','geliefert']];
+const dlRows=pl=>(pl&&pl.dl||[]).filter(x=>x.typ||+x.stk>0);
+const dlStk=pl=>sum(dlRows(pl),x=>+x.stk);
+const dlM=x=>(+x.stk||0)*(+x.len||0);
+const dlText=pl=>dlRows(pl).map(x=>`${x.stk||0}× ${x.typ||'?'}${+x.len?' à '+fmt(+x.len,2)+' m':''}${x.st?' ('+x.st+')':''}`).join(', ');
+const dlStatus=pl=>{ const r=dlRows(pl); if(!r.length) return ''; return r.every(x=>x.st==='geliefert')?'geliefert':r.every(x=>x.st)?'bestellt':'offen'; };
+// Summen je Typ über alle Pläne eines Projekts
+function dlSummary(pid){ const m=new Map();
+  S.plans.filter(pl=>pl.projectId===pid).forEach(pl=>dlRows(pl).forEach(x=>{ const k=(x.typ||'ohne Typ').trim(); const r=m.get(k)||{typ:k,stk:0,m:0,b:0,g:0,plans:new Set()};
+    r.stk+=+x.stk||0; r.m+=dlM(x); if(x.st) r.b+=+x.stk||0; if(x.st==='geliefert') r.g+=+x.stk||0; r.plans.add(pl.nr); m.set(k,r); }));
+  return [...m.values()].sort((a,b)=>a.typ.localeCompare(b.typ,'de',{numeric:true})); }
 // Sorten wie in der Excel: BST S = Stabstahl, BSTM = Matten, ABSTA = Unterstützungskörbe
 const grpKg=(l,g)=>sum((l.items||[]).filter(i=>g==='bst'?i.cat.startsWith('d'):g==='m'?i.cat.startsWith('M'):g==='k'?i.cat==='K':i.cat==='S'),i=>+i.kg);
 
@@ -590,6 +615,11 @@ function tabOverview(p,c){
     ${c.rows.map(r=>`<tr><td>${esc(catLabel(r.k))}</td><td class="n">${t(r.b)}</td><td class="n">${t(r.o)}</td><td class="n">${t(r.g)}</td><td class="n"><b style="color:${r.rest>0?'var(--red-ink)':'inherit'}">${t(r.rest)}</b>${r.mehr>0?` <span class="tag">+${t(r.mehr)} mehr bestellt</span>`:''}</td></tr>`).join('')}
     <tr class="sum"><td>Summe</td><td class="n">${t(c.tot.b)}</td><td class="n">${t(c.tot.o)}</td><td class="n">${t(c.tot.g)}</td><td class="n">${t(c.tot.rest)}</td></tr></tbody></table></div></section>`;
 
+  const dls=dlSummary(p.id);
+  if(dls.length) h+=`<section><h2>Dübelleisten</h2><p class="sub">Aus den Plänen eingetragen (Reiter <b>Pläne</b> → Spalte Dübelleisten).</p>
+    <div class="tbl scroll"><table><thead><tr><th>Typ</th><th class="n">Stück</th><th class="n">Gesamt m</th><th class="n">bestellt Stk</th><th class="n">geliefert Stk</th><th class="n">noch zu bestellen Stk</th><th>Pläne</th></tr></thead><tbody>
+    ${dls.map(r=>`<tr><td>${esc(r.typ)}</td><td class="n">${fmt(r.stk)}</td><td class="n">${r.m?fmt(r.m,2):''}</td><td class="n">${fmt(r.b)}</td><td class="n">${fmt(r.g)}</td><td class="n"><b style="color:${r.stk-r.b>0?'var(--red-ink)':'inherit'}">${fmt(r.stk-r.b)}</b></td><td class="wrap">${esc([...r.plans].join(', '))}</td></tr>`).join('')}
+    <tr class="sum"><td>Summe</td><td class="n">${fmt(sum(dls,r=>r.stk))}</td><td class="n">${fmt(sum(dls,r=>r.m),2)}</td><td class="n">${fmt(sum(dls,r=>r.b))}</td><td class="n">${fmt(sum(dls,r=>r.g))}</td><td class="n">${fmt(sum(dls,r=>r.stk-r.b))}</td><td></td></tr></tbody></table></div></section>`;
   if(c.openLists.length) h+=`<section><h2>Stahllisten, die noch nicht bestellt sind</h2><p class="sub">${c.openLists.length} Listen mit zusammen ${t(c.openKg)} t.</p>${listTable(c.openLists)}</section>`;
   $('tabBody').innerHTML=h;
   bindListTable();
@@ -624,12 +654,13 @@ function tabPlans(p,c,plans){
   if(!nChk) planFilter='';
   if(nChk) h+=`<div class="chkbox" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between"><span><b>${nChk} ${nChk>1?'Pläne':'Plan'} nach dem Upload zu prüfen</b> – farbig markiert.</span><button class="linkbtn" type="button" id="planChkF">${planFilter?'Alle Pläne zeigen':'Nur diese zeigen'}</button></div>`;
   if(plans.length){
-    h+=`<div class="tbl scroll" style="margin-top:16px"><table><thead><tr><th>Plan-Nr.</th><th>Index</th><th>Bereich</th><th>Bauteil / Inhalt</th><th>Eingang</th><th>Stahllisten</th><th class="n">Bedarf t</th><th>Datei</th><th></th></tr></thead><tbody>`;
+    h+=`<div class="tbl scroll" style="margin-top:16px"><table><thead><tr><th>Plan-Nr.</th><th>Index</th><th>Bereich</th><th>Bauteil / Inhalt</th><th>Eingang</th><th>Stahllisten</th><th class="n">Bedarf t</th><th>Dübelleisten</th><th>Datei</th><th></th></tr></thead><tbody>`;
     plans.forEach(pl=>{ const ls=S.lists.filter(l=>l.planId===pl.id), chk=zuPruefen(pl)||ls.some(zuPruefen);
       if(planFilter==='pruefen'&&!chk) return;
       h+=`<tr class="${chk?'chk':''}"><td><b>${esc(pl.nr)}</b>${pruefTag(pl)}${pruefWhy(pl)}</td><td>${esc(pl.idx||(planCode(pl)?.idx)||'')}</td><td>${esc(bereich(planCode(pl)))}</td><td class="wrap">${esc(pl.title||'')}</td><td>${dDE(pl.date)}</td>
       <td>${ls.length?ls.map(l=>`${esc(l.nr)} ${statusTag(l)}${pruefTag(l)}`).join('<br>'):`<button class="linkbtn" data-newlist="${pl.id}" type="button">+ Stahlliste</button>`}</td>
       <td class="n">${t(sum(ls.filter(l=>!l.ersetzt),listKg))}</td>
+      <td>${dlRows(pl).length?`<button class="linkbtn" data-dlplan="${pl.id}" type="button" title="${esc(dlText(pl))}">${fmt(dlStk(pl))} Stk</button> <span class="tag ${({offen:'open',bestellt:'best',geliefert:'lief'})[dlStatus(pl)]}">${dlStatus(pl)}</span>`:`<button class="linkbtn del" data-dlplan="${pl.id}" type="button">+ eingeben</button>`}</td>
       <td>${pl.fileId?`<button class="linkbtn" data-open="${pl.fileId}" type="button">${esc(pl.fileName||'öffnen')}</button>`:'–'}</td>
       <td><button class="linkbtn" data-editplan="${pl.id}" type="button">Bearbeiten</button>${zuPruefen(pl)?` · <button class="linkbtn" data-chkplan="${pl.id}" type="button">Geprüft</button>`:''}</td></tr>`; });
     h+=`</tbody></table></div>`;
@@ -650,6 +681,7 @@ function tabPlans(p,c,plans){
       const rec=await putFile(f), ext=c?{code:c}:{};
       let pl=old;
       if(old){ const was=old.idx; await delFile(old.fileId); Object.assign(old,{nr,idx,date:today(),fileId:rec.id,fileName:f.name,...ext}); if(a&&!old.title) old.title=a.title; setPruef(old,'nr');
+        if(dlRows(old).length) setPruef(old,'dl',`Dübelleisten aus Index ${was||'–'} übernommen – Mengen mit Index ${idx} vergleichen`);
         lines.push(['ok',`${esc(nr)}: Index ${esc(was||'–')} durch ${esc(idx)} ersetzt`]); }
       else { pl={id:uid(),projectId:p.id,nr,idx,title:a?a.title:'',date:today(),fileId:rec.id,fileName:f.name,...ext}; S.plans.push(pl);
         lines.push(['ok',`${esc(nr)}: Index ${esc(idx)} angelegt`]); }
@@ -660,6 +692,7 @@ function tabPlans(p,c,plans){
   dropZone($('planDrop'),add);
   $('planNew').onclick=()=>editPlan(null);
   document.querySelectorAll('[data-editplan]').forEach(b=>b.onclick=()=>editPlan(S.plans.find(x=>x.id===b.dataset.editplan)));
+  document.querySelectorAll('[data-dlplan]').forEach(b=>b.onclick=()=>editPlan(S.plans.find(x=>x.id===b.dataset.dlplan),{dl:true}));
   document.querySelectorAll('[data-chkplan]').forEach(b=>b.onclick=async()=>{ markGeprueft(S.plans.find(x=>x.id===b.dataset.chkplan)); await save(); renderProject(p.id); });
   if($('planChkF')) $('planChkF').onclick=()=>{ planFilter=planFilter?'':'pruefen'; renderProject(p.id); };
   document.querySelectorAll('[data-newlist]').forEach(b=>b.onclick=()=>editList(null,b.dataset.newlist));
@@ -720,7 +753,7 @@ const pruefWhy=x=>zuPruefen(x)?`<span class="chk-why">${esc(pruefGruende(x).join
 function markGeprueft(x){ delete x.pruefen; x.geprueft=today(); }
 // Bestand nachträglich prüfen: gespeicherte Dateien erneut auslesen und wie beim Upload markieren.
 // Bereits als geprüft bestätigte und ersetzte Einträge bleiben unberührt.
-async function pruefBestand(pid,prog){ const lines=[];
+async function pruefBestand(pid,prog){ const lines=[], fix=[];
   S.plans.filter(x=>x.projectId===pid&&!x.geprueft&&x.fileName&&!planCode(x)&&!parseAlbus(x.fileName)).forEach(pl=>{
     setPruef(pl,'nr','Dateiname nicht nach Plancodierung – Plan-Nr. und Index prüfen'); });
   const ls=S.lists.filter(l=>l.projectId===pid&&!l.ersetzt&&!l.geprueft);
@@ -732,11 +765,19 @@ async function pruefBestand(pid,prog){ const lines=[];
     const src=l.fileId?{id:l.fileId,name:l.fileName}:l.src==='plan'?(pl=>pl&&{id:pl.fileId,name:pl.fileName})(S.plans.find(x=>x.id===l.planId)):null;
     if(src&&src.id&&/\.(pdf|xlsx|xls|csv|txt)$/i.test(src.name||'')){
       try{ const f=await getFile(src.id); if(!f) throw new Error('Datei nicht gefunden');
-        const r=await parseSteel(new File([f.blob],src.name,{type:f.type})), w=parseWarnings(r), rk=sum(r.items||[],x=>x.kg);
-        if(kg&&rk&&Math.abs(kg-rk)>Math.max(1,rk*.005)) w.push(`gespeichert ${fmt(kg,1)} kg, Datei ergibt ${fmt(rk,1)} kg`);
+        const r=await parseSteel(new File([f.blob],src.name,{type:f.type}),{plan:!l.fileId&&l.src==='plan'}), w=parseWarnings(r), rk=sum(r.items||[],x=>x.kg);
+        const diff=rk&&Math.abs(kg-rk)>Math.max(1,rk*.005);
+        // Stahlliste vom Plan, noch nicht bestellt, neues Auslesen ohne Auffälligkeiten: Mengen direkt korrigieren
+        if(diff&&!w.length&&l.src==='plan'&&!l.fileId&&listStatus(l)==='offen') fix.push([l,kg,r]);
+        if(diff) w.push(`gespeichert ${fmt(kg,1)} kg, Datei ergibt ${fmt(rk,1)} kg`);
         setPruef(l,'masse',w.length?'Auslesen: '+w.join('; '):null);
       }catch(e){ console.warn(e); setPruef(l,'masse','Datei konnte nicht erneut ausgelesen werden: '+e.message); } }
-    if(zuPruefen(l)) lines.push(['warn',`${esc(l.nr)}${l.idx?' Index '+esc(l.idx):''}: <b>Bitte prüfen:</b> ${esc(pruefGruende(l).join('; '))}`]); }
+    if(zuPruefen(l)&&!fix.some(x=>x[0]===l)) lines.push(['warn',`${esc(l.nr)}${l.idx?' Index '+esc(l.idx):''}: <b>Bitte prüfen:</b> ${esc(pruefGruende(l).join('; '))}`]); }
+  // Stahllisten vom Plan, die neu ausgelesen andere Mengen ergeben (sauber gegengeprüft, noch nicht bestellt): auf Wunsch übernehmen
+  if(fix.length&&confirm(`${fix.length} Stahlliste${fix.length>1?'n':''} vom Plan ergeben neu ausgelesen andere Mengen (gegen Gesamtgewicht geprüft, noch nicht bestellt):\n\n${fix.slice(0,15).map(([l,kg,r])=>`${l.nr}${l.idx?' / '+l.idx:''}: ${fmt(kg,1)} → ${fmt(sum(r.items,i=>i.kg),1)} kg`).join('\n')}${fix.length>15?'\n…':''}\n\nNeue Mengen übernehmen?`)){
+    fix.forEach(([l,kg,r])=>{ l.items=cleanItems(r.items); setPruef(l,'masse',null); setPruef(l,'kg',null);
+      lines.push(['ok',`${esc(l.nr)}${l.idx?' Index '+esc(l.idx):''}: Plan neu ausgelesen, Mengen korrigiert ${fmt(kg,1)} → ${fmt(listKg(l),1)} kg (${esc(r.how)})`]); }); }
+  else fix.forEach(([l])=>lines.push(['warn',`${esc(l.nr)}${l.idx?' Index '+esc(l.idx):''}: <b>Bitte prüfen:</b> ${esc(pruefGruende(l).join('; '))}`]));
   S.plans.filter(x=>x.projectId===pid&&zuPruefen(x)).forEach(pl=>lines.push(['warn',`Plan ${esc(pl.nr)}: <b>Bitte prüfen:</b> ${esc(pruefGruende(pl).join('; '))}`]));
   const skip=S.lists.filter(l=>l.projectId===pid&&!l.ersetzt&&l.geprueft).length;
   lines.unshift([lines.length?'':'ok',`<b>Bestand geprüft:</b> ${ls.length} Stahllisten erneut ausgelesen${skip?`, ${skip} bereits als geprüft bestätigt (übersprungen)`:''} – ${lines.length?lines.length+' zu prüfen':'keine Auffälligkeiten'}.`]);
@@ -754,8 +795,8 @@ function linkLists(pid){ const out=[];
 // (ohne Bestellung überschrieben, sonst als ersetzt markiert). Die Liste hat keine eigene Datei – Quelle ist der Plan.
 async function listFromPlan(p,pl,file,lines){
   if(!/\.pdf$/i.test(file.name)&&file.type!=='application/pdf') return;
-  let r=null; try{ r=await parseSteel(file); }catch(e){ console.warn(e); }
-  if(!r||!(r.items||[]).length){ lines.push(['warn',`${esc(pl.nr)}: <b>keine Stahlliste auf dem Plan erkannt</b> – bitte unter „Stahllisten“ von Hand anlegen`]); return; }
+  let r=null; try{ r=await parseSteel(file,{plan:true}); }catch(e){ console.warn(e); }
+  if(!r||!(r.items||[]).length){ lines.push(['warn',`${esc(pl.nr)}: <b>keine Stahlliste auf dem Plan erkannt</b>${r&&(r.checks||[]).length?' ('+esc(r.checks.slice(0,4).join('; '))+')':''} – bitte unter „Stahllisten“ von Hand anlegen`]); return; }
   const olds=S.lists.filter(l=>l.projectId===p.id&&!l.ersetzt&&l.planId===pl.id&&l.src==='plan');
   const others=S.lists.filter(l=>l.projectId===p.id&&!l.ersetzt&&l.planId===pl.id&&l.src!=='plan');
   const repl=await replaceOld(olds);
@@ -939,21 +980,25 @@ async function exportXlsx(p){
       ...ZUB.map(([k,n])=>({h:n,key:'z'+k,w:k==='dl'?12:9})),...numCols.map((x,i)=>({h:x.h,key:'n'+i,fmt:x.lfm?LFM:T3,w:12})),{h:'Status',key:'st',w:11},{h:'Bestellung / Lieferschein',key:'best',w:26}];
     const ws=sheet(e,'Bewehrung '+ebTitle(e),cols);
     ws.views=[{state:'frozen',xSplit:1,ySplit:4}];
+    const dlShown=new Set(), dlOf=new Map(); // Dübelleisten des Plans nur in der ersten Zeile des Plans
     byEb[e].forEach(l=>{ const os=ordersFor(l), ab=[...new Set(os.map(o=>o.date).filter(Boolean))].sort(), gb=deliv(l,'bst'), gl=deliv(l,'m');
       const bem=[l.ersetzt?'alter Index – bereits bestellt, wird abgerechnet':'',l.note||''].filter(Boolean).join(' · ');
       const r=addRow(ws,[(cd=>cd?l.nr+'_'+(l.idx||cd.idx):l.nr+(l.idx?' / Index '+l.idx:''))(listCode(l)),l.title||'',bem,ab.length?new Date(ab[0]+'T12:00:00'):null,gb?.v??null,gl?.v??null,
-        ...ZUB.map(([k])=>l.zub?.[k]?'X':null),...numCols.map(x=>valOf(l,x)),l.ersetzt?'ersetzt':listStatus(l),os.map(o=>(o.nr||dDE(o.date))+(o.ls?' (LS '+o.ls+')':'')).join(', ')],{dim:l.ersetzt});
+        ...ZUB.map(([k])=>{ const pl=k==='dl'&&S.plans.find(x=>x.id===l.planId);
+          if(pl&&dlRows(pl).length){ if(dlShown.has(pl.id)) return null; dlShown.add(pl.id); dlOf.set(l,pl); return dlStk(pl)+' Stk'; }
+          return l.zub?.[k]?'X':null; }),...numCols.map(x=>valOf(l,x)),l.ersetzt?'ersetzt':listStatus(l),os.map(o=>(o.nr||dDE(o.date))+(o.ls?' (LS '+o.ls+')':'')).join(', ')],{dim:l.ersetzt});
       [4,5,6].forEach(i=>{ r.getCell(i).numFmt='dd.mm.yyyy'; r.getCell(i).alignment={horizontal:'center'}; });
       if(gb) r.getCell(5).fill=solid(gb.fill); if(gl) r.getCell(6).fill=solid(gl.fill);
       [gb,gl].forEach((d,j)=>{ if(d?.fill===GRN) r.getCell(5+j).font={...font,color:{argb:'FFFFFFFF'}}; });
-      ZUB.forEach(([k],j)=>{ const st=l.zub?.[k], cell=r.getCell(zub0+1+j); cell.alignment={horizontal:'center'}; if(st==='bestellt') cell.fill=solid(YEL); if(st==='geliefert'){ cell.fill=solid(GRN); cell.font={...font,color:{argb:'FFFFFFFF'}}; } });
+      ZUB.forEach(([k],j)=>{ const dp=k==='dl'&&dlOf.get(l), st=dp?{offen:'',bestellt:'bestellt',geliefert:'geliefert'}[dlStatus(dp)]:l.zub?.[k], cell=r.getCell(zub0+1+j);
+        if(dp) cell.note=dlText(dp); cell.alignment={horizontal:'center'}; if(st==='bestellt') cell.fill=solid(YEL); if(st==='geliefert'){ cell.fill=solid(GRN); cell.font={...font,color:{argb:'FFFFFFFF'}}; } });
       if(l.sub) numCols.forEach((x,i)=>{ if(!x.lfm) r.getCell(num0+i).fill=solid(BLU); });
       r.getCell(2).alignment=r.getCell(3).alignment={wrapText:true,vertical:'top'}; });
     const last=ws.rowCount;
     addRow(ws,['Summe '+e,'','','','','',...ZUB.map(()=>''),...numCols.map((x,i)=>{ const L=colL(num0+i); return {formula:`SUM(${L}5:${L}${last})`,result:sum(byEb[e],l=>valOf(l,x)||0)}; }),'',''],{sum:true});
     ws.addRow([]);
     [['Material bestellt',YEL],['Material geliefert',GRN],['Sub verrechnet',BLU]].forEach(([t,a])=>{ const r=ws.addRow([]); r.getCell(num0).fill=solid(a); r.getCell(num0+1).value=t; r.getCell(num0+1).font=font; });
-    ws.addRow(['Lieferdaten aus den Bestellungen (Liefertermin, sonst Bestelldatum). Zubehör: X = benötigt, gelb = bestellt, grün = geliefert.']).getCell(1).font={...font,size:9,color:{argb:GREY}};
+    ws.addRow(['Lieferdaten aus den Bestellungen (Liefertermin, sonst Bestelldatum). Zubehör: X = benötigt, gelb = bestellt, grün = geliefert. Dübelleisten: Stück lt. Plan (Details im Blatt Dübelleisten).']).getCell(1).font={...font,size:9,color:{argb:GREY}};
     filter(ws,cols.length); ws.autoFilter&&(ws.autoFilter.to.row=last);
   });
 
@@ -978,11 +1023,26 @@ async function exportXlsx(p){
     const v=c.valid; addRow(ws,[`${v.length} gültige Listen${ls.length>v.length?' (Summe ohne ersetzte)':''}`,'','','','','','','',...listCats.map(k=>sum(v,l=>kgOf(l.items,k)||0)),sum(v,listKg),'','',''],{sum:true});
     filter(ws,cols.length); }
   // Pläne
-  { const cols=[{h:'Plan-Nr.',key:'nr',w:34},{h:'Index',key:'idx',w:7},{h:'Bereich',key:'ber',w:24},{h:'Bauteil / Inhalt',key:'t',w:30},{h:'Eingang',key:'d',w:11},{h:'Stahllisten',key:'ls',w:40},{h:'Bedarf kg',key:'kg',fmt:KG,w:12},{h:'Datei',key:'f',w:40},{h:'Zu prüfen',key:'chk',w:50}];
+  { const cols=[{h:'Plan-Nr.',key:'nr',w:34},{h:'Index',key:'idx',w:7},{h:'Bereich',key:'ber',w:24},{h:'Bauteil / Inhalt',key:'t',w:30},{h:'Eingang',key:'d',w:11},{h:'Stahllisten',key:'ls',w:40},{h:'Bedarf kg',key:'kg',fmt:KG,w:12},{h:'Dübelleisten Stk',key:'dl',w:12},{h:'Datei',key:'f',w:40},{h:'Zu prüfen',key:'chk',w:50}];
     const ws=sheet('Pläne','Pläne',cols);
     S.plans.filter(x=>x.projectId===p.id).sort((a,b)=>String(a.nr).localeCompare(String(b.nr),'de',{numeric:true})).forEach(pl=>{ const ls=S.lists.filter(l=>l.planId===pl.id);
-      const r=addRow(ws,[pl.nr,pl.idx||'',bereich(planCode(pl)),pl.title||'',dDE(pl.date),ls.map(l=>l.nr+(l.idx?' / '+l.idx:'')+(l.ersetzt?' (ersetzt)':'')).join(', '),sum(ls.filter(l=>!l.ersetzt),listKg),pl.fileName||'',pruefGruende(pl).join('; ')]); if(zuPruefen(pl)) r.getCell(cols.length).font={...font,bold:true,color:{argb:WARN}}; });
+      const r=addRow(ws,[pl.nr,pl.idx||'',bereich(planCode(pl)),pl.title||'',dDE(pl.date),ls.map(l=>l.nr+(l.idx?' / '+l.idx:'')+(l.ersetzt?' (ersetzt)':'')).join(', '),sum(ls.filter(l=>!l.ersetzt),listKg),dlStk(pl)||null,pl.fileName||'',pruefGruende(pl).join('; ')]); if(zuPruefen(pl)) r.getCell(cols.length).font={...font,bold:true,color:{argb:WARN}}; });
     filter(ws,cols.length); }
+  // Dübelleisten je Plan
+  { const rows=S.plans.filter(x=>x.projectId===p.id).sort((a,b)=>String(a.nr).localeCompare(String(b.nr),'de',{numeric:true})).flatMap(pl=>dlRows(pl).map(x=>[pl,x]));
+    if(rows.length){
+      const cols=[{h:'Plan-Nr.',key:'nr',w:30},{h:'Index',key:'idx',w:7},{h:'Ebene',key:'eb',w:12},{h:'Bauteil / Inhalt',key:'t',w:30},{h:'Typ / Bezeichnung',key:'typ',w:28},{h:'Stück',key:'stk',fmt:'#,##0',w:9},{h:'Länge je Stück m',key:'len',fmt:'#,##0.00',w:12},{h:'Gesamt m',key:'m',fmt:'#,##0.00',w:11},{h:'Lage / Bemerkung',key:'ort',w:30},{h:'Status',key:'st',w:11}];
+      const ws=sheet('Dübelleisten','Dübelleisten je Plan',cols);
+      rows.forEach(([pl,x])=>{ const l0=S.lists.find(l=>l.planId===pl.id&&!l.ersetzt);
+        const r=addRow(ws,[pl.nr,pl.idx||'',l0?ebeneOf(l0):ebeneAuto({planId:pl.id,title:pl.title}),pl.title||'',x.typ,+x.stk||0,+x.len||null,null,x.ort||'',x.st||'offen']);
+        r.getCell(8).value={formula:`F${r.number}*G${r.number}`,result:dlM(x)};
+        if(x.st==='bestellt') r.getCell(10).fill=solid(YEL); if(x.st==='geliefert'){ r.getCell(10).fill=solid(GRN); r.getCell(10).font={...font,color:{argb:'FFFFFFFF'}}; } });
+      const last=ws.rowCount;
+      addRow(ws,['Summe','','','','',{formula:`SUM(F5:F${last})`,result:sum(rows,([,x])=>+x.stk)},'',{formula:`SUM(H5:H${last})`,result:sum(rows,([,x])=>dlM(x))},'',''],{sum:true});
+      ws.addRow([]);
+      const hr=ws.addRow(['Summe je Typ','','','','Typ','Stück','','Gesamt m','bestellt / geliefert Stk']); hr.font={...font,bold:true};
+      dlSummary(p.id).forEach(s=>ws.addRow(['','','','',s.typ,s.stk,'',s.m?Math.round(s.m*100)/100:null,s.b+' / '+s.g]));
+      filter(ws,cols.length); ws.autoFilter&&(ws.autoFilter.to.row=last); } }
   // Bestellungen
   { const cols=[{h:'Datum',key:'d',w:11},{h:'Bestell-Nr.',key:'nr',w:16},{h:'Lieferant',key:'lf',w:20},{h:'Stahllisten',key:'ls',w:40},{h:'Liefertermin',key:'due',w:12},{h:'Status',key:'st',w:11},{h:'Lieferschein',key:'lsn',w:14},
       ...orderCats.map(k=>({h:catLabel(k)+' kg',key:k,fmt:KG,w:11})),{h:'Summe kg',key:'sum',fmt:KG,w:12},{h:'Notiz',key:'n',w:30}];
@@ -1026,17 +1086,41 @@ function editProject(p){
     await save(); location.hash='#/p/'+p.id; route(); });
 }
 
-function editPlan(pl){
+function editPlan(pl,opt={}){
   $('dplTitle').textContent=pl?'Plan bearbeiten':'Neuer Plan';
   $('plNr').value=pl?.nr||''; $('plIdx').value=pl?.idx||''; $('plDate').value=pl?.date||today(); $('plTitle').value=pl?.title||''; $('plFile').value='';
   $('plFileInfo').textContent=pl?.fileId?`Aktuelle Datei: ${pl.fileName||''} – neue Datei wählen, um sie zu ersetzen.`:'';
   $('plDel').hidden=!pl;
   const chkDone=pruefBox($('plChk'),pl);
+  // Dübelleisten
+  const dl=(pl?.dl||[]).map(x=>({...x}));
+  $('dlTypen').innerHTML=[...new Set(S.plans.filter(x=>x.projectId===curPid).flatMap(x=>(x.dl||[]).map(y=>y.typ)).filter(Boolean))].sort().map(t=>`<option value="${esc(t)}">`).join('');
+  const nIn=v=>v===''||v==null?'':String(v).replace('.',',');
+  const dlSum=()=>{ $('plDlStk').textContent=fmt(sum(dl,x=>+x.stk))+' Stk'; $('plDlM').textContent=fmt(sum(dl,dlM),2)+' m'; };
+  const dlRender=()=>{ $('plDl').innerHTML=dl.map((x,i)=>`<tr><td><input class="dl-typ" data-i="${i}" data-f="typ" list="dlTypen" value="${esc(x.typ||'')}" aria-label="Typ"></td>
+      <td class="n"><input class="dl-n" data-i="${i}" data-f="stk" inputmode="numeric" value="${nIn(x.stk)}" aria-label="Stück"></td>
+      <td class="n"><input class="dl-n" data-i="${i}" data-f="len" inputmode="decimal" value="${nIn(x.len)}" aria-label="Länge je Stück in m"></td>
+      <td class="n" data-m="${i}">${dlM(x)?fmt(dlM(x),2):''}</td>
+      <td><input class="dl-ort" data-i="${i}" data-f="ort" value="${esc(x.ort||'')}" aria-label="Lage / Bemerkung"></td>
+      <td><select data-i="${i}" data-f="st" aria-label="Status">${DL_ST.map(([v,t])=>`<option value="${v}" ${(x.st||'')===v?'selected':''}>${t}</option>`).join('')}</select></td>
+      <td><button class="linkbtn del" type="button" data-rm="${i}">entfernen</button></td></tr>`).join('')
+      ||`<tr><td colspan="7" style="color:var(--muted)">Keine Dübelleisten erfasst.</td></tr>`; dlSum(); };
+  $('plDl').oninput=$('plDl').onchange=e=>{ const el=e.target; if(!el.dataset.f) return; const x=dl[+el.dataset.i], f=el.dataset.f;
+    if(f==='stk'||f==='len'){ const v=num(el.value); x[f]=isNaN(v)?'':v; const c=$('plDl').querySelector(`[data-m="${el.dataset.i}"]`); if(c) c.textContent=dlM(x)?fmt(dlM(x),2):''; dlSum(); }
+    else x[f]=el.value; };
+  $('plDl').onclick=e=>{ const b=e.target.closest('[data-rm]'); if(b){ dl.splice(+b.dataset.rm,1); dlRender(); } };
+  $('plDlAdd').onclick=()=>{ dl.push({typ:'',stk:'',len:'',ort:'',st:''}); dlRender(); $('plDl').querySelector('tr:last-child input')?.focus(); };
+  dlRender();
+  if(opt.dl){ setTimeout(()=>{ if(!dl.length) $('plDlAdd').click(); else $('plDl').querySelector('input')?.focus(); },0); }
   $('plDel').onclick=async()=>{ const ls=S.lists.filter(l=>l.planId===pl.id);
     if(!confirm(`Plan ${pl.nr} löschen?${ls.length?` Die ${ls.length} zugehörigen Stahllisten bleiben erhalten, verlieren aber die Plan-Zuordnung.`:''}`)) return;
     ls.forEach(l=>l.planId=''); await delFile(pl.fileId); S.plans=S.plans.filter(x=>x.id!==pl.id); await save(); $('dlgPlan').close(); renderProject(curPid); };
   dlg('dlgPlan',async()=>{ const f=$('plFile').files[0];
-    const v={nr:$('plNr').value.trim(),idx:$('plIdx').value.trim(),date:$('plDate').value,title:$('plTitle').value.trim()};
+    const v={nr:$('plNr').value.trim(),idx:$('plIdx').value.trim(),date:$('plDate').value,title:$('plTitle').value.trim(),
+      dl:dl.filter(x=>String(x.typ||'').trim()||+x.stk>0).map(x=>({typ:String(x.typ||'').trim(),stk:+x.stk||0,len:+x.len||0,ort:String(x.ort||'').trim(),st:x.st||''}))};
+    if(!v.dl.length) delete v.dl;
+    if(pl&&!v.dl) delete pl.dl;
+    if(pl) setPruef(pl,'dl',null);
     if(!pl){ pl={id:uid(),projectId:curPid,...v}; S.plans.push(pl); } else Object.assign(pl,v);
     if(chkDone()) markGeprueft(pl);
     if(f){ if(pl.fileId) await delFile(pl.fileId); const rec=await putFile(f); pl.fileId=rec.id; pl.fileName=f.name; }
@@ -1084,7 +1168,7 @@ function editList(l,presetPlan){
   $('lPlan').onchange=planSel; planSel();
   const handle=async(file,isPlan)=>{
     $('lParse').innerHTML=`<p class="hint">Lese ${esc(file.name)} …</p>`;
-    try{ const r=await parseSteel(file);
+    try{ const r=await parseSteel(file,{plan:isPlan});
       if(r.items.length){ rows.set(r.items); }
       if(r.matNetto) $('lMatN').value=fmt(r.matNetto,1).replace(/\./g,'');
       const code=isPlan?null:parseCode(file.name);
@@ -1159,10 +1243,11 @@ function dropZone(el,cb){
 function normDia(v){ const d=Math.round(num(String(v).replace(/[^\d,.]/g,''))); return KGM[d]?d:null; }
 function matKey(s){ const m=String(s).toUpperCase().match(/(?:^|[^A-Z0-9])([QRNK])\s?(\d{3})\s?([AE])?(?![A-Z0-9])/); return m?m[1]+m[2]+(m[3]||''):null; }
 
-async function parseSteel(file){
+// opt.plan: Datei ist ein Bewehrungsplan mit Stahlliste darauf (nur deren Tabellen auslesen)
+async function parseSteel(file,opt={}){
   const n=file.name.toLowerCase();
   if(/\.(xlsx|xls|csv|txt)$/.test(n)) return parseTable(file);
-  if(/\.pdf$/.test(n)||file.type==='application/pdf') return parsePdf(file);
+  if(/\.pdf$/.test(n)||file.type==='application/pdf') return opt.plan?parsePlanPdf(file):parsePdf(file);
   throw new Error('Dateityp nicht unterstützt (PDF, XLSX, XLS oder CSV)');
 }
 
@@ -1276,9 +1361,9 @@ function parseStueckliste(lines){
   return {acc,how:parts.join(' · '),checks,total:tParts.length?sum(tParts,v=>v):null,matNetto:out.matNetto};
 }
 
-async function parsePdf(file){
+async function parsePdf(file,opt={}){
   const lines=await pdfLines(file), raw=lines.join('\n');
-  if(!raw.replace(/\s/g,'').length) return (await parseVecPdf(file))||{items:[],total:null,how:'',raw:'(kein Text – gescannte PDF)'};
+  if(!raw.replace(/\s/g,'').length) return (!opt.noVec&&await parseVecPdf(file))||{items:[],total:null,how:'',raw:'(kein Text – gescannte PDF)'};
   const planRef=(raw.match(/Plan\s*-?\s*nr\.?\s*:?\s*([A-Za-z0-9]+(?:_[A-Za-z0-9ÄÖÜäöü]+){5,})/i)||[])[1]||'';
   const st=parseStueckliste(lines);
   if(st) return {items:Object.entries(st.acc).sort((a,b)=>catSort(a[0],b[0])).map(([cat,kg])=>({cat,kg:Math.round(kg*10)/10})),
@@ -1319,7 +1404,7 @@ async function parsePdf(file){
   // Gesamtgewicht
   let total=null; lines.forEach(l=>{ if(/gesamt\s*gew|gesamtgewicht|summe\s*gesamt|gesamt\s*summe|total/i.test(l)){ const m=l.match(new RegExp(N+'\\s*(kg|t)\\b','i')); if(m){ const v=num(m[1])*(m[2].toLowerCase()==='t'?1000:1); if(v>0) total=Math.max(total||0,v); } } });
   // Keine Gewichte im Text: Stahllisten in Vektorschrift auf dem Plan suchen (z. B. Ing.-Büro Albus)
-  if(!Object.keys(acc).length){ const v=await parseVecPdf(file); if(v&&v.items.length) return v; }
+  if(!opt.noVec&&!Object.keys(acc).length){ const v=await parseVecPdf(file); if(v&&v.items.length) return v; }
   const nrM=raw.match(/(?:Listen?|Stahlliste|Biegeliste)[\s-]*(?:Nr\.?|Nummer)\s*[:.]?\s*([A-Z0-9][\w./-]{0,20})/i);
   return {items:Object.entries(acc).sort((a,b)=>catSort(a[0],b[0])).map(([cat,kg])=>({cat,kg:Math.round(kg*10)/10})),total,how,raw,nr:nrM?nrM[1]:'',planRef};
 }
@@ -1408,7 +1493,11 @@ function vGroups(bx,ex,ey,cell,ok){ const par=bx.map((_,i)=>i), f=i=>{ while(par
   const m=new Map(); bx.forEach((b,i)=>{ const r=f(i); if(!m.has(r)) m.set(r,[]); m.get(r).push(b); }); return [...m.values()]; }
 // Linien → Komponenten → Wörter → Zeichen (Trennung über Lücken in der x-Projektion)
 function vWords(segs){
-  const S=segs.filter(s=>Math.hypot(s.b[0]-s.a[0],s.b[1]-s.a[1])<15).map(s=>({s,...vBox([s])}));
+  // Tabellenlinien weglassen: zusammenhängende waagrechte/senkrechte Linien, die zusammen größer als ein Zeichen sind
+  // (z. B. Spaltenlinien kurzer Tabellen oder je Zelle gezeichnete Linien – sie würden sonst ganze Zeilen zu einem „Wort“ verbinden)
+  const ax=segs.filter(s=>Math.abs(s.a[0]-s.b[0])<.05||Math.abs(s.a[1]-s.b[1])<.05).map(s=>({s,...vBox([s])})), grid=new Set();
+  vGroups(ax,.1,.1,8).forEach(g=>{ const b=vBox(g.map(x=>x.s)); if(Math.max(b.x1-b.x0,b.y1-b.y0)>=15) g.forEach(x=>grid.add(x.s)); });
+  const S=segs.filter(s=>!grid.has(s)&&Math.hypot(s.b[0]-s.a[0],s.b[1]-s.a[1])<15).map(s=>({s,...vBox([s])}));
   const comps=vGroups(S,.25,.25,4).map(l=>{ const segs=l.map(x=>x.s), b=vBox(segs); return {segs,...b,h:b.y1-b.y0}; });
   return vGroups(comps,12,.2,12,(A,B)=>{ const h=Math.max(A.h,B.h); if(h<1||Math.max(A.x0,B.x0)-Math.min(A.x1,B.x1)>1.4*h) return false;
       const big=A.h>=B.h?A:B, sm=A.h>=B.h?B:A;
@@ -1433,59 +1522,145 @@ function vRead(w){ if(w.text!=null) return w.text; const H=w.y1-w.y0||1;
 function vMatType(typ,kgm2){ const m=typ.match(/^(.)(\d{3})(A?)$/); if(!m) return matKey(typ)||'';
   if(/[QRNK]/.test(m[1])) return m[1]+m[2]+m[3];
   return (kgm2/(m[2]/100*.785)>1.8?'Q':'R')+m[2]+(m[3]||'A'); }
-// Tabellen „Rundstahlliste“ und „Mattenliste“ auf allen Seiten suchen und auslesen.
-// Jede Zeile wird gegengeprüft (Länge × Nenngewicht = Gewicht, Stück × Einzellänge = Gesamtlänge, Matten Stück × L × B × kg/m²),
-// jede Tabelle gegen ihr „Gesamtgewicht“.
+// Zahl aus CAD-Schrift (Dezimalpunkt, z. B. „8.40“) oder Text (deutsch, z. B. „1.234,5“)
+const vNum=v=>{ v=String(v??'').replace(/\s|kg$/gi,'').replace(/^[Øød⌀]/,''); if(/^\d+(\.\d+)?$/.test(v)) return parseFloat(v); if(/^\d{1,3}(\.\d{3})*,\d+$|^\d+,\d+$/.test(v)) return num(v); return NaN; };
+const vNear=(a,b,r=.004)=>isFinite(a)&&isFinite(b)&&Math.abs(a-b)<=Math.max(.06,Math.abs(b)*r);
+const vIsPos=s=>/^\d{1,3}[a-z]?$/i.test(String(s||''));
+// Spalten einer Tabelle über den Inhalt finden – Reihenfolge, leere Spalten und Zusatzspalten (z. B. Biegeform) sind egal:
+// Rundstahl: Ø und kg/m passen zusammen, Gesamtlänge × kg/m = Gewicht, Stück × Einzellänge = Gesamtlänge;
+// Matten: Stück × Länge × Breite × kg/m² = Gewicht. Was sich nicht finden lässt, wird wie bisher nach Position angenommen.
+function vTabCols(rows,mat){
+  const data=rows.filter(r=>vIsPos(r[0])), n=Math.max(0,...data.map(r=>r.length)), V=data.map(r=>Array.from({length:n},(_,i)=>vNum(r[i])));
+  const need=Math.max(1,Math.ceil(data.length*.4)), used=new Set([0]);
+  const best=(k,ok)=>{ let b=null,bs=0; const rec=pre=>{ if(pre.length===k){ let s=0; for(const v of V) if(ok(v,pre)) s++; if(s>bs){ bs=s; b=pre.slice(); } return; }
+      for(let i=1;i<n;i++) if(!used.has(i)&&!pre.includes(i)) rec([...pre,i]); };
+    rec([]); if(bs>=need){ b.forEach(i=>used.add(i)); return b; } return null; };
+  const intPos=x=>x>0&&Number.isInteger(x);
+  if(!mat){ const def={stk:1,d:2,el:3,gl:4,kgm:5,kg:6};
+    let a=best(2,(v,[d,k])=>KGM[v[d]]&&Math.abs(v[k]-KGM[v[d]])<.01), m={};
+    if(a){ m.d=a[0]; m.kgm=a[1]; } else { const d=best(1,(v,[i])=>!!KGM[v[i]]); if(d) m.d=d[0]; }
+    if(m.d==null) m.d=def.d;
+    const D=v=>KGM[v[m.d]]||NaN;
+    const g=best(2,(v,[gl,kg])=>v[gl]>0&&vNear(v[gl]*D(v),v[kg]));
+    if(g){ m.gl=g[0]; m.kg=g[1]; }
+    const s=m.gl!=null&&best(2,(v,[st,el])=>intPos(v[st])&&vNear(v[st]*v[el],v[m.gl]));
+    if(s){ m.stk=s[0]; m.el=s[1]; }
+    const found=Object.values(m);
+    for(const k in def) if(m[k]==null&&!found.includes(def[k])&&!(k==='kgm'&&m.kg!=null)) m[k]=def[k]; // kg/m fehlt in manchen Listen
+    return m; }
+  const def={stk:1,typ:2,L:3,B:4,q:5,kg:6}, m={};
+  const a=best(5,(v,[st,L,B,q,kg])=>intPos(v[st])&&v[L]>0&&v[B]>0&&v[q]>0&&vNear(v[st]*v[L]*v[B]*v[q],v[kg],.006));
+  if(a) [m.stk,m.L,m.B,m.q,m.kg]=a;
+  let tb=-1,ts=0; for(let i=1;i<n;i++){ if(used.has(i)) continue; const s=data.filter(r=>/\d/.test(r[i]||'')&&isNaN(vNum(r[i]))).length; if(s>ts){ ts=s; tb=i; } }
+  if(tb>0&&ts>=need) m.typ=tb;
+  const found=Object.values(m);
+  for(const k in def) if(m[k]==null&&!found.includes(def[k])) m[k]=def[k];
+  return m; }
+// Eine ausgelesene Tabelle auswerten: rows = Zellen je Zeile (Text), tot = „Gesamtgewicht“ (oder null)
+function vEvalTable(name,mat,rows,tot,acc,checks,notes){
+  const C=vTabCols(rows,mat); let tabKg=0, n=0;
+  for(const tk of rows){ const line=tk.filter(Boolean).join('  ');
+    if(!vIsPos(tk[0])){ continue; }
+    const pos=tk[0], bad=m=>checks.push(name+' Pos. '+pos+': '+m), q=Object.values(C).some(i=>/\?/.test(tk[i]||'')); // nur genutzte Spalten
+    if(!mat){ const stk=tk[C.stk], dd=tk[C.d], d=vNum(dd), E=vNum(tk[C.el]), G=vNum(tk[C.gl]), N=vNum(tk[C.kgm]), K=vNum(tk[C.kg]);
+      if(!KGM[d]){ bad('Zeile nicht ausgelesen (Durchmesser „'+(dd||'')+'“ nicht erkannt): '+line); continue; }
+      let w=K; if(isNaN(w)&&!isNaN(G)) w=G*KGM[d];
+      if(isNaN(w)&&/^\d+$/.test(stk||'')&&!isNaN(E)) w=+stk*E*KGM[d];
+      if(isNaN(w)){ bad('Gewicht nicht lesbar: '+line); continue; }
+      if(!isNaN(N)&&Math.abs(N-KGM[d])>.01) bad('Nenngewicht '+tk[C.kgm]+' passt nicht zu Ø '+d);
+      if(!isNaN(G)&&!isNaN(K)&&!vNear(G*KGM[d],K)) bad('Gesamtlänge × Nenngewicht ≠ Gewicht ('+tk[C.gl]+' m, '+tk[C.kg]+' kg)');
+      if(/^\d+$/.test(stk||'')&&!isNaN(E)&&!isNaN(G)&&!vNear(+stk*E,G)) bad('Stück × Einzellänge ≠ Gesamtlänge');
+      if(q) bad('Zeichen nicht sicher erkannt: '+line);
+      acc['d'+d]=(acc['d'+d]||0)+w; tabKg+=w; n++; }
+    else { const stk=vNum(tk[C.stk]), typ=String(tk[C.typ]||''), q2=vNum(tk[C.q]), K=vNum(tk[C.kg]), A=vNum(tk[C.L])*vNum(tk[C.B])*q2*stk;
+      const mk=vMatType(typ,q2), cat=/^[QRNK]\d{3}/.test(mk)?'M:'+mk:'K'; // sonst z. B. DT17 = Unterstützungskorb
+      let w=K; if(isNaN(w)&&!isNaN(A)&&cat!=='K') w=A;
+      if(isNaN(w)){ bad('Gewicht nicht lesbar: '+line); continue; }
+      if(cat!=='K'&&!isNaN(A)&&!vNear(A,w,.006)) bad('Stück × Länge × Breite × kg/m² ≠ Gewicht ('+tk[C.kg]+' kg)');
+      if(cat==='K'&&typ&&!notes.includes(typ)) notes.push(typ);
+      if(q) bad('Zeichen nicht sicher erkannt: '+line);
+      acc[cat]=(acc[cat]||0)+w; tabKg+=w; n++; } }
+  if(tot!=null&&!isNaN(tot)){ if(!vNear(tabKg,tot,.005)) checks.push(name+': Positionen ergeben '+fmt(tabKg,2)+' kg, Gesamtgewicht laut Liste '+fmt(tot,2)+' kg'); }
+  else if(tot!==null||n) checks.push(name+': Gesamtgewicht '+(tot===null?'nicht gefunden':'nicht lesbar'));
+  return {n,kg:tabKg}; }
+// Tabellen „Rundstahlliste“ und „Mattenliste“ in CAD-Strichschrift auf allen Seiten suchen und auslesen.
+// Zellen werden über die senkrechten Tabellenlinien getrennt (Zahlen benachbarter Spalten verschmelzen sonst
+// bzw. Zahlen mit Lücke zerfallen); die Tabelle endet am „Gesamtgewicht“, an der nächsten Tabelle oder an einer großen Lücke.
 async function parseVecTables(pdf){
   const acc={}, checks=[], parts=[], notes=[], raw=[]; let total=0, nTab=0;
-  const f=v=>/^\d+(\.\d+)?$/.test(v)?parseFloat(v):NaN, near=(a,b,r=.004)=>Math.abs(a-b)<=Math.max(.06,Math.abs(b)*r);
   for(let pn=1;pn<=Math.min(pdf.numPages,5);pn++){
     const segs=await vSegments(await pdf.getPage(pn)), W=vWords(segs);
     const titles=W.filter(w=>w.chars.length>=10&&w.chars.length<=16&&/^.{0,6}stahlliste$|^mattenliste$/i.test(vRead(w)));
     const hor=segs.filter(s=>Math.abs(s.a[1]-s.b[1])<.2&&Math.abs(s.a[0]-s.b[0])>3).map(s=>({...s,x0:Math.min(s.a[0],s.b[0]),x1:Math.max(s.a[0],s.b[0])}));
+    const ver=segs.filter(s=>Math.abs(s.a[0]-s.b[0])<.2&&Math.abs(s.a[1]-s.b[1])>1).map(s=>({x:(s.a[0]+s.b[0])/2,y0:Math.min(s.a[1],s.b[1]),y1:Math.max(s.a[1],s.b[1])}));
     for(const t of titles){ const mat=/^matten/i.test(t.text), cx=(t.x0+t.x1)/2, H=t.y1-t.y0;
       // Tabellenbreite: erste durchgehende Linie unter dem Titel
       const ln=hor.filter(s=>s.a[1]<t.y0&&s.a[1]>t.y0-2*H&&s.x0<cx&&s.x1>cx).sort((a,b)=>b.a[1]-a.a[1])[0];
       let x0=t.x0-20*H, x1=t.x1+20*H;
       if(ln){ const iv=hor.filter(s=>Math.abs(s.a[1]-ln.a[1])<.3); x0=ln.x0; x1=ln.x1; // Teilstücke auf gleicher Höhe anhängen
         for(let more=true;more;){ more=false; for(const s of iv){ if(s.x0<x0&&s.x1>=x0-2){ x0=s.x0; more=true; } if(s.x1>x1&&s.x0<=x1+2){ x1=s.x1; more=true; } } } }
-      const ws=W.filter(w=>w!==t&&w.x0>=x0-1&&w.x1<=x1+1&&w.y1<t.y0&&w.y1>t.y0-100*H).sort((a,b)=>b.y1-a.y1), rows=[];
+      const below=titles.filter(o=>o!==t&&o.y1<t.y0&&o.x0<x1&&o.x1>x0).map(o=>o.y1), yEnd=below.length?Math.max(...below):-1e9;
+      const ws=W.filter(w=>w!==t&&w.x0>=x0-1&&w.x1<=x1+1&&w.y1<t.y0&&w.y1>Math.max(yEnd+.2*H,t.y0-400*H)).sort((a,b)=>b.y1-a.y1), rows=[];
       for(const w of ws){ const h=Math.max(w.y1-w.y0,1); const r=rows.find(r=>Math.abs(r.y1-w.y1)<.5*h||h>1&&Math.abs(r.y0-w.y0)<.5*h); if(r) r.ws.push(w); else rows.push({y1:w.y1,y0:w.y0,ws:[w]}); }
       rows.sort((a,b)=>b.y1-a.y1);
-      const name=mat?'Mattenliste':'Rundstahlliste'; let tabKg=0, tabTot=null, n=0;
-      raw.push(name+' (Seite '+pn+')');
-      for(const r of rows){ r.ws.sort((a,b)=>a.x0-b.x0); const tk=r.ws.map(vRead).filter(x=>x!=='.'&&x!==':'), line=tk.join('  ');
-        if(titles.some(o=>o!==t&&o.y1<t.y1&&Math.abs(o.y1-r.y1)<H)) break; // nächste Tabelle darunter
-        raw.push(line);
-        if(/^gesamtgewicht/i.test(tk[0]||'')){ tabTot=f(tk[tk.length-1]); if(isNaN(tabTot)) checks.push(name+': Gesamtgewicht nicht lesbar'); break; }
-        if(!/^\d+$/.test(tk[0]||'')||tk.length<7) continue;
-        const pos=tk[0], bad=m=>checks.push(name+' Pos. '+pos+': '+m);
-        if(!mat){ const [,stk,dd,el,gl,kgm,kg]=tk.slice(0,7), d=+dd, G=f(gl), K=f(kg), N=f(kgm);
-          if(!KGM[d]){ bad('Durchmesser „'+dd+'“ nicht erkannt'); continue; }
-          let w=K; if(isNaN(w)&&!isNaN(G)) w=G*KGM[d];
-          if(isNaN(w)){ bad('Gewicht nicht lesbar'); continue; }
-          if(!isNaN(N)&&Math.abs(N-KGM[d])>.01) bad('Nenngewicht '+kgm+' passt nicht zu Ø '+d);
-          if(!isNaN(G)&&!near(G*(isNaN(N)?KGM[d]:N),w)) bad('Gesamtlänge × Nenngewicht ≠ Gewicht ('+gl+' m, '+kg+' kg)');
-          if(/^\d+$/.test(stk)&&!isNaN(f(el))&&!isNaN(G)&&!near(+stk*f(el),G)) bad('Stück × Einzellänge ≠ Gesamtlänge');
-          if(/\?/.test(line)) bad('Zeichen nicht sicher erkannt: '+line);
-          acc['d'+d]=(acc['d'+d]||0)+w; tabKg+=w; n++; }
-        else { const [,stk,typ,L,B,kgm2,kg]=tk.slice(0,7), K=f(kg), A=f(L)*f(B)*f(kgm2)*(+stk);
-          const mk=vMatType(typ,f(kgm2)), cat=/^[QRNK]\d{3}/.test(mk)?'M:'+mk:'K'; // sonst z. B. DT17 = Unterstützungskorb
-          let w=K; if(isNaN(w)&&!isNaN(A)&&cat!=='K') w=A;
-          if(isNaN(w)){ bad('Gewicht nicht lesbar'); continue; }
-          if(cat!=='K'&&!isNaN(A)&&!near(A,w,.006)) bad('Stück × Länge × Breite × kg/m² ≠ Gewicht ('+kg+' kg)');
-          if(cat==='K'&&!notes.includes(typ)) notes.push(typ);
-          if(/\?/.test(line)) bad('Zeichen nicht sicher erkannt: '+line);
-          acc[cat]=(acc[cat]||0)+w; tabKg+=w; n++; } }
-      nTab++;
-      if(tabTot!=null&&!isNaN(tabTot)){ total+=tabTot; if(!near(tabKg,tabTot,.005)) checks.push(name+': Positionen ergeben '+fmt(tabKg,2)+' kg, Gesamtgewicht laut Liste '+fmt(tabTot,2)+' kg'); }
-      else if(n) checks.push(name+': Gesamtgewicht nicht gefunden');
-      parts.push(name+' '+n+' Pos. '+fmt(tabKg,1)+' kg'); } }
+      // Spaltengrenzen: senkrechte Linien innerhalb der Tabelle, die unter der Kopflinie beginnen
+      const yTop=ln?ln.a[1]:t.y0;
+      // (Linienstücke an gleicher Stelle, die aneinander anschließen, zusammenfassen; Striche der Schrift sind kürzer und haben Lücken)
+      const vs=ver.filter(v=>v.x>x0+.5&&v.x<x1-.5&&v.y0<yTop+.5).sort((a,b)=>a.x-b.x||b.y1-a.y1), runs=[];
+      for(const v of vs){ const r=runs.find(r=>Math.abs(r.x-v.x)<.15&&v.y1>=r.y0-.2&&v.y0<=r.y1+.2); if(r){ r.y0=Math.min(r.y0,v.y0); r.y1=Math.max(r.y1,v.y1); } else runs.push({...v}); }
+      const xs=runs.filter(r=>r.y1<=yTop+.5&&r.y1>yTop-6*H&&r.y1-r.y0>3*H).map(r=>r.x).sort((a,b)=>a-b), cuts=[];
+      for(const x of xs) if(!cuts.length||x-cuts[cuts.length-1]>.4) cuts.push(x);
+      const cellsOf=r=>{ r.ws.sort((a,b)=>a.x0-b.x0);
+        if(cuts.length<4) return r.ws.map(vRead).filter(x=>x!=='.'&&x!==':');
+        const cells=Array(cuts.length+1).fill('');
+        for(const w of r.ws){ vRead(w); w.chars.forEach((c,i)=>{ const m=(c.x0+c.x1)/2; let k=0; while(k<cuts.length&&m>cuts[k]) k++; cells[k]+=w.text[i]||''; }); }
+        return cells.map(s=>s.replace(/^[.:]+|[.:]+$/g,'')); };
+      const name=mat?'Mattenliste':'Rundstahlliste', tab=[]; let tot=undefined, prevY=null;
+      const rowH=(()=>{ const hs=rows.map(r=>r.y1-r.y0).filter(h=>h>.1).sort((a,b)=>a-b); return hs[Math.floor(hs.length/2)]||H; })();
+      raw.push(name+' (Seite '+pn+')'+(cuts.length>=4?' · '+(cuts.length+1)+' Spalten':''));
+      for(const r of rows){
+        if(prevY!=null&&prevY-r.y1>12*rowH&&tab.length) break; // große Lücke: Tabelle zu Ende
+        const tk=cellsOf(r), line=tk.filter(Boolean).join('  ');
+        raw.push(line); prevY=r.y1;
+        if(/^gesamtgewicht/i.test(tk.join(''))){ const vs=tk.slice(1).map(vNum).filter(v=>!isNaN(v)); tot=vs.length?vs[vs.length-1]:NaN; break; }
+        tab.push(tk); }
+      if(tot===undefined) tot=null;
+      if(cuts.length>=4){ // Spalten, die in keiner Zeile etwas enthalten, entfernen (Zeilen bleiben spaltengleich)
+        const keep=tab.reduce((k,r)=>{ r.forEach((s,i)=>{ if(s) k.add(i); }); return k; },new Set([0]));
+        for(let i=0;i<tab.length;i++) tab[i]=tab[i].filter((_,j)=>keep.has(j)); }
+      const e=vEvalTable(name,mat,tab,tot,acc,checks,notes);
+      if(tot) total+=tot;
+      nTab++; parts.push(name+' '+e.n+' Pos. '+fmt(e.kg,1)+' kg'); } }
   if(!nTab) return null;
   if(notes.length) parts.push(notes.join(', ')+' als Unterstützungskörbe');
   return {acc,how:parts.join(' · '),checks,total:total||null,raw:raw.join('\n')}; }
+// Dieselben Tabellen als echter PDF-Text (Pläne, deren Listen nicht als Strichschrift gezeichnet sind)
+function parseTextTables(lines){
+  const acc={}, checks=[], parts=[], notes=[]; let total=0, nTab=0;
+  const isTitle=l=>/^(rund|stab)?stahl-?liste\b|^matten-?liste\b/i.test(l.replace(/\s+/g,''))||/^(rundstahl|stabstahl|matten)\s*-?\s*liste\b/i.test(l.trim());
+  for(let i=0;i<lines.length;i++){ if(!isTitle(lines[i])) continue;
+    const mat=/^\s*matten/i.test(lines[i]), name=mat?'Mattenliste':'Rundstahlliste', tab=[]; let tot=null;
+    for(let j=i+1;j<Math.min(lines.length,i+150);j++){ const l=lines[j].trim(); if(isTitle(l)) break;
+      if(/^gesamt\s*-?\s*gewicht/i.test(l)){ const vs=(l.match(/\d[\d.,]*/g)||[]).map(vNum).filter(v=>!isNaN(v)); tot=vs.length?vs[vs.length-1]:NaN; break; }
+      tab.push(l.replace(/[Øø⌀]\s*/g,'').split(/\s+/).filter(x=>x&&!/^(kg|m|stk\.?)$/i.test(x))); }
+    const e=vEvalTable(name,mat,tab,tot,acc,checks,notes);
+    if(!e.n) continue;
+    if(tot) total+=tot; nTab++; parts.push(name+' '+e.n+' Pos. '+fmt(e.kg,1)+' kg'); }
+  if(!nTab) return null;
+  if(notes.length) parts.push(notes.join(', ')+' als Unterstützungskörbe');
+  return {items:Object.entries(acc).sort((a,b)=>catSort(a[0],b[0])).map(([cat,kg])=>({cat,kg:Math.round(kg*10)/10})),total:total||null,how:parts.join(' · '),checks,raw:lines.join('\n'),nr:'',planRef:''}; }
 async function parseVecPdf(file){ const v=await parseVecTables(await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise); if(!v) return null;
   return {items:Object.entries(v.acc).sort((a,b)=>catSort(a[0],b[0])).map(([cat,kg])=>({cat,kg:Math.round(kg*10)/10})),total:v.total,how:v.how,checks:v.checks,raw:v.raw,nr:'',planRef:''}; }
+// Stahlliste auf dem Bewehrungsplan: nur die Tabellen „Rundstahlliste“/„Mattenliste“ zählen (Strichschrift oder Text).
+// Die allgemeine Textsuche greift auf Plänen sonst Positionsbeschriftungen und Notizen ab (z. B. „12 Ø10 – 150“, „Q188A … kg“)
+// und liefert falsche Mengen – sie läuft nur noch, wenn gar keine Liste gefunden wird, und dann immer mit „prüfen“.
+async function parsePlanPdf(file){
+  const v=await parseVecPdf(file); if(v&&v.items.length) return v;
+  const lines=await pdfLines(file), tt=parseTextTables(lines); if(tt) return tt;
+  if(v) return v; // Tabelle gefunden, aber nicht lesbar – Gründe stehen in checks
+  const r=await parsePdf(file,{noVec:true});
+  if(r.items.length) r.checks=[...(r.checks||[]),'keine Rundstahl- oder Mattenliste auf dem Plan gefunden – Mengen aus dem Plantext geschätzt, bitte mit dem Plan vergleichen'];
+  return r; }
 
 // ---------- Export / Sicherung ----------
 function csv(name,rows){ const s='﻿'+rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(';')).join('\r\n');

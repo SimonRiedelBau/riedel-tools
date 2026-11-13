@@ -57,10 +57,30 @@ Bei manchen Projekten stehen „Rundstahlliste“ und „Mattenliste“ direkt a
 - Plannummer aus dem Dateinamen: `BP041-0-V_Bew._Gründung_Teil_1_Verwaltung.pdf` → Plan **BP041-V**, Index **0**,
   Inhalt „Bew. Gründung Teil 1 Verwaltung“. Index 0 → a → b …: ein höherer Index ersetzt den Plan und seine Stahlliste
   (bestellte Listen bleiben als *ersetzt* erhalten).
+- **Nur die Tabellen zählen:** Beim Plan (Upload, „Aus Plan-PDF auslesen“, „Bestand prüfen“) werden ausschließlich
+  „Rundstahlliste“ und „Mattenliste“ ausgelesen – als Strichschrift oder als echter Text. Früher lief zuerst die allgemeine
+  Textsuche über den ganzen Plan; die griff Positionsbeschriftungen und Notizen ab (z. B. „12 Ø10 – 150“, „Q188A … kg“)
+  und lieferte falsche Mengen. Sie läuft nur noch, wenn auf dem Plan gar keine Liste gefunden wird, und dann immer mit „prüfen“.
+- Zellen werden über die senkrechten Tabellenlinien getrennt, die Spalten über den Inhalt zugeordnet (Ø ↔ kg/m,
+  Gesamtlänge × kg/m = Gewicht, Stück × Einzellänge = Gesamtlänge, Matten Stück × L × B × kg/m² = Gewicht). Reihenfolge,
+  fehlende kg/m-Spalte oder Zusatzspalten (Biegeform) stören dadurch nicht mehr. Kurze Tabellen bzw. je Zelle gezeichnete
+  Linien werden nicht mehr als Schrift gelesen. Zeilen, die sich nicht auslesen lassen, erscheinen als „prüfen“ statt still zu fehlen.
+- **Bestand prüfen** liest Pläne neu aus; ergeben noch nicht bestellte Plan-Stahllisten dabei andere, sauber gegengeprüfte
+  Mengen, bietet das Tool an, die neuen Mengen zu übernehmen.
 - Die Listen sind auf diesen Plänen keine Text-Objekte, sondern als CAD-Strichschrift gezeichnet. Das Tool erkennt die
   Zeichen über ihre Form (Vorlagen `VGLYPH` in `index.html`, angelernt am Plan BP041-0-V). Kommt ein Zeichen vor, das
   noch nicht angelernt ist (z. B. „Q“ bei Q-Matten), wird der Mattentyp aus dem Gewicht je m² abgeleitet; sonst
   erscheint die Liste als „prüfen“.
+
+## Dübelleisten je Plan
+Im Reiter *Pläne* Spalte **Dübelleisten** → „+ eingeben“ (oder *Bearbeiten*): je Zeile Typ/Bezeichnung, Stück, Länge je Stück (m),
+Lage/Bemerkung und Status (offen / bestellt / geliefert). Bereits verwendete Typen werden vorgeschlagen.
+- Die Spalte zeigt die Stückzahl und den Status des Plans; die Übersicht hat eine Tabelle **Dübelleisten** je Typ
+  (Stück, Gesamt m, bestellt, geliefert, noch zu bestellen, Pläne).
+- Excel-Liste: eigenes Blatt *Dübelleisten* (je Plan und je Typ), Spalte „Dübelleisten Stk“ im Blatt *Pläne*, und im
+  Ebenen-Blatt steht in der Spalte Dübelleisten die Stückzahl des Plans (gelb bestellt / grün geliefert, Details als Kommentar).
+- Neuer Plan-Index: die Dübelleisten bleiben am Plan, der Plan wird aber mit „Dübelleisten-Mengen prüfen“ markiert.
+- Änderungen stehen im Verlauf.
 
 ## Dashboard
 - Bedarf lt. gültigen Stahllisten, bestellt, geliefert, **noch zu bestellen** (je Sorte: Bedarf − bestellt)
