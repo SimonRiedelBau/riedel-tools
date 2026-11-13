@@ -82,6 +82,15 @@ Lage/Bemerkung und Status (offen / bestellt / geliefert). Bereits verwendete Typ
 - Neuer Plan-Index: die Dübelleisten bleiben am Plan, der Plan wird aber mit „Dübelleisten-Mengen prüfen“ markiert.
 - Änderungen stehen im Verlauf.
 
+## Zubehör-Mengen in der Stahlliste
+Im Dialog einer Stahlliste (Abschnitt *Zubehör*): Sobald bei Dübelleisten, Lenton, HBT oder Iso./Tron. ein Status
+(benötigt / bestellt / geliefert) gewählt wird, erscheint darunter direkt eine Eingabe für die Mengen.
+- **Dübelleisten:** Typ, Stück, Länge je Stück, Lage, Status – gespeichert **am Plan der Liste** (dieselben Daten wie im
+  Reiter *Pläne*); Listen ohne Plan speichern sie an der Liste. „bestellt/geliefert“ an der Liste wird auf offene Zeilen übertragen.
+- **Lenton, HBT, Isokörbe:** Typ, Menge, Einheit (Stk oder m; HBT standardmäßig m), Lage/Bemerkung. Der Status gilt für die Liste.
+- Anzeige in der Stahllisten-Tabelle (z. B. „Lenton bestellt (40 Stk: Lenton A12)“), Übersicht-Tabelle **Zubehör** je Typ,
+  Excel: Mengen statt „X“ in den Ebenen-Blättern (Details als Kommentar), eigenes Blatt *Zubehör*; Änderungen im Verlauf.
+
 ## Dashboard
 - Bedarf lt. gültigen Stahllisten, bestellt, geliefert, **noch zu bestellen** (je Sorte: Bedarf − bestellt)
 - Balken je Durchmesser, Tabelle „Noch zu bestellen“ (CSV-Export, Drucken), Liste der noch nicht bestellten Stahllisten mit Knopf „Offene Listen bestellen“
