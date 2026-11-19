@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="rb-tool" content="EBV-Lieferscheine">
+<script src="../assets/vendor/supabase.js"></script>
+<script src="../assets/auth-gate.js"></script>
+<script src="../projekte/projekte.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>EBV-Lieferscheine – Riedel-Tools</title>
+<style>
+:root{
+  --bg:var(--rb-bg,#ECEDEB); --surface:var(--rb-surface,#F8F8F6); --soft:var(--rb-soft,#DFE1DF); --rule:var(--rb-rule,#CDD0CF);
+  --ink:var(--rb-ink,#1D2124); --muted:var(--rb-muted,#5F666B); --red:var(--rb-red,#FF0000); --red-ink:var(--rb-red-ink,#C4000B);
+  --red-soft:var(--rb-red-soft,#FBE3E1); --ok:var(--rb-ok,#2E7D4F); --ok-soft:var(--rb-ok-soft,#E0EFE5);
+  --warn:var(--rb-warn,#B25E00); --warn-soft:var(--rb-warn-soft,#F6E9D8); --info:var(--rb-info,#2F5F8A); --info-soft:var(--rb-info-soft,#E1EAF2);
+  --sans:var(--rb-sans,"Barlow",system-ui,sans-serif); --cond:var(--rb-cond,"Barlow Condensed","Arial Narrow",sans-serif);
+  box-sizing:border-box;
+}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.5 var(--sans)}
+.wrap{max-width:1180px;margin:0 auto;padding:22px 20px 60px}
+[hidden]{display:none!important}
+h1{font:700 30px/1.05 var(--cond);margin:0}
+h2{font:700 22px/1.1 var(--cond);margin:0 0 10px}
+.lead{color:var(--muted);margin:4px 0 0;max-width:72ch}
+.head{border-bottom:3px solid var(--ink);padding-bottom:14px;margin-bottom:18px;display:flex;gap:16px;align-items:flex-end;justify-content:space-between;flex-wrap:wrap}
+.head select{font:600 15px/1 var(--sans);padding:9px 10px;border:2px solid var(--ink);background:var(--surface);color:var(--ink)}
+.btn{font:600 15px/1 var(--sans);padding:10px 16px;border:2px solid var(--ink);background:var(--ink);color:var(--bg);cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:8px;justify-content:center}
+.btn.sec{background:transparent;color:var(--ink)}
+.btn.red{background:var(--red);border-color:var(--red);color:#fff}
+.btn.sm{font-size:13px;padding:7px 11px}
+.btn:disabled{opacity:.45;cursor:default}
+.btn:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+.capture{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;margin-bottom:14px}
+.capture .btn{padding:16px 14px;font-size:16px}
+.capture .btn.big{font-size:19px;padding:20px 14px}
+.capture .ico{font-size:22px;line-height:1}
+.panel{background:var(--surface);border:1px solid var(--rule);padding:16px 18px;margin-bottom:18px}
+.msg{font-size:14px;margin:0 0 14px;min-height:0}
+.msg:empty{display:none}
+.msg.bad{color:var(--red-ink)}.msg.ok{color:var(--ok)}
+.queue{background:var(--warn-soft);border:1px solid var(--warn);color:var(--ink);padding:10px 14px;margin-bottom:14px;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;font-size:14px}
+
+/* ---------- Erfassung ---------- */
+.dir{display:grid;grid-template-columns:1fr 1fr;gap:0;margin-bottom:14px;border:2px solid var(--ink)}
+.dir button{font:600 15px/1.2 var(--sans);padding:11px 8px;border:0;background:transparent;color:var(--ink);cursor:pointer}
+.dir button small{display:block;font-weight:400;font-size:12px;color:var(--muted)}
+.dir button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.dir button[aria-pressed="true"] small{color:var(--bg);opacity:.8}
+.pages{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.pg{position:relative;width:110px;height:150px;border:1px solid var(--rule);background:var(--bg);display:flex;align-items:center;justify-content:center;overflow:hidden}
+.pg img{width:100%;height:100%;object-fit:cover;cursor:zoom-in}
+.pg .pdf{font:700 18px/1 var(--cond);color:var(--red-ink);text-align:center;padding:6px;cursor:pointer}
+.pg .pdf small{display:block;font:400 11px/1.3 var(--sans);color:var(--muted);margin-top:6px;word-break:break-all}
+.pg .n{position:absolute;left:4px;top:4px;background:var(--ink);color:var(--bg);font:600 11px/1 var(--sans);padding:3px 5px}
+.pg .tools{position:absolute;right:3px;bottom:3px;display:flex;gap:3px}
+.pg .tools button{width:30px;height:30px;border:0;background:rgba(0,0,0,.65);color:#fff;font-size:15px;cursor:pointer;padding:0}
+.pg.add{border:2px dashed var(--rule);cursor:pointer;flex-direction:column;gap:4px;color:var(--muted);font-size:13px;text-align:center;background:transparent}
+.pg.add b{font-size:28px;line-height:1;color:var(--ink)}
+.form{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.form label{font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:3px;min-width:0}
+.form .w2{grid-column:span 2}.form .full{grid-column:1/-1}
+.form input,.form select,.form textarea{font:inherit;font-size:14px;color:var(--ink);background:var(--bg);border:1px solid var(--rule);padding:8px 9px;min-width:0;width:100%}
+.form textarea{min-height:56px;resize:vertical}
+.form .req>.lt::after{content:" *";color:var(--red-ink)}
+.form .row2{display:grid;grid-template-columns:1fr 80px;gap:6px}
+.checks{grid-column:1/-1;display:flex;gap:20px;flex-wrap:wrap}
+.checks label{flex-direction:row;align-items:center;gap:8px;font-size:14px;color:var(--ink)}
+.checks input{width:20px;height:20px}
+.act{display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;margin-top:14px;align-items:center}
+.act .r{display:flex;gap:8px;flex-wrap:wrap}
+.miss{font-size:13px;color:var(--warn);margin:10px 0 0}
+.miss.ok{color:var(--ok)}
+
+/* ---------- Übersicht ---------- */
+.sum{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(240px,100%),1fr));gap:12px;margin-bottom:18px}
+.tile{background:var(--surface);border:1px solid var(--rule);border-left:4px solid var(--ink);padding:12px 14px}
+.tile.in{border-left-color:var(--info)}.tile.out{border-left-color:var(--warn)}.tile.bad{border-left-color:var(--red)}
+.tile h3{font:600 12px/1.2 var(--sans);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 6px}
+.tile .v{font:700 26px/1 var(--cond)}
+.tile ul{margin:6px 0 0;padding:0;list-style:none;font-size:13.5px}
+.tile li{display:flex;justify-content:space-between;gap:8px;border-top:1px solid var(--soft);padding:3px 0}
+.tile li .flag{color:var(--red-ink);font-weight:600}
+.tile p{margin:6px 0 0;font-size:13px;color:var(--muted)}
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.filters select,.filters input{font:inherit;font-size:14px;padding:8px 9px;border:1px solid var(--rule);background:var(--surface);color:var(--ink);min-width:0}
+.filters input[type=search]{flex:1;min-width:160px}
+.filters label{font-size:14px;display:flex;gap:6px;align-items:center}
+.exp{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
+.list{display:flex;flex-direction:column;gap:6px}
+.ls{display:grid;grid-template-columns:64px 1fr auto;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--rule);padding:8px 12px 8px 8px;cursor:pointer;text-align:left;font:inherit;color:inherit;width:100%}
+.ls:hover{background:var(--soft)}
+.ls .th{width:64px;height:64px;background:var(--bg);border:1px solid var(--rule);display:flex;align-items:center;justify-content:center;overflow:hidden;font:700 13px/1 var(--cond);color:var(--muted)}
+.ls .th img{width:100%;height:100%;object-fit:cover}
+.ls .t{font-weight:600}
+.ls .m{font-size:13px;color:var(--muted)}
+.ls .q{text-align:right;font:700 20px/1 var(--cond);white-space:nowrap}
+.ls .q small{display:block;font:400 12px/1.4 var(--sans);color:var(--muted)}
+.tag{display:inline-block;font:700 11px/1 var(--sans);padding:4px 6px;margin-right:4px;vertical-align:1px;letter-spacing:.03em}
+.tag.in{background:var(--info-soft);color:var(--info)}.tag.out{background:var(--warn-soft);color:var(--warn)}
+.tag.ok{background:var(--ok-soft);color:var(--ok)}.tag.miss{background:var(--red-soft);color:var(--red-ink)}
+.tag.wait{background:var(--warn);color:#fff}.tag.cls{background:var(--ink);color:var(--bg)}
+.empty{color:var(--muted);padding:26px;border:1px dashed var(--rule);text-align:center}
+pre.sql{max-height:320px;overflow:auto;background:var(--bg);border:1px solid var(--rule);padding:10px;font-size:12px;white-space:pre-wrap}
+.note{font-size:12.5px;color:var(--muted);margin:18px 0 0;max-width:90ch}
+/* Vollbild-Ansicht einer Seite */
+.viewer{position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center;padding:16px}
+.viewer img{max-width:100%;max-height:100%;object-fit:contain;touch-action:pinch-zoom}
+.viewer button{position:absolute;top:max(12px,env(safe-area-inset-top));right:12px;width:44px;height:44px;font-size:22px;border:0;background:#fff;color:#000;cursor:pointer}
+@media (max-width:760px){
+  .wrap{padding:14px 12px 48px} h1{font-size:26px}
+  .capture{grid-template-columns:1fr 1fr}.capture .big{grid-column:1/-1}
+  .form{grid-template-columns:1fr 1fr}.form .w2{grid-column:1/-1}
+  .exp{margin-left:0;width:100%}.exp .btn{flex:1}
+  .ls{grid-template-columns:52px 1fr auto;gap:10px}.ls .th{width:52px;height:52px}
+}
+@media (pointer:coarse){.form input,.form select,.form textarea,.filters select,.filters input{font-size:16px;padding:10px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <div><h1>EBV-Lieferscheine</h1>
+      <p class="lead">Lieferscheine nach Ersatzbaustoffverordnung erfassen und ablegen: Anlieferung (wir als Verwender) und Abfuhr von Aushub (wir als Inverkehrbringer). Foto direkt auf der Baustelle, PDF aus der Mail oder ohne Beleg.</p></div>
+    <label><span class="sr" hidden>Projekt</span><select id="proj" aria-label="Projekt"></select></label>
+  </div>
+
+  <div class="queue" id="queue" hidden><span id="queueTxt"></span><button class="btn sm" type="button" id="queueGo">Jetzt senden</button></div>
+  <p class="msg" id="msg" role="status"></p>
+  <div id="setup" hidden></div>
+
+  <div id="main">
+    <!-- Aufnehmen -->
+    <div class="capture" id="capture">
+      <button class="btn red big" type="button" id="bCam"><span class="ico" aria-hidden="true">📷</span> Lieferschein fotografieren</button>
+      <button class="btn sec" type="button" id="bFile"><span class="ico" aria-hidden="true">📄</span> PDF / Bild hochladen</button>
+      <button class="btn sec" type="button" id="bManual"><span class="ico" aria-hidden="true">✎</span> Ohne Beleg</button>
+    </div>
+    <input type="file" id="camIn" accept="image/*" capture="environment" hidden>
+    <input type="file" id="fileIn" accept="image/*,application/pdf" multiple hidden>
+
+    <!-- Erfassungsformular -->
+    <form class="panel" id="form" hidden novalidate>
+      <h2 id="fHead">Neuer Lieferschein</h2>
+      <div class="dir" role="group" aria-label="Richtung">
+        <button type="button" data-dir="anlieferung" aria-pressed="true">Anlieferung<small>Material kommt auf die Baustelle</small></button>
+        <button type="button" data-dir="abfuhr" aria-pressed="false">Abfuhr<small>Aushub verlässt die Baustelle</small></button>
+      </div>
+      <div class="pages" id="pages"></div>
+      <div class="form">
+        <label class="req">Lieferschein-Nr.<input id="f_ls_nr" autocomplete="off" inputmode="text"></label>
+        <label class="req">Datum<input id="f_datum" type="date"></label>
+        <label class="w2 req" id="lLief">Lieferant (Inverkehrbringer)<input id="f_lieferant" list="dlLief" autocomplete="off"></label>
+        <label class="w2 req">Material / Ersatzbaustoff<input id="f_material" list="dlMat" autocomplete="off" placeholder="z. B. RC-Baustoff 0/45"></label>
+        <label class="req">Materialklasse<input id="f_materialklasse" list="dlKl" autocomplete="off" placeholder="z. B. RC-1"></label>
+        <label>Körnung<input id="f_koernung" autocomplete="off" placeholder="0/45"></label>
+        <label class="req">Menge<span class="row2"><input id="f_menge" inputmode="decimal" autocomplete="off" placeholder="0,00"><select id="f_einheit"><option>t</option><option>m³</option></select></span></label>
+        <label>Kennzeichen Fahrzeug<input id="f_kennzeichen" autocomplete="off" placeholder="M-AB 1234"></label>
+        <label class="w2 req" id="lAbn">Abnehmer (Verwender)<input id="f_abnehmer" list="dlAbn" autocomplete="off"></label>
+        <label class="w2">Beförderer<input id="f_befoerderer" list="dlBef" autocomplete="off"></label>
+        <label class="w2 req" id="lOrt">Einbauort / Bauteil<input id="f_einbauort" list="dlOrt" autocomplete="off" placeholder="z. B. Unterbau Bodenplatte Halle, Achse 1–5"></label>
+        <label class="w2" id="lWeise">Einbauweise (EBV Anlage 2)<input id="f_einbauweise" list="dlWeise" autocomplete="off" placeholder="z. B. Nr. 7 – unter gebundener Deckschicht"></label>
+        <label class="w2 req" id="lZiel" hidden>Annahmestelle (Verwertung / Entsorgung)<input id="f_ziel" list="dlZiel" autocomplete="off" placeholder="z. B. Kiesgrube Musterfirma, Verfüllung"></label>
+        <label class="full">Bemerkung<textarea id="f_bemerkung" maxlength="1000"></textarea></label>
+        <div class="checks">
+          <label><input type="checkbox" id="f_unterschrift"> Lieferschein unterschrieben</label>
+          <label><input type="checkbox" id="f_deckblatt"> Deckblatt liegt bei (erste Lieferung)</label>
+        </div>
+      </div>
+      <p class="miss" id="miss"></p>
+      <div class="act">
+        <div class="r"><button type="button" class="btn sec sm" id="fLast">Wie letzte Fuhre</button>
+          <button type="button" class="btn sec sm" id="fDel" hidden>Löschen</button></div>
+        <div class="r"><button type="button" class="btn sec" id="fCancel">Abbrechen</button>
+          <button type="submit" class="btn" id="fSave">Speichern</button></div>
+      </div>
+    </form>
+
+    <!-- Übersicht -->
+    <div class="sum" id="sum"></div>
+
+    <div class="filters">
+      <select id="qDir" aria-label="Richtung"><option value="">Alle Richtungen</option><option value="anlieferung">Anlieferung</option><option value="abfuhr">Abfuhr</option></select>
+      <select id="qKl" aria-label="Materialklasse"><option value="">Alle Klassen</option></select>
+      <select id="qMon" aria-label="Monat"><option value="">Alle Monate</option></select>
+      <input type="search" id="qTxt" placeholder="Suche: Nr., Lieferant, Material, Ort …" aria-label="Suche">
+      <label><input type="checkbox" id="qMiss"> nur unvollständige</label>
+      <div class="exp">
+        <button class="btn sec sm" type="button" id="xXlsx">Excel-Register</button>
+        <button class="btn sec sm" type="button" id="xZip">Ablage als ZIP</button>
+      </div>
+    </div>
+    <div class="list" id="list"></div>
+    <p class="note">Pflichtangaben (*) richten sich nach dem Lieferschein nach § 25 EBV. Bei der ersten Lieferung eines Lieferanten gehört das Deckblatt dazu; Lieferscheine und Deckblatt gehen an den Bauherrn und sind aufzubewahren. Für Materialklassen der Stufe 3 (z. B. RC-3, BM-F3) und Einbau in Wasserschutzgebieten die Anzeigepflicht nach § 22 EBV prüfen – die Summen oben zählen dafür nur Mengen in m³. Die Prüfung ersetzt keine fachliche Bewertung durch Bodengutachter oder Behörde.</p>
+  </div>
+</div>
+
+<datalist id="dlKl">
+  <option>RC-1</option><option>RC-2</option><option>RC-3</option>
+  <option>BM-0</option><option>BM-0*</option><option>BM-F0*</option><option>BM-F1</option><option>BM-F2</option><option>BM-F3</option>
+  <option>BG-0</option><option>BG-0*</option><option>BG-F0*</option><option>BG-F1</option><option>BG-F2</option><option>BG-F3</option>
+  <option>GS-0</option><option>GS-1</option><option>GS-2</option><option>GS-3</option>
+  <option>SWS-1</option><option>SWS-2</option><option>SWS-3</option><option>HMVA-1</option><option>HMVA-2</option>
+  <option>kein Ersatzbaustoff</option>
+</datalist>
+<datalist id="dlLief"></datalist><datalist id="dlAbn"></datalist><datalist id="dlBef"></datalist>
+<datalist id="dlMat"></datalist><datalist id="dlOrt"></datalist><datalist id="dlWeise"></datalist><datalist id="dlZiel"></datalist>
+
+<script>
+(function(){
+'use strict';
+const PROJ=(window.RB_PROJEKTE&&window.RB_PROJEKTE.PROJEKTE)||[];
+const TABLE='ebv_lieferscheine', BUCKET='ebv-lieferscheine', MAX=20*1048576, WIR='Riedel Bau AG';
+const FIELDS=['ls_nr','datum','lieferant','abnehmer','befoerderer','kennzeichen','material','materialklasse','koernung','menge','einheit','einbauort','einbauweise','ziel','bemerkung'];
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const errMsg=e=>(e&&(e.message||e.error_description||e.msg))||String(e);
+const today=()=>{const d=new Date();return new Date(d-d.getTimezoneOffset()*6e4).toISOString().slice(0,10);};
+const fmtDate=t=>{ if(!t) return ''; const [y,m,d]=String(t).slice(0,10).split('-'); return d?`${d}.${m}.${y}`:t; };
+const num=v=>{ if(v===null||v===undefined||v==='') return null; const n=typeof v==='number'?v:parseFloat(String(v).replace(/\s/g,'').replace(/\.(?=\d{3}(\D|$))/g,'').replace(',','.')); return isFinite(n)?n:null; };
+const fmtN=(n,d=2)=>n==null?'':Number(n).toLocaleString('de-DE',{minimumFractionDigits:0,maximumFractionDigits:d});
+const uid=()=>crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2);
+const safeName=n=>String(n||'').normalize('NFKD').replace(/[̀-ͯ]/g,'').replace(/ß/g,'ss').replace(/[^A-Za-z0-9._-]+/g,'_').replace(/^_+|_+$/g,'').slice(0,60);
+const isImg=t=>/^image\//.test(t||''); const isPdf=(t,n)=>t==='application/pdf'||/\.pdf$/i.test(n||'');
+const ANZ=/^(RC-3|BM-F3|BG-F3|GS-3|SWS-3|HMVA-2)$/i; // Anzeigepflicht nach § 22 EBV prüfen
+
+let sb=null, project=null, rows=[], queued=[], dbOk=false, isAdmin=false;
+let edit=null; // {id|null, local:true?, dir, pages:[{pfad?,name,typ,groesse,blob?,url?}], removed:[]}
+const thumbCache=new Map();
+
+function msg(t,cls){ const m=$('msg'); m.className='msg '+(cls||''); m.textContent=t||''; if(t&&cls==='ok') setTimeout(()=>{ if(m.textContent===t) m.textContent=''; },5000); }
+
+// ---------- Offline-Warteschlange (IndexedDB) ----------
+// Fotos von der Baustelle gehen nicht verloren: ohne Netz wird der Lieferschein im Gerät gespeichert
+// und gesendet, sobald wieder Verbindung besteht.
+const idb=(()=>{ let p=null; const open=()=>p||(p=new Promise((res,rej)=>{ const r=indexedDB.open('riedel-ebv',1);
+  r.onupgradeneeded=()=>r.result.createObjectStore('queue',{keyPath:'qid'}); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }));
+  const tx=(mode,fn)=>open().then(db=>new Promise((res,rej)=>{ const t=db.transaction('queue',mode); const s=t.objectStore('queue'); const out=fn(s); t.oncomplete=()=>res(out&&out.result!==undefined?out.result:out); t.onerror=()=>rej(t.error); }));
+  return { all:()=>tx('readonly',s=>s.getAll()), put:v=>tx('readwrite',s=>s.put(v)), del:k=>tx('readwrite',s=>s.delete(k)) }; })();
+
+async function loadQueue(){ try{ queued=(await idb.all()).filter(q=>!project||q.row.projekt===project.id); }catch(e){ queued=[]; }
+  const all=await idb.all().catch(()=>[]);
+  $('queue').hidden=!all.length;
+  $('queueTxt').textContent=all.length===1?'1 Lieferschein ist nur auf diesem Gerät gespeichert und wartet auf Verbindung.':`${all.length} Lieferscheine sind nur auf diesem Gerät gespeichert und warten auf Verbindung.`;
+}
+let flushing=false;
+async function flushQueue(silent){
+  if(flushing||!sb||!dbOk) return; flushing=true; let n=0, fail=null;
+  try{ for(const q of await idb.all()){ try{ await uploadEntry(q.row,q.pages); await idb.del(q.qid); n++; }catch(e){ fail=e; break; } } }
+  finally{ flushing=false; }
+  await loadQueue();
+  if(n){ msg(`${n} gespeicherte${n===1?'r':''} Lieferschein${n===1?'':'e'} gesendet.`,'ok'); await loadRows(); }
+  else if(fail&&!silent) msg('Senden noch nicht möglich: '+errMsg(fail),'bad');
+  render();
+}
+addEventListener('online',()=>flushQueue(true));
+$('queueGo').onclick=()=>flushQueue(false);
+
+// ---------- Bilder verkleinern ----------
+// Handyfotos haben oft 4–12 MB. Für die Ablage reichen ca. 2400 px an der langen Seite – Schrift bleibt gut lesbar.
+async function shrink(file){
+  if(!isImg(file.type)) return file;
+  try{
+    const bmp=await createImageBitmap(file,{imageOrientation:'from-image'});
+    const k=Math.min(1,2400/Math.max(bmp.width,bmp.height));
+    if(k===1&&file.size<1.5*1048576&&file.type==='image/jpeg'){ bmp.close&&bmp.close(); return file; }
+    const c=document.createElement('canvas'); c.width=Math.round(bmp.width*k); c.height=Math.round(bmp.height*k);
+    c.getContext('2d').drawImage(bmp,0,0,c.width,c.height); bmp.close&&bmp.close();
+    const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',0.82));
+    return blob?new File([blob],(file.name||'foto').replace(/\.[^.]+$/,'')+'.jpg',{type:'image/jpeg'}):file;
+  }catch(e){ return file; } // z. B. HEIC in Browsern ohne Unterstützung – Original behalten
+}
+async function rotate(blob){
+  const bmp=await createImageBitmap(blob); const c=document.createElement('canvas'); c.width=bmp.height; c.height=bmp.width;
+  const g=c.getContext('2d'); g.translate(c.width,0); g.rotate(Math.PI/2); g.drawImage(bmp,0,0); bmp.close&&bmp.close();
+  return await new Promise(r=>c.toBlob(r,'image/jpeg',0.85));
+}
+
+// ---------- Daten ----------
+async function loadRows(){
+  rows=[]; dbOk=false; $('setup').hidden=true;
+  if(!sb){ msg('Keine Verbindung zur Datenbank.','bad'); return; }
+  const {data,error}=await sb.from(TABLE).select('*').eq('projekt',project.id).order('datum',{ascending:false}).order('angelegt_am',{ascending:false});
+  if(error){
+    if(error.code==='42P01'||error.code==='PGRST205'||/does not exist|could not find the table/i.test(error.message)) setupPanel();
+    else if(!navigator.onLine||/fetch|network/i.test(error.message)){ dbOk=true; msg('Offline – neue Lieferscheine werden auf dem Gerät gespeichert und später gesendet.'); }
+    else msg('Lieferscheine konnten nicht geladen werden: '+errMsg(error),'bad');
+    return;
+  }
+  dbOk=true; rows=data||[];
+}
+function missing(r){
+  const m=[]; const has=k=>r[k]!==null&&r[k]!==undefined&&String(r[k]).trim()!=='';
+  if(!has('ls_nr')) m.push('Lieferschein-Nr.');
+  if(!has('datum')) m.push('Datum');
+  if(!has('lieferant')) m.push('Lieferant');
+  if(r.richtung!=='abfuhr'&&!has('abnehmer')) m.push('Abnehmer');
+  if(!has('material')) m.push('Material');
+  if(!has('materialklasse')) m.push('Materialklasse');
+  if(num(r.menge)==null) m.push('Menge');
+  if(r.richtung==='abfuhr'){ if(!has('ziel')) m.push('Annahmestelle'); } else if(!has('einbauort')) m.push('Einbauort');
+  if(!r.unterschrift) m.push('Unterschrift');
+  if(!(r.seiten&&r.seiten.length)) m.push('Beleg (Foto/PDF)');
+  return m;
+}
+function allRows(){ return [...queued.map(q=>({...q.row,_q:q.qid,seiten:q.pages.map(p=>({name:p.name,typ:p.typ,groesse:p.groesse}))})),...rows]; }
+// Deckblatt: je Lieferant (Anlieferung) bzw. Annahmestelle (Abfuhr) einmal
+function deckblattOffen(list){ const by=new Map();
+  for(const r of list){ const k=(r.richtung==='abfuhr'?r.ziel:r.lieferant)||''; if(!k.trim()||/^kein/i.test(r.materialklasse||'')) continue;
+    const key=r.richtung+'|'+k.trim().toLowerCase(); const o=by.get(key)||{name:k.trim(),dir:r.richtung,ok:false}; o.ok=o.ok||!!r.deckblatt; by.set(key,o); }
+  return [...by.values()].filter(o=>!o.ok); }
+
+// ---------- Darstellung ----------
+function render(){ renderSum(); renderFilters(); renderList(); fillLists(); }
+function sumBy(list,dir){ const m=new Map(); for(const r of list.filter(x=>x.richtung===dir)){ const k=(r.materialklasse||'ohne Klasse').trim(); const o=m.get(k)||{t:0,m3:0,n:0}; const q=num(r.menge)||0; if(r.einheit==='m³') o.m3+=q; else o.t+=q; o.n++; m.set(k,o); } return [...m.entries()].sort((a,b)=>a[0].localeCompare(b[0],'de')); }
+function qty(o){ return [o.t?fmtN(o.t,1)+' t':'',o.m3?fmtN(o.m3,1)+' m³':''].filter(Boolean).join(' + ')||'–'; }
+function renderSum(){
+  const list=allRows(); const tiles=[];
+  for(const [dir,cls,title] of [['anlieferung','in','Anlieferung'],['abfuhr','out','Abfuhr']]){
+    const s=sumBy(list,dir); const n=list.filter(r=>r.richtung===dir).length;
+    tiles.push(`<div class="tile ${cls}"><h3>${title} · ${n} Lieferschein${n===1?'':'e'}</h3>${s.length?'<ul>'+s.map(([k,o])=>{
+      const flag=dir==='anlieferung'&&ANZ.test(k)&&o.m3>=250;
+      return `<li><span>${esc(k)}${ANZ.test(k)&&dir==='anlieferung'?' <span class="flag" title="Anzeigepflicht nach § 22 EBV prüfen">§ 22</span>':''}</span><span${flag?' class="flag"':''}>${qty(o)}</span></li>`; }).join('')+'</ul>':'<p>Noch nichts erfasst.</p>'}</div>`);
+  }
+  const inc=list.filter(r=>missing(r).length).length, deck=deckblattOffen(list);
+  tiles.push(`<div class="tile ${inc||deck.length?'bad':''}"><h3>Vollständigkeit</h3><div class="v">${inc} offen</div>
+    <p>${inc?`${inc} Lieferschein${inc===1?' hat':'e haben'} fehlende Angaben.`:'Alle Lieferscheine vollständig.'}${deck.length?'<br>Deckblatt fehlt: '+deck.map(d=>esc(d.name)).join(', '):''}</p></div>`);
+  $('sum').innerHTML=tiles.join('');
+}
+function renderFilters(){
+  const list=allRows(); const keep=(id,vals,label)=>{ const s=$(id), v=s.value; s.innerHTML=`<option value="">${label}</option>`+vals.map(x=>`<option${x===v?' selected':''}>${esc(x)}</option>`).join(''); };
+  keep('qKl',[...new Set(list.map(r=>(r.materialklasse||'').trim()).filter(Boolean))].sort(),'Alle Klassen');
+  const mons=[...new Set(list.map(r=>String(r.datum||'').slice(0,7)).filter(Boolean))].sort().reverse();
+  const s=$('qMon'), v=s.value; s.innerHTML='<option value="">Alle Monate</option>'+mons.map(m=>`<option value="${m}"${m===v?' selected':''}>${m.slice(5)}/${m.slice(0,4)}</option>`).join('');
+}
+function filtered(){
+  const d=$('qDir').value,k=$('qKl').value,mo=$('qMon').value,t=$('qTxt').value.trim().toLowerCase(),onlyMiss=$('qMiss').checked;
+  return allRows().filter(r=>(!d||r.richtung===d)&&(!k||(r.materialklasse||'').trim()===k)&&(!mo||String(r.datum||'').startsWith(mo))
+    &&(!onlyMiss||missing(r).length)&&(!t||[r.ls_nr,r.lieferant,r.abnehmer,r.material,r.materialklasse,r.einbauort,r.ziel,r.kennzeichen,r.bemerkung].join(' ').toLowerCase().includes(t)));
+}
+function renderList(){
+  const list=filtered();
+  if(!list.length){ $('list').innerHTML=`<div class="empty">${allRows().length?'Keine Lieferscheine für diese Auswahl.':'Noch keine Lieferscheine. Mit „Lieferschein fotografieren“ direkt bei der Anlieferung aufnehmen.'}</div>`; return; }
+  $('list').innerHTML=list.map(r=>{ const m=missing(r), p=(r.seiten||[])[0];
+    const th=!p?'—':isPdf(p.typ,p.name)?'PDF':`<img alt="" data-thumb="${esc(p.pfad||'')}" data-q="${esc(r._q||'')}">`;
+    const who=r.richtung==='abfuhr'?(r.ziel||r.abnehmer):r.lieferant;
+    return `<button type="button" class="ls" data-id="${esc(r.id||'')}" data-q="${esc(r._q||'')}"><span class="th">${th}</span>
+      <span><span class="t"><span class="tag ${r.richtung==='abfuhr'?'out':'in'}">${r.richtung==='abfuhr'?'AB':'AN'}</span>${r.materialklasse?`<span class="tag cls">${esc(r.materialklasse)}</span>`:''}${esc(r.material||'ohne Materialangabe')}</span>
+      <span class="m" style="display:block">${esc([fmtDate(r.datum),r.ls_nr?'LS '+r.ls_nr:'',who,r.richtung==='abfuhr'?'':r.einbauort].filter(Boolean).join(' · '))}</span>
+      <span class="m" style="display:block">${r._q?'<span class="tag wait">wartet auf Netz</span>':''}${m.length?`<span class="tag miss">fehlt: ${esc(m.join(', '))}</span>`:'<span class="tag ok">vollständig</span>'}${(r.seiten||[]).length>1?` ${r.seiten.length} Seiten`:''}</span></span>
+      <span class="q">${num(r.menge)!=null?fmtN(num(r.menge))+' '+esc(r.einheit||'t'):'–'}<small>${esc(r.kennzeichen||'')}</small></span></button>`; }).join('');
+  loadThumbs();
+}
+async function loadThumbs(){
+  const imgs=[...document.querySelectorAll('#list img[data-thumb]')];
+  const need=imgs.map(i=>i.dataset.thumb).filter(p=>p&&!thumbCache.has(p));
+  if(need.length&&sb){ try{ const {data}=await sb.storage.from(BUCKET).createSignedUrls([...new Set(need)],3600);
+    (data||[]).forEach(d=>{ if(d.signedUrl) thumbCache.set(d.path,d.signedUrl); }); }catch(e){} }
+  for(const i of imgs){
+    if(i.dataset.thumb&&thumbCache.has(i.dataset.thumb)) i.src=thumbCache.get(i.dataset.thumb);
+    else if(i.dataset.q){ const q=queued.find(x=>x.qid===i.dataset.q); const b=q&&q.pages[0]&&q.pages[0].blob; if(b) i.src=URL.createObjectURL(b); }
+  }
+}
+function fillLists(){ const list=allRows(); const set=(id,vals)=>{ $(id).innerHTML=[...new Set(vals.map(v=>(v||'').trim()).filter(Boolean))].slice(0,40).map(v=>`<option>${esc(v)}</option>`).join(''); };
+  set('dlLief',[WIR,...list.map(r=>r.lieferant)]); set('dlAbn',[WIR,...list.map(r=>r.abnehmer)]); set('dlBef',list.map(r=>r.befoerderer));
+  set('dlMat',list.map(r=>r.material)); set('dlOrt',list.map(r=>r.einbauort)); set('dlWeise',list.map(r=>r.einbauweise)); set('dlZiel',list.map(r=>r.ziel)); }
+['qDir','qKl','qMon','qMiss'].forEach(id=>$(id).onchange=renderList); $('qTxt').oninput=renderList;
+
+// ---------- Formular ----------
+document.querySelectorAll('#form .form > label').forEach(l=>{ const t=l.firstChild; if(t&&t.nodeType===3&&t.textContent.trim()){ const s=document.createElement('span'); s.className='lt'; s.textContent=t.textContent; l.replaceChild(s,t); } });
+const setLt=(id,t)=>{ const e=$(id).querySelector('.lt'); if(e) e.textContent=t; };
+function setDir(dir){ edit.dir=dir;
+  document.querySelectorAll('.dir button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.dir===dir)));
+  const ab=dir==='abfuhr';
+  setLt('lLief',ab?'Abgebender (Inverkehrbringer)':'Lieferant (Inverkehrbringer)');
+  setLt('lAbn',ab?'Abnehmer / Transporteur':'Abnehmer (Verwender)');
+  setLt('lOrt',ab?'Herkunft auf der Baustelle':'Einbauort / Bauteil');
+  $('lOrt').classList.toggle('req',!ab); $('lAbn').classList.toggle('req',!ab); $('lZiel').hidden=!ab; $('lWeise').hidden=ab;
+  if(ab&&!$('f_lieferant').value) $('f_lieferant').value=WIR; if(ab&&$('f_abnehmer').value===WIR) $('f_abnehmer').value='';
+  if(!ab&&!$('f_abnehmer').value) $('f_abnehmer').value=WIR; if(!ab&&$('f_lieferant').value===WIR) $('f_lieferant').value='';
+  $('f_material').placeholder=ab?'z. B. Bodenaushub Kies sandig':'z. B. RC-Baustoff 0/45';
+  $('f_materialklasse').placeholder=ab?'z. B. BM-0':'z. B. RC-1';
+  check();
+}
+document.querySelectorAll('.dir button').forEach(b=>b.onclick=()=>setDir(b.dataset.dir));
+function formRow(){ const r={projekt:project.id,richtung:edit.dir};
+  for(const f of FIELDS){ const v=$('f_'+f).value.trim(); r[f]=v===''?null:v; }
+  r.menge=num(r.menge); r.einheit=r.einheit||'t'; r.datum=r.datum||today();
+  if(r.richtung==='abfuhr'){ r.einbauweise=null; } else r.ziel=null;
+  r.unterschrift=$('f_unterschrift').checked; r.deckblatt=$('f_deckblatt').checked; return r; }
+function check(){ if(!edit) return; const r=formRow(); r.seiten=edit.pages; const m=missing(r);
+  if($('f_menge').value.trim()&&num($('f_menge').value)==null) m.unshift('Menge ist keine Zahl');
+  const e=$('miss'); e.className='miss'+(m.length?'':' ok'); e.textContent=m.length?'Fehlt noch: '+m.join(', ')+'. Speichern geht trotzdem – der Lieferschein wird als unvollständig markiert.':'Alle Pflichtangaben vorhanden.'; }
+$('form').addEventListener('input',check); $('form').addEventListener('change',check);
+
+function openForm(row,pages){
+  $('form').hidden=false; msg('');
+  edit={id:row&&row.id||null,q:row&&row._q||null,dir:row?row.richtung:(localStorage.getItem('ebv-dir')||'anlieferung'),pages:pages||[],removed:[]};
+  $('fHead').textContent=row?(row._q?'Lieferschein (wartet auf Netz)':'Lieferschein bearbeiten'):'Neuer Lieferschein';
+  for(const f of FIELDS) $('f_'+f).value=row&&row[f]!=null?(f==='menge'?fmtN(row[f],3).replace(/\./g,''):row[f]):'';
+  if(!row){ $('f_datum').value=today(); $('f_einheit').value='t'; }
+  $('f_unterschrift').checked=!!(row&&row.unterschrift); $('f_deckblatt').checked=!!(row&&row.deckblatt);
+  $('fDel').hidden=!row; $('fLast').hidden=!!row;
+  setDir(edit.dir); renderPages();
+  $('form').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function closeForm(){ edit&&edit.pages.forEach(p=>p.url&&p.blob&&URL.revokeObjectURL(p.url)); edit=null; $('form').hidden=true; $('camIn').value=''; $('fileIn').value=''; }
+$('fCancel').onclick=closeForm;
+$('fLast').onclick=()=>{ const last=allRows().find(r=>r.richtung===edit.dir); if(!last){ msg('Noch keine frühere Fuhre in dieser Richtung.'); return; }
+  for(const f of ['lieferant','abnehmer','befoerderer','material','materialklasse','koernung','einheit','einbauort','einbauweise','ziel']) if(last[f]!=null) $('f_'+f).value=last[f];
+  $('f_ls_nr').focus(); check(); };
+
+async function addFiles(list){
+  const files=[...list]; if(!files.length) return;
+  const big=files.filter(f=>f.size>MAX&&!isImg(f.type));
+  if(big.length){ msg(`${big.map(f=>f.name).join(', ')}: größer als 20 MB.`,'bad'); return; }
+  if(!edit) openForm(null,[]);
+  for(const f of files){ const s=await shrink(f); edit.pages.push({name:s.name||f.name,typ:s.type||f.type,groesse:s.size,blob:s,url:URL.createObjectURL(s)}); }
+  renderPages(); check();
+}
+function renderPages(){
+  $('pages').innerHTML=edit.pages.map((p,i)=>`<div class="pg"><span class="n">S. ${i+1}</span>${isPdf(p.typ,p.name)?`<span class="pdf" data-view="${i}">PDF<small>${esc(p.name)}</small></span>`:`<img alt="Seite ${i+1}" data-view="${i}" ${p.url?`src="${esc(p.url)}"`:`data-pfad="${esc(p.pfad||'')}"`}>`}
+    <span class="tools">${p.blob&&isImg(p.typ)?`<button type="button" data-rot="${i}" title="Drehen" aria-label="Seite ${i+1} drehen">⟳</button>`:''}<button type="button" data-rm="${i}" title="Entfernen" aria-label="Seite ${i+1} entfernen">✕</button></span></div>`).join('')
+    +`<button type="button" class="pg add" id="addPg"><b>+</b>${edit.pages.length?'Weitere Seite':'Foto aufnehmen'}</button>`;
+  $('addPg').onclick=()=>$('camIn').click();
+  const need=[...$('pages').querySelectorAll('img[data-pfad]')];
+  if(need.length&&sb) sb.storage.from(BUCKET).createSignedUrls(need.map(i=>i.dataset.pfad),3600).then(({data})=>{ (data||[]).forEach(d=>{ const im=need.find(i=>i.dataset.pfad===d.path); if(im&&d.signedUrl){ im.src=d.signedUrl; const pg=edit&&edit.pages.find(p=>p.pfad===d.path); if(pg) pg.url=d.signedUrl; } }); }).catch(()=>{});
+}
+$('pages').addEventListener('click',async e=>{
+  const v=e.target.closest('[data-view]'), rot=e.target.closest('[data-rot]'), rm=e.target.closest('[data-rm]');
+  if(rot){ const p=edit.pages[+rot.dataset.rot]; try{ const b=await rotate(p.blob); URL.revokeObjectURL(p.url); p.blob=b; p.groesse=b.size; p.typ='image/jpeg'; p.url=URL.createObjectURL(b); renderPages(); }catch(err){ msg('Drehen nicht möglich.','bad'); } return; }
+  if(rm){ const i=+rm.dataset.rm, p=edit.pages[i]; if(p.pfad) edit.removed.push(p.pfad); if(p.blob&&p.url) URL.revokeObjectURL(p.url); edit.pages.splice(i,1); renderPages(); check(); return; }
+  if(v){ const p=edit.pages[+v.dataset.view]; if(!p) return;
+    if(isPdf(p.typ,p.name)){ if(p.blob) window.open(p.url,'_blank'); else openSigned(p.pfad); }
+    else if(p.url) viewer(p.url); }
+});
+function viewer(src){ const d=document.createElement('div'); d.className='viewer'; d.innerHTML=`<img alt="Lieferschein" src="${esc(src)}"><button type="button" aria-label="Schließen">✕</button>`;
+  d.onclick=ev=>{ if(ev.target.tagName!=='IMG') d.remove(); }; addEventListener('keydown',function k(ev){ if(ev.key==='Escape'){ d.remove(); removeEventListener('keydown',k); } }); document.body.appendChild(d); }
+async function openSigned(pfad){ const w=window.open('','_blank'); const {data,error}=await sb.storage.from(BUCKET).createSignedUrl(pfad,600); if(error){ w&&w.close(); msg('Datei konnte nicht geöffnet werden: '+errMsg(error),'bad'); return; } if(w) w.location.href=data.signedUrl; else location.href=data.signedUrl; }
+
+$('bCam').onclick=()=>{ closeForm(); openForm(null,[]); $('camIn').click(); };
+$('bFile').onclick=()=>$('fileIn').click();
+$('bManual').onclick=()=>{ closeForm(); openForm(null,[]); $('f_ls_nr').focus(); };
+$('camIn').onchange=e=>{ addFiles(e.target.files); e.target.value=''; };
+$('fileIn').onchange=e=>{ addFiles(e.target.files); e.target.value=''; };
+
+// ---------- Speichern ----------
+async function uploadPages(pages,projektId){
+  const out=[], done=[];
+  try{ for(const p of pages){ if(p.pfad&&!p.blob){ out.push({pfad:p.pfad,name:p.name,typ:p.typ,groesse:p.groesse}); continue; }
+      const pfad=`${projektId}/${new Date().getFullYear()}/${uid()}-${safeName(p.name)||'seite'}`;
+      const up=await sb.storage.from(BUCKET).upload(pfad,p.blob,{contentType:p.typ||'application/octet-stream',upsert:false}); if(up.error) throw up.error;
+      done.push(pfad); out.push({pfad,name:p.name,typ:p.typ,groesse:p.groesse}); } }
+  catch(e){ if(done.length) sb.storage.from(BUCKET).remove(done).catch(()=>{}); throw e; }
+  return {seiten:out,neu:done};
+}
+async function uploadEntry(row,pages){
+  const {seiten,neu}=await uploadPages(pages,row.projekt);
+  const {error}=await sb.from(TABLE).insert({...row,seiten});
+  if(error){ if(neu.length) sb.storage.from(BUCKET).remove(neu).catch(()=>{}); throw error; }
+}
+const offlineErr=e=>!navigator.onLine||/failed to fetch|network|load failed|timeout/i.test(errMsg(e));
+$('form').onsubmit=async e=>{
+  e.preventDefault(); if(!edit||!project) return;
+  if($('f_menge').value.trim()&&num($('f_menge').value)==null){ msg('Die Menge ist keine Zahl.','bad'); $('f_menge').focus(); return; }
+  const row=formRow(); localStorage.setItem('ebv-dir',edit.dir);
+  const btn=$('fSave'); btn.disabled=true; btn.textContent='Wird gespeichert …';
+  try{
+    if(edit.q){ // Eintrag aus der Warteschlange geändert
+      await idb.put({qid:edit.q,row,pages:edit.pages.map(p=>({name:p.name,typ:p.typ,groesse:p.groesse,blob:p.blob}))});
+      closeForm(); await loadQueue(); render(); flushQueue(true); msg('Geändert – wird gesendet, sobald Verbindung besteht.','ok'); return;
+    }
+    if(edit.id){
+      const {seiten,neu}=await uploadPages(edit.pages,project.id);
+      const {error}=await sb.from(TABLE).update({...row,seiten,geaendert_am:new Date().toISOString()}).eq('id',edit.id);
+      if(error){ if(neu.length) sb.storage.from(BUCKET).remove(neu).catch(()=>{}); throw error; }
+      if(edit.removed.length) sb.storage.from(BUCKET).remove(edit.removed).catch(()=>{});
+      closeForm(); msg('Gespeichert.','ok'); await loadRows(); render(); return;
+    }
+    const pages=edit.pages.map(p=>({name:p.name,typ:p.typ,groesse:p.groesse,blob:p.blob}));
+    try{ if(!dbOk) throw new Error('offline'); await uploadEntry(row,pages); closeForm(); msg('Lieferschein abgelegt.','ok'); await loadRows(); }
+    catch(err){ if(!offlineErr(err)&&err.message!=='offline') throw err;
+      await idb.put({qid:uid(),row,pages}); closeForm(); await loadQueue();
+      msg('Kein Netz – der Lieferschein ist auf diesem Gerät gespeichert und wird automatisch gesendet.','ok'); }
+    render();
+  }catch(err){ const t=errMsg(err);
+    msg(/bucket not found/i.test(t)?'Der Speicher für Fotos fehlt noch. Ein Admin muss ebv-lieferscheine/supabase-setup.sql ausführen.'
+      :/row-level security|permission/i.test(t)?'Keine Berechtigung zum Speichern.':/exceeded|too large|payload/i.test(t)?'Eine Datei ist zu groß (max. 20 MB).':'Speichern fehlgeschlagen: '+t,'bad');
+  }finally{ btn.disabled=false; btn.textContent='Speichern'; }
+};
+$('fDel').onclick=async()=>{ if(!edit) return;
+  if(!confirm('Diesen Lieferschein mit allen Fotos löschen?')) return;
+  if(edit.q){ await idb.del(edit.q); closeForm(); await loadQueue(); render(); msg('Gelöscht.','ok'); return; }
+  const r=rows.find(x=>x.id===edit.id); const {error}=await sb.from(TABLE).delete().eq('id',edit.id);
+  if(error){ msg('Löschen nicht möglich: '+errMsg(error),'bad'); return; }
+  const paths=(r&&r.seiten||[]).map(s=>s.pfad).filter(Boolean); if(paths.length) sb.storage.from(BUCKET).remove(paths).catch(()=>{});
+  closeForm(); msg('Gelöscht.','ok'); await loadRows(); render(); };
+
+$('list').addEventListener('click',e=>{ const b=e.target.closest('.ls'); if(!b) return; closeForm();
+  if(b.dataset.q){ const q=queued.find(x=>x.qid===b.dataset.q); if(q) openForm({...q.row,_q:q.qid},q.pages.map(p=>({...p,url:p.blob?URL.createObjectURL(p.blob):null}))); return; }
+  const r=rows.find(x=>x.id===b.dataset.id); if(r) openForm(r,(r.seiten||[]).map(s=>({...s,url:thumbCache.get(s.pfad)||null}))); });
+
+// ---------- Export ----------
+function loadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=src; s.onload=res; s.onerror=()=>rej(new Error('Bibliothek nicht geladen')); document.head.appendChild(s); }); }
+async function xlsxLib(){ if(!window.XLSX) await loadScript('../stahllisten/vendor/xlsx.full.min.js'); return window.XLSX; }
+const fileBase=r=>[String(r.datum||'').slice(0,10),r.ls_nr?'LS-'+safeName(r.ls_nr):'',safeName((r.richtung==='abfuhr'?r.ziel||r.abnehmer:r.lieferant)||'').slice(0,30)].filter(Boolean).join('_')||'lieferschein';
+const dirName=r=>r.richtung==='abfuhr'?'Abfuhr':'Anlieferung';
+const extOf=s=>(String(s.name||'').match(/\.([a-z0-9]+)$/i)||[])[1]||(isPdf(s.typ)?'pdf':'jpg');
+function fileNames(list){ const used=new Set(), map=new Map();
+  for(const r of list){ const base=fileBase(r); (r.seiten||[]).forEach((s,i)=>{ let n=`${dirName(r)}/${String(r.datum||'').slice(0,7)||'ohne-Datum'}/${base}${r.seiten.length>1?'_S'+(i+1):''}`; let k=n,j=2; while(used.has(k+'.'+extOf(s))) k=n+'_'+(j++); used.add(k+'.'+extOf(s)); map.set(s.pfad||(r._q+i),k+'.'+extOf(s)); }); }
+  return map; }
+async function buildXlsx(list,names){
+  const X=await xlsxLib();
+  const head=['Datum','Richtung','Lieferschein-Nr.','Lieferant / Abgebender','Abnehmer','Beförderer','Kennzeichen','Material','Materialklasse','Körnung','Menge','Einheit','Einbauort / Herkunft','Einbauweise','Annahmestelle','Unterschrift','Deckblatt','Status','Fehlende Angaben','Belege','Bemerkung','Erfasst von','Erfasst am'];
+  const data=[...list].sort((a,b)=>String(a.datum).localeCompare(String(b.datum))).map(r=>{ const m=missing(r); return [r.datum?new Date(r.datum+'T00:00:00'):null,dirName(r),r.ls_nr,r.lieferant,r.abnehmer,r.befoerderer,r.kennzeichen,r.material,r.materialklasse,r.koernung,num(r.menge),r.einheit,r.einbauort,r.einbauweise,r.ziel,r.unterschrift?'ja':'nein',r.deckblatt?'ja':'nein',m.length?'unvollständig':'vollständig',m.join(', '),(r.seiten||[]).map((s,i)=>names?names.get(s.pfad||(r._q+i)):s.name).join('; '),r.bemerkung,r.angelegt_mail,r.angelegt_am?new Date(r.angelegt_am):null]; });
+  const ws=X.utils.aoa_to_sheet([[`EBV-Lieferscheinregister – ${project.name}`],[`Stand ${fmtDate(today())}, ${list.length} Lieferscheine`],[],head,...data],{cellDates:true});
+  ws['!cols']=[10,11,14,26,22,18,12,26,12,8,9,6,28,22,26,9,9,12,30,40,30,24,16].map(w=>({wch:w}));
+  ws['!autofilter']={ref:X.utils.encode_range({s:{r:3,c:0},e:{r:3+data.length,c:head.length-1}})};
+  for(let i=0;i<data.length;i++){ const a=X.utils.encode_cell({r:4+i,c:0}); if(ws[a]) ws[a].z='dd.mm.yyyy'; const b=X.utils.encode_cell({r:4+i,c:22}); if(ws[b]) ws[b].z='dd.mm.yyyy hh:mm'; const q=X.utils.encode_cell({r:4+i,c:10}); if(ws[q]) ws[q].z='#,##0.00'; }
+  const sumRows=[['Richtung','Materialklasse','Lieferscheine','Menge t','Menge m³','Hinweis']];
+  for(const dir of ['anlieferung','abfuhr']) for(const [k,o] of sumBy(list,dir)) sumRows.push([dir==='abfuhr'?'Abfuhr':'Anlieferung',k,o.n,o.t||null,o.m3||null,dir==='anlieferung'&&ANZ.test(k)?'Anzeigepflicht § 22 EBV prüfen':'']);
+  const deck=deckblattOffen(list); if(deck.length){ sumRows.push([],['Deckblatt fehlt für']); deck.forEach(d=>sumRows.push([d.dir==='abfuhr'?'Abfuhr':'Anlieferung',d.name])); }
+  const ws2=X.utils.aoa_to_sheet(sumRows); ws2['!cols']=[{wch:12},{wch:20},{wch:13},{wch:11},{wch:11},{wch:32}];
+  const wb=X.utils.book_new(); X.utils.book_append_sheet(wb,ws,'Register'); X.utils.book_append_sheet(wb,ws2,'Summen');
+  return new Uint8Array(X.write(wb,{type:'array',bookType:'xlsx'}));
+}
+function download(blob,name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),4000); }
+const stamp=()=>today().replace(/-/g,'');
+$('xXlsx').onclick=async()=>{ const list=filtered(); if(!list.length){ msg('Keine Lieferscheine für diese Auswahl.'); return; }
+  const b=$('xXlsx'); b.disabled=true; try{ download(new Blob([await buildXlsx(list,fileNames(list))],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),`EBV-Register_${project.id}_${stamp()}.xlsx`); }
+  catch(e){ msg('Excel-Export fehlgeschlagen: '+errMsg(e),'bad'); } finally{ b.disabled=false; } };
+
+// ZIP ohne Kompression (Fotos und PDFs sind schon komprimiert) – keine zusätzliche Bibliothek nötig
+const CRC=(()=>{ const t=new Uint32Array(256); for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=c&1?0xEDB88320^(c>>>1):c>>>1; t[n]=c>>>0; } return t; })();
+const crc32=u=>{ let c=0xFFFFFFFF; for(let i=0;i<u.length;i++) c=CRC[(c^u[i])&255]^(c>>>8); return (c^0xFFFFFFFF)>>>0; };
+function zip(files){ const enc=new TextEncoder(), parts=[], cen=[]; let off=0; const d=new Date();
+  const dt=((d.getHours()<<11)|(d.getMinutes()<<5)|(d.getSeconds()>>1))&0xFFFF, dd=(((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate())&0xFFFF;
+  for(const f of files){ const name=enc.encode(f.name), data=f.data, crc=crc32(data);
+    const h=new DataView(new ArrayBuffer(30)); h.setUint32(0,0x04034b50,true); h.setUint16(4,20,true); h.setUint16(6,0x0800,true); h.setUint16(8,0,true); h.setUint16(10,dt,true); h.setUint16(12,dd,true);
+    h.setUint32(14,crc,true); h.setUint32(18,data.length,true); h.setUint32(22,data.length,true); h.setUint16(26,name.length,true); h.setUint16(28,0,true);
+    parts.push(new Uint8Array(h.buffer),name,data);
+    const c=new DataView(new ArrayBuffer(46)); c.setUint32(0,0x02014b50,true); c.setUint16(4,20,true); c.setUint16(6,20,true); c.setUint16(8,0x0800,true); c.setUint16(10,0,true); c.setUint16(12,dt,true); c.setUint16(14,dd,true);
+    c.setUint32(16,crc,true); c.setUint32(20,data.length,true); c.setUint32(24,data.length,true); c.setUint16(28,name.length,true); c.setUint32(42,off,true);
+    cen.push(new Uint8Array(c.buffer),name); off+=30+name.length+data.length; }
+  const size=cen.reduce((s,p)=>s+p.length,0); const e=new DataView(new ArrayBuffer(22)); e.setUint32(0,0x06054b50,true); e.setUint16(8,files.length,true); e.setUint16(10,files.length,true); e.setUint32(12,size,true); e.setUint32(16,off,true);
+  return new Blob([...parts,...cen,new Uint8Array(e.buffer)],{type:'application/zip'}); }
+$('xZip').onclick=async()=>{ const list=filtered(); if(!list.length){ msg('Keine Lieferscheine für diese Auswahl.'); return; }
+  const b=$('xZip'); b.disabled=true; const names=fileNames(list), root=`EBV-Lieferscheine_${safeName(project.name)}`; const files=[]; let i=0, total=list.reduce((s,r)=>s+(r.seiten||[]).length,0), fail=0;
+  try{
+    for(const r of list) for(let k=0;k<(r.seiten||[]).length;k++){ const s=r.seiten[k]; i++; b.textContent=`Lädt ${i} von ${total} …`;
+      let blob=null; if(r._q){ const q=queued.find(x=>x.qid===r._q); blob=q&&q.pages[k]&&q.pages[k].blob; }
+      else { const {data,error}=await sb.storage.from(BUCKET).download(s.pfad); if(!error) blob=data; }
+      if(!blob){ fail++; continue; } files.push({name:root+'/'+names.get(s.pfad||(r._q+k)),data:new Uint8Array(await blob.arrayBuffer())}); }
+    files.unshift({name:`${root}/EBV-Register_${stamp()}.xlsx`,data:await buildXlsx(list,names)});
+    download(zip(files),`${root}_${stamp()}.zip`);
+    msg(fail?`ZIP erstellt, ${fail} Datei${fail===1?'':'en'} konnte${fail===1?'':'n'} nicht geladen werden.`:'ZIP erstellt: Ordner Anlieferung/Abfuhr je Monat, dazu das Excel-Register.',fail?'bad':'ok');
+  }catch(e){ msg('ZIP-Export fehlgeschlagen: '+errMsg(e),'bad'); } finally{ b.disabled=false; b.textContent='Ablage als ZIP'; } };
+
+// ---------- Einrichtung (einmalig) ----------
+async function setupPanel(){
+  const box=$('setup'); box.hidden=false; $('main').hidden=true;
+  if(!isAdmin){ box.innerHTML='<div class="panel"><p class="msg" style="margin:0;display:block">Das Tool ist noch nicht eingerichtet. Ein Admin der Riedel-Tools muss die Tabelle einmalig in der Datenbank anlegen.</p></div>'; return; }
+  let sql=''; try{ sql=await (await fetch('supabase-setup.sql',{cache:'no-cache'})).text(); }catch(e){ sql='-- supabase-setup.sql konnte nicht geladen werden. Datei im Repo unter ebv-lieferscheine/ öffnen.'; }
+  const ref=((window.RIEDEL_AUTH&&window.RIEDEL_AUTH.url||'').match(/^https:\/\/([^.]+)\.supabase\.co/)||[])[1]||'';
+  box.innerHTML=`<div class="panel"><h2>EBV-Lieferscheine einrichten</h2>
+    <p class="lead" style="margin:0 0 10px">Tabelle und Foto-Speicher fehlen noch. Einmalig im Supabase SQL Editor ausführen, danach „Erneut prüfen“.</p>
+    <div class="filters"><button class="btn red sm" type="button" id="sCopy">SQL kopieren</button>
+      <a class="btn sec sm" href="https://supabase.com/dashboard/project/${esc(ref)}/sql/new" target="_blank" rel="noopener">SQL Editor öffnen</a>
+      <button class="btn sm" type="button" id="sRetry">Erneut prüfen</button></div>
+    <pre class="sql" id="sSql">${esc(sql)}</pre></div>`;
+  $('sCopy').onclick=async()=>{ try{ await navigator.clipboard.writeText(sql); msg('SQL kopiert.','ok'); }catch(e){ const r=document.createRange(); r.selectNodeContents($('sSql')); getSelection().removeAllRanges(); getSelection().addRange(r); msg('Text markiert – mit Strg+C kopieren.'); } };
+  $('sRetry').onclick=()=>{ msg(''); start(); };
+}
+
+// ---------- Start ----------
+async function start(){
+  $('main').hidden=false; await loadRows(); await loadQueue(); render(); if(dbOk) flushQueue(true); }
+$('proj').innerHTML=PROJ.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
+$('proj').onchange=()=>{ project=PROJ.find(p=>p.id===$('proj').value); localStorage.setItem('ebv-projekt',project.id);
+  const u=new URL(location.href); u.searchParams.set('p',project.id); history.replaceState(null,'',u); closeForm(); start(); };
+(async()=>{
+  const A=window.RIEDEL_AUTH;
+  if(window.supabase&&A){
+    sb=window.supabase.createClient(A.url,A.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:A.storageKey}});
+    try{ const {data}=await sb.rpc('tools_meine_rolle'); isAdmin=data==='admin'; }catch(e){}
+  }
+  const want=new URLSearchParams(location.search).get('p')||localStorage.getItem('ebv-projekt');
+  project=PROJ.find(p=>p.id===want)||PROJ.find(p=>p.id==='ostermeier-taufkirchen')||PROJ[0];
+  if(!project){ msg('Keine Projekte angelegt (projekte/projekte.js).','bad'); return; }
+  $('proj').value=project.id; start();
+})();
+})();
+</script>
+</body>
+</html>
