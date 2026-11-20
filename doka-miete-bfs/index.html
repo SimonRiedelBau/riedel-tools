@@ -222,7 +222,7 @@ header.top > .logo-riedel, header.top > .mark, #whoMail, #btnLogout{display:none
   <div class="pbar">
     <button class="btn" id="btnFrei" type="button">Rechnung freigeben</button>
     <button class="btn sec" id="btnPdf" type="button">Geprüfte Rechnung (PDF)</button>
-    <button class="btn sec" id="btnPrint" type="button">Original mit Anmerkungen drucken</button>
+    <button class="btn sec" id="btnPrint" type="button">Prüfvermerk drucken</button>
     <label class="btn sec" style="flex-direction:row" tabindex="0" id="origLbl" hidden>Original-PDF wählen<input type="file" id="origFile" accept="application/pdf,.pdf" hidden></label>
     <button class="btn sec" id="noOrig" type="button" hidden>Nur Prüfvermerk</button>
     <span class="msg" id="pdfMsg"></span>
@@ -697,16 +697,15 @@ async function buildXlsx(){
   return wb.xlsx.writeBuffer();
 }
 
-// ---------- Geprüfte Rechnung: Original mit Markierungen, Prüfstempel und Prüfvermerk ----------
-// Im Original werden die geänderten Positionen farbig hinterlegt und links nummeriert (grün = geprüft,
-// rot = auffällig offen, orange = offen). Die Nummern verweisen auf den angehängten Prüfvermerk mit Notizen.
+// ---------- Geprüfte Rechnung (Original mit Prüfstempel + Prüfvermerk) und Prüfvermerk drucken ----------
 let pdfAction='save';
 function pdfStart(action){
   pdfAction=action;
   const m=D.M.find(x=>x.monat===$('cmpMonth').value); if(!m) return;
+  if(action==='print'){ makePdf(m,null,'print'); return; }
   if(PDFS[m.nr]){ makePdf(m,PDFS[m.nr],action); return; }
-  $('pdfMsg').textContent=`Original-PDF der Rechnung ${m.nr} auswählen${action==='print'?'':', oder nur den Prüfvermerk erstellen'}.`;
-  $('origLbl').hidden=false; $('noOrig').hidden=action==='print';
+  $('pdfMsg').textContent=`Original-PDF der Rechnung ${m.nr} auswählen, oder nur den Prüfvermerk erstellen.`;
+  $('origLbl').hidden=false; $('noOrig').hidden=false;
 }
 $('btnPdf').onclick=()=>pdfStart('save');
 $('btnPrint').onclick=()=>pdfStart('print');
@@ -718,40 +717,6 @@ const pdfSafe=s=>String(s??'').replace(/→/g,'->').replace(/[−–]/g,'-').rep
 let logoBytes=null;
 async function riedelLogo(){ if(logoBytes) return logoBytes; try{ const r=await fetch('assets/logo-riedel.png'); if(r.ok) logoBytes=new Uint8Array(await r.arrayBuffer()); }catch(e){} return logoBytes; }
 
-// Textzeilen des Originals mit Lage (PDF-Koordinaten) ermitteln
-async function pdfRows(bytes){
-  const doc=await pdfjsLib.getDocument({data:bytes.slice()}).promise, pages=[];
-  for(let i=1;i<=doc.numPages;i++){
-    const tc=await (await doc.getPage(i)).getTextContent();
-    const its=tc.items.filter(t=>t.str&&t.str.trim()).map(t=>({s:t.str.trim(),x:t.transform[4],y:t.transform[5],w:t.width,h:Math.abs(t.transform[3])||8}));
-    its.sort((a,b)=>b.y-a.y||a.x-b.x);
-    const rows=[];
-    its.forEach(t=>{ const r=rows.find(r=>Math.abs(r.y-t.y)<2.5); if(r) r.items.push(t); else rows.push({y:t.y,items:[t]}); });
-    rows.sort((a,b)=>b.y-a.y);
-    rows.forEach(r=>{ r.items.sort((a,b)=>a.x-b.x); r.text=r.items.map(t=>t.s).join(' '); r.x0=r.items[0].x; r.x1=Math.max(...r.items.map(t=>t.x+t.w)); r.h=Math.max(...r.items.map(t=>t.h)); });
-    pages.push(rows);
-  }
-  return pages;
-}
-// Prüfpunkte im Original finden: Artikelzeilen (bei Sichtbeton über die Doka-Kennung), Nebenkosten, Kopfzeilen
-function findMarks(pages,items){
-  const marks=[]; const starts=(t,art)=>new RegExp('^[+*\\s]*'+art+'(\\s|$)').test(t);
-  items.forEach(it=>{
-    let found=0; const add=(pi,a,b)=>{ marks.push({pi,a,b,it}); found++; };
-    if(it.posKey||it.nkName){
-      const art=it.art, id=it.posKey?it.posKey.split('~')[1]:'';
-      pages.forEach((rows,pi)=>rows.forEach((r,ri)=>{
-        if(id){ if(r.text.split(/\s+/).includes(id)) for(let k=ri;k>=Math.max(0,ri-3);k--) if(starts(rows[k].text,art)){ add(pi,k,ri); break; } }
-        else if(starts(r.text,art)) add(pi,ri,ri);
-      }));
-    } else {
-      const re=it.key==='kopf~rabatt'?/Mietrechnungsrabatt/:it.key==='kopf~mwst'?/MWSt/i:it.key==='kopf~summe'?/^\s*Miete\s+-?[\d.]+,\d{2}/:null;
-      if(re&&pages[0]){ const ri=pages[0].findIndex(r=>re.test(r.text)); if(ri>=0) add(0,ri,ri); }
-    }
-    it._found=found;
-  });
-  return marks;
-}
 async function makePdf(m,orig,action='save'){
   ['origLbl','noOrig'].forEach(id=>$(id).hidden=true);
   const msg=$('pdfMsg'); msg.textContent='PDF wird erstellt …';
@@ -762,32 +727,19 @@ async function makePdf(m,orig,action='save'){
     const INK=rgb(.114,.129,.141),RED=rgb(.77,0,.04),MUT=rgb(.37,.4,.42),OK=rgb(.18,.49,.31),WARN=rgb(.7,.37,0),SOFT=rgb(.875,.882,.875),WB=rgb(.984,.922,.827),BB=rgb(.976,.871,.863);
     const st=stat(m), A=D.M.find(x=>x.monat===m.cmp.prev), c=chk(m), items=m.cmp.items;
     const lb=await riedelLogo(); let logo=null; if(lb){ try{ logo=await out.embedPng(lb); }catch(e){} }
-    const stampLines=[st.frei?'GEPRÜFT UND FREIGEGEBEN':(st.open?'PRÜFUNG OFFEN':'GEPRÜFT'),st.frei?`${st.frei.by}, ${dt(st.frei.at)}`:`${st.done} von ${st.n} Änderungen abgehakt`,'Markierungen 1–'+st.n+' siehe Prüfvermerk'];
+    const stampLines=[st.frei?'GEPRÜFT UND FREIGEGEBEN':(st.open?'PRÜFUNG OFFEN':'GEPRÜFT'),st.frei?`${st.frei.by}, ${dt(st.frei.at)}`:`${st.done} von ${st.n} Änderungen abgehakt`,'sachlich und rechnerisch, siehe Prüfvermerk'];
     const stampCol=st.open?WARN:OK;
     const colOf=it=>{ const ok=(c[it.key]||{}).ok; return ok?OK:(it.sev==='bad'?RED:WARN); };
     if(orig){
       const src=await L.PDFDocument.load(orig.slice(),{ignoreEncryption:true});
       (await out.copyPages(src,src.getPageIndices())).forEach(p=>out.addPage(p));
-      // Markierungen
-      let rowsAll=null; try{ rowsAll=await pdfRows(orig); }catch(e){ console.warn(e); }
-      if(rowsAll){
-        const marks=findMarks(rowsAll,items);
-        marks.forEach(mk=>{
-          const page=out.getPage(mk.pi), rows=rowsAll[mk.pi], ra=rows[mk.a], rb=rows[mk.b], {width}=page.getSize();
-          const top=ra.y+ra.h+1.5, bot=rb.y-2.5, col=colOf(mk.it);
-          page.drawRectangle({x:Math.max(22,Math.min(ra.x0,rb.x0)-3),y:bot,width:Math.min(width-12,Math.max(ra.x1,rb.x1)+3)-Math.max(22,Math.min(ra.x0,rb.x0)-3),height:top-bot,color:col,opacity:.16,borderColor:col,borderWidth:.6,borderOpacity:.8});
-          const lbl=String(mk.it.nr), bw=Math.max(14,FB.widthOfTextAtSize(lbl,7)+6);
-          page.drawRectangle({x:4,y:top-9.5,width:bw,height:10,color:col});
-          page.drawText(lbl,{x:4+(bw-FB.widthOfTextAtSize(lbl,7))/2,y:top-7.5,size:7,font:FB,color:rgb(1,1,1)});
-        });
-      }
       const p1=out.getPage(0), {width}=p1.getSize(), bw=210, bh=58, x=width-bw-24, y=70;
       p1.drawRectangle({x,y,width:bw,height:bh,color:rgb(1,1,1),opacity:.94,borderColor:stampCol,borderWidth:2});
       if(logo) p1.drawImage(logo,{x:x+bw-36,y:y+bh-36,width:28,height:28});
       p1.drawText(pdfSafe(stampLines[0]),{x:x+10,y:y+bh-18,size:11,font:FB,color:stampCol});
       p1.drawText(pdfSafe(stampLines[1]),{x:x+10,y:y+bh-33,size:8.5,font:F,color:INK});
       p1.drawText(pdfSafe(stampLines[2]),{x:x+10,y:y+bh-46,size:7.5,font:F,color:MUT});
-      out.getPages().forEach(p=>p.drawText(pdfSafe(`Prüfvermerk ${m.nr}: ${st.done}/${st.n} geprüft${st.frei?', freigegeben':''} · grün = geprüft, rot/orange = offen`),{x:24,y:10,size:6.5,font:F,color:MUT}));
+      out.getPages().forEach(p=>p.drawText(pdfSafe(`Prüfvermerk ${m.nr}: ${st.done}/${st.n} geprüft${st.frei?', freigegeben':''}`),{x:24,y:10,size:6.5,font:F,color:MUT}));
     }
     const PW=595.28, PH=841.89, ML=36, MR=36; let page, y, pageNo=0;
     const tw=(t,f,s)=>f.widthOfTextAtSize(pdfSafe(t),s);
@@ -814,14 +766,14 @@ async function makePdf(m,orig,action='save'){
       text(t,kc[0]+4,y); rtext(eur(a)+(a==null?'':' €'),kc[2]-4,y); rtext(eur(b)+(b==null?'':' €'),kc[3]-4,y); if(a!=null&&b!=null){ const d=b-a; rtext((d>0?'+':'')+eur(d)+' €',kc[4]-4,y,{c:d>0.005?RED:d<-0.005?OK:INK}); } else rtext('–',kc[4]-4,y);
       page.drawLine({start:{x:ML,y:y-4},end:{x:PW-MR,y:y-4},thickness:.4,color:SOFT}); y-=14; });
     y-=14;
-    text(`Geänderte Positionen (${st.n})${orig?' – Nummern wie im Original markiert':''}`,ML,y,{b:1,s:10.5}); y-=16;
+    text(`Geänderte Positionen (${st.n})`,ML,y,{b:1,s:10.5}); y-=16;
     const cols=[{x:ML,w:18,h:'Nr.'},{x:ML+18,w:18,h:'OK'},{x:ML+36,w:140,h:'Artikel / Bezeichnung'},{x:ML+176,w:161,h:'Änderung'},{x:ML+337,w:62,h:'Alt €',r:1},{x:ML+399,w:62,h:'Neu €',r:1},{x:ML+461,w:62,h:'Diff. €',r:1}];
     const th=()=>{ page.drawRectangle({x:ML,y:y-4,width:PW-ML-MR,height:15,color:SOFT}); cols.forEach(cl=>cl.r?rtext(cl.h,cl.x+cl.w-3,y,{b:1,s:8}):text(cl.h,cl.x+3,y,{b:1,s:8})); y-=16; };
     th();
     items.forEach(i=>{
       const ck=c[i.key]||{}, col=colOf(i);
       const l1=wrap(`${i.art?i.art+' ':''}${i.name}${i.id?' ('+i.id+')':''}`,F,8,cols[2].w-6);
-      const l2=wrap(i.reasons.map(r=>r.t).join('; ')+(orig&&!i._found?' (im Original nicht automatisch gefunden)':''),F,8,cols[3].w-6);
+      const l2=wrap(i.reasons.map(r=>r.t).join('; '),F,8,cols[3].w-6);
       const l3=ck.ok?wrap(`geprüft: ${ck.by||''}, ${dt(ck.at)}${ck.note?' – '+ck.note:''}`,F,7,PW-ML-MR-50):(ck.note?wrap('Notiz: '+ck.note,F,7,PW-ML-MR-50):[]);
       const hgt=Math.max(l1.length,l2.length)*10+l3.length*9+6;
       if(y-hgt<50){ newPage(); th(); }
@@ -844,7 +796,7 @@ async function makePdf(m,orig,action='save'){
     const first=out.getPageCount()-pageNo;
     for(let k=0;k<pageNo;k++) out.getPage(first+k).drawText(pdfSafe(`Prüfvermerk ${m.nr} · Seite ${k+1} von ${pageNo} · erstellt ${new Date().toLocaleString('de-DE')}`),{x:ML,y:22,size:7,font:F,color:MUT});
     const bytes=await out.save();
-    const name=`Doka_${m.nr}_${m.monat}_${st.frei?'freigegeben':st.open?'Pruefung-offen':'geprueft'}.pdf`;
+    const name=action==='print'?`Pruefvermerk_${m.nr}_${m.monat}.pdf`:`Doka_${m.nr}_${m.monat}_${st.frei?'freigegeben':st.open?'Pruefung-offen':'geprueft'}.pdf`;
     if(action==='print') printPdf(bytes,name); else { saveFile(name,bytes,'application/pdf'); msg.textContent=name+' erstellt.'; }
   }catch(e){ msg.textContent='PDF konnte nicht erstellt werden: '+errMsg(e); }
 }
