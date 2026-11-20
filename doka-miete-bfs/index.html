@@ -129,6 +129,44 @@ dialog form{display:flex;flex-direction:column;max-height:calc(100vh - 26px)}
 .db{padding:16px 18px;overflow:auto}
 .df{display:flex;gap:10px;justify-content:flex-end;padding:12px 18px;border-top:1px solid var(--rule);flex-wrap:wrap}
 
+/* Prüfung: Vergleich mit Vorgängerrechnung */
+:root{--warn-bg:#FBEBD3;--ok-bg:#E3F0E7;--bad-bg:#F9DEDC}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){--warn-bg:#3A2A14;--ok-bg:#16301F;--bad-bg:#3C1A18} }
+:root[data-theme="dark"]{--warn-bg:#3A2A14;--ok-bg:#16301F;--bad-bg:#3C1A18}
+.tag.warn{border-color:var(--warn);color:var(--warn)}
+.tag.bad{border-color:var(--red-ink);color:var(--red-ink)}
+.tag.ok{border-color:var(--ok);color:var(--ok)}
+.tag.solid-ok{background:var(--ok);border-color:var(--ok);color:var(--surface)}
+.alert{margin-top:14px;padding:12px 16px;border:1px solid var(--warn);background:var(--warn-bg);display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between}
+.alert.ok{border-color:var(--ok);background:var(--ok-bg)}
+.alert.bad{border-color:var(--red-ink);background:var(--bad-bg)}
+.alert p{margin:0;max-width:75ch}
+.kopf{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:28px}
+.kopf h3{font:600 18px/1.2 var(--cond);margin:0 0 8px}
+.meter{height:10px;background:var(--soft);border:1px solid var(--rule);margin:8px 0 6px;position:relative}
+.meter i{position:absolute;inset:0 auto 0 0;background:var(--ok)}
+.big{font:600 34px/1 var(--cond)}
+label.inline{flex-direction:row;align-items:center;gap:8px;font-size:14px;color:var(--ink);padding-bottom:7px}
+input[type=checkbox]{accent-color:var(--ok);width:18px;height:18px;margin:0;min-width:0}
+tr.chg td{background:var(--warn-bg)}
+tr.chg.bad td{background:var(--bad-bg)}
+tr.chg td:first-child{box-shadow:inset 4px 0 0 var(--warn)}
+tr.chg.bad td:first-child{box-shadow:inset 4px 0 0 var(--red-ink)}
+tr.chg.done td{background:var(--surface);color:var(--muted)}
+tr.chg.done td:first-child{box-shadow:inset 4px 0 0 var(--ok)}
+td.tw{white-space:normal}
+.cell{min-width:200px;max-width:340px;white-space:normal}
+.reasons{display:flex;flex-wrap:wrap;gap:4px;min-width:220px;max-width:360px}
+.reasons .tag{white-space:normal}
+.ckwho{font-size:12px;color:var(--muted)}
+td input.note{min-width:180px}
+tr.hl td{background:var(--warn-bg)}
+tr.hl.bad td{background:var(--bad-bg)}
+tr.hl.done td{background:var(--ok-bg)}
+.pbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:14px}
+.pbar .msg{color:var(--muted)}
+@media (max-width:860px){.kopf{grid-template-columns:minmax(0,1fr)}}
+
 /* Riedel-Tools: Logo, E-Mail und Abmelden stehen in der gemeinsamen Leiste oben */
 header.top > .logo-riedel, header.top > .mark, #whoMail, #btnLogout{display:none!important}
 </style>
@@ -144,6 +182,7 @@ header.top > .logo-riedel, header.top > .mark, #whoMail, #btnLogout{display:none
 <div class="acct" id="acct" hidden>
   <span class="who"><span id="syncState" class="sync ok" title="Speicherstatus"></span><span id="whoMail"></span></span>
   <button class="btn sec sm" id="btnTeam" type="button" hidden>Zugänge</button>
+  <button class="btn sec sm" id="btnXlsx" type="button">Excel-Liste</button>
   <button class="btn sec sm" id="exportJson" type="button">Sicherung speichern</button>
   <label class="btn sec sm" style="flex-direction:row" tabindex="0" id="importLbl">Sicherung laden<input type="file" id="importFile" accept="application/json,.json" hidden></label>
   <button class="btn sec sm" id="btnLogout" type="button">Abmelden</button>
@@ -162,6 +201,25 @@ header.top > .logo-riedel, header.top > .mark, #whoMail, #btnLogout{display:none
 </section>
 
 <div id="dashBody">
+<div id="pAlert"></div>
+<section id="pruefung" aria-labelledby="prH">
+  <h2 id="prH">Rechnungsvergleich und Prüfung</h2>
+  <p class="sub">Jede Rechnung wird der Vorgängerrechnung gegenübergestellt. Geänderte Positionen sind farbig markiert und werden einzeln abgehakt. Rot: auffällig (Bestand, Preis, Mietsatz, Rabatt oder Summe weicht ab). Orange: erwartbare Änderung (Lieferung, Rücklieferung, Nebenkosten).</p>
+  <div class="controls">
+    <label>Rechnung<select id="cmpMonth"></select></label>
+    <label class="inline"><input type="checkbox" id="onlyOpen">nur offene Punkte</label>
+    <label>Suche<input id="cmpQ" type="search" placeholder="Artikel oder Bezeichnung"></label>
+  </div>
+  <div class="panel kopf" id="cmpHead"></div>
+  <div class="tbl" style="margin-top:14px"><table id="tCmp"></table></div>
+  <div class="pbar">
+    <button class="btn" id="btnFrei" type="button">Rechnung freigeben</button>
+    <button class="btn sec" id="btnPdf" type="button">Geprüfte Rechnung (PDF)</button>
+    <label class="btn sec" style="flex-direction:row" tabindex="0" id="origLbl" hidden>Original-PDF wählen<input type="file" id="origFile" accept="application/pdf,.pdf" hidden></label>
+    <button class="btn sec" id="noOrig" type="button" hidden>Nur Prüfvermerk</button>
+    <span class="msg" id="pdfMsg"></span>
+  </div>
+</section>
 <div class="hero">
   <div class="panel">
     <h2>Mietrechnung je Monat</h2>
@@ -201,11 +259,12 @@ header.top > .logo-riedel, header.top > .mark, #whoMail, #btnLogout{display:none
 
 <section>
   <h2>Rechnungspositionen</h2>
-  <p class="sub">Alle Positionen einer Rechnung mit Beleg, Mietdauer und Betrag. Rücklieferungen erscheinen mit negativem Betrag.</p>
+  <p class="sub">Alle Positionen einer Rechnung mit Beleg, Mietdauer und Betrag. Rücklieferungen erscheinen mit negativem Betrag. Geänderte Positionen sind wie in der Prüfung markiert, geprüfte grün.</p>
   <div class="controls">
     <label>Rechnung<select id="posMonth"></select></label>
     <label>Abschnitt<select id="posSec"></select></label>
     <label>Suche<input id="posQ" type="search" placeholder="Artikel, Bezeichnung, Beleg"></label>
+    <label class="inline"><input type="checkbox" id="posChg">nur geänderte</label>
   </div>
   <p class="check" id="posCheck"></p>
   <div class="tbl"><table id="tPos"></table></div>
@@ -236,6 +295,7 @@ header.top > .logo-riedel, header.top > .mark, #whoMail, #btnLogout{display:none
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="doka-parser.js"></script>
+<script src="doka-pruefung.js"></script>
 <script src="vendor/supabase.js"></script>
 <script>
 (function(){
@@ -338,6 +398,7 @@ function derive(base){
     m.rueck=dig?m.positionen.filter(p=>p.abschnitt==='Rücklieferung').length:null;
     m.sumPos=dig?r2(sum(m.positionen,p=>p.betrag)+sum(m.nebenkosten,f=>f.betrag)):null;
   });
+  let pv=null; M.forEach(m=>{ m.cmp=null; if(m.quelle!=='digital') return; if(pv&&window.DokaPruefung) m.cmp=DokaPruefung.compare(pv,m); pv=m; });
   const fam=n=>{const c=n.replace(/^(Element|Innenecke)\s+/,'').replace(/\s+/g,'');
     if(/^SBIE/.test(c))return 'Innenecke SBIE'; if(/^IE/.test(c))return 'Innenecke IE'; if(/^SB/.test(c))return 'SB'; if(/^EL/.test(c))return 'EL'; if(/^E/.test(c))return 'E'; return 'Sonstige';};
   const area=d=>{if(!d)return 0;const p=d.replace(' m','').split(' x ').map(v=>parseFloat(v.replace(',','.')));return p[0]*p[1];};
@@ -382,10 +443,10 @@ function render(){
     $('chartBox').innerHTML=s+'</svg>'; }
 
   // Monatstabelle
-  { let h=`<thead><tr><th>Monat</th><th>Rechnung</th><th class="n">Miete brutto</th><th class="n">davon Sichtbeton</th><th class="n">Nebenkosten</th><th class="n">Rabatt</th><th class="n">Netto</th><th class="n">Δ Netto</th><th class="n">MwSt.</th><th class="n">Endsumme</th><th class="n">Warenwert Endbestand</th><th>Quelle</th></tr></thead><tbody>`;
+  { let h=`<thead><tr><th>Monat</th><th>Rechnung</th><th class="n">Miete brutto</th><th class="n">davon Sichtbeton</th><th class="n">Nebenkosten</th><th class="n">Rabatt</th><th class="n">Netto</th><th class="n">Δ Netto</th><th class="n">MwSt.</th><th class="n">Endsumme</th><th class="n">Warenwert Endbestand</th><th>Quelle</th><th>Prüfung</th></tr></thead><tbody>`;
     M.forEach((m,i)=>{const d=i?m.netto-M[i-1].netto:null;
-      h+=`<tr><td>${labL(m.monat)}</td><td>${esc(m.nr)}<br><small style="color:var(--muted)">${esc(m.datum)}</small></td><td class="n">${eur(m.miete_brutto)}</td><td class="n">${eur(m.sb)}</td><td class="n">${eur(m.neben)}</td><td class="n">${eur(m.rabatt)}</td><td class="n"><b>${eur(m.netto)}</b></td><td class="n ${d>0.005?'up':d<-0.005?'dn':''}">${d==null?'':(d>0?'+':'')+eur(d)}</td><td class="n">${eur(m.mwst)}</td><td class="n">${eur(m.endsumme)}</td><td class="n">${eur(m.ww_ende,0)}</td><td>${m.quelle==='scan'?'<span class="tag scan">Scan, nur Seite 1</span>':'<span class="tag">digital</span>'}</td></tr>`;});
-    h+=`<tr class="sum"><td colspan="2">Summe</td><td class="n">${eur(sum(M,m=>m.miete_brutto))}</td><td></td><td></td><td class="n">${eur(sum(M,m=>m.rabatt))}</td><td class="n">${eur(nettoSum)}</td><td></td><td class="n">${eur(sum(M,m=>m.mwst))}</td><td class="n">${eur(bruttoSum)}</td><td></td><td></td></tr></tbody>`;
+      h+=`<tr><td>${labL(m.monat)}</td><td>${esc(m.nr)}<br><small style="color:var(--muted)">${esc(m.datum)}</small></td><td class="n">${eur(m.miete_brutto)}</td><td class="n">${eur(m.sb)}</td><td class="n">${eur(m.neben)}</td><td class="n">${eur(m.rabatt)}</td><td class="n"><b>${eur(m.netto)}</b></td><td class="n ${d>0.005?'up':d<-0.005?'dn':''}">${d==null?'':(d>0?'+':'')+eur(d)}</td><td class="n">${eur(m.mwst)}</td><td class="n">${eur(m.endsumme)}</td><td class="n">${eur(m.ww_ende,0)}</td><td>${m.quelle==='scan'?'<span class="tag scan">Scan, nur Seite 1</span>':'<span class="tag">digital</span>'}</td><td>${statTag(m)}</td></tr>`;});
+    h+=`<tr class="sum"><td colspan="2">Summe</td><td class="n">${eur(sum(M,m=>m.miete_brutto))}</td><td></td><td></td><td class="n">${eur(sum(M,m=>m.rabatt))}</td><td class="n">${eur(nettoSum)}</td><td></td><td class="n">${eur(sum(M,m=>m.mwst))}</td><td class="n">${eur(bruttoSum)}</td><td></td><td></td><td></td></tr></tbody>`;
     $('tMonths').innerHTML=h; }
 
   // Bestandsdiagramm
@@ -404,7 +465,7 @@ function render(){
   keepVal('sbMonth',stockMonths.slice().reverse().map(m=>`<option value="${m}">${labL(m)}</option>`).join(''));
   keepVal('posMonth',M.filter(m=>m.quelle==='digital').reverse().map(m=>`<option value="${m.monat}">${labL(m.monat)} (${esc(m.nr)})</option>`).join(''));
   keepVal('posSec','<option value="">Alle</option>'+['Anfangsbestand','Lieferung','Rücklieferung','Nebenkosten'].map(s=>`<option>${s}</option>`).join(''));
-  renderSB(fams); renderPos(); renderNotes(last,stockMonths,stockN,sbWW);
+  renderSB(fams); renderPos(); renderNotes(last,stockMonths,stockN,sbWW); renderPruef();
   $('foot').innerHTML=`Datenquelle: ${M.length} Doka-Mietrechnungen ${esc(M[0].nr)} bis ${esc(last.nr)}`+(D.lieferant?`, ${esc(D.lieferant)}`:'')+(D.kunde?`, Kunden-Nr. ${esc(D.kunde)}`:'')+(D.mietbeginn?`, Mietbeginn ${esc(D.mietbeginn)}`:'')+`. Letzte Änderung in der Datenbank ${esc(D.stand||'–')}.`;
 }
 function renderSB(){
@@ -423,15 +484,15 @@ function renderSB(){
 }
 function renderPos(){
   const m=D.M.find(x=>x.monat===$('posMonth').value); if(!m){$('tPos').innerHTML='';return;}
-  const sec=$('posSec').value,q=$('posQ').value.trim().toLowerCase();
-  const all=m.positionen.concat(m.nebenkosten.map(f=>({abschnitt:'Nebenkosten',beleg:f.beleg,art:f.art,name:f.name,satz:f.basis,betrag:f.betrag,nicht_rabattfaehig:true})));
+  const sec=$('posSec').value,q=$('posQ').value.trim().toLowerCase(),onlyChg=$('posChg').checked,mark=posMark(m);
+  const all=m.positionen.map(p=>({...p,mk:mark[p.art+'~'+(p.id||'')]})).concat(m.nebenkosten.map(f=>({abschnitt:'Nebenkosten',beleg:f.beleg,art:f.art,name:f.name,satz:f.basis,betrag:f.betrag,nicht_rabattfaehig:true,mk:mark['nk~'+f.name]})));
   const ok=Math.abs(m.sumPos-m.miete_brutto)<0.01;
   $('posCheck').className='check '+(ok?'ok':'bad');
   $('posCheck').textContent=ok?`Summe aller ${all.length} Positionen ${eur(m.sumPos)} € entspricht der Bruttomiete auf Seite 1.`:`Summe der Positionen ${eur(m.sumPos)} € weicht von Seite 1 (${eur(m.miete_brutto)} €) um ${eur(m.sumPos-m.miete_brutto)} € ab.`;
-  const rows=all.filter(p=>(!sec||p.abschnitt===sec)&&(!q||[p.art,p.name,p.beleg,p.id].join(' ').toLowerCase().includes(q)));
-  let h=`<thead><tr><th>Abschnitt</th><th>Beleg</th><th>Datum</th><th>Artikel</th><th>Bezeichnung</th><th class="n">Menge</th><th class="n">EP €</th><th class="n">Warenwert €</th><th class="n">Tage</th><th>Satz</th><th class="n">Betrag €</th><th>Rabatt</th></tr></thead><tbody>`;
-  rows.forEach(p=>h+=`<tr><td>${p.abschnitt==='Rücklieferung'?'<span class="tag neg">Rücklieferung</span>':esc(p.abschnitt)}</td><td>${esc(p.beleg||'')}</td><td>${esc(p.datum||p.beleg_datum||'')}</td><td>${esc(p.art)}</td><td>${esc(p.name)}${p.id?`<br><small style="color:var(--muted)">${esc(p.id)}, ${esc(p.dim||'')}</small>`:''}</td><td class="n">${p.menge==null?'':eur(p.menge,0)+' '+esc(p.me)}</td><td class="n">${eur(p.ep)}</td><td class="n">${eur(p.warenwert)}</td><td class="n">${p.tage??''}</td><td>${esc(p.satz||'')}</td><td class="n">${eur(p.betrag)}</td><td>${p.nicht_rabattfaehig?'<span class="tag nr">nein</span>':''}</td></tr>`);
-  h+=`<tr class="sum"><td colspan="10">${rows.length} Positionen</td><td class="n">${eur(sum(rows,p=>p.betrag))}</td><td></td></tr></tbody>`;
+  const rows=all.filter(p=>(!sec||p.abschnitt===sec)&&(!onlyChg||p.mk)&&(!q||[p.art,p.name,p.beleg,p.id].join(' ').toLowerCase().includes(q)));
+  let h=`<thead><tr><th>Abschnitt</th><th>Beleg</th><th>Datum</th><th>Artikel</th><th>Bezeichnung</th><th class="n">Menge</th><th class="n">EP €</th><th class="n">Warenwert €</th><th class="n">Tage</th><th>Satz</th><th class="n">Betrag €</th><th>Rabatt</th><th>Prüfung</th></tr></thead><tbody>`;
+  rows.forEach(p=>h+=`<tr class="${p.mk?'hl '+p.mk.sev+(p.mk.ok?' done':''):''}"><td>${p.abschnitt==='Rücklieferung'?'<span class="tag neg">Rücklieferung</span>':esc(p.abschnitt)}</td><td>${esc(p.beleg||'')}</td><td>${esc(p.datum||p.beleg_datum||'')}</td><td>${esc(p.art)}</td><td>${esc(p.name)}${p.id?`<br><small style="color:var(--muted)">${esc(p.id)}, ${esc(p.dim||'')}</small>`:''}</td><td class="n">${p.menge==null?'':eur(p.menge,0)+' '+esc(p.me)}</td><td class="n">${eur(p.ep)}</td><td class="n">${eur(p.warenwert)}</td><td class="n">${p.tage??''}</td><td>${esc(p.satz||'')}</td><td class="n">${eur(p.betrag)}</td><td>${p.nicht_rabattfaehig?'<span class="tag nr">nein</span>':''}</td><td>${p.mk?(p.mk.ok?'<span class="tag ok">geprüft</span>':`<span class="tag ${p.mk.sev}">offen</span>`):''}</td></tr>`);
+  h+=`<tr class="sum"><td colspan="10">${rows.length} Positionen</td><td class="n">${eur(sum(rows,p=>p.betrag))}</td><td></td><td></td></tr></tbody>`;
   $('tPos').innerHTML=h;
 }
 function renderNotes(last,ms,stockN,sbWW){
@@ -452,7 +513,266 @@ function renderNotes(last,ms,stockN,sbWW){
   $('notes').innerHTML=n.map(([c,t])=>`<li class="${c}">${t}</li>`).join('');
 }
 ['sbMonth','sbFam','sbQ'].forEach(id=>$(id).addEventListener('input',renderSB));
-['posMonth','posSec','posQ'].forEach(id=>$(id).addEventListener('input',renderPos));
+['posMonth','posSec','posQ','posChg'].forEach(id=>$(id).addEventListener('input',renderPos));
+
+// ---------- Prüfung: Vergleich, Abhaken, Freigabe ----------
+// Der Prüfstand liegt in der Rechnungszeile selbst (data.pruefung) – keine eigene Tabelle nötig.
+// Rechnungen ohne data.pruefung (vor Einführung abgerechnet) gelten als Archiv, bis der erste Punkt abgehakt wird.
+const PDFS={}; // Original-PDFs dieser Sitzung je Rechnungsnummer (für die geprüfte Rechnung)
+const LIBX={exceljs:'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js',pdflib:'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js'};
+const libP={};
+function need(n){ if(!libP[n]) libP[n]=new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=LIBX[n]; s.onload=res;
+  s.onerror=()=>{ libP[n]=null; rej(new Error('Programmbibliothek konnte nicht geladen werden (Internetverbindung prüfen).')); }; document.head.appendChild(s); }); return libP[n]; }
+const qty=v=>v==null?'':v.toLocaleString('de-DE',{maximumFractionDigits:2});
+const dt=iso=>{ if(!iso) return ''; const d=new Date(iso); return d.toLocaleDateString('de-DE')+' '+d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}); };
+const chk=m=>(m&&m.pruefung&&m.pruefung.punkte)||{};
+function stat(m){
+  if(!m||!m.cmp) return null;
+  const c=chk(m), n=m.cmp.items.length, done=m.cmp.items.filter(i=>c[i.key]&&c[i.key].ok).length;
+  return {n,done,open:n-done,frei:(m.pruefung&&m.pruefung.freigabe)||null,pflicht:!!m.pruefung};
+}
+function statTag(m){
+  const st=stat(m);
+  if(!st) return '';
+  if(!st.pflicht) return `<span class="tag" title="Vor Einführung der Prüfung abgerechnet">Archiv, ${st.n} Änd.</span>`;
+  if(st.frei) return '<span class="tag solid-ok">freigegeben</span>';
+  if(!st.open) return `<span class="tag ok">geprüft ${st.done}/${st.n}</span>`;
+  const c=chk(m); return `<span class="tag ${m.cmp.items.some(i=>i.sev==='bad'&&!(c[i.key]&&c[i.key].ok))?'bad':'warn'}">${st.open} offen</span>`;
+}
+function posMark(m){
+  const map={}; if(!m||!m.cmp) return map; const c=chk(m);
+  m.cmp.items.forEach(i=>{ const v={sev:i.sev,ok:!!(c[i.key]&&c[i.key].ok)}; if(i.posKey) map[i.posKey]=v; if(i.nkName) map['nk~'+i.nkName]=v; });
+  return map;
+}
+function renderPruef(){
+  const ms=D.M.filter(m=>m.cmp).reverse(), sel=$('cmpMonth'), cur=sel.value;
+  sel.innerHTML=ms.map(m=>{ const st=stat(m); return `<option value="${m.monat}">${labL(m.monat)} (${esc(m.nr)}) – ${st.frei?'freigegeben':!st.pflicht?'Archiv':st.open?st.open+' offen':'geprüft'}</option>`; }).join('');
+  if(ms.some(m=>m.monat===cur)) sel.value=cur;
+  renderCmp(); renderAlert();
+}
+function renderAlert(){
+  const open=D.M.filter(m=>{ const s=stat(m); return s&&s.pflicht&&s.open; });
+  if(!open.length){ const l=D.M.filter(m=>{ const s=stat(m); return s&&s.pflicht; }).pop();
+    $('pAlert').innerHTML=l?`<div class="alert ok"><p><b>Alle Rechnungen geprüft.</b> Zuletzt ${labL(l.monat)} (${esc(l.nr)}).</p></div>`:''; return; }
+  const l=open[open.length-1], s=stat(l);
+  $('pAlert').innerHTML=`<div class="alert ${l.cmp.items.some(i=>i.sev==='bad'&&!(chk(l)[i.key]||{}).ok)?'bad':''}"><p><b>${labL(l.monat)} (${esc(l.nr)}): ${s.open} von ${s.n} Änderungen ungeprüft.</b>${open.length>1?` Weitere offene Monate: ${open.slice(0,-1).map(m=>lab(m.monat)).join(', ')}.`:''}</p><button class="btn sm" type="button" id="goCmp">Zur Prüfung</button></div>`;
+  $('goCmp').onclick=()=>{ $('cmpMonth').value=l.monat; renderCmp(); $('pruefung').scrollIntoView({behavior:'smooth'}); };
+}
+function renderCmp(){
+  ['origLbl','noOrig'].forEach(id=>$(id).hidden=true); $('pdfMsg').textContent='';
+  const m=D.M.find(x=>x.monat===$('cmpMonth').value);
+  const off=!m; $('btnFrei').disabled=off; $('btnPdf').disabled=off;
+  if(!m){ $('cmpHead').innerHTML='<p class="sub" style="margin:0">Sobald zwei digitale Rechnungen vorliegen, erscheint hier der Vergleich.</p>'; $('tCmp').innerHTML=''; return; }
+  const A=D.M.find(x=>x.monat===m.cmp.prev), st=stat(m), c=chk(m);
+  const row=(t,a,b,d=2)=>{ if(a==null||b==null) return `<tr><td>${t}</td><td class="n">${eur(a,d)}</td><td class="n">${eur(b,d)}</td><td class="n">–</td></tr>`; const df=b-a; return `<tr><td>${t}</td><td class="n">${eur(a,d)}</td><td class="n">${eur(b,d)}</td><td class="n ${df>0.005?'up':df<-0.005?'dn':''}">${Math.abs(df)<0.005?'±0':(df>0?'+':'−')+eur(Math.abs(df),d)}</td></tr>`; };
+  const pct=st.n?st.done/st.n*100:100;
+  $('cmpHead').innerHTML=`<div style="min-width:0"><h3>${labL(m.monat)} gegen ${labL(A.monat)}</h3>
+    <div class="scroll"><table><thead><tr><th></th><th class="n">${esc(A.nr)}</th><th class="n">${esc(m.nr)}</th><th class="n">Differenz</th></tr></thead><tbody>
+    ${row('Miete brutto',A.miete_brutto,m.miete_brutto)}${row('Rabatt',A.rabatt,m.rabatt)}${row('Netto',A.netto,m.netto)}${row('Endsumme',A.endsumme,m.endsumme)}${row('Warenwert Endbestand',A.ww_ende,m.ww_ende,0)}
+    </tbody></table></div>
+    ${m.cmp.direct?'':`<p class="check bad">Die direkte Vormonatsrechnung fehlt oder liegt nur als Scan vor. Verglichen wird mit ${labL(A.monat)}; die Bestandsprüfung (Anfangsbestand = Endbestand Vormonat) entfällt.</p>`}
+    ${st.pflicht?'':'<p class="check">Diese Rechnung stammt aus der Zeit vor der Prüffunktion. Der Vergleich ist zur Ansicht da; sobald du den ersten Punkt abhakst, zählt sie als zu prüfen.</p>'}</div>
+    <div><h3>Prüfstand</h3><div class="big">${st.done} von ${st.n}</div><div class="meter" role="progressbar" aria-valuemin="0" aria-valuemax="${st.n}" aria-valuenow="${st.done}"><i style="width:${pct}%"></i></div>
+    <p class="check ${st.open?'':'ok'}" style="margin-top:4px">${st.frei?`Freigegeben von ${esc(st.frei.by)} am ${dt(st.frei.at)}.`:st.open?`${st.open} Änderungen sind noch nicht abgehakt.`:'Alle Änderungen geprüft. Die Rechnung kann freigegeben werden.'}</p>
+    <p class="sub" style="margin:8px 0 0;font-size:13px">${m.cmp.items.filter(i=>i.sev==='bad').length} auffällig, ${m.cmp.items.filter(i=>i.sev!=='bad').length} erwartbar.</p></div>`;
+  const only=$('onlyOpen').checked, q=$('cmpQ').value.trim().toLowerCase();
+  const rows=m.cmp.items.filter(i=>(!only||!(c[i.key]&&c[i.key].ok))&&(!q||(i.art+' '+i.name+' '+i.id).toLowerCase().includes(q)));
+  let h=`<thead><tr><th>Geprüft</th><th>Art</th><th>Artikel</th><th>Bezeichnung</th><th>Änderung</th><th class="n">Menge alt</th><th class="n">Menge neu</th><th class="n">Betrag alt €</th><th class="n">Betrag neu €</th><th class="n">Δ €</th><th>Notiz</th></tr></thead><tbody>`;
+  rows.forEach(i=>{ const ck=c[i.key]||{}, ok=!!ck.ok, d=i.neu-i.alt;
+    h+=`<tr class="chg ${i.sev} ${ok?'done':''}" data-key="${esc(i.key)}"><td><label class="inline" style="padding:0"><input type="checkbox" class="ck" ${ok?'checked':''} aria-label="${esc(i.name)} geprüft"></label>${ok?`<div class="ckwho">${esc(ck.by||'')}<br>${dt(ck.at)}</div>`:''}</td>
+      <td>${esc(i.kind)}</td><td>${esc(i.art)}</td><td class="tw"><div class="cell">${esc(i.name)}${i.id?`<br><small style="color:var(--muted)">${esc(i.id)}${i.dim?', '+esc(i.dim):''}</small>`:''}</div></td>
+      <td class="tw"><div class="reasons">${i.reasons.map(r=>`<span class="tag ${r.s}">${esc(r.t)}</span>`).join('')}</div></td>
+      <td class="n">${qty(i.altMenge)}</td><td class="n">${qty(i.neuMenge)}</td><td class="n">${eur(i.alt)}</td><td class="n">${eur(i.neu)}</td><td class="n ${d>0.005?'up':d<-0.005?'dn':''}">${(d>0?'+':'')+eur(d)}</td>
+      <td><input type="text" class="note" value="${esc(ck.note||'')}" placeholder="Notiz" maxlength="500" aria-label="Notiz zu ${esc(i.name)}"></td></tr>`; });
+  if(!rows.length) h+=`<tr><td colspan="11" style="white-space:normal">${m.cmp.items.length?'Keine offenen Punkte.':'Keine Änderungen gegenüber der Vorgängerrechnung.'}</td></tr>`;
+  $('tCmp').innerHTML=h+'</tbody>';
+  $('btnFrei').textContent=st.frei?'Freigabe zurücknehmen':'Rechnung freigeben';
+  $('btnFrei').disabled=!st.frei&&st.open>0;
+}
+// Prüfstand speichern: lokal sofort, dann in der Datenbank (frisch gelesen, damit Haken von Kollegen erhalten bleiben)
+async function savePruefung(nr,mutate){
+  const loc=BASE.rechnungen.find(r=>r.nr===nr); if(!loc) return;
+  const lp=JSON.parse(JSON.stringify(loc.pruefung||{punkte:{}})); lp.punkte=lp.punkte||{}; mutate(lp); loc.pruefung=lp; render();
+  setSync('busy');
+  try{
+    const {data:row,error}=await sb.from(TABLE).select('data').eq('id',nr).single(); if(error) throw error;
+    const data=row.data; const p=data.pruefung||{punkte:{},seit:new Date().toISOString()}; p.punkte=p.punkte||{}; mutate(p); data.pruefung=p;
+    const {error:e2}=await sb.from(TABLE).update({data}).eq('id',nr); if(e2) throw e2;
+    loc.pruefung=p; setSync('ok'); render();
+  }catch(e){ setSync('err','Prüfung nicht gespeichert: '+errMsg(e)); toast('Prüfung nicht gespeichert: '+errMsg(e)); }
+}
+$('tCmp').addEventListener('change',e=>{
+  const tr=e.target.closest('tr[data-key]'); if(!tr) return;
+  const m=D.M.find(x=>x.monat===$('cmpMonth').value); if(!m) return; const key=tr.dataset.key, who=me&&me.email||'';
+  if(e.target.classList.contains('ck')){ const ok=e.target.checked;
+    savePruefung(m.nr,p=>{ p.punkte[key]={...(p.punkte[key]||{}),ok,by:who,at:new Date().toISOString()}; if(!ok) delete p.freigabe; }); }
+  else if(e.target.classList.contains('note')){ const v=e.target.value.slice(0,500);
+    savePruefung(m.nr,p=>{ p.punkte[key]={...(p.punkte[key]||{}),note:v}; }); }
+});
+$('btnFrei').onclick=()=>{ const m=D.M.find(x=>x.monat===$('cmpMonth').value); if(!m) return; const st=stat(m);
+  if(!st.frei&&st.open) return;
+  savePruefung(m.nr,p=>{ if(p.freigabe) delete p.freigabe; else p.freigabe={by:me&&me.email||'',at:new Date().toISOString()}; }); };
+['cmpMonth','onlyOpen','cmpQ'].forEach(id=>$(id).addEventListener('input',renderCmp));
+
+function saveFile(name,bytes,mime){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([bytes],{type:mime})); a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),4000); }
+
+// ---------- Excel-Liste (immer alle Monate, Positionen und Prüfstand) ----------
+$('btnXlsx').onclick=async()=>{
+  const b=$('btnXlsx'); b.disabled=true; const t=b.textContent; b.textContent='Wird erstellt …';
+  try{ await need('exceljs'); const buf=await buildXlsx(); const last=D.M[D.M.length-1];
+    saveFile(`Doka-Miete_BfS_Stand_${last?last.monat:'leer'}.xlsx`,buf,'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'); }
+  catch(e){ toast(errMsg(e)); }
+  b.disabled=false; b.textContent=t;
+};
+async function buildXlsx(){
+  const X=window.ExcelJS, wb=new X.Workbook(); wb.creator='Riedel-Tools Doka-Mietrechnungen'; wb.created=new Date();
+  const INK='FF1D2124',RED='FFFF0000',WARN='FFFBEBD3',BAD='FFF9DEDC',OKF='FFE3F0E7',MUT='FF5F666B';
+  const EUR='#,##0.00 "€";[Red]-#,##0.00 "€"', NUMF='#,##0.##', thin={style:'thin',color:{argb:'FFCDD0CF'}};
+  const M=D.M;
+  function head(ws,title,subtitle,cols){
+    ws.columns=cols.map(c=>({key:c.k,width:c.w}));
+    ws.mergeCells(1,1,1,cols.length); ws.getCell(1,1).value=title; ws.getCell(1,1).font={name:'Arial Narrow',size:18,bold:true,color:{argb:INK}}; ws.getRow(1).height=28;
+    ws.mergeCells(2,1,2,cols.length); ws.getCell(2,1).value=subtitle; ws.getCell(2,1).font={name:'Arial',size:9,color:{argb:MUT}};
+    for(let i=1;i<=cols.length;i++) ws.getCell(2,i).border={bottom:{style:'thick',color:{argb:RED}}};
+    const hr=ws.getRow(4); cols.forEach((c,i)=>{ const cell=hr.getCell(i+1); cell.value=c.h; cell.font={name:'Arial',size:10,bold:true,color:{argb:'FFFFFFFF'}}; cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:INK}}; cell.alignment={vertical:'middle',horizontal:c.n?'right':'left',wrapText:true}; });
+    hr.height=30; ws.views=[{state:'frozen',ySplit:4}]; ws.autoFilter={from:{row:4,column:1},to:{row:4,column:cols.length}};
+  }
+  function addRow(ws,cols,obj,fill){
+    const r=ws.addRow(cols.map(c=>obj[c.k]));
+    cols.forEach((c,i)=>{ const cell=r.getCell(i+1); cell.font={name:'Arial',size:10}; cell.border={bottom:thin}; if(c.f) cell.numFmt=c.f;
+      cell.alignment=c.wrap?{wrapText:true,vertical:'top'}:{vertical:'top',horizontal:c.n?'right':'left'}; if(fill) cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:fill}}; });
+    return r;
+  }
+  function sumRow(ws,cols,obj){ const r=addRow(ws,cols,obj); r.eachCell(c=>{ c.font={name:'Arial',size:10,bold:true}; c.border={top:{style:'medium',color:{argb:INK}}}; }); }
+  const sub=[D.baustelle&&'Baustelle '+D.baustelle,D.projekt&&'Projekt '+D.projekt,D.kostenstelle&&'Kostenstelle '+D.kostenstelle,D.lieferant,D.kunde&&'Kunden-Nr. '+D.kunde,'erstellt '+new Date().toLocaleString('de-DE')].filter(Boolean).join(' · ');
+
+  const c1=[{k:'monat',h:'Monat',w:15},{k:'nr',h:'Rechnung',w:12},{k:'datum',h:'Datum',w:11},{k:'brutto',h:'Miete brutto',w:14,f:EUR,n:1},{k:'sb',h:'davon Sichtbeton',w:14,f:EUR,n:1},{k:'neben',h:'Nebenkosten',w:13,f:EUR,n:1},{k:'rabatt',h:'Rabatt',w:13,f:EUR,n:1},{k:'netto',h:'Netto',w:14,f:EUR,n:1},{k:'dn',h:'Δ Netto',w:12,f:EUR,n:1},{k:'mwst',h:'MwSt.',w:12,f:EUR,n:1},{k:'end',h:'Endsumme',w:14,f:EUR,n:1},{k:'ww',h:'Warenwert Endbestand',w:16,f:EUR,n:1},{k:'quelle',h:'Quelle',w:9},{k:'pr',h:'Prüfung',w:18},{k:'frei',h:'Freigabe',w:30}];
+  const w1=wb.addWorksheet('Monate',{properties:{tabColor:{argb:RED}}});
+  head(w1,'Doka-Mietrechnungen – Monatsübersicht',sub,c1);
+  M.forEach((m,i)=>{ const st=stat(m);
+    addRow(w1,c1,{monat:labL(m.monat),nr:m.nr,datum:m.datum,brutto:m.miete_brutto,sb:m.sb,neben:m.neben,rabatt:m.rabatt,netto:m.netto,dn:i?r2(m.netto-M[i-1].netto):null,mwst:m.mwst,end:m.endsumme,ww:m.ww_ende,quelle:m.quelle==='scan'?'Scan':'PDF',
+      pr:st?(!st.pflicht?`Archiv (${st.n} Änderungen)`:st.open?`${st.open} von ${st.n} offen`:`geprüft ${st.done}/${st.n}`):'–',frei:st&&st.frei?`${st.frei.by}, ${dt(st.frei.at)}`:''},
+      st&&st.pflicht&&st.open?WARN:(st&&st.frei?OKF:null)); });
+  const n1=M.length+4;
+  sumRow(w1,c1,{monat:'Summe',brutto:{formula:`SUM(D5:D${n1})`},rabatt:{formula:`SUM(G5:G${n1})`},netto:{formula:`SUM(H5:H${n1})`},mwst:{formula:`SUM(J5:J${n1})`},end:{formula:`SUM(K5:K${n1})`}});
+
+  const c2=[{k:'monat',h:'Rechnung (Monat)',w:15},{k:'nr',h:'Rechnung',w:12},{k:'vgl',h:'Verglichen mit',w:15},{k:'status',h:'Status',w:10},{k:'sev',h:'Einstufung',w:11},{k:'kind',h:'Art',w:13},{k:'art',h:'Artikel',w:11},{k:'name',h:'Bezeichnung',w:34,wrap:1},{k:'id',h:'Kennung',w:17},{k:'grund',h:'Änderung',w:50,wrap:1},{k:'ma',h:'Menge alt',w:10,f:NUMF,n:1},{k:'mn',h:'Menge neu',w:10,f:NUMF,n:1},{k:'ba',h:'Betrag alt',w:13,f:EUR,n:1},{k:'bn',h:'Betrag neu',w:13,f:EUR,n:1},{k:'d',h:'Δ Betrag',w:12,f:EUR,n:1},{k:'by',h:'Geprüft von',w:24},{k:'at',h:'Geprüft am',w:16},{k:'note',h:'Notiz',w:36,wrap:1}];
+  const w2=wb.addWorksheet('Prüfung',{properties:{tabColor:{argb:'FFB25E00'}}});
+  head(w2,'Rechnungsvergleich und Prüfung',sub+' · offene Punkte hinterlegt',c2);
+  M.filter(m=>m.cmp).slice().reverse().forEach(m=>{ const pf=stat(m).pflicht, c=chk(m);
+    m.cmp.items.forEach(i=>{ const k=c[i.key]||{};
+      addRow(w2,c2,{monat:labL(m.monat),nr:m.nr,vgl:labL(m.cmp.prev),status:k.ok?'geprüft':pf?'offen':'Archiv',sev:i.sev==='bad'?'auffällig':'erwartbar',kind:i.kind,art:i.art,name:i.name,id:i.id,grund:i.reasons.map(r=>r.t).join('; '),
+        ma:i.altMenge,mn:i.neuMenge,ba:i.alt,bn:i.neu,d:r2(i.neu-i.alt),by:k.ok?k.by:'',at:k.ok?dt(k.at):'',note:k.note||''},k.ok||!pf?null:(i.sev==='bad'?BAD:WARN)); }); });
+
+  const c3=[{k:'monat',h:'Monat',w:13},{k:'nr',h:'Rechnung',w:12},{k:'ab',h:'Abschnitt',w:15},{k:'beleg',h:'Beleg',w:11},{k:'datum',h:'Datum',w:11},{k:'art',h:'Artikel',w:11},{k:'name',h:'Bezeichnung',w:36},{k:'id',h:'Kennung',w:17},{k:'dim',h:'Maße',w:18},{k:'menge',h:'Menge',w:9,f:NUMF,n:1},{k:'me',h:'ME',w:5},{k:'ep',h:'EP',w:12,f:EUR,n:1},{k:'ww',h:'Warenwert',w:13,f:EUR,n:1},{k:'tage',h:'Tage',w:6,n:1},{k:'satz',h:'Satz / Basis',w:16},{k:'betrag',h:'Betrag',w:12,f:EUR,n:1},{k:'nr2',h:'Rabattfähig',w:10},{k:'pr',h:'Prüfung',w:12}];
+  const w3=wb.addWorksheet('Positionen');
+  head(w3,'Alle Rechnungspositionen',sub+' · geänderte Positionen hinterlegt',c3);
+  M.filter(m=>m.quelle==='digital').forEach(m=>{ const mk=posMark(m);
+    m.positionen.forEach(p=>{ const k=mk[p.art+'~'+(p.id||'')];
+      addRow(w3,c3,{monat:labL(m.monat),nr:m.nr,ab:p.abschnitt,beleg:p.beleg||'',datum:p.datum||p.beleg_datum||'',art:p.art,name:DokaPruefung.cleanName(p.name),id:p.id||'',dim:p.dim||'',menge:p.menge,me:p.me,ep:p.ep,ww:p.warenwert,tage:p.tage,satz:p.satz,betrag:p.betrag,nr2:p.nicht_rabattfaehig?'nein':'ja',pr:k?(k.ok?'geprüft':'offen'):''},
+        k?(k.ok?OKF:(k.sev==='bad'?BAD:WARN)):null); });
+    m.nebenkosten.forEach(f=>{ const k=mk['nk~'+f.name];
+      addRow(w3,c3,{monat:labL(m.monat),nr:m.nr,ab:'Nebenkosten',beleg:f.beleg||'',art:f.art,name:f.name,satz:f.basis,betrag:f.betrag,nr2:'nein',pr:k?(k.ok?'geprüft':'offen'):''},k?(k.ok?OKF:WARN):null); }); });
+
+  const ms=Object.keys(D.stock).sort();
+  const c4=[{k:'name',h:'Bezeichnung',w:20},{k:'id',h:'Kennung',w:19},{k:'fam',h:'Reihe',w:13},{k:'dim',h:'Maße',w:19},{k:'ep',h:'EP',w:12,f:EUR,n:1},...ms.map(m=>({k:m,h:lab(m),w:8,n:1,f:NUMF}))];
+  const w4=wb.addWorksheet('Sichtbeton');
+  head(w4,'Sichtbetonelemente – Bestand zum Monatsende',sub,c4);
+  const st=D.stamm.slice().sort((a,b)=>a.fam.localeCompare(b.fam)||a.name.localeCompare(b.name,'de',{numeric:true}));
+  st.forEach(e=>{ const o={name:e.name,id:e.id,fam:e.fam,dim:e.dim,ep:e.ep}; ms.forEach(m=>o[m]=D.stock[m][e.id]||null); addRow(w4,c4,o); });
+  const o4={name:'Summe Stück'}; ms.forEach((m,i)=>{ const col=w4.getColumn(6+i).letter; o4[m]={formula:`SUM(${col}5:${col}${st.length+4})`}; }); sumRow(w4,c4,o4);
+  [w1,w2,w3,w4].forEach(ws=>{ ws.pageSetup={orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0,paperSize:9}; ws.headerFooter={oddFooter:'&L&8Doka-Miete BfS Oberschleißheim&R&8Seite &P von &N'}; });
+  return wb.xlsx.writeBuffer();
+}
+
+// ---------- Geprüfte Rechnung: Original mit Prüfstempel + Prüfvermerk ----------
+$('btnPdf').onclick=()=>{
+  const m=D.M.find(x=>x.monat===$('cmpMonth').value); if(!m) return;
+  if(PDFS[m.nr]){ makePdf(m,PDFS[m.nr]); return; }
+  $('pdfMsg').textContent=`Original-PDF der Rechnung ${m.nr} auswählen, oder nur den Prüfvermerk erstellen.`;
+  $('origLbl').hidden=false; $('noOrig').hidden=false;
+};
+$('origFile').addEventListener('change',async e=>{ const f=e.target.files[0]; e.target.value=''; if(!f) return;
+  const m=D.M.find(x=>x.monat===$('cmpMonth').value); if(!m) return; const b=new Uint8Array(await f.arrayBuffer()); PDFS[m.nr]=b; makePdf(m,b); });
+$('origLbl').addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); $('origFile').click(); } });
+$('noOrig').onclick=()=>{ const m=D.M.find(x=>x.monat===$('cmpMonth').value); if(m) makePdf(m,null); };
+const pdfSafe=s=>String(s??'').replace(/→/g,'->').replace(/[−–]/g,'-').replace(/Δ/g,'Diff.').replace(/≠/g,'<>').replace(/[^\x20-\x7E\xA0-\xFF€„“”‚‘’—•…]/g,'?');
+async function makePdf(m,orig){
+  ['origLbl','noOrig'].forEach(id=>$(id).hidden=true);
+  const msg=$('pdfMsg'); msg.textContent='PDF wird erstellt …';
+  try{
+    await need('pdflib');
+    const L=window.PDFLib, {rgb,StandardFonts}=L, out=await L.PDFDocument.create();
+    const F=await out.embedFont(StandardFonts.Helvetica), FB=await out.embedFont(StandardFonts.HelveticaBold);
+    const INK=rgb(.114,.129,.141),RED=rgb(.77,0,.04),MUT=rgb(.37,.4,.42),OK=rgb(.18,.49,.31),WARN=rgb(.7,.37,0),SOFT=rgb(.875,.882,.875),WB=rgb(.984,.922,.827),BB=rgb(.976,.871,.863);
+    const st=stat(m), A=D.M.find(x=>x.monat===m.cmp.prev), c=chk(m);
+    const stampLines=[st.frei?'GEPRÜFT UND FREIGEGEBEN':(st.open?'PRÜFUNG OFFEN':'GEPRÜFT'),st.frei?`${st.frei.by}, ${dt(st.frei.at)}`:`${st.done} von ${st.n} Änderungen abgehakt`,'sachlich und rechnerisch, siehe Prüfvermerk'];
+    const stampCol=st.open?WARN:OK;
+    if(orig){
+      const src=await L.PDFDocument.load(orig.slice(),{ignoreEncryption:true});
+      (await out.copyPages(src,src.getPageIndices())).forEach(p=>out.addPage(p));
+      const p1=out.getPage(0), {width,height}=p1.getSize(), bw=200, bh=58, x=width-bw-24, y=70;
+      p1.drawRectangle({x,y,width:bw,height:bh,color:rgb(1,1,1),opacity:.92,borderColor:stampCol,borderWidth:2});
+      p1.drawText(pdfSafe(stampLines[0]),{x:x+10,y:y+bh-18,size:11,font:FB,color:stampCol});
+      p1.drawText(pdfSafe(stampLines[1]),{x:x+10,y:y+bh-33,size:8.5,font:F,color:INK});
+      p1.drawText(pdfSafe(stampLines[2]),{x:x+10,y:y+bh-46,size:7.5,font:F,color:MUT});
+      out.getPages().forEach(p=>p.drawText(pdfSafe(`Prüfvermerk ${m.nr}: ${st.done}/${st.n} geprüft${st.frei?', freigegeben':''}`),{x:24,y:10,size:6.5,font:F,color:MUT}));
+    }
+    const PW=595.28, PH=841.89, ML=36, MR=36; let page, y, pageNo=0;
+    const tw=(t,f,s)=>f.widthOfTextAtSize(pdfSafe(t),s);
+    const wrap=(t,f,s,w)=>{ const words=pdfSafe(t).split(/\s+/), lines=[]; let cur=''; words.forEach(wd=>{ const tt=cur?cur+' '+wd:wd; if(f.widthOfTextAtSize(tt,s)>w&&cur){ lines.push(cur); cur=wd; } else cur=tt; }); if(cur) lines.push(cur); return lines.length?lines:['']; };
+    const text=(t,x,yy,o={})=>page.drawText(pdfSafe(t),{x,y:yy,size:o.s||9,font:o.b?FB:F,color:o.c||INK});
+    const rtext=(t,xr,yy,o={})=>text(t,xr-tw(t,o.b?FB:F,o.s||9),yy,o);
+    const newPage=()=>{ page=out.addPage([PW,PH]); pageNo++; y=PH-40;
+      page.drawRectangle({x:ML,y:y-22,width:22,height:22,color:rgb(1,0,0)}); text('RB',ML+4,y-15,{b:1,s:9,c:rgb(1,1,1)});
+      text('Prüfvermerk Doka-Mietrechnung',ML+32,y-10,{b:1,s:15}); text(`Rechnung ${m.nr} vom ${m.datum||''} · Zeitraum ${m.von||''} bis ${m.bis||''}`,ML+32,y-22,{s:8.5,c:MUT});
+      page.drawLine({start:{x:ML,y:y-30},end:{x:PW-MR,y:y-30},thickness:2,color:rgb(1,0,0)}); y-=46; };
+    newPage();
+    if(D.baustelle){ text(`Baustelle ${D.baustelle}`,ML,y,{s:9}); y-=12; }
+    text([D.projekt&&'Projekt '+D.projekt,D.kostenstelle&&'Kostenstelle '+D.kostenstelle,D.lieferant,D.kunde&&'Kunden-Nr. '+D.kunde].filter(Boolean).join(' · '),ML,y,{s:8.5,c:MUT}); y-=22;
+    page.drawRectangle({x:ML,y:y-46,width:PW-ML-MR,height:46,borderColor:stampCol,borderWidth:1.5,color:st.open?WB:rgb(.89,.94,.906)});
+    text(stampLines[0],ML+12,y-18,{b:1,s:13,c:stampCol});
+    text(st.frei?`Sachlich und rechnerisch richtig. Freigegeben von ${st.frei.by} am ${dt(st.frei.at)}.`:st.open?`${st.open} von ${st.n} Änderungen sind noch nicht geprüft. Nicht zur Zahlung freigeben.`:`Alle ${st.n} Änderungen geprüft, Freigabe steht noch aus.`,ML+12,y-34,{s:9});
+    y-=64;
+    text(`Vergleich mit Rechnung ${A.nr} (${labL(A.monat)})${m.cmp.direct?'':' – Vormonat fehlt oder ist Scan, keine Bestandsprüfung'}`,ML,y,{b:1,s:10.5}); y-=16;
+    const kc=[ML,ML+190,ML+300,ML+410,PW-MR];
+    page.drawRectangle({x:ML,y:y-4,width:PW-ML-MR,height:15,color:SOFT});
+    text('Größe',kc[0]+4,y,{b:1,s:8.5}); rtext(A.nr,kc[2]-4,y,{b:1,s:8.5}); rtext(m.nr,kc[3]-4,y,{b:1,s:8.5}); rtext('Differenz',kc[4]-4,y,{b:1,s:8.5}); y-=15;
+    [['Miete brutto',A.miete_brutto,m.miete_brutto],['Rabatt',A.rabatt,m.rabatt],['Nettobetrag',A.netto,m.netto],['MwSt.',A.mwst,m.mwst],['Endsumme',A.endsumme,m.endsumme],['Warenwert Endbestand',A.ww_ende,m.ww_ende]].forEach(([t,a,b])=>{
+      text(t,kc[0]+4,y); rtext(eur(a)+(a==null?'':' €'),kc[2]-4,y); rtext(eur(b)+(b==null?'':' €'),kc[3]-4,y); if(a!=null&&b!=null){ const d=b-a; rtext((d>0?'+':'')+eur(d)+' €',kc[4]-4,y,{c:d>0.005?RED:d<-0.005?OK:INK}); } else rtext('–',kc[4]-4,y);
+      page.drawLine({start:{x:ML,y:y-4},end:{x:PW-MR,y:y-4},thickness:.4,color:SOFT}); y-=14; });
+    y-=14;
+    text(`Geänderte Positionen (${st.n})`,ML,y,{b:1,s:10.5}); y-=16;
+    const cols=[{x:ML,w:22,h:'OK'},{x:ML+22,w:150,h:'Artikel / Bezeichnung'},{x:ML+172,w:165,h:'Änderung'},{x:ML+337,w:62,h:'Alt €',r:1},{x:ML+399,w:62,h:'Neu €',r:1},{x:ML+461,w:62,h:'Diff. €',r:1}];
+    const th=()=>{ page.drawRectangle({x:ML,y:y-4,width:PW-ML-MR,height:15,color:SOFT}); cols.forEach(cl=>cl.r?rtext(cl.h,cl.x+cl.w-3,y,{b:1,s:8}):text(cl.h,cl.x+3,y,{b:1,s:8})); y-=16; };
+    th();
+    m.cmp.items.forEach(i=>{
+      const ck=c[i.key]||{};
+      const l1=wrap(`${i.art?i.art+' ':''}${i.name}${i.id?' ('+i.id+')':''}`,F,8,cols[1].w-6);
+      const l2=wrap(i.reasons.map(r=>r.t).join('; '),F,8,cols[2].w-6);
+      const l3=ck.ok?wrap(`geprüft: ${ck.by||''}, ${dt(ck.at)}${ck.note?' – '+ck.note:''}`,F,7,PW-ML-MR-30):(ck.note?wrap('Notiz: '+ck.note,F,7,PW-ML-MR-30):[]);
+      const hgt=Math.max(l1.length,l2.length)*10+l3.length*9+6;
+      if(y-hgt<50){ newPage(); th(); }
+      if(!ck.ok) page.drawRectangle({x:ML,y:y-hgt+8,width:PW-ML-MR,height:hgt,color:i.sev==='bad'?BB:WB});
+      page.drawRectangle({x:ML+5,y:y-2,width:9,height:9,borderColor:ck.ok?OK:(i.sev==='bad'?RED:WARN),borderWidth:1});
+      if(ck.ok){ page.drawLine({start:{x:ML+6.5,y:y+2.5},end:{x:ML+9,y:y-.5},thickness:1.4,color:OK}); page.drawLine({start:{x:ML+9,y:y-.5},end:{x:ML+13.5,y:y+6},thickness:1.4,color:OK}); }
+      l1.forEach((t,k)=>text(t,cols[1].x+3,y-k*10,{s:8}));
+      l2.forEach((t,k)=>text(t,cols[2].x+3,y-k*10,{s:8,c:i.sev==='bad'?RED:INK}));
+      rtext(eur(i.alt),cols[3].x+cols[3].w-3,y,{s:8}); rtext(eur(i.neu),cols[4].x+cols[4].w-3,y,{s:8}); const d=i.neu-i.alt; rtext((d>0?'+':'')+eur(d),cols[5].x+cols[5].w-3,y,{s:8,b:1});
+      const yb=y-Math.max(l1.length,l2.length)*10; l3.forEach((t,k)=>text(t,cols[1].x+3,yb-k*9+1,{s:7,c:ck.ok?OK:MUT}));
+      y-=hgt; page.drawLine({start:{x:ML,y:y+6},end:{x:PW-MR,y:y+6},thickness:.4,color:SOFT});
+    });
+    if(!m.cmp.items.length){ text('Keine Änderungen gegenüber der Vorgängerrechnung.',ML,y); y-=14; }
+    if(y<120) newPage();
+    y-=24;
+    page.drawLine({start:{x:ML,y},end:{x:ML+200,y},thickness:.6,color:INK}); page.drawLine({start:{x:ML+260,y},end:{x:PW-MR,y},thickness:.6,color:INK});
+    text('Datum, Unterschrift Bauleitung',ML,y-11,{s:7.5,c:MUT}); text('Datum, Unterschrift Oberbauleitung / Kaufmann',ML+260,y-11,{s:7.5,c:MUT});
+    const first=out.getPageCount()-pageNo;
+    for(let k=0;k<pageNo;k++) out.getPage(first+k).drawText(pdfSafe(`Prüfvermerk ${m.nr} · Seite ${k+1} von ${pageNo} · erstellt ${new Date().toLocaleString('de-DE')}`),{x:ML,y:22,size:7,font:F,color:MUT});
+    const name=`Doka_${m.nr}_${m.monat}_${st.frei?'freigegeben':st.open?'Pruefung-offen':'geprueft'}.pdf`;
+    saveFile(name,await out.save(),'application/pdf'); msg.textContent=name+' erstellt.';
+  }catch(e){ msg.textContent='PDF konnte nicht erstellt werden: '+errMsg(e); }
+}
 
 // ---------- Upload ----------
 let pending=null;
@@ -498,17 +818,19 @@ function showResult(inv,err){
 }
 async function adopt(inv){
   const r=$('result');
+  if(inv.quelle!=='scan'&&!inv.pruefung) inv.pruefung={punkte:{},seit:new Date().toISOString()};
   r.innerHTML=`<div class="result"><h3>Speichere in der Datenbank …</h3></div>`;
   try{ await saveInvoices([inv]); await load();
-    r.innerHTML=`<div class="result ok"><h3>Rechnung ${esc(inv.nr)} übernommen</h3><p>${labL(inv.monat)} ist gespeichert und für alle Freigeschalteten sichtbar.</p></div>`;
+    r.innerHTML=`<div class="result ok"><h3>Rechnung ${esc(inv.nr)} übernommen</h3><p>${labL(inv.monat)} ist gespeichert und für alle Freigeschalteten sichtbar. Die Änderungen zur Vorgängerrechnung stehen jetzt unter „Rechnungsvergleich und Prüfung“.</p></div>`;
     render();
+    if([...$('cmpMonth').options].some(o=>o.value===inv.monat)){ $('cmpMonth').value=inv.monat; renderCmp(); $('pruefung').scrollIntoView({behavior:'smooth'}); }
   }catch(e){ r.innerHTML=`<div class="result bad"><h3>Speichern fehlgeschlagen</h3><p>${esc(errMsg(e))}. Die Rechnung wurde nicht übernommen – bitte erneut versuchen.</p></div>`; }
 }
 async function handleFiles(files){
   for(const f of files){
     if(!window.pdfjsLib||!window.DokaParser){showResult(null,{message:'PDF-Leser konnte nicht geladen werden (Internetverbindung prüfen).'});return;}
     $('result').innerHTML=`<div class="result"><h3>Lese ${esc(f.name)} …</h3></div>`;
-    try{ const inv=await DokaParser.parsePdf(pdfjsLib,new Uint8Array(await f.arrayBuffer())); inv.datei=f.name; showResult(inv); }
+    try{ const bytes=new Uint8Array(await f.arrayBuffer()); const keep=bytes.slice(); const inv=await DokaParser.parsePdf(pdfjsLib,bytes); inv.datei=f.name; PDFS[inv.nr]=keep; showResult(inv); }
     catch(e){ if(/Keine Doka-Mietrechnung/.test(e.message)) e.scan=true; showResult(null,e); }
   }
 }
@@ -622,7 +944,7 @@ async function setupScreen(){
   $('sCopy').onclick=async()=>{ try{ await navigator.clipboard.writeText(sql); toast('SQL kopiert'); }catch(e){ const r=document.createRange(); r.selectNodeContents($('sSql')); getSelection().removeAllRanges(); getSelection().addRange(r); toast('Text markiert – mit Strg+C kopieren'); } };
   $('sRetry').onclick=afterLogin; $('sOut').onclick=logout;
 }
-async function logout(){ BASE=EMPTY(); D=null; $('result').innerHTML=''; await sb.auth.signOut(); authScreen('login','Abgemeldet.','ok'); }
+async function logout(){ BASE=EMPTY(); D=null; $('result').innerHTML=''; for(const k in PDFS) delete PDFS[k]; await sb.auth.signOut(); authScreen('login','Abgemeldet.','ok'); }
 $('btnLogout').onclick=logout;
 // Änderungen anderer nachladen, wenn das Fenster wieder aktiv wird
 window.addEventListener('focus',async()=>{ if(!ready) return; try{ await load(); render(); }catch(e){ console.warn(e); } });
