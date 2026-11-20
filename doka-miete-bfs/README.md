@@ -11,6 +11,25 @@ Sichtbetonelemente (Art.-Nr. 999300105).
 
 Gescannte Rechnungen ohne Textebene: Werte von Seite 1 von Hand eintragen (werden rechnerisch geprüft).
 
+## Rechnungsvergleich und Prüfung
+Jede digitale Rechnung wird automatisch der Vorgängerrechnung gegenübergestellt (`doka-pruefung.js`):
+- **Kopfzahlen:** Miete brutto, Rabatt, Netto, Endsumme, Warenwert – jeweils mit Differenz.
+- **Geänderte Positionen** je Artikel und Doka-Kennung. Rot (auffällig): Anfangsbestand ≠ Endbestand Vormonat,
+  Einzelpreis, Mietsatz oder Rabattfähigkeit geändert, Rabattquote geändert, Positionssumme ≠ Seite 1,
+  MwSt. ≠ 19 %. Orange (erwartbar): Lieferungen, Rücklieferungen, Nebenkosten.
+- Jeder Punkt wird **einzeln abgehakt** (mit Notiz, Prüfer und Zeitpunkt). Erst wenn alles abgehakt ist, lässt sich
+  die Rechnung **freigeben**; wird danach ein Haken entfernt, fällt die Freigabe weg.
+- Der Prüfstand liegt in der Rechnungszeile selbst (`doka_daten.data.pruefung`), es ist keine neue Tabelle nötig.
+  Rechnungen, die vor der Prüffunktion übernommen wurden, gelten als *Archiv*, bis der erste Punkt abgehakt wird.
+
+**Excel-Liste** (oben): eine .xlsx mit allen Monaten, der Prüfliste aller Rechnungen (offene Punkte farbig),
+allen Positionen (geänderte markiert) und dem Sichtbeton-Bestand je Monat – wird jedes Mal neu aus der Datenbank erzeugt.
+
+**Geprüfte Rechnung (PDF):** Original-Rechnung mit Prüfstempel auf Seite 1 und angehängtem Prüfvermerk
+(Kopfvergleich, alle Änderungen mit Haken, Prüfer, Notizen, Freigabe, Unterschriftsfelder). Das Original nimmt das Tool
+aus dem Upload dieser Sitzung; sonst wird es einmal ausgewählt, oder es entsteht nur der Prüfvermerk.
+ExcelJS und pdf-lib werden erst beim Klick von jsDelivr geladen.
+
 ## Datenbank und Zugriffsschutz
 Die Daten liegen **nicht** im Repo (das Repo ist öffentlich), sondern im Supabase-Projekt **riedel-stahllisten**
 (`sazhfayopozqcluvmqqu`) – mit eigenen Tabellen und eigener Freigabeliste, getrennt von den Stahllisten:
@@ -45,5 +64,6 @@ Offizielle Logodateien in den Ordner `assets/` legen (SVG bevorzugt, PNG geht au
 ## Dateien
 - `index.html` – Dashboard, Upload, Anmeldung
 - `doka-parser.js` – liest Doka-Mietrechnungen (pdf.js) aus
+- `doka-pruefung.js` – Vergleich mit der Vorgängerrechnung (Prüfpunkte)
 - `supabase-setup.sql` – Tabellen und Zugriffsregeln
 - `vendor/supabase.js` – supabase-js 2.117.1 (lokal eingebunden)
