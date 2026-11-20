@@ -25,7 +25,14 @@ Jede digitale Rechnung wird automatisch der Vorgängerrechnung gegenübergestell
 **Excel-Liste** (oben): eine .xlsx mit allen Monaten, der Prüfliste aller Rechnungen (offene Punkte farbig),
 allen Positionen (geänderte markiert) und dem Sichtbeton-Bestand je Monat – wird jedes Mal neu aus der Datenbank erzeugt.
 
-**Geprüfte Rechnung (PDF):** Original-Rechnung mit Prüfstempel auf Seite 1 und angehängtem Prüfvermerk
+**Filter nach Lieferschein:** Die Prüfliste lässt sich auf einen Lieferschein oder Rücklieferschein der Rechnung
+eingrenzen (oder auf Punkte ohne Lieferschein: Bestand, Preis, Rechnungskopf). Jeder Prüfpunkt hat eine feste Nummer.
+
+**Original mit Anmerkungen drucken:** Öffnet den Druckdialog für die Original-Rechnung, in der jede geänderte
+Position farbig hinterlegt und links mit ihrer Prüfnummer markiert ist (grün = geprüft, rot = auffällig offen,
+orange = offen). Dahinter folgt der Prüfvermerk mit denselben Nummern, Notizen, Prüfer und Freigabe.
+
+**Geprüfte Rechnung (PDF):** Original-Rechnung mit denselben Markierungen, Prüfstempel (mit Riedel-Logo) auf Seite 1 und angehängtem Prüfvermerk
 (Kopfvergleich, alle Änderungen mit Haken, Prüfer, Notizen, Freigabe, Unterschriftsfelder). Das Original nimmt das Tool
 aus dem Upload dieser Sitzung; sonst wird es einmal ausgewählt, oder es entsteht nur der Prüfvermerk.
 ExcelJS und pdf-lib werden erst beim Klick von jsDelivr geladen.

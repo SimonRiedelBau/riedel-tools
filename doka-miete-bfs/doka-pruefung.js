@@ -35,6 +35,9 @@
   // Vergleich Rechnung B mit Vorgängerrechnung A -> Liste der zu prüfenden Änderungen
   function compare(A, B) {
     const items = [], direct = monthIdx(B.monat) - monthIdx(A.monat) === 1;
+    // Lieferscheine / Rücklieferscheine der neuen Rechnung (für den Filter)
+    const belege = {};
+    (B.positionen || []).concat(B.nebenkosten || []).forEach(p => { if (p.beleg && !belege[p.beleg]) belege[p.beleg] = { nr: p.beleg, typ: p.abschnitt, datum: p.beleg_datum || p.datum || '' }; });
     const a = agg(A), b = agg(B);
     for (const key of new Set([...Object.keys(a), ...Object.keys(b)])) {
       const x = a[key], y = b[key], R = [];
@@ -58,7 +61,7 @@
       if (x && y && !R.length && Math.abs(y.betrag - x.betrag) > 0.10) R.push({ t: `Betrag ${y.betrag > x.betrag ? '+' : '−'}${eur(Math.abs(y.betrag - x.betrag))} € bei gleicher Menge`, s: 'warn' });
       if (!R.length) continue;
       const o = y || x;
-      items.push({ key: 'pos~' + segKey(key), posKey: key, kind: 'Position', art: o.art, id: o.id, name: o.name, dim: o.dim,
+      items.push({ key: 'pos~' + segKey(key), posKey: key, kind: 'Position', art: o.art, id: o.id, name: o.name, dim: o.dim, belege: y ? [...y.belege].filter(Boolean) : [],
         altMenge: x ? x.ende : 0, neuMenge: y ? y.ende : 0, alt: x ? x.betrag : 0, neu: y ? y.betrag : 0, reasons: R, sev: R.some(r => r.s === 'bad') ? 'bad' : 'warn' });
     }
     const fa = {}, fb = {};
@@ -67,7 +70,7 @@
     Object.entries(fb).forEach(([n, o]) => {
       const R = [{ t: `${o.basis.join(' + ')}${o.beleg.length ? ' (Beleg ' + [...new Set(o.beleg)].join(', ') + ')' : ''}`, s: 'warn' }];
       if (!(n in fa)) R.push({ t: 'im Vormonat nicht berechnet', s: 'warn' });
-      items.push({ key: 'nk~' + segKey(n), nkName: n, kind: 'Nebenkosten', art: o.art, id: '', name: n, altMenge: null, neuMenge: null, alt: r2(fa[n] || 0), neu: r2(o.betrag), reasons: R, sev: 'warn' });
+      items.push({ key: 'nk~' + segKey(n), nkName: n, belege: [...new Set(o.beleg)], kind: 'Nebenkosten', art: o.art, id: '', name: n, altMenge: null, neuMenge: null, alt: r2(fa[n] || 0), neu: r2(o.betrag), reasons: R, sev: 'warn' });
     });
     const qa = A.miete_brutto ? -A.rabatt / A.miete_brutto : 0, qb = B.miete_brutto ? -B.rabatt / B.miete_brutto : 0;
     if (Math.abs(qa - qb) > 0.0005) items.push({ key: 'kopf~rabatt', kind: 'Rechnungskopf', art: '', id: '', name: 'Mietrechnungsrabatt', altMenge: null, neuMenge: null, alt: A.rabatt, neu: B.rabatt, reasons: [{ t: `Rabattquote ${eur(qa * 100, 1)} % → ${eur(qb * 100, 1)} % der Bruttomiete`, s: 'bad' }], sev: 'bad' });
@@ -75,7 +78,8 @@
     if (sp != null && B.miete_brutto != null && Math.abs(sp - B.miete_brutto) > 0.01) items.push({ key: 'kopf~summe', kind: 'Rechnungskopf', art: '', id: '', name: 'Summe der Positionen', altMenge: null, neuMenge: null, alt: B.miete_brutto, neu: sp, reasons: [{ t: `Positionen ergeben ${eur(sp)} €, Seite 1 nennt ${eur(B.miete_brutto)} €`, s: 'bad' }], sev: 'bad' });
     if (B.netto != null && B.mwst != null && Math.abs(B.netto * 0.19 - B.mwst) > 0.02) items.push({ key: 'kopf~mwst', kind: 'Rechnungskopf', art: '', id: '', name: 'Mehrwertsteuer', altMenge: null, neuMenge: null, alt: r2(B.netto * 0.19), neu: B.mwst, reasons: [{ t: 'MwSt. entspricht nicht 19 % vom Nettobetrag', s: 'bad' }], sev: 'bad' });
     items.sort((p, q) => (p.sev === q.sev ? 0 : p.sev === 'bad' ? -1 : 1) || Math.abs(q.neu - q.alt) - Math.abs(p.neu - p.alt));
-    return { prev: A.monat, direct, items };
+    items.forEach((it, i) => { it.nr = i + 1; if (!it.belege) it.belege = []; });
+    return { prev: A.monat, direct, items, belege: Object.values(belege).sort((x, y) => x.nr.localeCompare(y.nr)) };
   }
 
   const api = { agg, compare, cleanName, SB };

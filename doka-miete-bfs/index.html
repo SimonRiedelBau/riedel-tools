@@ -163,6 +163,12 @@ td input.note{min-width:180px}
 tr.hl td{background:var(--warn-bg)}
 tr.hl.bad td{background:var(--bad-bg)}
 tr.hl.done td{background:var(--ok-bg)}
+.phd{display:flex;align-items:center;gap:12px;margin-bottom:4px}
+.phd h2{margin:0}
+.plogo{height:44px;width:44px;flex:none;display:block}
+.pnr{display:inline-block;min-width:22px;padding:1px 5px;font:600 12px/1.4 var(--sans);text-align:center;color:#fff;background:var(--warn)}
+tr.chg.bad .pnr{background:var(--red-ink)}
+tr.chg.done .pnr{background:var(--ok)}
 .pbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:14px}
 .pbar .msg{color:var(--muted)}
 @media (max-width:860px){.kopf{grid-template-columns:minmax(0,1fr)}}
@@ -203,10 +209,11 @@ header.top > .logo-riedel, header.top > .mark, #whoMail, #btnLogout{display:none
 <div id="dashBody">
 <div id="pAlert"></div>
 <section id="pruefung" aria-labelledby="prH">
-  <h2 id="prH">Rechnungsvergleich und Prüfung</h2>
+  <div class="phd"><img class="plogo" src="assets/logo-riedel.png" alt="Riedel Bau" width="44" height="44" onerror="this.remove()"><h2 id="prH">Rechnungsvergleich und Prüfung</h2></div>
   <p class="sub">Jede Rechnung wird der Vorgängerrechnung gegenübergestellt. Geänderte Positionen sind farbig markiert und werden einzeln abgehakt. Rot: auffällig (Bestand, Preis, Mietsatz, Rabatt oder Summe weicht ab). Orange: erwartbare Änderung (Lieferung, Rücklieferung, Nebenkosten).</p>
   <div class="controls">
     <label>Rechnung<select id="cmpMonth"></select></label>
+    <label>Lieferschein<select id="cmpLS"></select></label>
     <label class="inline"><input type="checkbox" id="onlyOpen">nur offene Punkte</label>
     <label>Suche<input id="cmpQ" type="search" placeholder="Artikel oder Bezeichnung"></label>
   </div>
@@ -215,6 +222,7 @@ header.top > .logo-riedel, header.top > .mark, #whoMail, #btnLogout{display:none
   <div class="pbar">
     <button class="btn" id="btnFrei" type="button">Rechnung freigeben</button>
     <button class="btn sec" id="btnPdf" type="button">Geprüfte Rechnung (PDF)</button>
+    <button class="btn sec" id="btnPrint" type="button">Original mit Anmerkungen drucken</button>
     <label class="btn sec" style="flex-direction:row" tabindex="0" id="origLbl" hidden>Original-PDF wählen<input type="file" id="origFile" accept="application/pdf,.pdf" hidden></label>
     <button class="btn sec" id="noOrig" type="button" hidden>Nur Prüfvermerk</button>
     <span class="msg" id="pdfMsg"></span>
@@ -561,7 +569,7 @@ function renderAlert(){
 function renderCmp(){
   ['origLbl','noOrig'].forEach(id=>$(id).hidden=true); $('pdfMsg').textContent='';
   const m=D.M.find(x=>x.monat===$('cmpMonth').value);
-  const off=!m; $('btnFrei').disabled=off; $('btnPdf').disabled=off;
+  const off=!m; $('btnFrei').disabled=off; $('btnPdf').disabled=off; $('btnPrint').disabled=off;
   if(!m){ $('cmpHead').innerHTML='<p class="sub" style="margin:0">Sobald zwei digitale Rechnungen vorliegen, erscheint hier der Vergleich.</p>'; $('tCmp').innerHTML=''; return; }
   const A=D.M.find(x=>x.monat===m.cmp.prev), st=stat(m), c=chk(m);
   const row=(t,a,b,d=2)=>{ if(a==null||b==null) return `<tr><td>${t}</td><td class="n">${eur(a,d)}</td><td class="n">${eur(b,d)}</td><td class="n">–</td></tr>`; const df=b-a; return `<tr><td>${t}</td><td class="n">${eur(a,d)}</td><td class="n">${eur(b,d)}</td><td class="n ${df>0.005?'up':df<-0.005?'dn':''}">${Math.abs(df)<0.005?'±0':(df>0?'+':'−')+eur(Math.abs(df),d)}</td></tr>`; };
@@ -575,16 +583,20 @@ function renderCmp(){
     <div><h3>Prüfstand</h3><div class="big">${st.done} von ${st.n}</div><div class="meter" role="progressbar" aria-valuemin="0" aria-valuemax="${st.n}" aria-valuenow="${st.done}"><i style="width:${pct}%"></i></div>
     <p class="check ${st.open?'':'ok'}" style="margin-top:4px">${st.frei?`Freigegeben von ${esc(st.frei.by)} am ${dt(st.frei.at)}.`:st.open?`${st.open} Änderungen sind noch nicht abgehakt.`:'Alle Änderungen geprüft. Die Rechnung kann freigegeben werden.'}</p>
     <p class="sub" style="margin:8px 0 0;font-size:13px">${m.cmp.items.filter(i=>i.sev==='bad').length} auffällig, ${m.cmp.items.filter(i=>i.sev!=='bad').length} erwartbar.</p></div>`;
-  const only=$('onlyOpen').checked, q=$('cmpQ').value.trim().toLowerCase();
-  const rows=m.cmp.items.filter(i=>(!only||!(c[i.key]&&c[i.key].ok))&&(!q||(i.art+' '+i.name+' '+i.id).toLowerCase().includes(q)));
-  let h=`<thead><tr><th>Geprüft</th><th>Art</th><th>Artikel</th><th>Bezeichnung</th><th>Änderung</th><th class="n">Menge alt</th><th class="n">Menge neu</th><th class="n">Betrag alt €</th><th class="n">Betrag neu €</th><th class="n">Δ €</th><th>Notiz</th></tr></thead><tbody>`;
+  const lsSel=$('cmpLS'), lsCur=lsSel.value;
+  lsSel.innerHTML='<option value="">Alle</option>'+m.cmp.belege.map(b=>`<option value="${esc(b.nr)}">${b.typ==='Rücklieferung'?'RLS':b.typ==='Lieferung'?'LS':esc(b.typ)} ${esc(b.nr)}${b.datum?' vom '+esc(b.datum):''} (${m.cmp.items.filter(i=>i.belege.includes(b.nr)).length})</option>`).join('')+'<option value="-">ohne Lieferschein (Bestand, Preis, Kopf)</option>';
+  lsSel.disabled=!m.cmp.belege.length;
+  if([...lsSel.options].some(o=>o.value===lsCur)) lsSel.value=lsCur;
+  const ls=lsSel.value, only=$('onlyOpen').checked, q=$('cmpQ').value.trim().toLowerCase();
+  const rows=m.cmp.items.filter(i=>(!ls||(ls==='-'?!i.belege.length:i.belege.includes(ls)))&&(!only||!(c[i.key]&&c[i.key].ok))&&(!q||(i.art+' '+i.name+' '+i.id).toLowerCase().includes(q)));
+  let h=`<thead><tr><th>Nr.</th><th>Geprüft</th><th>Art</th><th>Artikel</th><th>Bezeichnung</th><th>Änderung</th><th class="n">Menge alt</th><th class="n">Menge neu</th><th class="n">Betrag alt €</th><th class="n">Betrag neu €</th><th class="n">Δ €</th><th>Notiz</th></tr></thead><tbody>`;
   rows.forEach(i=>{ const ck=c[i.key]||{}, ok=!!ck.ok, d=i.neu-i.alt;
-    h+=`<tr class="chg ${i.sev} ${ok?'done':''}" data-key="${esc(i.key)}"><td><label class="inline" style="padding:0"><input type="checkbox" class="ck" ${ok?'checked':''} aria-label="${esc(i.name)} geprüft"></label>${ok?`<div class="ckwho">${esc(ck.by||'')}<br>${dt(ck.at)}</div>`:''}</td>
+    h+=`<tr class="chg ${i.sev} ${ok?'done':''}" data-key="${esc(i.key)}"><td><span class="pnr">${i.nr}</span></td><td><label class="inline" style="padding:0"><input type="checkbox" class="ck" ${ok?'checked':''} aria-label="${esc(i.name)} geprüft"></label>${ok?`<div class="ckwho">${esc(ck.by||'')}<br>${dt(ck.at)}</div>`:''}</td>
       <td>${esc(i.kind)}</td><td>${esc(i.art)}</td><td class="tw"><div class="cell">${esc(i.name)}${i.id?`<br><small style="color:var(--muted)">${esc(i.id)}${i.dim?', '+esc(i.dim):''}</small>`:''}</div></td>
       <td class="tw"><div class="reasons">${i.reasons.map(r=>`<span class="tag ${r.s}">${esc(r.t)}</span>`).join('')}</div></td>
       <td class="n">${qty(i.altMenge)}</td><td class="n">${qty(i.neuMenge)}</td><td class="n">${eur(i.alt)}</td><td class="n">${eur(i.neu)}</td><td class="n ${d>0.005?'up':d<-0.005?'dn':''}">${(d>0?'+':'')+eur(d)}</td>
       <td><input type="text" class="note" value="${esc(ck.note||'')}" placeholder="Notiz" maxlength="500" aria-label="Notiz zu ${esc(i.name)}"></td></tr>`; });
-  if(!rows.length) h+=`<tr><td colspan="11" style="white-space:normal">${m.cmp.items.length?'Keine offenen Punkte.':'Keine Änderungen gegenüber der Vorgängerrechnung.'}</td></tr>`;
+  if(!rows.length) h+=`<tr><td colspan="12" style="white-space:normal">${!m.cmp.items.length?'Keine Änderungen gegenüber der Vorgängerrechnung.':ls||q?'Keine Punkte für diesen Filter.':'Keine offenen Punkte.'}</td></tr>`;
   $('tCmp').innerHTML=h+'</tbody>';
   $('btnFrei').textContent=st.frei?'Freigabe zurücknehmen':'Rechnung freigeben';
   $('btnFrei').disabled=!st.frei&&st.open>0;
@@ -612,7 +624,7 @@ $('tCmp').addEventListener('change',e=>{
 $('btnFrei').onclick=()=>{ const m=D.M.find(x=>x.monat===$('cmpMonth').value); if(!m) return; const st=stat(m);
   if(!st.frei&&st.open) return;
   savePruefung(m.nr,p=>{ if(p.freigabe) delete p.freigabe; else p.freigabe={by:me&&me.email||'',at:new Date().toISOString()}; }); };
-['cmpMonth','onlyOpen','cmpQ'].forEach(id=>$(id).addEventListener('input',renderCmp));
+['cmpMonth','cmpLS','onlyOpen','cmpQ'].forEach(id=>$(id).addEventListener('input',renderCmp));
 
 function saveFile(name,bytes,mime){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([bytes],{type:mime})); a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),4000); }
 
@@ -656,12 +668,12 @@ async function buildXlsx(){
   const n1=M.length+4;
   sumRow(w1,c1,{monat:'Summe',brutto:{formula:`SUM(D5:D${n1})`},rabatt:{formula:`SUM(G5:G${n1})`},netto:{formula:`SUM(H5:H${n1})`},mwst:{formula:`SUM(J5:J${n1})`},end:{formula:`SUM(K5:K${n1})`}});
 
-  const c2=[{k:'monat',h:'Rechnung (Monat)',w:15},{k:'nr',h:'Rechnung',w:12},{k:'vgl',h:'Verglichen mit',w:15},{k:'status',h:'Status',w:10},{k:'sev',h:'Einstufung',w:11},{k:'kind',h:'Art',w:13},{k:'art',h:'Artikel',w:11},{k:'name',h:'Bezeichnung',w:34,wrap:1},{k:'id',h:'Kennung',w:17},{k:'grund',h:'Änderung',w:50,wrap:1},{k:'ma',h:'Menge alt',w:10,f:NUMF,n:1},{k:'mn',h:'Menge neu',w:10,f:NUMF,n:1},{k:'ba',h:'Betrag alt',w:13,f:EUR,n:1},{k:'bn',h:'Betrag neu',w:13,f:EUR,n:1},{k:'d',h:'Δ Betrag',w:12,f:EUR,n:1},{k:'by',h:'Geprüft von',w:24},{k:'at',h:'Geprüft am',w:16},{k:'note',h:'Notiz',w:36,wrap:1}];
+  const c2=[{k:'monat',h:'Rechnung (Monat)',w:15},{k:'nr',h:'Rechnung',w:12},{k:'vgl',h:'Verglichen mit',w:15},{k:'status',h:'Status',w:10},{k:'sev',h:'Einstufung',w:11},{k:'pnr',h:'Nr.',w:6,n:1},{k:'kind',h:'Art',w:13},{k:'ls',h:'Lieferschein',w:14,wrap:1},{k:'art',h:'Artikel',w:11},{k:'name',h:'Bezeichnung',w:34,wrap:1},{k:'id',h:'Kennung',w:17},{k:'grund',h:'Änderung',w:50,wrap:1},{k:'ma',h:'Menge alt',w:10,f:NUMF,n:1},{k:'mn',h:'Menge neu',w:10,f:NUMF,n:1},{k:'ba',h:'Betrag alt',w:13,f:EUR,n:1},{k:'bn',h:'Betrag neu',w:13,f:EUR,n:1},{k:'d',h:'Δ Betrag',w:12,f:EUR,n:1},{k:'by',h:'Geprüft von',w:24},{k:'at',h:'Geprüft am',w:16},{k:'note',h:'Notiz',w:36,wrap:1}];
   const w2=wb.addWorksheet('Prüfung',{properties:{tabColor:{argb:'FFB25E00'}}});
   head(w2,'Rechnungsvergleich und Prüfung',sub+' · offene Punkte hinterlegt',c2);
   M.filter(m=>m.cmp).slice().reverse().forEach(m=>{ const pf=stat(m).pflicht, c=chk(m);
     m.cmp.items.forEach(i=>{ const k=c[i.key]||{};
-      addRow(w2,c2,{monat:labL(m.monat),nr:m.nr,vgl:labL(m.cmp.prev),status:k.ok?'geprüft':pf?'offen':'Archiv',sev:i.sev==='bad'?'auffällig':'erwartbar',kind:i.kind,art:i.art,name:i.name,id:i.id,grund:i.reasons.map(r=>r.t).join('; '),
+      addRow(w2,c2,{monat:labL(m.monat),nr:m.nr,vgl:labL(m.cmp.prev),status:k.ok?'geprüft':pf?'offen':'Archiv',sev:i.sev==='bad'?'auffällig':'erwartbar',pnr:i.nr,ls:i.belege.join(', '),kind:i.kind,art:i.art,name:i.name,id:i.id,grund:i.reasons.map(r=>r.t).join('; '),
         ma:i.altMenge,mn:i.neuMenge,ba:i.alt,bn:i.neu,d:r2(i.neu-i.alt),by:k.ok?k.by:'',at:k.ok?dt(k.at):'',note:k.note||''},k.ok||!pf?null:(i.sev==='bad'?BAD:WARN)); }); });
 
   const c3=[{k:'monat',h:'Monat',w:13},{k:'nr',h:'Rechnung',w:12},{k:'ab',h:'Abschnitt',w:15},{k:'beleg',h:'Beleg',w:11},{k:'datum',h:'Datum',w:11},{k:'art',h:'Artikel',w:11},{k:'name',h:'Bezeichnung',w:36},{k:'id',h:'Kennung',w:17},{k:'dim',h:'Maße',w:18},{k:'menge',h:'Menge',w:9,f:NUMF,n:1},{k:'me',h:'ME',w:5},{k:'ep',h:'EP',w:12,f:EUR,n:1},{k:'ww',h:'Warenwert',w:13,f:EUR,n:1},{k:'tage',h:'Tage',w:6,n:1},{k:'satz',h:'Satz / Basis',w:16},{k:'betrag',h:'Betrag',w:12,f:EUR,n:1},{k:'nr2',h:'Rabattfähig',w:10},{k:'pr',h:'Prüfung',w:12}];
@@ -685,19 +697,62 @@ async function buildXlsx(){
   return wb.xlsx.writeBuffer();
 }
 
-// ---------- Geprüfte Rechnung: Original mit Prüfstempel + Prüfvermerk ----------
-$('btnPdf').onclick=()=>{
+// ---------- Geprüfte Rechnung: Original mit Markierungen, Prüfstempel und Prüfvermerk ----------
+// Im Original werden die geänderten Positionen farbig hinterlegt und links nummeriert (grün = geprüft,
+// rot = auffällig offen, orange = offen). Die Nummern verweisen auf den angehängten Prüfvermerk mit Notizen.
+let pdfAction='save';
+function pdfStart(action){
+  pdfAction=action;
   const m=D.M.find(x=>x.monat===$('cmpMonth').value); if(!m) return;
-  if(PDFS[m.nr]){ makePdf(m,PDFS[m.nr]); return; }
-  $('pdfMsg').textContent=`Original-PDF der Rechnung ${m.nr} auswählen, oder nur den Prüfvermerk erstellen.`;
-  $('origLbl').hidden=false; $('noOrig').hidden=false;
-};
+  if(PDFS[m.nr]){ makePdf(m,PDFS[m.nr],action); return; }
+  $('pdfMsg').textContent=`Original-PDF der Rechnung ${m.nr} auswählen${action==='print'?'':', oder nur den Prüfvermerk erstellen'}.`;
+  $('origLbl').hidden=false; $('noOrig').hidden=action==='print';
+}
+$('btnPdf').onclick=()=>pdfStart('save');
+$('btnPrint').onclick=()=>pdfStart('print');
 $('origFile').addEventListener('change',async e=>{ const f=e.target.files[0]; e.target.value=''; if(!f) return;
-  const m=D.M.find(x=>x.monat===$('cmpMonth').value); if(!m) return; const b=new Uint8Array(await f.arrayBuffer()); PDFS[m.nr]=b; makePdf(m,b); });
+  const m=D.M.find(x=>x.monat===$('cmpMonth').value); if(!m) return; const b=new Uint8Array(await f.arrayBuffer()); PDFS[m.nr]=b; makePdf(m,b,pdfAction); });
 $('origLbl').addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); $('origFile').click(); } });
-$('noOrig').onclick=()=>{ const m=D.M.find(x=>x.monat===$('cmpMonth').value); if(m) makePdf(m,null); };
+$('noOrig').onclick=()=>{ const m=D.M.find(x=>x.monat===$('cmpMonth').value); if(m) makePdf(m,null,'save'); };
 const pdfSafe=s=>String(s??'').replace(/→/g,'->').replace(/[−–]/g,'-').replace(/Δ/g,'Diff.').replace(/≠/g,'<>').replace(/[^\x20-\x7E\xA0-\xFF€„“”‚‘’—•…]/g,'?');
-async function makePdf(m,orig){
+let logoBytes=null;
+async function riedelLogo(){ if(logoBytes) return logoBytes; try{ const r=await fetch('assets/logo-riedel.png'); if(r.ok) logoBytes=new Uint8Array(await r.arrayBuffer()); }catch(e){} return logoBytes; }
+
+// Textzeilen des Originals mit Lage (PDF-Koordinaten) ermitteln
+async function pdfRows(bytes){
+  const doc=await pdfjsLib.getDocument({data:bytes.slice()}).promise, pages=[];
+  for(let i=1;i<=doc.numPages;i++){
+    const tc=await (await doc.getPage(i)).getTextContent();
+    const its=tc.items.filter(t=>t.str&&t.str.trim()).map(t=>({s:t.str.trim(),x:t.transform[4],y:t.transform[5],w:t.width,h:Math.abs(t.transform[3])||8}));
+    its.sort((a,b)=>b.y-a.y||a.x-b.x);
+    const rows=[];
+    its.forEach(t=>{ const r=rows.find(r=>Math.abs(r.y-t.y)<2.5); if(r) r.items.push(t); else rows.push({y:t.y,items:[t]}); });
+    rows.sort((a,b)=>b.y-a.y);
+    rows.forEach(r=>{ r.items.sort((a,b)=>a.x-b.x); r.text=r.items.map(t=>t.s).join(' '); r.x0=r.items[0].x; r.x1=Math.max(...r.items.map(t=>t.x+t.w)); r.h=Math.max(...r.items.map(t=>t.h)); });
+    pages.push(rows);
+  }
+  return pages;
+}
+// Prüfpunkte im Original finden: Artikelzeilen (bei Sichtbeton über die Doka-Kennung), Nebenkosten, Kopfzeilen
+function findMarks(pages,items){
+  const marks=[]; const starts=(t,art)=>new RegExp('^[+*\\s]*'+art+'(\\s|$)').test(t);
+  items.forEach(it=>{
+    let found=0; const add=(pi,a,b)=>{ marks.push({pi,a,b,it}); found++; };
+    if(it.posKey||it.nkName){
+      const art=it.art, id=it.posKey?it.posKey.split('~')[1]:'';
+      pages.forEach((rows,pi)=>rows.forEach((r,ri)=>{
+        if(id){ if(r.text.split(/\s+/).includes(id)) for(let k=ri;k>=Math.max(0,ri-3);k--) if(starts(rows[k].text,art)){ add(pi,k,ri); break; } }
+        else if(starts(r.text,art)) add(pi,ri,ri);
+      }));
+    } else {
+      const re=it.key==='kopf~rabatt'?/Mietrechnungsrabatt/:it.key==='kopf~mwst'?/MWSt/i:it.key==='kopf~summe'?/^\s*Miete\s+-?[\d.]+,\d{2}/:null;
+      if(re&&pages[0]){ const ri=pages[0].findIndex(r=>re.test(r.text)); if(ri>=0) add(0,ri,ri); }
+    }
+    it._found=found;
+  });
+  return marks;
+}
+async function makePdf(m,orig,action='save'){
   ['origLbl','noOrig'].forEach(id=>$(id).hidden=true);
   const msg=$('pdfMsg'); msg.textContent='PDF wird erstellt …';
   try{
@@ -705,18 +760,34 @@ async function makePdf(m,orig){
     const L=window.PDFLib, {rgb,StandardFonts}=L, out=await L.PDFDocument.create();
     const F=await out.embedFont(StandardFonts.Helvetica), FB=await out.embedFont(StandardFonts.HelveticaBold);
     const INK=rgb(.114,.129,.141),RED=rgb(.77,0,.04),MUT=rgb(.37,.4,.42),OK=rgb(.18,.49,.31),WARN=rgb(.7,.37,0),SOFT=rgb(.875,.882,.875),WB=rgb(.984,.922,.827),BB=rgb(.976,.871,.863);
-    const st=stat(m), A=D.M.find(x=>x.monat===m.cmp.prev), c=chk(m);
-    const stampLines=[st.frei?'GEPRÜFT UND FREIGEGEBEN':(st.open?'PRÜFUNG OFFEN':'GEPRÜFT'),st.frei?`${st.frei.by}, ${dt(st.frei.at)}`:`${st.done} von ${st.n} Änderungen abgehakt`,'sachlich und rechnerisch, siehe Prüfvermerk'];
+    const st=stat(m), A=D.M.find(x=>x.monat===m.cmp.prev), c=chk(m), items=m.cmp.items;
+    const lb=await riedelLogo(); let logo=null; if(lb){ try{ logo=await out.embedPng(lb); }catch(e){} }
+    const stampLines=[st.frei?'GEPRÜFT UND FREIGEGEBEN':(st.open?'PRÜFUNG OFFEN':'GEPRÜFT'),st.frei?`${st.frei.by}, ${dt(st.frei.at)}`:`${st.done} von ${st.n} Änderungen abgehakt`,'Markierungen 1–'+st.n+' siehe Prüfvermerk'];
     const stampCol=st.open?WARN:OK;
+    const colOf=it=>{ const ok=(c[it.key]||{}).ok; return ok?OK:(it.sev==='bad'?RED:WARN); };
     if(orig){
       const src=await L.PDFDocument.load(orig.slice(),{ignoreEncryption:true});
       (await out.copyPages(src,src.getPageIndices())).forEach(p=>out.addPage(p));
-      const p1=out.getPage(0), {width,height}=p1.getSize(), bw=200, bh=58, x=width-bw-24, y=70;
-      p1.drawRectangle({x,y,width:bw,height:bh,color:rgb(1,1,1),opacity:.92,borderColor:stampCol,borderWidth:2});
+      // Markierungen
+      let rowsAll=null; try{ rowsAll=await pdfRows(orig); }catch(e){ console.warn(e); }
+      if(rowsAll){
+        const marks=findMarks(rowsAll,items);
+        marks.forEach(mk=>{
+          const page=out.getPage(mk.pi), rows=rowsAll[mk.pi], ra=rows[mk.a], rb=rows[mk.b], {width}=page.getSize();
+          const top=ra.y+ra.h+1.5, bot=rb.y-2.5, col=colOf(mk.it);
+          page.drawRectangle({x:Math.max(22,Math.min(ra.x0,rb.x0)-3),y:bot,width:Math.min(width-12,Math.max(ra.x1,rb.x1)+3)-Math.max(22,Math.min(ra.x0,rb.x0)-3),height:top-bot,color:col,opacity:.16,borderColor:col,borderWidth:.6,borderOpacity:.8});
+          const lbl=String(mk.it.nr), bw=Math.max(14,FB.widthOfTextAtSize(lbl,7)+6);
+          page.drawRectangle({x:4,y:top-9.5,width:bw,height:10,color:col});
+          page.drawText(lbl,{x:4+(bw-FB.widthOfTextAtSize(lbl,7))/2,y:top-7.5,size:7,font:FB,color:rgb(1,1,1)});
+        });
+      }
+      const p1=out.getPage(0), {width}=p1.getSize(), bw=210, bh=58, x=width-bw-24, y=70;
+      p1.drawRectangle({x,y,width:bw,height:bh,color:rgb(1,1,1),opacity:.94,borderColor:stampCol,borderWidth:2});
+      if(logo) p1.drawImage(logo,{x:x+bw-36,y:y+bh-36,width:28,height:28});
       p1.drawText(pdfSafe(stampLines[0]),{x:x+10,y:y+bh-18,size:11,font:FB,color:stampCol});
       p1.drawText(pdfSafe(stampLines[1]),{x:x+10,y:y+bh-33,size:8.5,font:F,color:INK});
       p1.drawText(pdfSafe(stampLines[2]),{x:x+10,y:y+bh-46,size:7.5,font:F,color:MUT});
-      out.getPages().forEach(p=>p.drawText(pdfSafe(`Prüfvermerk ${m.nr}: ${st.done}/${st.n} geprüft${st.frei?', freigegeben':''}`),{x:24,y:10,size:6.5,font:F,color:MUT}));
+      out.getPages().forEach(p=>p.drawText(pdfSafe(`Prüfvermerk ${m.nr}: ${st.done}/${st.n} geprüft${st.frei?', freigegeben':''} · grün = geprüft, rot/orange = offen`),{x:24,y:10,size:6.5,font:F,color:MUT}));
     }
     const PW=595.28, PH=841.89, ML=36, MR=36; let page, y, pageNo=0;
     const tw=(t,f,s)=>f.widthOfTextAtSize(pdfSafe(t),s);
@@ -724,9 +795,10 @@ async function makePdf(m,orig){
     const text=(t,x,yy,o={})=>page.drawText(pdfSafe(t),{x,y:yy,size:o.s||9,font:o.b?FB:F,color:o.c||INK});
     const rtext=(t,xr,yy,o={})=>text(t,xr-tw(t,o.b?FB:F,o.s||9),yy,o);
     const newPage=()=>{ page=out.addPage([PW,PH]); pageNo++; y=PH-40;
-      page.drawRectangle({x:ML,y:y-22,width:22,height:22,color:rgb(1,0,0)}); text('RB',ML+4,y-15,{b:1,s:9,c:rgb(1,1,1)});
-      text('Prüfvermerk Doka-Mietrechnung',ML+32,y-10,{b:1,s:15}); text(`Rechnung ${m.nr} vom ${m.datum||''} · Zeitraum ${m.von||''} bis ${m.bis||''}`,ML+32,y-22,{s:8.5,c:MUT});
-      page.drawLine({start:{x:ML,y:y-30},end:{x:PW-MR,y:y-30},thickness:2,color:rgb(1,0,0)}); y-=46; };
+      if(logo) page.drawImage(logo,{x:ML,y:y-26,width:26,height:26});
+      else { page.drawRectangle({x:ML,y:y-22,width:22,height:22,color:rgb(1,0,0)}); text('RB',ML+4,y-15,{b:1,s:9,c:rgb(1,1,1)}); }
+      text('Prüfvermerk Doka-Mietrechnung',ML+36,y-10,{b:1,s:15}); text(`Rechnung ${m.nr} vom ${m.datum||''} · Zeitraum ${m.von||''} bis ${m.bis||''}`,ML+36,y-22,{s:8.5,c:MUT});
+      page.drawLine({start:{x:ML,y:y-32},end:{x:PW-MR,y:y-32},thickness:2,color:rgb(1,0,0)}); y-=48; };
     newPage();
     if(D.baustelle){ text(`Baustelle ${D.baustelle}`,ML,y,{s:9}); y-=12; }
     text([D.projekt&&'Projekt '+D.projekt,D.kostenstelle&&'Kostenstelle '+D.kostenstelle,D.lieferant,D.kunde&&'Kunden-Nr. '+D.kunde].filter(Boolean).join(' · '),ML,y,{s:8.5,c:MUT}); y-=22;
@@ -742,36 +814,48 @@ async function makePdf(m,orig){
       text(t,kc[0]+4,y); rtext(eur(a)+(a==null?'':' €'),kc[2]-4,y); rtext(eur(b)+(b==null?'':' €'),kc[3]-4,y); if(a!=null&&b!=null){ const d=b-a; rtext((d>0?'+':'')+eur(d)+' €',kc[4]-4,y,{c:d>0.005?RED:d<-0.005?OK:INK}); } else rtext('–',kc[4]-4,y);
       page.drawLine({start:{x:ML,y:y-4},end:{x:PW-MR,y:y-4},thickness:.4,color:SOFT}); y-=14; });
     y-=14;
-    text(`Geänderte Positionen (${st.n})`,ML,y,{b:1,s:10.5}); y-=16;
-    const cols=[{x:ML,w:22,h:'OK'},{x:ML+22,w:150,h:'Artikel / Bezeichnung'},{x:ML+172,w:165,h:'Änderung'},{x:ML+337,w:62,h:'Alt €',r:1},{x:ML+399,w:62,h:'Neu €',r:1},{x:ML+461,w:62,h:'Diff. €',r:1}];
+    text(`Geänderte Positionen (${st.n})${orig?' – Nummern wie im Original markiert':''}`,ML,y,{b:1,s:10.5}); y-=16;
+    const cols=[{x:ML,w:18,h:'Nr.'},{x:ML+18,w:18,h:'OK'},{x:ML+36,w:140,h:'Artikel / Bezeichnung'},{x:ML+176,w:161,h:'Änderung'},{x:ML+337,w:62,h:'Alt €',r:1},{x:ML+399,w:62,h:'Neu €',r:1},{x:ML+461,w:62,h:'Diff. €',r:1}];
     const th=()=>{ page.drawRectangle({x:ML,y:y-4,width:PW-ML-MR,height:15,color:SOFT}); cols.forEach(cl=>cl.r?rtext(cl.h,cl.x+cl.w-3,y,{b:1,s:8}):text(cl.h,cl.x+3,y,{b:1,s:8})); y-=16; };
     th();
-    m.cmp.items.forEach(i=>{
-      const ck=c[i.key]||{};
-      const l1=wrap(`${i.art?i.art+' ':''}${i.name}${i.id?' ('+i.id+')':''}`,F,8,cols[1].w-6);
-      const l2=wrap(i.reasons.map(r=>r.t).join('; '),F,8,cols[2].w-6);
-      const l3=ck.ok?wrap(`geprüft: ${ck.by||''}, ${dt(ck.at)}${ck.note?' – '+ck.note:''}`,F,7,PW-ML-MR-30):(ck.note?wrap('Notiz: '+ck.note,F,7,PW-ML-MR-30):[]);
+    items.forEach(i=>{
+      const ck=c[i.key]||{}, col=colOf(i);
+      const l1=wrap(`${i.art?i.art+' ':''}${i.name}${i.id?' ('+i.id+')':''}`,F,8,cols[2].w-6);
+      const l2=wrap(i.reasons.map(r=>r.t).join('; ')+(orig&&!i._found?' (im Original nicht automatisch gefunden)':''),F,8,cols[3].w-6);
+      const l3=ck.ok?wrap(`geprüft: ${ck.by||''}, ${dt(ck.at)}${ck.note?' – '+ck.note:''}`,F,7,PW-ML-MR-50):(ck.note?wrap('Notiz: '+ck.note,F,7,PW-ML-MR-50):[]);
       const hgt=Math.max(l1.length,l2.length)*10+l3.length*9+6;
       if(y-hgt<50){ newPage(); th(); }
       if(!ck.ok) page.drawRectangle({x:ML,y:y-hgt+8,width:PW-ML-MR,height:hgt,color:i.sev==='bad'?BB:WB});
-      page.drawRectangle({x:ML+5,y:y-2,width:9,height:9,borderColor:ck.ok?OK:(i.sev==='bad'?RED:WARN),borderWidth:1});
-      if(ck.ok){ page.drawLine({start:{x:ML+6.5,y:y+2.5},end:{x:ML+9,y:y-.5},thickness:1.4,color:OK}); page.drawLine({start:{x:ML+9,y:y-.5},end:{x:ML+13.5,y:y+6},thickness:1.4,color:OK}); }
-      l1.forEach((t,k)=>text(t,cols[1].x+3,y-k*10,{s:8}));
-      l2.forEach((t,k)=>text(t,cols[2].x+3,y-k*10,{s:8,c:i.sev==='bad'?RED:INK}));
-      rtext(eur(i.alt),cols[3].x+cols[3].w-3,y,{s:8}); rtext(eur(i.neu),cols[4].x+cols[4].w-3,y,{s:8}); const d=i.neu-i.alt; rtext((d>0?'+':'')+eur(d),cols[5].x+cols[5].w-3,y,{s:8,b:1});
-      const yb=y-Math.max(l1.length,l2.length)*10; l3.forEach((t,k)=>text(t,cols[1].x+3,yb-k*9+1,{s:7,c:ck.ok?OK:MUT}));
+      const lbl=String(i.nr), bw=Math.max(14,FB.widthOfTextAtSize(lbl,7)+6);
+      page.drawRectangle({x:ML+2,y:y-2,width:bw,height:10,color:col}); page.drawText(lbl,{x:ML+2+(bw-FB.widthOfTextAtSize(lbl,7))/2,y:y,size:7,font:FB,color:rgb(1,1,1)});
+      page.drawRectangle({x:ML+22,y:y-2,width:9,height:9,borderColor:col,borderWidth:1});
+      if(ck.ok){ page.drawLine({start:{x:ML+23.5,y:y+2.5},end:{x:ML+26,y:y-.5},thickness:1.4,color:OK}); page.drawLine({start:{x:ML+26,y:y-.5},end:{x:ML+30.5,y:y+6},thickness:1.4,color:OK}); }
+      l1.forEach((t,k)=>text(t,cols[2].x+3,y-k*10,{s:8}));
+      l2.forEach((t,k)=>text(t,cols[3].x+3,y-k*10,{s:8,c:i.sev==='bad'?RED:INK}));
+      rtext(eur(i.alt),cols[4].x+cols[4].w-3,y,{s:8}); rtext(eur(i.neu),cols[5].x+cols[5].w-3,y,{s:8}); const d=i.neu-i.alt; rtext((d>0?'+':'')+eur(d),cols[6].x+cols[6].w-3,y,{s:8,b:1});
+      const yb=y-Math.max(l1.length,l2.length)*10; l3.forEach((t,k)=>text(t,cols[2].x+3,yb-k*9+1,{s:7,c:ck.ok?OK:MUT}));
       y-=hgt; page.drawLine({start:{x:ML,y:y+6},end:{x:PW-MR,y:y+6},thickness:.4,color:SOFT});
     });
-    if(!m.cmp.items.length){ text('Keine Änderungen gegenüber der Vorgängerrechnung.',ML,y); y-=14; }
+    if(!items.length){ text('Keine Änderungen gegenüber der Vorgängerrechnung.',ML,y); y-=14; }
     if(y<120) newPage();
     y-=24;
     page.drawLine({start:{x:ML,y},end:{x:ML+200,y},thickness:.6,color:INK}); page.drawLine({start:{x:ML+260,y},end:{x:PW-MR,y},thickness:.6,color:INK});
     text('Datum, Unterschrift Bauleitung',ML,y-11,{s:7.5,c:MUT}); text('Datum, Unterschrift Oberbauleitung / Kaufmann',ML+260,y-11,{s:7.5,c:MUT});
     const first=out.getPageCount()-pageNo;
     for(let k=0;k<pageNo;k++) out.getPage(first+k).drawText(pdfSafe(`Prüfvermerk ${m.nr} · Seite ${k+1} von ${pageNo} · erstellt ${new Date().toLocaleString('de-DE')}`),{x:ML,y:22,size:7,font:F,color:MUT});
+    const bytes=await out.save();
     const name=`Doka_${m.nr}_${m.monat}_${st.frei?'freigegeben':st.open?'Pruefung-offen':'geprueft'}.pdf`;
-    saveFile(name,await out.save(),'application/pdf'); msg.textContent=name+' erstellt.';
+    if(action==='print') printPdf(bytes,name); else { saveFile(name,bytes,'application/pdf'); msg.textContent=name+' erstellt.'; }
   }catch(e){ msg.textContent='PDF konnte nicht erstellt werden: '+errMsg(e); }
+}
+// Drucken: PDF in einem unsichtbaren Rahmen laden und den Druckdialog öffnen; Link als Ausweg
+function printPdf(bytes,name){
+  const url=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'})), msg=$('pdfMsg');
+  msg.innerHTML=`Druckdialog wird geöffnet … Falls nichts erscheint: <a href="${url}" target="_blank" rel="noopener">${esc(name)} öffnen</a> und dort drucken.`;
+  const old=document.getElementById('printFrame'); if(old) old.remove();
+  const fr=document.createElement('iframe'); fr.id='printFrame'; fr.title='Druckansicht'; fr.style.cssText='position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;opacity:0';
+  fr.onload=()=>setTimeout(()=>{ try{ fr.contentWindow.focus(); fr.contentWindow.print(); }catch(e){ msg.innerHTML=`<a href="${url}" target="_blank" rel="noopener">${esc(name)} öffnen</a> und dort drucken.`; } },400);
+  fr.src=url; document.body.appendChild(fr);
 }
 
 // ---------- Upload ----------
