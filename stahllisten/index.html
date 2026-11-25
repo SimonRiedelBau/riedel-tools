@@ -16,16 +16,16 @@
 <style>
 :root{
   --bg:#ECEDEB; --surface:#F8F8F6; --ink:#1D2124; --muted:#5F666B; --rule:#CDD0CF; --soft:#DFE1DF;
-  --red:#FF0000; --red-ink:#C4000B; --grey:#8A9095; --light:#BCC0C1; --ok:#2E7D4F; --warn:#B25E00;
+  --red:#FF0000; --red-ink:#C4000B; --grey:#8A9095; --light:#BCC0C1; --ok:#2E7D4F; --warn:#B25E00; --vorab:#6B3FB0;
   --sans:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
   --cond:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
   box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
 }
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
   --bg:#15181A; --surface:#1E2225; --ink:#E7E9E7; --muted:#9BA1A5; --rule:#343A3E; --soft:#262B2E;
-  --red:#FF2A1F; --red-ink:#FF6A5F; --grey:#7D848A; --light:#4A5055; --ok:#5FC58A; --warn:#F0A04B; } }
+  --red:#FF2A1F; --red-ink:#FF6A5F; --grey:#7D848A; --light:#4A5055; --ok:#5FC58A; --warn:#F0A04B; --vorab:#B48CF0; } }
 :root[data-theme="dark"]{ --bg:#15181A; --surface:#1E2225; --ink:#E7E9E7; --muted:#9BA1A5; --rule:#343A3E; --soft:#262B2E;
-  --red:#FF2A1F; --red-ink:#FF6A5F; --grey:#7D848A; --light:#4A5055; --ok:#5FC58A; --warn:#F0A04B; }
+  --red:#FF2A1F; --red-ink:#FF6A5F; --grey:#7D848A; --light:#4A5055; --ok:#5FC58A; --warn:#F0A04B; --vorab:#B48CF0; }
 *,*::before,*::after{box-sizing:inherit}
 body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.5 var(--sans);font-variant-numeric:tabular-nums}
 .wrap{max-width:1180px;margin:0 auto;padding:20px 16px 60px}
@@ -81,6 +81,17 @@ tr.dim td.nostrike{text-decoration:none}
 .tag.old{border-color:var(--warn);color:var(--warn)}
 .tag.chk{border-color:var(--warn);background:var(--warn);color:var(--bg);font-weight:600}
 .tag.sub{border-color:#0091B8;color:#0091B8}
+.tag.vorab{border-color:var(--vorab);background:var(--vorab);color:var(--bg);font-weight:600}
+.tag.frei{border-color:var(--ok);color:var(--ok)}
+tr.vorab td{background:color-mix(in srgb,var(--vorab) 12%,var(--surface))}
+tr.vorab td:first-child{box-shadow:inset 4px 0 0 var(--vorab)}
+tbody tr.vorab:hover td{background:color-mix(in srgb,var(--vorab) 19%,var(--surface))}
+.vorabbox{border:1px solid var(--vorab);border-left:6px solid var(--vorab);background:color-mix(in srgb,var(--vorab) 9%,var(--surface));padding:10px 14px;margin-top:12px;font-size:14px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.share td.bar-c{width:45%}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.share .sbar{height:12px;background:var(--soft);border:1px solid var(--rule)}
+.share .sbar i{display:block;height:100%;background:var(--ink)}
+.share tr.grp td{font-weight:600}
 .zub-note{display:block;font-size:12px;color:var(--muted)}
 tr.chk td{background:color-mix(in srgb,var(--warn) 13%,var(--surface))}
 tr.chk td:first-child{box-shadow:inset 4px 0 0 var(--warn)}
@@ -231,6 +242,7 @@ header.top > .logo-riedel, header.top > .mark, #whoMail, #btnLogout{display:none
   <div class="db"><div class="grid">
     <label>Plan-Nr.<input id="plNr" required></label>
     <label>Index<input id="plIdx" placeholder="z. B. a"></label>
+    <label>Planstand<select id="plStand"><option value="">–</option><option value="V">Vorabzug (V)</option><option value="F">Freigabe (F)</option></select></label>
     <label>Planeingang<input id="plDate" type="date"></label>
     <label class="wide">Bauteil / Inhalt<input id="plTitle" placeholder="z. B. Bodenplatte Achse 1–6, obere Lage"></label>
     <label class="wide">Plan-Datei<input id="plFile" type="file" accept="application/pdf,image/*,.dwg,.dxf"></label>
@@ -422,6 +434,7 @@ function describe(art,old,d){
     if((old.due||'')!==(d.due||'')) ch.push('Liefertermin '+(dDE(d.due)||'–'));
     if(JSON.stringify(old.listIds||[])!==JSON.stringify(d.listIds||[])) ch.push('Listen geändert');
   }
+  if(art==='plan'&&planStand(old)!==planStand(d)) ch.push((STAND_NAME[planStand(old)]||'ohne Planstand')+' → '+(STAND_NAME[planStand(d)]||'ohne Planstand'));
   if(art==='plan'&&dlText(old)!==dlText(d)) ch.push('Dübelleisten: '+(dlText(d)||'–'));
   if(old.pruefen&&!d.pruefen) ch.push('als geprüft markiert');
   if(art!=='plan'&&Math.abs(kgL(old)-kgL(d))>0.05) ch.push(`Gewicht ${fmt(kgL(old),1)} → ${fmt(kgL(d),1)} kg`);
@@ -604,10 +617,11 @@ function tabOverview(p,c){
     const max=Math.max(...c.rows.map(r=>Math.max(r.b,r.o)));
     h+=`<div class="bars">`+c.rows.map(r=>{ const g=Math.min(r.g,r.b), o=Math.max(0,Math.min(r.o,r.b)-g), w=v=>v/max*100;
       return `<div class="bar"><div class="lbl">${esc(catLabel(r.k))}</div><div class="trk" title="Bedarf ${t(r.b)} t, bestellt ${t(r.o)} t"><i class="c-lief" style="width:${w(g)}%"></i><i class="c-best" style="width:${w(o)}%"></i><i class="c-open" style="width:${w(r.rest)}%"></i>${r.mehr>0?`<i style="width:${w(r.mehr)}%;background:repeating-linear-gradient(45deg,var(--grey) 0 3px,transparent 3px 6px)" title="Mehr bestellt als in Listen"></i>`:''}</div>
-        <div class="val"><b>${t(r.b)} t</b> Bedarf · ${r.rest>0?`<em>${t(r.rest)} t offen</em>`:r.mehr>0?`+${t(r.mehr)} t mehr bestellt`:'vollständig bestellt'}</div></div>`; }).join('')+`</div>`;
+        <div class="val"><b>${t(r.b)} t</b>${c.tot.b?' ('+fmt(r.b/c.tot.b*100,1)+' %)':''} Bedarf · ${r.rest>0?`<em>${t(r.rest)} t offen</em>`:r.mehr>0?`+${t(r.mehr)} t mehr bestellt`:'vollständig bestellt'}</div></div>`; }).join('')+`</div>`;
   }
   h+=`</div><div><h2>Hinweise</h2><ul class="notes">${notes(p,c,kalk).map(([cl,x])=>`<li class="${cl}">${x}</li>`).join('')}</ul></div></div></section>`;
 
+  h+=shareSection(c);
   h+=`<section><div class="toolbar"><div class="grow"><h2>Noch zu bestellen</h2><p class="sub" style="margin:0">Menge je Sorte = Bedarf aus Listen minus bereits bestellt.</p></div>
     <button class="btn sec sm" type="button" id="csvRest">Als CSV exportieren</button><button class="btn sec sm" type="button" onclick="window.print()">Drucken</button>
     <button class="btn red sm" type="button" id="orderOpen" ${c.openLists.length?'':'disabled'}>Offene Listen bestellen</button></div>
@@ -626,6 +640,18 @@ function tabOverview(p,c){
   $('csvRest').onclick=()=>csv(`${p.name}_noch-zu-bestellen.csv`,[['Sorte','Bedarf kg','Bestellt kg','Geliefert kg','Noch zu bestellen kg'],...c.rows.map(r=>[catLabel(r.k),r.b,r.o,r.g,r.rest].map(v=>typeof v==='number'?fmt(v,1):v))]);
   const oo=$('orderOpen'); if(oo) oo.onclick=()=>editOrder(null,c.openLists.map(l=>l.id));
 }
+// Prozentuale Verteilung der Gesamtmenge (Bedarf aus gültigen Stahllisten) je Sorte, z. B. Ø 8 = 12,4 %
+function shareRows(c){ const tot=c.tot.b; if(!tot) return null;
+  const rows=c.rows.filter(r=>r.b>0).map(r=>({k:r.k,lbl:catLabel(r.k),kg:r.b,pct:r.b/tot*100}));
+  const bst=rows.filter(r=>r.k.startsWith('d'));
+  return {rows,tot,bst:bst.length&&bst.length<rows.length?{kg:sum(bst,r=>r.kg),pct:sum(bst,r=>r.kg)/tot*100}:null}; }
+function shareSection(c){ const s=shareRows(c); if(!s||!s.rows.length) return '';
+  const max=Math.max(...s.rows.map(r=>r.pct));
+  return `<section><h2>Verteilung der Gesamtmenge</h2><p class="sub">Anteil jeder Sorte am gesamten Stahlbedarf (${t(s.tot)} t aus gültigen Stahllisten).</p>
+    <div class="tbl scroll share"><table><thead><tr><th>Sorte</th><th class="n">Menge t</th><th class="n">Anteil %</th><th class="bar-c"><span class="sr">Anteil als Balken</span></th></tr></thead><tbody>
+    ${s.rows.map(r=>`<tr><td>${esc(r.lbl)}</td><td class="n">${t(r.kg)}</td><td class="n"><b>${fmt(r.pct,1)} %</b></td><td class="bar-c"><div class="sbar" title="${esc(r.lbl)}: ${fmt(r.pct,1)} %"><i style="width:${r.pct/max*100}%"></i></div></td></tr>`).join('')}
+    ${s.bst?`<tr class="grp"><td>davon Stabstahl gesamt</td><td class="n">${t(s.bst.kg)}</td><td class="n">${fmt(s.bst.pct,1)} %</td><td></td></tr>`:''}
+    <tr class="sum"><td>Gesamtmenge</td><td class="n">${t(s.tot)}</td><td class="n">100,0 %</td><td></td></tr></tbody></table></div></section>`; }
 function notes(p,c,kalk){
   const n=[];
   if(c.tot.rest>0) n.push(['',`<b>${t(c.tot.rest)} t noch zu bestellen.</b> Davon sind ${t(c.openKg)} t in ${c.openLists.length} Stahllisten, die noch keiner Bestellung zugeordnet sind.`]);
@@ -637,6 +663,9 @@ function notes(p,c,kalk){
   const due=c.orders.filter(o=>o.status!=='geliefert'&&o.due&&o.due<today());
   if(due.length) n.push(['',`<b>${due.length} Bestellung${due.length>1?'en':''} überfällig:</b> ${due.map(o=>esc(o.nr||dDE(o.date))+' (Termin '+dDE(o.due)+')').join(', ')}.`]);
   const noList=S.plans.filter(pl=>pl.projectId===p.id&&!S.lists.some(l=>l.planId===pl.id));
+  const vor=c.valid.filter(listVorab);
+  if(vor.length){ const vb=vor.filter(l=>listStatus(l)!=='offen');
+    n.push(['warn',`<b>${vor.length} Stahlliste${vor.length>1?'n':''} aus Vorabzügen</b> (${t(sum(vor,listKg))} t im Bedarf): ${vor.slice(0,6).map(l=>esc(l.nr)).join(', ')}${vor.length>6?' …':''} – noch nicht freigegeben.${vb.length?` Davon schon bestellt: ${vb.map(l=>esc(l.nr)).join(', ')} – Mengen mit der Freigabe abgleichen.`:''}`]); }
   if(noList.length) n.push(['info',`<b>${noList.length} Plan${noList.length>1?'e':''} ohne Stahlliste:</b> ${noList.slice(0,6).map(pl=>esc(pl.nr+(pl.idx?' '+pl.idx:''))).join(', ')}${noList.length>6?' …':''}.`]);
   const oldBest=c.lists.filter(l=>l.ersetzt&&listStatus(l)!=='offen');
   if(oldBest.length) n.push(['',`<b>Ersetzte Listen bereits bestellt:</b> ${oldBest.map(l=>esc(l.nr)).join(', ')}. Mengen zählen weiter als bestellt – Abweichung zum neuen Index mit dem Biegebetrieb klären.`]);
@@ -651,13 +680,15 @@ function tabPlans(p,c,plans){
   let h=`<section style="margin-top:18px">${reportBox('plaene')}<div class="drop" id="planDrop"><p><b>Pläne hochladen:</b> Eine oder mehrere Plan-PDFs hierher ziehen. Plan-Nr. und Index kommen aus dem Dateinamen (z. B. <code>BFS_88160_B_T_5_BP_U1_2233_01</code>: Index 01). Ein höherer Index ersetzt den alten Plan; Stahllisten mit derselben Nummer werden automatisch zugeordnet.${p.slAufPlan?' <b>Stahllisten auf dem Plan</b> (Rundstahl- und Mattenliste) werden beim Upload ausgelesen und direkt als Stahlliste angelegt; ein neuer Plan-Index ersetzt sie.':''}</p>
     <div style="display:flex;gap:8px"><label class="btn" style="flex-direction:row" tabindex="0">Dateien wählen<input type="file" id="planFiles" multiple accept="application/pdf,image/*,.dwg,.dxf" hidden></label><button class="btn sec" id="planNew" type="button">Ohne Datei anlegen</button></div></div>`;
   const nChk=plans.filter(pl=>zuPruefen(pl)||S.lists.some(l=>l.planId===pl.id&&zuPruefen(l))).length;
-  if(!nChk) planFilter='';
-  if(nChk) h+=`<div class="chkbox" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between"><span><b>${nChk} ${nChk>1?'Pläne':'Plan'} nach dem Upload zu prüfen</b> – farbig markiert.</span><button class="linkbtn" type="button" id="planChkF">${planFilter?'Alle Pläne zeigen':'Nur diese zeigen'}</button></div>`;
+  const nVor=plans.filter(istVorab).length;
+  if(planFilter==='pruefen'&&!nChk||planFilter==='vorab'&&!nVor) planFilter='';
+  if(nVor) h+=`<div class="vorabbox"><span><b>${nVor} ${nVor>1?'Pläne sind Vorabzüge':'Plan ist ein Vorabzug'}</b> (V im Plannamen) – noch nicht freigegeben, Stahl möglichst erst nach Freigabe bestellen. Ein Plan mit derselben Nummer und F ersetzt den Vorabzug.</span><button class="linkbtn" type="button" id="planVorF">${planFilter==='vorab'?'Alle Pläne zeigen':'Nur Vorabzüge zeigen'}</button></div>`;
+  if(nChk) h+=`<div class="chkbox" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between"><span><b>${nChk} ${nChk>1?'Pläne':'Plan'} nach dem Upload zu prüfen</b> – farbig markiert.</span><button class="linkbtn" type="button" id="planChkF">${planFilter==='pruefen'?'Alle Pläne zeigen':'Nur diese zeigen'}</button></div>`;
   if(plans.length){
-    h+=`<div class="tbl scroll" style="margin-top:16px"><table><thead><tr><th>Plan-Nr.</th><th>Index</th><th>Bereich</th><th>Bauteil / Inhalt</th><th>Eingang</th><th>Stahllisten</th><th class="n">Bedarf t</th><th>Dübelleisten</th><th>Datei</th><th></th></tr></thead><tbody>`;
+    h+=`<div class="tbl scroll" style="margin-top:16px"><table><thead><tr><th>Plan-Nr.</th><th>Index</th><th>Stand</th><th>Bereich</th><th>Bauteil / Inhalt</th><th>Eingang</th><th>Stahllisten</th><th class="n">Bedarf t</th><th>Dübelleisten</th><th>Datei</th><th></th></tr></thead><tbody>`;
     plans.forEach(pl=>{ const ls=S.lists.filter(l=>l.planId===pl.id), chk=zuPruefen(pl)||ls.some(zuPruefen);
-      if(planFilter==='pruefen'&&!chk) return;
-      h+=`<tr class="${chk?'chk':''}"><td><b>${esc(pl.nr)}</b>${pruefTag(pl)}${pruefWhy(pl)}</td><td>${esc(pl.idx||(planCode(pl)?.idx)||'')}</td><td>${esc(bereich(planCode(pl)))}</td><td class="wrap">${esc(pl.title||'')}</td><td>${dDE(pl.date)}</td>
+      if(planFilter==='pruefen'&&!chk||planFilter==='vorab'&&!istVorab(pl)) return;
+      h+=`<tr class="${[istVorab(pl)?'vorab':'',chk?'chk':''].join(' ').trim()}"><td><b>${esc(pl.nr)}</b>${pruefTag(pl)}${pruefWhy(pl)}</td><td>${esc(pl.idx||(planCode(pl)?.idx)||'')}</td><td>${standTag(pl)||'–'}</td><td>${esc(bereich(planCode(pl)))}</td><td class="wrap">${esc(pl.title||'')}</td><td>${dDE(pl.date)}</td>
       <td>${ls.length?ls.map(l=>`${esc(l.nr)} ${statusTag(l)}${pruefTag(l)}`).join('<br>'):`<button class="linkbtn" data-newlist="${pl.id}" type="button">+ Stahlliste</button>`}</td>
       <td class="n">${t(sum(ls.filter(l=>!l.ersetzt),listKg))}</td>
       <td>${dlRows(pl).length?`<button class="linkbtn" data-dlplan="${pl.id}" type="button" title="${esc(dlText(pl))}">${fmt(dlStk(pl))} Stk</button> <span class="tag ${({offen:'open',bestellt:'best',geliefert:'lief'})[dlStatus(pl)]}">${dlStatus(pl)}</span>`:`<button class="linkbtn del" data-dlplan="${pl.id}" type="button">+ eingeben</button>`}</td>
@@ -675,16 +706,18 @@ function tabPlans(p,c,plans){
         lines.push(['info',`${esc(f.name)}: angelegt (Dateiname nicht nach Plancodierung – Plan-Nr. bitte prüfen)`]);
         if(slPlan) await listFromPlan(p,pl,f,lines);
         continue; }
-      const nr=c?c.nr:a.nr, idx=c?c.idx:a.idx;
-      const old=S.plans.find(x=>x.projectId===p.id&&(x.nr===nr||c&&planCode(x)?.nr===nr));
-      if(old&&idxNum(old.idx)>=idxNum(idx)){ lines.push(['info',`${esc(nr)}: Index ${esc(idx)} übersprungen – vorhanden ist bereits Index ${esc(old.idx)}`]); continue; }
-      const rec=await putFile(f), ext=c?{code:c}:{};
+      const nr=c?c.nr:a.nr, idx=c?c.idx:a.idx, st=a?a.stand:'';
+      // Vorhandener Plan mit derselben Nummer – auch ältere Einträge, deren Plan-Nr. noch „BP041-V“ lautet
+      const old=S.plans.find(x=>x.projectId===p.id&&(x.nr===nr||c&&planCode(x)?.nr===nr||a&&x.fileName&&parseAlbus(x.fileName)?.nr===nr));
+      if(old&&!planNeuer(old,idx,st)){ const os=planStand(old);
+        lines.push(['info',`${esc(nr)}: ${esc(standLbl(st,idx))} übersprungen – vorhanden ist bereits ${esc(standLbl(os,old.idx))}${os==='F'&&st==='V'&&idxNum(idx)===idxNum(old.idx)?' (Freigabe geht vor)':''}`]); continue; }
+      const rec=await putFile(f), ext=c?{code:c}:a?{stand:st}:{};
       let pl=old;
-      if(old){ const was=old.idx; await delFile(old.fileId); Object.assign(old,{nr,idx,date:today(),fileId:rec.id,fileName:f.name,...ext}); if(a&&!old.title) old.title=a.title; setPruef(old,'nr');
-        if(dlRows(old).length) setPruef(old,'dl',`Dübelleisten aus Index ${was||'–'} übernommen – Mengen mit Index ${idx} vergleichen`);
-        lines.push(['ok',`${esc(nr)}: Index ${esc(was||'–')} durch ${esc(idx)} ersetzt`]); }
+      if(old){ const was=old.idx, wasSt=planStand(old); await delFile(old.fileId); Object.assign(old,{nr,idx,date:today(),fileId:rec.id,fileName:f.name,...ext}); if(a&&!old.title) old.title=a.title; setPruef(old,'nr');
+        if(dlRows(old).length) setPruef(old,'dl',`Dübelleisten aus ${standLbl(wasSt,was)} übernommen – Mengen mit ${standLbl(st,idx)} vergleichen`);
+        lines.push([st==='V'?'warn':'ok',`${esc(nr)}: ${esc(standLbl(wasSt,was))} durch ${esc(standLbl(st,idx))} ersetzt${st==='V'?' – <b>Vorabzug</b>, noch nicht freigegeben':''}`]); }
       else { pl={id:uid(),projectId:p.id,nr,idx,title:a?a.title:'',date:today(),fileId:rec.id,fileName:f.name,...ext}; S.plans.push(pl);
-        lines.push(['ok',`${esc(nr)}: Index ${esc(idx)} angelegt`]); }
+        lines.push([st==='V'?'warn':'ok',`${esc(nr)}: ${esc(standLbl(st,idx))} angelegt${st==='V'?' – <b>Vorabzug</b>, noch nicht freigegeben':''}`]); }
       if(slPlan&&(!a||/^BP/i.test(a.nr))) await listFromPlan(p,pl,f,lines); }
     const linked=linkLists(p.id); linked.forEach(([l,pl])=>lines.push(['ok',`Stahlliste ${esc(l.nr)} dem Plan ${esc(pl.nr)} zugeordnet`]));
     await save(); setReport('plaene',lines); renderProject(p.id); };
@@ -694,7 +727,8 @@ function tabPlans(p,c,plans){
   document.querySelectorAll('[data-editplan]').forEach(b=>b.onclick=()=>editPlan(S.plans.find(x=>x.id===b.dataset.editplan)));
   document.querySelectorAll('[data-dlplan]').forEach(b=>b.onclick=()=>editPlan(S.plans.find(x=>x.id===b.dataset.dlplan),{dl:true}));
   document.querySelectorAll('[data-chkplan]').forEach(b=>b.onclick=async()=>{ markGeprueft(S.plans.find(x=>x.id===b.dataset.chkplan)); await save(); renderProject(p.id); });
-  if($('planChkF')) $('planChkF').onclick=()=>{ planFilter=planFilter?'':'pruefen'; renderProject(p.id); };
+  if($('planChkF')) $('planChkF').onclick=()=>{ planFilter=planFilter==='pruefen'?'':'pruefen'; renderProject(p.id); };
+  if($('planVorF')) $('planVorF').onclick=()=>{ planFilter=planFilter==='vorab'?'':'vorab'; renderProject(p.id); };
   document.querySelectorAll('[data-newlist]').forEach(b=>b.onclick=()=>editList(null,b.dataset.newlist));
   document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openFile(b.dataset.open));
 }
@@ -718,12 +752,24 @@ function bereich(c){ if(!c) return '';
 // Index: Zahlen (00, 01 …) bzw. Albus 0, a, b … – Buchstaben sind neuer als Zahlen
 const idxNum=v=>{ v=String(v??'').trim(); if(/^[a-z]$/i.test(v)) return 1000+v.toLowerCase().charCodeAt(0); const n=parseInt(v,10); return isNaN(n)?-1:n; };
 // Plannummer Ing.-Büro Albus (Projekt Ostermeier): Art+Nummer-Index-Bauteil, z. B. „BP041-0-V_Bew._Gründung_Teil_1_Verwaltung.pdf“
-// → Plan-Nr. BP041-V, Index 0, Inhalt aus dem Rest des Dateinamens
+// → Plan-Nr. BP041, Index 0, Planstand V = Vorabzug (F = Freigabe), Inhalt aus dem Rest des Dateinamens.
+// Andere Kennungen hinter dem Index (nicht V/F) bleiben Teil der Plan-Nr., z. B. BP041-0-T → BP041-T.
 function parseAlbus(name){
   const base=String(name||'').replace(/\.[A-Za-z0-9]{1,5}$/,'');
   const m=base.match(/(?:^|[_\s])([A-Z]{1,3}\d{2,4})-(\d{1,2}|[a-z])-([A-Z0-9]{1,3})(?=$|[_\s])(.*)$/);
   if(!m) return null;
-  return {nr:m[1]+'-'+m[3],idx:m[2],title:m[4].replace(/_+/g,' ').trim()}; }
+  const stand=/^[VF]$/.test(m[3])?m[3]:'';
+  return {nr:stand?m[1]:m[1]+'-'+m[3],idx:m[2],stand,title:m[4].replace(/_+/g,' ').trim()}; }
+// Planstand: V = Vorabzug (noch nicht freigegeben), F = Freigabe. Von Hand gesetzt, sonst aus dem Dateinamen.
+const STAND_NAME={V:'Vorabzug',F:'Freigabe'};
+const planStand=pl=>pl?(pl.stand??parseAlbus(pl.fileName)?.stand??''):'';
+const istVorab=pl=>planStand(pl)==='V';
+const listPlan=l=>S.plans.find(x=>x.id===l.planId);
+const listVorab=l=>!l.ersetzt&&istVorab(listPlan(l));
+const standTag=pl=>{ const s=planStand(pl); return s==='V'?' <span class="tag vorab" title="Vorabzug – noch nicht freigegeben">Vorabzug</span>':s==='F'?' <span class="tag frei">Freigabe</span>':''; };
+const standLbl=(st,idx)=>(STAND_NAME[st]?STAND_NAME[st]+' ':'')+'Index '+(idx||'–');
+// Ersetzt der neue Plan den vorhandenen? Höherer Index immer; bei gleichem Index ersetzt die Freigabe den Vorabzug.
+function planNeuer(old,idx,st){ const d=idxNum(idx)-idxNum(old.idx); return d>0||d===0&&planStand(old)==='V'&&st!=='V'; }
 const listCode=l=>l.code||parseCode(l.fileName);
 const planCode=pl=>pl.code||parseCode(pl.fileName)||parseCode(pl.nr+'_'+(pl.idx||'00'));
 // Plan zur Stahlliste über die 4-stellige Nummer; bei mehreren Treffern entscheiden Bauteil, Ebene, Gebäude
@@ -822,7 +868,7 @@ function listTable(lists){
   const cats=[...new Set(lists.flatMap(l=>(l.items||[]).map(i=>catGroup(i.cat))))].sort(catSort);
   let h=`<div class="tbl scroll"><table><thead><tr><th>Liste</th><th>Index</th><th>Bereich</th><th>Plan</th><th>Bauteil</th><th>Status</th>${cats.map(k=>`<th class="n">${esc(catLabel(k))}</th>`).join('')}<th class="n">Summe kg</th><th>Datei</th><th></th></tr></thead><tbody>`;
   lists.forEach(l=>{ const pl=S.plans.find(x=>x.id===l.planId), g=addItems({},l.items);
-    h+=`<tr class="${l.ersetzt?'dim':zuPruefen(l)?'chk':''}"><td><b>${esc(l.nr)}</b>${pruefTag(l)}<br><small style="color:var(--muted)">${dDE(l.date)}</small>${pruefWhy(l)}</td><td>${esc(l.idx||(listCode(l)?.idx)||'')}</td><td>${esc(bereich(listCode(l)||(pl&&planCode(pl)))||ebeneOf(l))}</td><td>${pl?esc(pl.nr+(pl.idx?' / '+pl.idx:'')):'–'}</td><td class="wrap">${esc(l.title||'')}${l.note?`<span class="zub-note">${esc(l.note)}</span>`:''}${zubText(l)?`<span class="zub-note">Zubehör: ${esc(zubText(l))}</span>`:''}</td><td class="nostrike">${statusTag(l)}${l.sub?' <span class="tag sub" title="Sub verrechnet am '+dDE(l.sub)+'">Sub verr.</span>':''}</td>
+    h+=`<tr class="${l.ersetzt?'dim':[listVorab(l)?'vorab':'',zuPruefen(l)?'chk':''].join(' ').trim()}"><td><b>${esc(l.nr)}</b>${pruefTag(l)}${listVorab(l)?' <span class="tag vorab" title="Plan ist ein Vorabzug – noch nicht freigegeben">Vorabzug</span>':''}<br><small style="color:var(--muted)">${dDE(l.date)}</small>${pruefWhy(l)}</td><td>${esc(l.idx||(listCode(l)?.idx)||'')}</td><td>${esc(bereich(listCode(l)||(pl&&planCode(pl)))||ebeneOf(l))}</td><td>${pl?esc(pl.nr+(pl.idx?' / '+pl.idx:'')):'–'}</td><td class="wrap">${esc(l.title||'')}${l.note?`<span class="zub-note">${esc(l.note)}</span>`:''}${zubText(l)?`<span class="zub-note">Zubehör: ${esc(zubText(l))}</span>`:''}</td><td class="nostrike">${statusTag(l)}${l.sub?' <span class="tag sub" title="Sub verrechnet am '+dDE(l.sub)+'">Sub verr.</span>':''}</td>
       ${cats.map(k=>`<td class="n">${g[k]?fmt(g[k]):''}</td>`).join('')}<td class="n"><b>${fmt(listKg(l))}</b></td>
       <td class="nostrike">${l.fileId?`<button class="linkbtn" data-open="${l.fileId}" type="button">öffnen</button>`:l.src==='plan'&&pl?.fileId?`<button class="linkbtn" data-open="${pl.fileId}" type="button" title="Stahlliste steht auf dem Plan">Plan</button>`:'–'}</td><td class="nostrike"><button class="linkbtn" data-editlist="${l.id}" type="button">Bearbeiten</button>${zuPruefen(l)?` · <button class="linkbtn" data-chklist="${l.id}" type="button">Geprüft</button>`:''}</td></tr>`; });
   const tot={}; lists.filter(l=>!l.ersetzt).forEach(l=>addItems(tot,l.items));
@@ -836,10 +882,10 @@ function bindListTable(){
 }
 let listFilter='';
 function tabLists(p,c){
-  if(listFilter==='pruefen'&&!c.lists.some(zuPruefen)) listFilter='';
+  if(listFilter==='pruefen'&&!c.lists.some(zuPruefen)||listFilter==='vorab'&&!c.lists.some(listVorab)) listFilter='';
   let lists=c.lists.slice().sort((a,b)=>String(a.nr).localeCompare(String(b.nr),'de',{numeric:true}));
-  const f=listFilter; if(f) lists=lists.filter(l=>f==='ersetzt'?l.ersetzt:f==='pruefen'?zuPruefen(l):!l.ersetzt&&listStatus(l)===f);
-  let h=`<section style="margin-top:0"><div class="toolbar"><label>Status<select id="lFilter"><option value="">Alle</option><option value="offen">Offen</option><option value="bestellt">Bestellt</option><option value="geliefert">Geliefert</option><option value="ersetzt">Ersetzt</option><option value="pruefen">Zu prüfen</option></select></label><div class="grow"></div>
+  const f=listFilter; if(f) lists=lists.filter(l=>f==='ersetzt'?l.ersetzt:f==='pruefen'?zuPruefen(l):f==='vorab'?listVorab(l):!l.ersetzt&&listStatus(l)===f);
+  let h=`<section style="margin-top:0"><div class="toolbar"><label>Status<select id="lFilter"><option value="">Alle</option><option value="offen">Offen</option><option value="bestellt">Bestellt</option><option value="geliefert">Geliefert</option><option value="ersetzt">Ersetzt</option><option value="pruefen">Zu prüfen</option><option value="vorab">Vorabzug</option></select></label><div class="grow"></div>
     <button class="btn sec" type="button" id="listCheckAll" title="Alle gespeicherten Stahllisten erneut auslesen und Auffälligkeiten markieren">Bestand prüfen</button><button class="btn red" type="button" id="listNew">+ Stahlliste hinzufügen</button></div>`;
   const nChk=c.lists.filter(zuPruefen).length;
   if(nChk) h+=`<div class="chkbox" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin:0 0 14px"><span><b>${nChk} Stahlliste${nChk>1?'n':''} nach dem Upload zu prüfen</b> – farbig markiert. Nach der Kontrolle „Geprüft“ klicken.</span><button class="linkbtn" type="button" id="listChkF">${f==='pruefen'?'Alle Listen zeigen':'Nur diese zeigen'}</button></div>`;
@@ -973,6 +1019,18 @@ async function exportXlsx(p){
     addRow(ws,['Gesamtstahlbedarf:',...cols.slice(1).map((x,i)=>{ const L=colL(i+2); return {formula:`SUM(${L}5:${L}${last})`,result:sum(ebs,e=>{ const v=ws.getRow(5+ebs.indexOf(e)).getCell(i+2).value; return v&&typeof v==='object'?v.result:(v||0); })}; })],{sum:true});
     ws.addRow([]);
     ws.addRow(['Ersetzte Listen zählen nur, wenn sie schon bestellt sind (Material geliefert/abgerufen, wird abgerechnet). Summe = BST S + BSTM brutto + ABSTA'+(hasS?' + Sonstiges':'')+'.']).getCell(1).font={...font,size:9,color:{argb:GREY}};
+    // Prozentuale Verteilung der Gesamtmenge je Sorte (gleiche Listen wie oben)
+    const dist=addItems({},rowsL.flatMap(l=>l.items)), dk=Object.keys(dist).filter(k=>dist[k]>0).sort(catSort);
+    if(dk.length){ ws.addRow([]);
+      const hr=ws.addRow(['Verteilung der Gesamtmenge','Menge\n[to]','Anteil\n[%]']); hr.height=28;
+      hr.eachCell(cell=>{ cell.font={name:'Arial',size:10,bold:true,color:{argb:'FFFFFFFF'}}; cell.fill=solid(INK); cell.alignment={vertical:'middle',wrapText:true,horizontal:cell.col>1?'right':'left'}; });
+      const r0=ws.rowCount+1, r1=r0+dk.length-1, rt=r1+1, totKg=sum(dk,k=>dist[k]);
+      dk.forEach((k,i)=>{ const r=addRow(ws,[catLabel(k),dist[k]/1000,{formula:`IF($B$${rt}=0,0,B${r0+i}/$B$${rt})`,result:dist[k]/totKg}]); r.getCell(2).numFmt=T3; r.getCell(3).numFmt='0.0%'; });
+      const rs=addRow(ws,['Gesamtmenge',{formula:`SUM(B${r0}:B${r1})`,result:totKg/1000},{formula:`SUM(C${r0}:C${r1})`,result:1}],{sum:true}); rs.getCell(2).numFmt=T3; rs.getCell(3).numFmt='0.0%';
+      const bk=dk.filter(k=>k.startsWith('d'));
+      if(bk.length&&bk.length<dk.length){ const rb=ws.addRow(['davon Stabstahl gesamt',{formula:`SUMPRODUCT((LEFT(A${r0}:A${r1},1)="Ø")*B${r0}:B${r1})`,result:sum(bk,k=>dist[k])/1000},{formula:`IF($B$${rt}=0,0,B${rt+1}/$B$${rt})`,result:sum(bk,k=>dist[k])/totKg}]);
+        rb.getCell(1).font={...font,italic:true}; rb.getCell(2).numFmt=T3; rb.getCell(3).numFmt='0.0%'; }
+    }
   }
   // Ein Blatt je Ebene
   ebs.forEach(e=>{
@@ -982,7 +1040,7 @@ async function exportXlsx(p){
     ws.views=[{state:'frozen',xSplit:1,ySplit:4}];
     const dlShown=new Set(), dlOf=new Map(); // Dübelleisten des Plans nur in der ersten Zeile des Plans
     byEb[e].forEach(l=>{ const os=ordersFor(l), ab=[...new Set(os.map(o=>o.date).filter(Boolean))].sort(), gb=deliv(l,'bst'), gl=deliv(l,'m');
-      const bem=[l.ersetzt?'alter Index – bereits bestellt, wird abgerechnet':'',l.note||''].filter(Boolean).join(' · ');
+      const bem=[l.ersetzt?'alter Index – bereits bestellt, wird abgerechnet':'',listVorab(l)?'Vorabzug – noch nicht freigegeben':'',l.note||''].filter(Boolean).join(' · ');
       const r=addRow(ws,[(cd=>cd?l.nr+'_'+(l.idx||cd.idx):l.nr+(l.idx?' / Index '+l.idx:''))(listCode(l)),l.title||'',bem,ab.length?new Date(ab[0]+'T12:00:00'):null,gb?.v??null,gl?.v??null,
         ...ZUB.map(([k])=>{ const pl=k==='dl'&&S.plans.find(x=>x.id===l.planId);
           if(pl&&dlRows(pl).length){ if(dlShown.has(pl.id)) return null; dlShown.add(pl.id); dlOf.set(l,pl); return dlStk(pl)+' Stk'; }
@@ -1003,9 +1061,9 @@ async function exportXlsx(p){
   });
 
   // Übersicht
-  { const ws=sheet('Übersicht','Stahllisten – Übersicht',[{h:'Sorte',key:'k',w:24},{h:'Bedarf t',key:'b',fmt:T},{h:'Bestellt t',key:'o',fmt:T},{h:'Geliefert t',key:'g',fmt:T},{h:'Noch zu bestellen t',key:'r',fmt:T,w:18},{h:'Mehr bestellt t',key:'m',fmt:T,w:16}]);
-    c.rows.forEach(r=>{ const row=addRow(ws,[catLabel(r.k),r.b/1000,r.o/1000,r.g/1000,r.rest/1000,r.mehr?r.mehr/1000:null]); if(r.rest>0) row.getCell(5).font={...font,bold:true,color:{argb:RED}}; });
-    addRow(ws,['Summe',c.tot.b/1000,c.tot.o/1000,c.tot.g/1000,c.tot.rest/1000,c.tot.mehr?c.tot.mehr/1000:null],{sum:true});
+  { const ws=sheet('Übersicht','Stahllisten – Übersicht',[{h:'Sorte',key:'k',w:24},{h:'Bedarf t',key:'b',fmt:T},{h:'Bestellt t',key:'o',fmt:T},{h:'Geliefert t',key:'g',fmt:T},{h:'Noch zu bestellen t',key:'r',fmt:T,w:18},{h:'Mehr bestellt t',key:'m',fmt:T,w:16},{h:'Anteil am Bedarf',key:'pct',fmt:'0.0%',w:14}]);
+    c.rows.forEach(r=>{ const row=addRow(ws,[catLabel(r.k),r.b/1000,r.o/1000,r.g/1000,r.rest/1000,r.mehr?r.mehr/1000:null,c.tot.b?r.b/c.tot.b:null]); if(r.rest>0) row.getCell(5).font={...font,bold:true,color:{argb:RED}}; });
+    addRow(ws,['Summe',c.tot.b/1000,c.tot.o/1000,c.tot.g/1000,c.tot.rest/1000,c.tot.mehr?c.tot.mehr/1000:null,c.tot.b?1:null],{sum:true});
     ws.addRow([]);
     const kalk=p.kalkT?p.kalkT*1000:null;
     [['Gültige Stahllisten',c.valid.length],['davon noch nicht bestellt',c.openLists.length],['Bestellungen',c.orders.length],['Pläne',S.plans.filter(x=>x.projectId===p.id).length]].concat(kalk?[['Kalkulation t',kalk/1000],['Abdeckung durch Listen %',Math.round(c.tot.b/kalk*1000)/10]]:[])
@@ -1014,19 +1072,19 @@ async function exportXlsx(p){
     notes(p,c,kalk).forEach(([,x])=>{ const r=ws.addRow([x.replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'")]); ws.mergeCells(r.number,1,r.number,6); r.getCell(1).alignment={wrapText:true,vertical:'top'}; r.height=30; });
   }
   // Stahllisten
-  { const cols=[{h:'Liste',key:'nr',w:34},{h:'Index',key:'idx',w:7},{h:'Bereich',key:'ber',w:24},{h:'Plan',key:'plan',w:34},{h:'Plan-Index',key:'pidx',w:9},{h:'Bauteil',key:'bt',w:30},{h:'Datum',key:'dat',w:11},{h:'Status',key:'st',w:11},
+  { const cols=[{h:'Liste',key:'nr',w:34},{h:'Index',key:'idx',w:7},{h:'Bereich',key:'ber',w:24},{h:'Plan',key:'plan',w:34},{h:'Plan-Index',key:'pidx',w:9},{h:'Planstand',key:'pst',w:11},{h:'Bauteil',key:'bt',w:30},{h:'Datum',key:'dat',w:11},{h:'Status',key:'st',w:11},
       ...listCats.map(k=>({h:catLabel(k)+' kg',key:k,fmt:KG,w:11})),{h:'Summe kg',key:'sum',fmt:KG,w:12},{h:'Bestellung',key:'best',w:16},{h:'Datei',key:'file',w:40},{h:'Zu prüfen',key:'chk',w:50}];
     const ws=sheet('Stahllisten','Stahllisten',cols);
     const ls=c.lists.slice().sort((a,b)=>String(a.nr).localeCompare(String(b.nr),'de',{numeric:true})||idxNum(a.idx)-idxNum(b.idx));
     ls.forEach(l=>{ const pl=S.plans.find(x=>x.id===l.planId);
-      const r=addRow(ws,[l.nr,l.idx||listCode(l)?.idx||'',bereich(listCode(l)||(pl&&planCode(pl))),pl?.nr||'',pl?.idx||'',l.title||'',dDE(l.date),l.ersetzt?'ersetzt':listStatus(l),...listCats.map(k=>kgOf(l.items,k)),listKg(l),ordersOf(l),l.fileName||'',pruefGruende(l).join('; ')],{dim:l.ersetzt}); if(zuPruefen(l)) r.getCell(cols.length).font={...font,bold:true,color:{argb:WARN}}; });
-    const v=c.valid; addRow(ws,[`${v.length} gültige Listen${ls.length>v.length?' (Summe ohne ersetzte)':''}`,'','','','','','','',...listCats.map(k=>sum(v,l=>kgOf(l.items,k)||0)),sum(v,listKg),'','',''],{sum:true});
+      const r=addRow(ws,[l.nr,l.idx||listCode(l)?.idx||'',bereich(listCode(l)||(pl&&planCode(pl))),pl?.nr||'',pl?.idx||'',STAND_NAME[planStand(pl)]||'',l.title||'',dDE(l.date),l.ersetzt?'ersetzt':listStatus(l),...listCats.map(k=>kgOf(l.items,k)),listKg(l),ordersOf(l),l.fileName||'',pruefGruende(l).join('; ')],{dim:l.ersetzt}); if(listVorab(l)) r.getCell(6).font={...font,bold:true,color:{argb:'FF6B3FB0'}}; if(zuPruefen(l)) r.getCell(cols.length).font={...font,bold:true,color:{argb:WARN}}; });
+    const v=c.valid; addRow(ws,[`${v.length} gültige Listen${ls.length>v.length?' (Summe ohne ersetzte)':''}`,'','','','','','','','',...listCats.map(k=>sum(v,l=>kgOf(l.items,k)||0)),sum(v,listKg),'','',''],{sum:true});
     filter(ws,cols.length); }
   // Pläne
-  { const cols=[{h:'Plan-Nr.',key:'nr',w:34},{h:'Index',key:'idx',w:7},{h:'Bereich',key:'ber',w:24},{h:'Bauteil / Inhalt',key:'t',w:30},{h:'Eingang',key:'d',w:11},{h:'Stahllisten',key:'ls',w:40},{h:'Bedarf kg',key:'kg',fmt:KG,w:12},{h:'Dübelleisten Stk',key:'dl',w:12},{h:'Datei',key:'f',w:40},{h:'Zu prüfen',key:'chk',w:50}];
+  { const cols=[{h:'Plan-Nr.',key:'nr',w:34},{h:'Index',key:'idx',w:7},{h:'Planstand',key:'pst',w:11},{h:'Bereich',key:'ber',w:24},{h:'Bauteil / Inhalt',key:'t',w:30},{h:'Eingang',key:'d',w:11},{h:'Stahllisten',key:'ls',w:40},{h:'Bedarf kg',key:'kg',fmt:KG,w:12},{h:'Dübelleisten Stk',key:'dl',w:12},{h:'Datei',key:'f',w:40},{h:'Zu prüfen',key:'chk',w:50}];
     const ws=sheet('Pläne','Pläne',cols);
     S.plans.filter(x=>x.projectId===p.id).sort((a,b)=>String(a.nr).localeCompare(String(b.nr),'de',{numeric:true})).forEach(pl=>{ const ls=S.lists.filter(l=>l.planId===pl.id);
-      const r=addRow(ws,[pl.nr,pl.idx||'',bereich(planCode(pl)),pl.title||'',dDE(pl.date),ls.map(l=>l.nr+(l.idx?' / '+l.idx:'')+(l.ersetzt?' (ersetzt)':'')).join(', '),sum(ls.filter(l=>!l.ersetzt),listKg),dlStk(pl)||null,pl.fileName||'',pruefGruende(pl).join('; ')]); if(zuPruefen(pl)) r.getCell(cols.length).font={...font,bold:true,color:{argb:WARN}}; });
+      const r=addRow(ws,[pl.nr,pl.idx||'',STAND_NAME[planStand(pl)]||'',bereich(planCode(pl)),pl.title||'',dDE(pl.date),ls.map(l=>l.nr+(l.idx?' / '+l.idx:'')+(l.ersetzt?' (ersetzt)':'')).join(', '),sum(ls.filter(l=>!l.ersetzt),listKg),dlStk(pl)||null,pl.fileName||'',pruefGruende(pl).join('; ')]); if(istVorab(pl)) r.getCell(3).font={...font,bold:true,color:{argb:'FF6B3FB0'}}; if(zuPruefen(pl)) r.getCell(cols.length).font={...font,bold:true,color:{argb:WARN}}; });
     filter(ws,cols.length); }
   // Dübelleisten je Plan
   { const rows=S.plans.filter(x=>x.projectId===p.id).sort((a,b)=>String(a.nr).localeCompare(String(b.nr),'de',{numeric:true})).flatMap(pl=>dlRows(pl).map(x=>[pl,x]));
@@ -1088,7 +1146,7 @@ function editProject(p){
 
 function editPlan(pl,opt={}){
   $('dplTitle').textContent=pl?'Plan bearbeiten':'Neuer Plan';
-  $('plNr').value=pl?.nr||''; $('plIdx').value=pl?.idx||''; $('plDate').value=pl?.date||today(); $('plTitle').value=pl?.title||''; $('plFile').value='';
+  $('plNr').value=pl?.nr||''; $('plIdx').value=pl?.idx||''; $('plDate').value=pl?.date||today(); $('plTitle').value=pl?.title||''; $('plFile').value=''; $('plStand').value=planStand(pl);
   $('plFileInfo').textContent=pl?.fileId?`Aktuelle Datei: ${pl.fileName||''} – neue Datei wählen, um sie zu ersetzen.`:'';
   $('plDel').hidden=!pl;
   const chkDone=pruefBox($('plChk'),pl);
@@ -1116,7 +1174,7 @@ function editPlan(pl,opt={}){
     if(!confirm(`Plan ${pl.nr} löschen?${ls.length?` Die ${ls.length} zugehörigen Stahllisten bleiben erhalten, verlieren aber die Plan-Zuordnung.`:''}`)) return;
     ls.forEach(l=>l.planId=''); await delFile(pl.fileId); S.plans=S.plans.filter(x=>x.id!==pl.id); await save(); $('dlgPlan').close(); renderProject(curPid); };
   dlg('dlgPlan',async()=>{ const f=$('plFile').files[0];
-    const v={nr:$('plNr').value.trim(),idx:$('plIdx').value.trim(),date:$('plDate').value,title:$('plTitle').value.trim(),
+    const v={nr:$('plNr').value.trim(),idx:$('plIdx').value.trim(),stand:$('plStand').value,date:$('plDate').value,title:$('plTitle').value.trim(),
       dl:dl.filter(x=>String(x.typ||'').trim()||+x.stk>0).map(x=>({typ:String(x.typ||'').trim(),stk:+x.stk||0,len:+x.len||0,ort:String(x.ort||'').trim(),st:x.st||''}))};
     if(!v.dl.length) delete v.dl;
     if(pl&&!v.dl) delete pl.dl;
