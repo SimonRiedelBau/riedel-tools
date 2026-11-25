@@ -54,9 +54,17 @@ Bei manchen Projekten stehen „Rundstahlliste“ und „Mattenliste“ direkt a
 - Jede Zeile wird gegengeprüft (Gesamtlänge × Nenngewicht = Gewicht, Stück × Einzellänge = Gesamtlänge,
   Matten Stück × Länge × Breite × kg/m² = Gewicht), jede Tabelle gegen ihr „Gesamtgewicht“. Abweichungen oder
   unsicher erkannte Zeichen → „prüfen“.
-- Plannummer aus dem Dateinamen: `BP041-0-V_Bew._Gründung_Teil_1_Verwaltung.pdf` → Plan **BP041-V**, Index **0**,
+- Plannummer aus dem Dateinamen: `BP041-0-V_Bew._Gründung_Teil_1_Verwaltung.pdf` → Plan **BP041**, Index **0**, Vorabzug,
   Inhalt „Bew. Gründung Teil 1 Verwaltung“. Index 0 → a → b …: ein höherer Index ersetzt den Plan und seine Stahlliste
   (bestellte Listen bleiben als *ersetzt* erhalten).
+- **Vorabzug (V) und Freigabe (F):** Der Buchstabe hinter dem Index ist der Planstand – `BP041-0-V_…` = **Vorabzug**,
+  `BP041-0-F_…` = **Freigabe** (Plan-Nr. in beiden Fällen **BP041**). Vorabzüge werden im Reiter *Pläne* (Spalte *Stand*)
+  und bei ihren Stahllisten lila markiert und hervorgehoben, mit Kasten „Nur Vorabzüge zeigen“, Filter „Vorabzug“ im Reiter
+  *Stahllisten*, Hinweis in der Übersicht und Spalte *Planstand* in der Excel-Liste.
+  Ein Plan mit derselben Nummer und **F ersetzt den Vorabzug** – auch beim gleichen Index (inkl. der Stahlliste vom Plan;
+  schon bestellte bleibt als *ersetzt* erhalten). Ein höherer Index ersetzt wie bisher; ein Vorabzug ersetzt nie eine
+  Freigabe mit gleichem Index. Der Planstand lässt sich im Plan-Dialog auch von Hand setzen.
+  Ältere Einträge mit Plan-Nr. „BP041-V“ werden beim Upload der Freigabe gefunden und auf „BP041“ umbenannt.
 - **Nur die Tabellen zählen:** Beim Plan (Upload, „Aus Plan-PDF auslesen“, „Bestand prüfen“) werden ausschließlich
   „Rundstahlliste“ und „Mattenliste“ ausgelesen – als Strichschrift oder als echter Text. Früher lief zuerst die allgemeine
   Textsuche über den ganzen Plan; die griff Positionsbeschriftungen und Notizen ab (z. B. „12 Ø10 – 150“, „Q188A … kg“)
@@ -84,13 +92,14 @@ Lage/Bemerkung und Status (offen / bestellt / geliefert). Bereits verwendete Typ
 
 ## Dashboard
 - Bedarf lt. gültigen Stahllisten, bestellt, geliefert, **noch zu bestellen** (je Sorte: Bedarf − bestellt)
-- Balken je Durchmesser, Tabelle „Noch zu bestellen“ (CSV-Export, Drucken), Liste der noch nicht bestellten Stahllisten mit Knopf „Offene Listen bestellen“
+- Balken je Durchmesser mit Anteil in %, **Verteilung der Gesamtmenge**: Menge und Anteil jeder Sorte am gesamten Bedarf (z. B. Ø 8 = 12,4 %), davon Stabstahl gesamt
+- Tabelle „Noch zu bestellen“ (CSV-Export, Drucken), Liste der noch nicht bestellten Stahllisten mit Knopf „Offene Listen bestellen“
 - Hinweise: Abgleich mit Kalkulation, überfällige Lieferungen, Pläne ohne Stahlliste, bestellte ersetzte Listen
 
 ## Stahlübersicht wie die Excel der Bauleitung
 Die Excel-Liste enthält vorne die Blätter im Aufbau der bisherigen Excel-Stahlübersicht (z. B. BfS Neuherberg):
 - **Gesamtübersicht**: je Ebene BST S, BSTM netto/brutto, ABSTA (t), Körbe in lfm, Summe, davon geliefert, Sub verrechnet,
-  noch nicht bestellt – als Formeln auf die Ebenen-Blätter.
+  noch nicht bestellt – als Formeln auf die Ebenen-Blätter. Darunter die **Verteilung der Gesamtmenge** je Sorte (t und Anteil in %).
 - **Ein Blatt je Ebene** (Gründung, 2.UG, 1.UG, EG, 1.OG …): Nr., Bauteil, Bemerkung, Stahl abgerufen, geliefert BST S,
   geliefert LAMA, Zubehör (Dübelleisten, Lenton, HBT, Iso./Tron.), Tonnen je Sorte, lfm, Status, Bestellung/Lieferschein, Summenzeile.
 - Farben wie gewohnt: **gelb** = Material bestellt, **grün** = geliefert, **blau** = Sub verrechnet.
