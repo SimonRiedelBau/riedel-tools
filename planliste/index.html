@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="rb-tool" content="Planliste">
+<script src="../assets/vendor/supabase.js"></script>
+<script src="../assets/auth-gate.js"></script>
+<script src="../projekte/projekte.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Planliste – Riedel-Tools</title>
+<style>
+:root{
+  --bg:var(--rb-bg,#ECEDEB); --surface:var(--rb-surface,#F8F8F6); --soft:var(--rb-soft,#DFE1DF); --rule:var(--rb-rule,#CDD0CF);
+  --ink:var(--rb-ink,#1D2124); --muted:var(--rb-muted,#5F666B); --grey:var(--rb-grey,#8A9095); --red:var(--rb-red,#FF0000); --red-ink:var(--rb-red-ink,#C4000B);
+  --red-soft:var(--rb-red-soft,#FBE3E1); --ok:var(--rb-ok,#2E7D4F); --ok-soft:var(--rb-ok-soft,#E0EFE5);
+  --warn:var(--rb-warn,#B25E00); --warn-soft:var(--rb-warn-soft,#F6E9D8); --info:var(--rb-info,#2F5F8A); --info-soft:var(--rb-info-soft,#E1EAF2);
+  --vorab:var(--rb-c-purple,#6E3FA3); --vorab-soft:#ECE4F5;
+  --sans:var(--rb-sans,"Barlow",system-ui,sans-serif); --cond:var(--rb-cond,"Barlow Condensed","Arial Narrow",sans-serif);
+  box-sizing:border-box;
+}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){ --vorab-soft:#2C2238; } }
+:root[data-theme="dark"]{ --vorab-soft:#2C2238; }
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.5 var(--sans)}
+.wrap{max-width:1240px;margin:0 auto;padding:22px 20px 60px}
+[hidden]{display:none!important}
+h1{font:700 30px/1.05 var(--cond);margin:0}
+h2{font:700 22px/1.1 var(--cond);margin:0 0 10px}
+.lead{color:var(--muted);margin:4px 0 0;max-width:76ch}
+.head{border-bottom:3px solid var(--ink);padding-bottom:14px;margin-bottom:18px;display:flex;gap:16px;align-items:flex-end;justify-content:space-between;flex-wrap:wrap}
+.head select{font:600 15px/1 var(--sans);padding:9px 10px;border:2px solid var(--ink);background:var(--surface);color:var(--ink)}
+.btn{font:600 15px/1 var(--sans);padding:10px 16px;border:2px solid var(--ink);background:var(--ink);color:var(--bg);cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:8px;justify-content:center}
+.btn.sec{background:transparent;color:var(--ink)}
+.btn.red{background:var(--red);border-color:var(--red);color:#fff}
+.btn.sm{font-size:13px;padding:7px 11px}
+.btn.xs{font-size:12px;padding:4px 8px;border-width:1px}
+.btn:disabled{opacity:.45;cursor:default}
+.btn:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+.panel{background:var(--surface);border:1px solid var(--rule);padding:16px 18px;margin-bottom:18px}
+.msg{font-size:14px;margin:0 0 14px}
+.msg:empty{display:none}
+.msg.bad{color:var(--red-ink)}.msg.ok{color:var(--ok)}
+pre.sql{max-height:320px;overflow:auto;background:var(--bg);border:1px solid var(--rule);padding:10px;font-size:12px;white-space:pre-wrap}
+
+/* ---------- Ablegen ---------- */
+.drop{border:2px dashed var(--grey);background:var(--surface);padding:26px 20px;text-align:center;margin-bottom:12px;transition:background .12s,border-color .12s;cursor:pointer}
+.drop:hover{background:var(--soft)}
+.drop b{display:block;font:700 22px/1.15 var(--cond);margin-bottom:4px}
+.drop p{margin:0;color:var(--muted);font-size:14px}
+.drop .row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px}
+.drop.busy{cursor:progress}
+.dropopt{display:flex;gap:14px;flex-wrap:wrap;align-items:center;font-size:13.5px;color:var(--muted);margin:-4px 0 16px}
+.dropopt select{font:inherit;font-size:13.5px;padding:5px 7px;border:1px solid var(--rule);background:var(--surface);color:var(--ink)}
+.overlay{position:fixed;inset:0;z-index:3000;background:rgba(29,33,36,.82);display:flex;align-items:center;justify-content:center;pointer-events:none}
+.overlay div{border:3px dashed #fff;color:#fff;padding:40px 48px;font:700 30px/1.2 var(--cond);text-align:center}
+.overlay small{display:block;font:400 16px/1.4 var(--sans);opacity:.85;margin-top:6px}
+.prog{height:8px;background:var(--soft);margin:8px 0 4px;overflow:hidden}
+.prog i{display:block;height:100%;background:var(--ink);width:0;transition:width .2s}
+.report h2{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.report details{border-top:1px solid var(--soft);padding:6px 0}
+.report summary{cursor:pointer;font-weight:600;font-size:14.5px}
+.report ul{margin:6px 0 2px;padding:0;list-style:none;font-size:13.5px}
+.report li{display:flex;gap:10px;justify-content:space-between;align-items:center;padding:4px 0;border-top:1px dotted var(--soft);flex-wrap:wrap}
+.report li span{min-width:0;overflow-wrap:anywhere}
+.report li small{color:var(--muted)}
+
+/* ---------- Übersicht ---------- */
+.sum{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-bottom:14px}
+.tile{background:var(--surface);border:1px solid var(--rule);border-left:4px solid var(--ink);padding:12px 14px;text-align:left;font:inherit;color:inherit;cursor:pointer}
+.tile:hover{background:var(--soft)}
+.tile[aria-pressed="true"]{outline:2px solid var(--ink);outline-offset:-2px}
+.tile.f{border-left-color:var(--ok)}.tile.v{border-left-color:var(--vorab)}.tile.o{border-left-color:var(--grey)}.tile.n{border-left-color:var(--info)}
+.tile h3{font:600 12px/1.2 var(--sans);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 6px}
+.tile .v{font:700 30px/1 var(--cond)}
+.tile p{margin:4px 0 0;font-size:12.5px;color:var(--muted)}
+.arts{background:var(--surface);border:1px solid var(--rule);padding:12px 14px;margin-bottom:16px}
+.arts h3{font:600 12px/1.2 var(--sans);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 8px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.legend{display:flex;gap:12px;font-weight:400;text-transform:none;letter-spacing:0}
+.legend i{display:inline-block;width:10px;height:10px;margin-right:4px;vertical-align:-1px}
+.arow{display:grid;grid-template-columns:minmax(120px,220px) 1fr 90px;gap:10px;align-items:center;padding:4px 0;font-size:13.5px;cursor:pointer;background:none;border:0;width:100%;text-align:left;color:inherit;font-family:inherit}
+.arow:hover{background:var(--soft)}
+.arow .bar{display:flex;height:14px;background:var(--soft);gap:2px}
+.arow .bar i{display:block;height:100%}
+.arow .n{text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+.c-f{background:var(--ok)}.c-v{background:var(--vorab)}.c-o{background:var(--grey)}
+
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.filters select,.filters input{font:inherit;font-size:14px;padding:8px 9px;border:1px solid var(--rule);background:var(--surface);color:var(--ink);min-width:0}
+.filters input[type=search]{flex:1;min-width:180px}
+.seg{display:inline-flex;border:2px solid var(--ink)}
+.seg button{font:600 13px/1 var(--sans);padding:8px 10px;border:0;background:transparent;color:var(--ink);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.exp{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
+
+/* ---------- Struktur ---------- */
+.grp{background:var(--surface);border:1px solid var(--rule);margin-bottom:10px}
+.grp>summary{list-style:none;cursor:pointer;padding:10px 14px;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;border-bottom:1px solid transparent}
+.grp>summary::-webkit-details-marker{display:none}
+.grp[open]>summary{border-bottom-color:var(--rule)}
+.grp>summary .t{font:700 19px/1.1 var(--cond)}
+.grp>summary .t::before{content:"▸";display:inline-block;width:16px;transition:transform .12s}
+.grp[open]>summary .t::before{transform:rotate(90deg)}
+.grp>summary .c{font-size:13px;color:var(--muted);display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.sub{font:600 12px/1.2 var(--sans);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:10px 14px 4px;background:var(--bg)}
+table.pl{width:100%;border-collapse:collapse;font-size:14px}
+table.pl th{font:600 12px/1.2 var(--sans);color:var(--muted);text-align:left;padding:7px 10px;border-bottom:1px solid var(--rule);background:var(--surface);white-space:nowrap}
+table.pl td{padding:7px 10px;border-bottom:1px solid var(--soft);vertical-align:middle}
+table.pl tr:last-child td{border-bottom:0}
+table.pl tr.vz td{background:var(--vorab-soft)}
+table.pl tr.vz td:first-child{box-shadow:inset 4px 0 0 var(--vorab)}
+table.pl tr.fz td:first-child{box-shadow:inset 4px 0 0 var(--ok)}
+table.pl tr.oz td:first-child{box-shadow:inset 4px 0 0 var(--grey)}
+table.pl .nr{font-weight:600;white-space:nowrap}
+table.pl .idx{font:700 16px/1 var(--cond);white-space:nowrap}
+table.pl .ttl{min-width:180px}
+table.pl .fn{font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+table.pl .dt{font-size:12.5px;color:var(--muted);white-space:nowrap}
+table.pl .ac{text-align:right;white-space:nowrap}
+table.pl .ac .btn+.btn{margin-left:4px}
+.tag{display:inline-block;font:700 11px/1 var(--sans);padding:4px 6px;letter-spacing:.03em;white-space:nowrap;border:1px solid transparent}
+.tag.v{background:var(--vorab);color:#fff}
+.tag.f{background:var(--ok-soft);color:var(--ok);border-color:var(--ok)}
+.tag.o{background:var(--soft);color:var(--muted);border-color:var(--rule)}
+.tag.neu{background:var(--info-soft);color:var(--info)}
+.tag.hist{background:transparent;color:var(--muted);border-color:var(--rule);font-weight:600}
+.empty{color:var(--muted);padding:26px;border:1px dashed var(--rule);text-align:center;background:var(--surface)}
+.note{font-size:12.5px;color:var(--muted);margin:18px 0 0;max-width:96ch}
+
+/* ---------- Dialog ---------- */
+dialog{border:0;padding:0;background:var(--surface);color:var(--ink);width:min(620px,calc(100vw - 24px));max-height:calc(100vh - 24px)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+dialog form{padding:18px 20px}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:10px 0}
+.fgrid label{font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:3px;min-width:0}
+.fgrid .full{grid-column:1/-1}
+.fgrid input{font:inherit;font-size:14px;color:var(--ink);background:var(--bg);border:1px solid var(--rule);padding:8px 9px;width:100%}
+.fgrid input[readonly]{color:var(--muted)}
+.standpick{display:flex;gap:0;border:2px solid var(--ink);grid-column:1/-1}
+.standpick label{flex:1;flex-direction:row;justify-content:center;align-items:center;gap:6px;padding:9px 6px;cursor:pointer;color:var(--ink);font-size:14px;font-weight:600}
+.standpick input{width:auto}
+.standpick label:has(input:checked){background:var(--ink);color:var(--bg)}
+.hist{font-size:13px;margin:6px 0 0;padding:0;list-style:none}
+.hist li{border-top:1px solid var(--soft);padding:4px 0;display:flex;gap:8px;flex-wrap:wrap}
+.hist li small{color:var(--muted)}
+.dact{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:14px}
+.dact .r{display:flex;gap:8px}
+
+@media (max-width:900px){ .sum{grid-template-columns:repeat(3,minmax(0,1fr))} }
+@media (max-width:760px){
+  .wrap{padding:14px 12px 48px} h1{font-size:26px}
+  .sum{grid-template-columns:1fr 1fr} .sum .tile:first-child{grid-column:1/-1}
+  .exp{margin-left:0;width:100%}.exp .btn{flex:1}
+  .arow{grid-template-columns:110px 1fr 70px}
+  .fgrid{grid-template-columns:1fr}
+  /* Tabelle als Karten */
+  table.pl thead{display:none}
+  table.pl,table.pl tbody,table.pl td{display:block;width:100%}
+  table.pl tr{width:auto}
+  table.pl tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;padding:9px 12px;border-bottom:1px solid var(--soft)}
+  table.pl td{border:0;padding:0;background:transparent!important;box-shadow:none!important}
+  table.pl tr.vz{background:var(--vorab-soft);box-shadow:inset 4px 0 0 var(--vorab)}
+  table.pl tr.fz{box-shadow:inset 4px 0 0 var(--ok)} table.pl tr.oz{box-shadow:inset 4px 0 0 var(--grey)}
+  table.pl .nr{grid-column:1}
+  table.pl .st{grid-column:2;grid-row:1/span 2;display:flex;flex-direction:column;align-items:flex-end;gap:3px;width:auto}
+  table.pl .nr{overflow-wrap:anywhere;min-width:0}
+  table.pl .idx{grid-column:1/-1}
+  table.pl .ttl,table.pl .fn,table.pl .dt{grid-column:1/-1;min-width:0}
+  table.pl .ac{grid-column:1/-1;text-align:left;margin-top:4px}
+}
+@media (pointer:coarse){.filters select,.filters input,.fgrid input{font-size:16px;padding:10px}.btn.xs{padding:8px 11px;font-size:13px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <div><h1>Planliste</h1>
+      <p class="lead">Alle Pläne eines Projekts an einem Ort: Dateien hineinziehen – Plan-Nr., Index und Planstand werden aus dem Dateinamen erkannt, nach Planart und Bereich einsortiert, und ein neuer Index überschreibt den alten automatisch.</p></div>
+    <select id="proj" aria-label="Projekt"></select>
+  </div>
+
+  <p class="msg" id="msg" role="status"></p>
+  <div id="setup" hidden></div>
+
+  <div id="main">
+    <div class="drop" id="drop" tabindex="0" role="button" aria-label="Pläne ablegen oder auswählen">
+      <b>Pläne hier hineinziehen</b>
+      <p>PDF, DWG, DXF, IFC … einzeln, mehrere oder ganze Ordner. Max. 50 MB je Datei.</p>
+      <div class="row">
+        <button class="btn sm" type="button" id="bFiles">Dateien wählen</button>
+        <button class="btn sec sm" type="button" id="bDir">Ordner wählen</button>
+      </div>
+      <div id="progWrap" hidden><div class="prog"><i id="progBar"></i></div><p id="progTxt" style="font-size:13px"></p></div>
+    </div>
+    <input type="file" id="fileIn" multiple hidden>
+    <input type="file" id="dirIn" webkitdirectory multiple hidden>
+    <div class="dropopt">
+      <label>Planstand, wenn nicht erkennbar:
+        <select id="defStand"><option value="">offen lassen</option><option value="V">Vorabzug</option><option value="F">Freigabe</option></select></label>
+      <label><input type="checkbox" id="scanPdf" checked> Planstempel im PDF lesen („Vorabzug“, „Freigegeben“)</label>
+    </div>
+
+    <div class="panel report" id="report" hidden></div>
+
+    <div class="sum" id="sum"></div>
+    <div class="arts" id="arts" hidden></div>
+
+    <div class="filters">
+      <div class="seg" role="group" aria-label="Planstand" id="qStand">
+        <button type="button" data-s="" aria-pressed="true">Alle</button>
+        <button type="button" data-s="F" aria-pressed="false">Freigegeben</button>
+        <button type="button" data-s="V" aria-pressed="false">Vorabzug</button>
+        <button type="button" data-s="O" aria-pressed="false">Offen</button>
+      </div>
+      <select id="qArt" aria-label="Planart"><option value="">Alle Planarten</option></select>
+      <input type="search" id="qTxt" placeholder="Suche: Plan-Nr., Titel, Bereich, Datei …" aria-label="Suche">
+      <div class="exp">
+        <button class="btn sec sm" type="button" id="xXlsx">Planliste Excel</button>
+        <button class="btn sec sm" type="button" id="xZip">Ablage als ZIP</button>
+      </div>
+    </div>
+    <div id="tree"></div>
+    <p class="note">Erkannte Dateinamen: Plancodierung BFS (<code>BFS_88160_B_T_5_BP_U1_2233_01</code> → Index 01), Albus (<code>BP041-0-V_Bew._Gründung</code> → Index 0, Vorabzug; <code>…-0-F_…</code> = Freigabe), Planstand mit Index (<code>26-24_OST_AH_V00</code> → Vorabzug, Index 00) sowie <code>…_Index_b</code>, <code>…_Idx03</code> oder <code>…_02</code> am Ende. „Vorabzug“, „Freigabe“, „freigegeben“ oder „zur Ausführung“ im Dateinamen bzw. im Planstempel setzen den Planstand. Ein Plan mit höherem Index ersetzt den vorhandenen (die alte Datei wird gelöscht, der alte Index bleibt im Verlauf). Bei gleichem Index ersetzt eine Freigabe den Vorabzug; ein Vorabzug ersetzt nie eine Freigabe.</p>
+  </div>
+</div>
+
+<div class="overlay" id="overlay" hidden><div>Pläne loslassen zum Ablegen<small id="overlayProj"></small></div></div>
+
+<dialog id="dlg"><form method="dialog" id="dForm">
+  <h2 id="dHead">Plan</h2>
+  <div class="fgrid">
+    <label>Plan-Nr.<input id="d_nr" readonly></label>
+    <label>Index<input id="d_idx" autocomplete="off"></label>
+    <div class="standpick" role="radiogroup" aria-label="Planstand">
+      <label><input type="radio" name="d_stand" value="V"> Vorabzug</label>
+      <label><input type="radio" name="d_stand" value="F"> Freigabe</label>
+      <label><input type="radio" name="d_stand" value=""> offen</label>
+    </div>
+    <label>Planart<input id="d_art" list="dlArt" autocomplete="off" placeholder="z. B. BP"></label>
+    <label>Bereich<input id="d_bereich" list="dlBer" autocomplete="off" placeholder="z. B. Halle · EG"></label>
+    <label class="full">Titel<input id="d_titel" autocomplete="off"></label>
+    <label class="full">Datei<input id="d_datei" readonly></label>
+  </div>
+  <h2 style="font-size:17px;margin:14px 0 0">Frühere Indizes</h2>
+  <ul class="hist" id="dHist"></ul>
+  <div class="dact">
+    <button class="btn sec sm" type="button" id="dDel">Plan löschen</button>
+    <div class="r"><button class="btn sec" type="button" id="dCancel">Abbrechen</button><button class="btn" type="submit" id="dSave">Speichern</button></div>
+  </div>
+</form></dialog>
+<datalist id="dlArt"></datalist><datalist id="dlBer"></datalist>
+
+<script>
+(()=>{
+'use strict';
+const PROJ=(window.RB_PROJEKTE&&window.RB_PROJEKTE.PROJEKTE)||[];
+const TABLE='plan_plaene', BUCKET='planliste', MAX=50*1048576, PAR=3;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const errMsg=e=>(e&&(e.message||e.error_description||e.msg))||String(e);
+const fmtDT=t=>{ if(!t) return ''; const d=new Date(t); return isNaN(d)?'':d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'})+' '+d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}); };
+const fmtD=t=>{ if(!t) return ''; const d=new Date(t); return isNaN(d)?'':d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'}); };
+const fmtMB=b=>b==null?'':b<1048576?Math.max(1,Math.round(b/1024))+' KB':(b/1048576).toLocaleString('de-DE',{maximumFractionDigits:1})+' MB';
+const safeName=(n,l=80)=>String(n||'').normalize('NFKD').replace(/[̀-ͯ]/g,'').replace(/ß/g,'ss').replace(/[^A-Za-z0-9._-]+/g,'_').replace(/^_+|_+$/g,'').slice(0,l)||'plan';
+const dirSafe=n=>String(n||'').replace(/[\\/:*?"<>|]+/g,'-').replace(/\s+/g,' ').trim().slice(0,80)||'Ohne';
+const ls={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const WEEK=7*864e5;
+
+let sb=null, project=null, rows=[], dbOk=false, isAdmin=false, me='';
+let fStand='', busy=false, lastReport=null, editRow=null;
+
+function msg(t,cls){ const m=$('msg'); m.className='msg '+(cls||''); m.textContent=t||''; if(t&&cls==='ok') setTimeout(()=>{ if(m.textContent===t) m.textContent=''; },6000); }
+
+// =====================================================================
+// Dateinamen auslesen
+// =====================================================================
+const ART={BP:'Bewehrungsplan',BE:'Bewehrungsplan',SP:'Schalplan',SC:'Schalplan',SH:'Schalplan',GR:'Grundriss',SN:'Schnitt',AN:'Ansicht',
+  DE:'Detailplan',DT:'Detailplan',LP:'Lageplan',AH:'Aushubplan',BG:'Baugrubenplan',EW:'Entwässerungsplan',EP:'Entwässerungsplan',KA:'Kanalplan',
+  FT:'Fertigteilplan',FP:'Fertigteilplan',PO:'Positionsplan',PP:'Positionsplan',WP:'Werkplan',AP:'Ausführungsplan',VP:'Verlegeplan',
+  SL:'Stahlliste',EB:'Einbauteilplan',ET:'Einbauteilplan',DB:'Durchbruchsplan',DU:'Durchbruchsplan',TW:'Tragwerksplan',UE:'Übersichtsplan','ÜS':'Übersichtsplan',
+  BA:'Bauablaufplan',BS:'Baustelleneinrichtung',AB:'Abdichtungsplan',FU:'Fundamentplan',DP:'Deckenplan',WD:'Wandplan'};
+const artName=a=>a?(ART[a]?ART[a]+' ('+a+')':a):'Sonstige Pläne';
+const BT_NAME={A:'Mitte (Zugang)',B:'West',C:'Ost',D:'2. Bauabschnitt','Ü':'Übersicht',X:'Außen/Nebengeb.'};
+const EBENE_NAME={'0':'EG','1':'1. OG','2':'2. OG','3':'3. OG','4':'4. OG',U1:'1. UG',U2:'2. UG',U3:'3. UG',BP:'Gründung',G:'Gründung',D:'Dach',DA:'Dach',NORD:'Ansicht N',OST:'Ansicht O','SÜD':'Ansicht S',WEST:'Ansicht W','Ü':'übergreifend'};
+// Index: Zahlen (00, 01 …) bzw. 0, a, b … – Buchstaben sind neuer als Zahlen; leer = ältester
+const idxNum=v=>{ v=String(v??'').trim(); if(!v) return -1; if(/^[a-z]$/i.test(v)) return 1000+v.toLowerCase().charCodeAt(0); const n=parseInt(v,10); return isNaN(n)?-1:n; };
+const STAND_RE_V=/(?:^|[^a-zäöü])(vorabzug|vorab|nicht[\s_-]*zur[\s_-]*ausf(?:ü|ue)hrung|entwurf)(?![a-zäöü])/i;
+const STAND_RE_F=/(?:^|[^a-zäöü])(freigabe|freigegeben|zur[\s_-]*ausf(?:ü|ue)hrung|ausf(?:ü|ue)hrungsplan)(?![a-zäöü])/i;
+function standAus(text){ const t=String(text||''); if(STAND_RE_V.test(t)) return 'V'; if(STAND_RE_F.test(t)) return 'F'; return ''; }
+// Wörter zum Planstand gehören nicht zur Plan-Nr. (sonst wären „… Vorabzug“ und „… Freigabe“ zwei Pläne)
+const stripStand=s=>String(s).replace(/(^|[_\s-])(vorabzug|vorab|freigabe|freigegeben|zur[_\s-]*ausf(?:ü|ue)hrung)(?=$|[_\s-])/ig,'$1').replace(/[_\s-]{2,}/g,m=>m[0]).replace(/^[_\s-]+|[_\s-]+$/g,'');
+const cleanTitle=s=>String(s||'').replace(/_+/g,' ').replace(/\s+/g,' ').replace(/^[\s.-]+|[\s.-]+$/g,'').trim();
+// Planart aus Kürzel (…_SP_…) oder aus dem Wort im Namen (Schalplan, Bewehrung …)
+const ART_WORD=[[/bewehrung/i,'BP'],[/schal(ung|plan)/i,'SP'],[/grundriss/i,'GR'],[/schnitt/i,'SN'],[/ansicht/i,'AN'],[/detail/i,'DE'],[/lageplan/i,'LP'],
+  [/aushub/i,'AH'],[/baugrube|verbau/i,'BG'],[/entw(ä|ae)sserung/i,'EW'],[/kanal/i,'KA'],[/fertigteil/i,'FT'],[/position/i,'PO'],[/einbauteil/i,'EB'],[/durchbr(u|ü)ch|aussparung/i,'DB'],[/fundament/i,'FU'],[/abdichtung/i,'AB'],[/baustelleneinrichtung/i,'BS']];
+const artFromTokens=s=>{ const t=String(s).toUpperCase().split(/[_\s.-]+/); for(let i=t.length-1;i>=0;i--) if(ART[t[i]]&&!/\d/.test(t[i])) return t[i];
+  for(const [re,a] of ART_WORD) if(re.test(s)) return a; return ''; };
+function ebeneAuto(t){ t=String(t||'').replace(/_/g,' ');
+  let m;
+  if(/gr(ü|ue)ndung|fundament|bodenplatte|sohle/i.test(t)) return 'Gründung';
+  if((m=t.match(/(\d)\s*\.?\s*(?:UG|untergescho)/i))) return m[1]+'. UG';
+  if(/\bUG\b|untergescho/i.test(t)) return 'UG';
+  if(/\bEG\b|erdgescho/i.test(t)) return 'EG';
+  if((m=t.match(/(\d)\s*\.?\s*(?:OG|obergescho)/i))) return m[1]+'. OG';
+  if(/\bDG\b|dach/i.test(t)) return 'Dach';
+  return ''; }
+function bauteilAuto(t){ t=String(t||'').replace(/_/g,' '); let m;
+  if((m=t.match(/\b(?:Bauteil|BT|Haus)[\s_.-]*([A-Z0-9]{1,2})\b/i))) return (/^haus/i.test(m[0])?'Haus ':'Bauteil ')+m[1].toUpperCase();
+  if(/halle/i.test(t)) return 'Halle'; if(/verwaltung|b(ü|ue)ro/i.test(t)) return 'Verwaltung'; if(/tiefgarage|\bTG\b/i.test(t)) return 'Tiefgarage';
+  return ''; }
+const bereichAuto=t=>[bauteilAuto(t),ebeneAuto(t)].filter(Boolean).join(' · ');
+
+function parseName(fileName){
+  const base=String(fileName||'').replace(/\.[A-Za-z0-9]{1,5}$/,'').trim();
+  let m, r=null;
+  // 1) Plancodierung BFS: Projekt_Gebäude_Bauteil_Gewerk_LPh_Art_Ebene_Nummer_Index[_Titel]
+  if((m=base.match(/^([A-Za-z0-9]+)_(\d{3,6})_([A-Za-zÜü]{1,2})_([A-Za-z]{1,2})_(\d)_([A-Za-z]{2})_([A-Za-z0-9ÄÖÜäöüß]{1,5})_(\d{3,4})_(\d{2})(?:[_\s-]+(.*))?$/))){
+    const up=x=>x.toUpperCase(), [,proj,geb,bt,gew,lph,art,ebene,num,idx,rest]=m;
+    const B=up(bt), E=up(ebene);
+    r={nr:[up(proj),geb,B,up(gew),lph,up(art),E,num].join('_'),idx,stand:'',art:up(art),
+      bereich:'Bauteil '+B+(BT_NAME[B]?' ('+BT_NAME[B]+')':'')+' · '+(EBENE_NAME[E]||(/^[A-Z]$/.test(E)?'Schnitt '+E:E)),titel:cleanTitle(rest),art_erkannt:'BFS'};
+  }
+  // 2) Albus: BP041-0-V_Titel (V = Vorabzug, F = Freigabe)
+  else if((m=base.match(/^(?:(.*?)[_\s])?([A-Z]{1,3})(\d{2,4})-(\d{1,2}|[a-z])-([A-Z0-9]{1,3})(?=$|[_\s])(.*)$/))){
+    const st=/^[VF]$/.test(m[5])?m[5]:'';
+    r={nr:(m[1]?m[1]+'_':'')+m[2]+m[3]+(st?'':'-'+m[5]),idx:m[4],stand:st,art:m[2],bereich:'',titel:cleanTitle(m[6]),art_erkannt:'Albus'};
+  }
+  // 3) Planstand + Index: 26-24_OST_AH_V00 bzw. …_F01_Titel
+  else if((m=base.match(/^(.*?[A-Za-z0-9])[_\s-]+([VF])(\d{2})(?:[_\s-]+(.*))?$/))){
+    r={nr:m[1],idx:m[3],stand:m[2],art:artFromTokens(m[1]),bereich:'',titel:cleanTitle(m[4]),art_erkannt:'Stand+Index'};
+  }
+  // 4) Index ausgeschrieben: …_Index_b, …_Idx03, …-Ind.c
+  else if((m=base.match(/^(.*?[A-Za-z0-9ÄÖÜäöüß])[_\s.-]+(?:Index|Idx|Ind\.?|IX)[_\s.-]*(\d{1,2}|[a-zA-Z])(?=$|[_\s.-])(.*)$/i))){
+    r={nr:m[1],idx:/^[A-Z]$/.test(m[2])?m[2].toLowerCase():m[2],stand:'',art:artFromTokens(m[1]),bereich:'',titel:cleanTitle(m[3]),art_erkannt:'Index'};
+  }
+  // 5) Index am Ende: …_02 bzw. …_c
+  else if((m=base.match(/^(.*[A-Za-z0-9ÄÖÜäöüß])[_-](\d{2}|[a-z])$/))&&/[A-Za-z]/.test(m[1])){
+    r={nr:m[1],idx:m[2],stand:'',art:artFromTokens(m[1]),bereich:'',titel:'',art_erkannt:'Index am Ende'};
+  }
+  else r={nr:base,idx:'',stand:'',art:artFromTokens(base),bereich:'',titel:'',art_erkannt:''};
+  if(!r.stand) r.stand=standAus(base);
+  const nr0=r.nr; r.nr=stripStand(r.nr)||nr0;
+  r.titel=cleanTitle(stripStand(r.titel));
+  if(!r.bereich) r.bereich=bereichAuto(r.titel+' '+r.nr);
+  return r;
+}
+const keyOf=nr=>String(nr||'').normalize('NFKC').toUpperCase().replace(/[\s_.-]+/g,'_');
+
+// Planstempel im PDF (erste Seite) nach „Vorabzug“ / „Freigegeben“ durchsuchen
+let pdfjsP=null;
+function pdfjs(){ if(pdfjsP) return pdfjsP;
+  pdfjsP=new Promise((res,rej)=>{ if(window.pdfjsLib) return res(window.pdfjsLib); const s=document.createElement('script'); s.src='../stahllisten/vendor/pdf.min.js';
+    s.onload=()=>{ window.pdfjsLib.GlobalWorkerOptions.workerSrc='../stahllisten/vendor/pdf.worker.min.js'; res(window.pdfjsLib); }; s.onerror=()=>{ pdfjsP=null; rej(new Error('pdf.js nicht geladen')); }; document.head.appendChild(s); });
+  return pdfjsP; }
+async function standAusPdf(file){
+  try{
+    const lib=await pdfjs();
+    const job=(async()=>{ const doc=await lib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;
+      try{ const pg=await doc.getPage(1); const tc=await pg.getTextContent(); const txt=tc.items.map(i=>i.str).join(' ').replace(/\s+/g,' ');
+        // „V o r a b z u g“ mit Sperrschrift zusammenziehen
+        const dense=txt.replace(/\b(\w) (?=\w\b)/g,'$1');
+        return standAus(txt)||standAus(dense); } finally{ doc.destroy(); } })();
+    return await Promise.race([job,new Promise(r=>setTimeout(()=>r(''),9000))]);
+  }catch(e){ return ''; }
+}
+
+// =====================================================================
+// Ersetzen-Regel
+// =====================================================================
+// Ergebnis: 'neu' | 'ersetzen' | 'gleich' | 'aelter' | 'vorab'
+function vergleich(old,c){
+  if(!old) return {act:'neu'};
+  const d=idxNum(c.idx)-idxNum(old.idx);
+  if(d>0) return {act:'ersetzen',why:`Index ${old.idx||'–'} → ${c.idx||'–'}`};
+  if(d<0) return {act:'aelter',why:`älterer Index ${c.idx||'–'} – aktuell ist Index ${old.idx||'–'}`};
+  if(c.stand==='F'&&old.stand!=='F') return {act:'ersetzen',why:`Freigabe ersetzt ${old.stand==='V'?'Vorabzug':'Plan'} (Index ${c.idx||'–'})`};
+  if(c.stand==='V'&&old.stand==='F') return {act:'vorab',why:`Vorabzug Index ${c.idx||'–'} – die Freigabe mit gleichem Index ist schon da`};
+  return {act:'gleich',why:`Index ${c.idx||'–'} ist schon abgelegt`};
+}
+
+// =====================================================================
+// Daten
+// =====================================================================
+async function loadRows(){
+  dbOk=false; $('setup').hidden=true;
+  if(!sb){ msg('Keine Verbindung zur Datenbank.','bad'); return; }
+  const {data,error}=await sb.from(TABLE).select('*').eq('projekt',project.id);
+  if(error){
+    if(error.code==='42P01'||error.code==='PGRST205'||/does not exist|could not find the table/i.test(error.message)) setupPanel();
+    else msg('Pläne konnten nicht geladen werden: '+errMsg(error),'bad');
+    rows=[]; return;
+  }
+  dbOk=true; rows=data||[];
+}
+const rowByKey=nr=>rows.find(r=>keyOf(r.nr)===keyOf(nr));
+
+async function uploadFile(file,nr){
+  const path=`${safeName(project.id,40)}/${safeName(nr,60)}/${Date.now().toString(36)}_${safeName(file.name,90)}`;
+  const {error}=await sb.storage.from(BUCKET).upload(path,file,{contentType:file.type||'application/octet-stream',upsert:false});
+  if(error) throw error; return path; }
+const rmFile=p=>p?sb.storage.from(BUCKET).remove([p]).catch(()=>{}):Promise.resolve();
+
+// Eine Datei ablegen (neu oder ersetzen). force = trotz gleichem/älterem Index ersetzen.
+async function store(item,force){
+  const {file,c}=item; const old=rowByKey(c.nr); const oldPath=old&&old.datei_pfad;
+  const v=vergleich(old,c);
+  if(!force&&v.act!=='neu'&&v.act!=='ersetzen') return {status:'skip',...v};
+  const path=await uploadFile(file,c.nr);
+  const now=new Date().toISOString();
+  const fields={idx:c.idx,stand:c.stand,datei_pfad:path,datei_name:file.name,datei_groesse:file.size,datei_typ:file.type||null,hochgeladen_am:now,hochgeladen_mail:me||null};
+  try{
+    if(!old){
+      const {data,error}=await sb.from(TABLE).insert({projekt:project.id,nr:c.nr,art:c.art||'',bereich:c.bereich||'',titel:c.titel||'',...fields}).select().single();
+      if(error){ if(error.code==='23505') throw new Error('Plan wurde gerade von jemand anderem angelegt – bitte erneut ablegen'); throw error; }
+      rows.push(data); return {status:'neu',row:data};
+    }
+    const hist=[{idx:old.idx,stand:old.stand,datei_name:old.datei_name,datei_groesse:old.datei_groesse,hochgeladen_am:old.hochgeladen_am,hochgeladen_mail:old.hochgeladen_mail,ersetzt_am:now,ersetzt_mail:me||null},...(old.verlauf||[])].slice(0,50);
+    const upd={...fields,titel:c.titel||old.titel||'',art:old.art||c.art||'',bereich:old.bereich||c.bereich||'',verlauf:hist,geaendert_am:now};
+    // Nur überschreiben, wenn seit dem Laden niemand anderes den Plan geändert hat
+    const {data,error}=await sb.from(TABLE).update(upd).eq('id',old.id).eq('hochgeladen_am',old.hochgeladen_am).select();
+    if(error) throw error;
+    if(!data||!data.length) throw new Error('Plan wurde zwischenzeitlich geändert – Liste neu laden und erneut ablegen');
+    Object.assign(old,data[0]); if(oldPath&&oldPath!==path) await rmFile(oldPath); // alter Index wird überschrieben
+    return {status:'ersetzt',why:force&&v.act!=='ersetzen'?'von Hand ersetzt ('+v.why+')':v.why,row:old};
+  }catch(e){ await rmFile(path); throw e; }
+}
+
+// =====================================================================
+// Ablegen: Dateien sammeln, auswerten, hochladen
+// =====================================================================
+const SKIP_FILE=n=>/^(\.|~\$)|^(thumbs\.db|desktop\.ini)$/i.test(n);
+async function filesFromDrop(dt){
+  const out=[]; const items=[...(dt.items||[])];
+  const entries=items.map(i=>i.webkitGetAsEntry&&i.webkitGetAsEntry()).filter(Boolean);
+  if(!entries.length) return [...(dt.files||[])];
+  const readAll=dir=>new Promise(res=>{ const r=dir.createReader(), acc=[]; const step=()=>r.readEntries(b=>{ if(!b.length) return res(acc); acc.push(...b); step(); },()=>res(acc)); step(); });
+  async function walk(e){ if(e.isFile){ const f=await new Promise(res=>e.file(res,()=>res(null))); if(f) out.push(f); } else if(e.isDirectory){ for(const c of await readAll(e)) await walk(c); } }
+  for(const e of entries) await walk(e);
+  return out; }
+
+async function ablegen(files){
+  if(busy){ msg('Es wird gerade abgelegt – bitte kurz warten.'); return; }
+  if(!dbOk){ msg('Datenbank nicht bereit.','bad'); return; }
+  files=files.filter(f=>f&&f.size>0&&!SKIP_FILE(f.name));
+  if(!files.length){ msg('Keine Dateien erkannt.'); return; }
+  busy=true; $('drop').classList.add('busy'); msg('');
+  const rep={neu:[],ersetzt:[],skip:[],fehler:[]};
+  const prog=(i,n,t)=>{ $('progWrap').hidden=false; $('progBar').style.width=Math.round(i/n*100)+'%'; $('progTxt').textContent=t; };
+  try{
+    await loadRows(); // aktueller Stand, falls Kollegen inzwischen etwas abgelegt haben
+    const defStand=$('defStand').value, scan=$('scanPdf').checked;
+    const items=[];
+    for(let i=0;i<files.length;i++){ const f=files[i]; prog(i,files.length,`Erkenne ${i+1} von ${files.length}: ${f.name}`);
+      if(f.size>MAX){ rep.fehler.push({name:f.name,why:`zu groß (${fmtMB(f.size)}, max. 50 MB)`}); continue; }
+      const c=parseName(f.name); let quelle=c.stand?'Dateiname':'';
+      if(!c.stand&&scan&&/\.pdf$/i.test(f.name)){ c.stand=await standAusPdf(f); if(c.stand) quelle='Planstempel'; }
+      if(!c.stand&&defStand){ c.stand=defStand; quelle='Vorgabe'; }
+      items.push({file:f,c,quelle}); }
+    // Mehrere Indizes desselben Plans in einem Rutsch: nur den neuesten ablegen
+    const best=new Map();
+    for(const it of items){ const k=keyOf(it.c.nr), b=best.get(k);
+      if(!b){ best.set(k,it); continue; }
+      const v=vergleich({idx:b.c.idx,stand:b.c.stand},it.c);
+      const [win,lose]=v.act==='ersetzen'?[it,b]:[b,it];
+      best.set(k,win); rep.skip.push({name:lose.file.name,nr:lose.c.nr,why:`in derselben Auswahl liegt ein neuerer Stand (${win.file.name})`,item:lose}); }
+    const todo=[...best.values()];
+    let done=0;
+    const worker=async()=>{ while(todo.length){ const it=todo.shift();
+      try{ const r=await store(it,false);
+        if(r.status==='neu') rep.neu.push({name:it.file.name,nr:it.c.nr,c:it.c,quelle:it.quelle});
+        else if(r.status==='ersetzt') rep.ersetzt.push({name:it.file.name,nr:it.c.nr,why:r.why,c:it.c,quelle:it.quelle});
+        else rep.skip.push({name:it.file.name,nr:it.c.nr,why:r.why,item:it,act:r.act});
+      }catch(e){ rep.fehler.push({name:it.file.name,why:errMsg(e)}); }
+      done++; prog(done,best.size,`Abgelegt ${done} von ${best.size}`); } };
+    await Promise.all(Array.from({length:Math.min(PAR,best.size)},worker));
+  } finally{ busy=false; $('drop').classList.remove('busy'); $('progWrap').hidden=true; }
+  lastReport=rep; renderReport(); render();
+}
+
+function renderReport(){
+  const r=lastReport, box=$('report'); if(!r){ box.hidden=true; return; }
+  const st=c=>c&&c.stand==='V'?' <span class="tag v">Vorabzug</span>':c&&c.stand==='F'?' <span class="tag f">Freigabe</span>':' <span class="tag o">Stand offen</span>';
+  const src=q=>q&&q!=='Dateiname'?` <small>(Planstand aus ${esc(q)})</small>`:'';
+  const li=(a,fn)=>a.map(fn).join('');
+  const sec=(title,a,fn,open)=>a.length?`<details ${open?'open':''}><summary>${title} (${a.length})</summary><ul>${li(a,fn)}</ul></details>`:'';
+  box.innerHTML=`<h2>Ergebnis der Ablage <button class="btn sec xs" type="button" id="repClose">Schließen</button></h2>
+    <p style="margin:0 0 6px;font-size:14px">${r.neu.length} neu · ${r.ersetzt.length} neuer Index (alter überschrieben) · ${r.skip.length} übersprungen${r.fehler.length?` · <b style="color:var(--red-ink)">${r.fehler.length} Fehler</b>`:''}</p>
+    ${sec('Neu angelegt',r.neu,x=>`<li><span><b>${esc(x.nr)}</b> Index ${esc(x.c.idx||'–')}${st(x.c)}${src(x.quelle)} <small>→ ${esc(artName(x.c.art))}${x.c.bereich?' / '+esc(x.c.bereich):''}</small></span><small>${esc(x.name)}</small></li>`,r.neu.length<=12)}
+    ${sec('Neuer Index – alter überschrieben',r.ersetzt,x=>`<li><span><b>${esc(x.nr)}</b> ${esc(x.why)}${st(x.c)}${src(x.quelle)}</span><small>${esc(x.name)}</small></li>`,true)}
+    ${sec('Übersprungen',r.skip,(x,i)=>`<li><span><b>${esc(x.nr||'')}</b> ${esc(x.why)}<br><small>${esc(x.name)}</small></span>${x.item?`<button class="btn sec xs" type="button" data-force="${i}">Trotzdem ersetzen</button>`:''}</li>`,true)}
+    ${sec('Fehler',r.fehler,x=>`<li><span><b>${esc(x.name)}</b></span><small style="color:var(--red-ink)">${esc(x.why)}</small></li>`,true)}`;
+  box.hidden=false;
+  $('repClose').onclick=()=>{ lastReport=null; box.hidden=true; };
+  box.querySelectorAll('[data-force]').forEach(b=>b.onclick=async()=>{
+    const x=r.skip[+b.dataset.force]; if(!x||!x.item) return;
+    const old=rowByKey(x.item.c.nr);
+    if(old&&!confirm(`${x.item.c.nr}: aktuell Index ${old.idx||'–'}${old.stand==='V'?' (Vorabzug)':old.stand==='F'?' (Freigabe)':''}.\nMit „${x.item.file.name}“ überschreiben?`)) return;
+    b.disabled=true;
+    try{ const res=await store(x.item,true); r.skip.splice(+b.dataset.force,1);
+      (res.status==='neu'?r.neu:r.ersetzt).push({name:x.item.file.name,nr:x.item.c.nr,why:res.why||'',c:x.item.c,quelle:x.item.quelle}); }
+    catch(e){ msg('Ersetzen fehlgeschlagen: '+errMsg(e),'bad'); b.disabled=false; return; }
+    renderReport(); render(); });
+}
+
+// Drag & Drop auf der ganzen Seite
+let dragDepth=0;
+const hasFiles=e=>e.dataTransfer&&[...(e.dataTransfer.types||[])].includes('Files');
+addEventListener('dragenter',e=>{ if(!hasFiles(e)||!dbOk) return; e.preventDefault(); dragDepth++; $('overlayProj').textContent='Projekt '+(project?project.name:''); $('overlay').hidden=false; });
+addEventListener('dragover',e=>{ if(!hasFiles(e)) return; e.preventDefault(); e.dataTransfer.dropEffect=dbOk?'copy':'none'; });
+addEventListener('dragleave',e=>{ if(!hasFiles(e)) return; dragDepth=Math.max(0,dragDepth-1); if(!dragDepth) $('overlay').hidden=true; });
+addEventListener('drop',async e=>{ if(!hasFiles(e)) return; e.preventDefault(); dragDepth=0; $('overlay').hidden=true; if(!dbOk) return; ablegen(await filesFromDrop(e.dataTransfer)); });
+$('drop').onclick=e=>{ if(e.target.closest('button')) return; $('fileIn').click(); };
+$('drop').onkeydown=e=>{ if((e.key==='Enter'||e.key===' ')&&e.target===$('drop')){ e.preventDefault(); $('fileIn').click(); } };
+$('bFiles').onclick=()=>$('fileIn').click();
+$('bDir').onclick=()=>$('dirIn').click();
+$('fileIn').onchange=e=>{ const f=[...e.target.files]; e.target.value=''; ablegen(f); };
+$('dirIn').onchange=e=>{ const f=[...e.target.files]; e.target.value=''; ablegen(f); };
+$('defStand').value=ls.get('plan-defstand',''); $('defStand').onchange=()=>ls.set('plan-defstand',$('defStand').value);
+$('scanPdf').checked=ls.get('plan-scan',true); $('scanPdf').onchange=()=>ls.set('plan-scan',$('scanPdf').checked);
+
+// =====================================================================
+// Anzeige
+// =====================================================================
+const standKey=r=>r.stand==='F'?'F':r.stand==='V'?'V':'O';
+const STAND_TAG={F:'<span class="tag f">Freigegeben</span>',V:'<span class="tag v">Vorabzug</span>',O:'<span class="tag o">Stand offen</span>'};
+const isNew=r=>Date.now()-new Date(r.hochgeladen_am).getTime()<WEEK;
+const artKey=r=>(r.art||'').toUpperCase();
+const ART_ORDER=['BP','SP','SC','SH','FU','DP','WD','GR','SN','AN','DE','DT','PO','PP','FT','FP','EB','ET','DB','DU','AH','BG','EW','EP','KA','LP','UE','ÜS'];
+const artSort=(a,b)=>{ const ia=ART_ORDER.indexOf(a), ib=ART_ORDER.indexOf(b); if(!a!==!b) return a?-1:1; return (ia<0?99:ia)-(ib<0?99:ib)||a.localeCompare(b,'de'); };
+const nrSort=(a,b)=>String(a.nr).localeCompare(String(b.nr),'de',{numeric:true,sensitivity:'base'});
+const EB_ORDER=['Gründung','3. UG','2. UG','1. UG','UG','EG','1. OG','2. OG','3. OG','4. OG','Dach'];
+// Bereich „Bauteil · Ebene“: erst nach Bauteil, dann Ebene von unten nach oben
+const splitBer=b=>{ const p=String(b||'').split(' · '); const e=p.length>1?p.pop():(EB_ORDER.includes(p[0])?p.pop():''); return [p.join(' · '),e]; };
+const berSort=(a,b)=>{ if(!a!==!b) return a?-1:1; const [pa,ea]=splitBer(a), [pb,eb]=splitBer(b); const r=x=>{ const i=EB_ORDER.indexOf(x); return i<0?99:i; };
+  return pa.localeCompare(pb,'de',{numeric:true})||r(ea)-r(eb)||a.localeCompare(b,'de'); };
+
+function filtered(){
+  const q=$('qTxt').value.trim().toLowerCase(), art=$('qArt').value;
+  return rows.filter(r=>(!fStand||(fStand==='N'?isNew(r):standKey(r)===fStand))&&(!art||artKey(r)===art)
+    &&(!q||[r.nr,r.idx,r.titel,r.bereich,r.datei_name,artName(artKey(r))].join(' ').toLowerCase().includes(q)));
+}
+function render(){
+  if(!dbOk){ $('sum').innerHTML=''; $('tree').innerHTML=''; $('arts').hidden=true; return; }
+  const n={all:rows.length,F:0,V:0,O:0,N:0}; rows.forEach(r=>{ n[standKey(r)]++; if(isNew(r)) n.N++; });
+  const pct=x=>n.all?Math.round(x/n.all*100)+' %':'';
+  const tile=(k,cls,h,v,p)=>`<button type="button" class="tile ${cls}" data-s="${k}" aria-pressed="${fStand===k}"><h3>${h}</h3><div class="v">${v}</div><p>${p}</p></button>`;
+  $('sum').innerHTML=tile('','', 'Pläne aktuell',n.all,'je Plan-Nr. nur der neueste Index')
+    +tile('F','f','Freigegeben',n.F,pct(n.F)||'–')
+    +tile('V','v','Vorabzug',n.V,n.V?pct(n.V)+' · noch nicht freigegeben':'keine')
+    +tile('O','o','Stand offen',n.O,n.O?'Planstand bitte setzen':'alle zugeordnet')
+    +tile('N','n','Neu / geändert',n.N,'in den letzten 7 Tagen');
+  $('sum').querySelectorAll('.tile').forEach(b=>b.onclick=()=>setStand(fStand===b.dataset.s?'':b.dataset.s));
+  // Planarten mit Anteil Freigabe / Vorabzug / offen
+  const arts=new Map(); rows.forEach(r=>{ const a=artKey(r); const o=arts.get(a)||{F:0,V:0,O:0,n:0}; o[standKey(r)]++; o.n++; arts.set(a,o); });
+  const keys=[...arts.keys()].sort(artSort);
+  const sel=$('qArt'), cur=sel.value;
+  sel.innerHTML='<option value="">Alle Planarten</option>'+keys.map(a=>`<option value="${esc(a)}">${esc(artName(a))} (${arts.get(a).n})</option>`).join('');
+  sel.value=keys.includes(cur)?cur:'';
+  $('dlArt').innerHTML=[...new Set([...Object.keys(ART).filter(k=>!/\d/.test(k)),...keys])].filter(Boolean).map(a=>`<option value="${esc(a)}">${esc(ART[a]||'')}</option>`).join('');
+  $('dlBer').innerHTML=[...new Set(rows.map(r=>r.bereich).filter(Boolean))].sort(berSort).map(b=>`<option value="${esc(b)}">`).join('');
+  if(rows.length){
+    $('arts').hidden=false;
+    $('arts').innerHTML=`<h3><span>Planstand je Planart</span><span class="legend"><span><i class="c-f"></i>Freigegeben</span><span><i class="c-v"></i>Vorabzug</span><span><i class="c-o"></i>offen</span></span></h3>`
+      +keys.map(a=>{ const o=arts.get(a), w=x=>(x/o.n*100).toFixed(1)+'%';
+        return `<button type="button" class="arow" data-a="${esc(a)}" title="${esc(artName(a))}: ${o.F} freigegeben, ${o.V} Vorabzug, ${o.O} offen"><span>${esc(artName(a))}</span><span class="bar">${o.F?`<i class="c-f" style="width:${w(o.F)}"></i>`:''}${o.V?`<i class="c-v" style="width:${w(o.V)}"></i>`:''}${o.O?`<i class="c-o" style="width:${w(o.O)}"></i>`:''}</span><span class="n">${o.F}/${o.n} frei</span></button>`; }).join('');
+    $('arts').querySelectorAll('.arow').forEach(b=>b.onclick=()=>{ $('qArt').value=$('qArt').value===b.dataset.a?'':b.dataset.a; renderTree(); });
+  } else $('arts').hidden=true;
+  renderTree();
+}
+function renderTree(){
+  const list=filtered(), box=$('tree');
+  if(!rows.length){ box.innerHTML='<div class="empty">Noch keine Pläne in diesem Projekt. Pläne oben hineinziehen – sie werden automatisch nach Planart und Bereich einsortiert.</div>'; return; }
+  if(!list.length){ box.innerHTML='<div class="empty">Keine Pläne für diese Auswahl.</div>'; return; }
+  const open=ls.get('plan-open-'+project.id,{});
+  const byArt=new Map(); list.forEach(r=>{ const a=artKey(r); if(!byArt.has(a)) byArt.set(a,[]); byArt.get(a).push(r); });
+  const filt=!!(fStand||$('qTxt').value.trim()||$('qArt').value);
+  box.innerHTML=[...byArt.keys()].sort(artSort).map(a=>{
+    const rs=byArt.get(a), c={F:0,V:0,O:0}; rs.forEach(r=>c[standKey(r)]++);
+    const byB=new Map(); rs.forEach(r=>{ const b=r.bereich||''; if(!byB.has(b)) byB.set(b,[]); byB.get(b).push(r); });
+    const multi=byB.size>1||[...byB.keys()][0]!=='';
+    const body=[...byB.keys()].sort(berSort).map(b=>(multi?`<tr><td colspan="7" class="sub">${esc(b||'Ohne Bereich')} · ${byB.get(b).length}</td></tr>`:'')+byB.get(b).sort(nrSort).map(rowHtml).join('')).join('');
+    const isOpen=filt||open[a]!==false;
+    return `<details class="grp" data-a="${esc(a)}" ${isOpen?'open':''}><summary><span class="t">${esc(artName(a))}</span><span class="c">${rs.length} ${rs.length===1?'Plan':'Pläne'} ${c.F?`<span class="tag f">${c.F} freigegeben</span>`:''}${c.V?`<span class="tag v">${c.V} Vorabzug</span>`:''}${c.O?`<span class="tag o">${c.O} offen</span>`:''}</span></summary>
+      <table class="pl"><thead><tr><th>Plan-Nr.</th><th>Index</th><th>Stand</th><th>Titel / Bereich</th><th>Datei</th><th>Abgelegt</th><th></th></tr></thead><tbody>${body}</tbody></table></details>`; }).join('');
+  box.querySelectorAll('details.grp').forEach(d=>d.addEventListener('toggle',()=>{ if(filt) return; const o=ls.get('plan-open-'+project.id,{}); o[d.dataset.a]=d.open; ls.set('plan-open-'+project.id,o); }));
+}
+function rowHtml(r){
+  const k=standKey(r), h=(r.verlauf||[]).length;
+  return `<tr class="${k==='V'?'vz':k==='F'?'fz':'oz'}" data-id="${esc(r.id)}">
+    <td class="nr">${esc(r.nr)}</td>
+    <td class="idx">${esc(r.idx||'–')}${h?` <span class="tag hist" title="${h} frühere${h===1?'r':''} Index: ${esc((r.verlauf||[]).map(v=>v.idx||'–').join(', '))}">+${h}</span>`:''}</td>
+    <td class="st">${STAND_TAG[k]}${isNew(r)?` <span class="tag neu">${h?'neuer Index':'neu'}</span>`:''}</td>
+    <td class="ttl">${esc(r.titel||'')}${r.titel&&r.bereich?'<br>':''}${r.bereich?`<small style="color:var(--muted)">${esc(r.bereich)}</small>`:''}</td>
+    <td class="fn">${esc(r.datei_name||'')}${r.datei_groesse?` · ${fmtMB(r.datei_groesse)}`:''}</td>
+    <td class="dt" title="${esc(fmtDT(r.hochgeladen_am))}">${esc(fmtD(r.hochgeladen_am))}<br>${esc((r.hochgeladen_mail||'').split('@')[0])}</td>
+    <td class="ac">${r.datei_pfad?'<button class="btn xs" type="button" data-open>Öffnen</button>':''}${k!=='F'?'<button class="btn sec xs" type="button" data-frei title="Planstand auf Freigabe setzen">Freigeben</button>':''}<button class="btn sec xs" type="button" data-edit aria-label="Bearbeiten">…</button></td></tr>`;
+}
+function setStand(s){ fStand=s; $('qStand').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.s===s))); render(); }
+$('qStand').onclick=e=>{ const b=e.target.closest('button'); if(b) setStand(b.dataset.s); };
+$('qArt').onchange=renderTree; $('qTxt').oninput=renderTree;
+
+async function openFile(r){
+  const w=window.open('about:blank','_blank');
+  const {data,error}=await sb.storage.from(BUCKET).createSignedUrl(r.datei_pfad,600);
+  if(error||!data){ if(w) w.close(); msg('Datei konnte nicht geöffnet werden: '+errMsg(error),'bad'); return; }
+  if(w) w.location.href=data.signedUrl; else location.href=data.signedUrl;
+}
+async function saveRow(r,patch){
+  const {data,error}=await sb.from(TABLE).update({...patch,geaendert_am:new Date().toISOString()}).eq('id',r.id).select().single();
+  if(error) throw error; Object.assign(r,data); }
+$('tree').addEventListener('click',async e=>{
+  const tr=e.target.closest('tr[data-id]'); if(!tr) return; const r=rows.find(x=>x.id===tr.dataset.id); if(!r) return;
+  if(e.target.closest('[data-open]')) return openFile(r);
+  if(e.target.closest('[data-frei]')){ const b=e.target.closest('button'); b.disabled=true;
+    try{ await saveRow(r,{stand:'F'}); msg(`${r.nr} Index ${r.idx||'–'} als freigegeben markiert.`,'ok'); }catch(err){ msg('Speichern fehlgeschlagen: '+errMsg(err),'bad'); }
+    render(); return; }
+  if(e.target.closest('[data-edit]')) return openDlg(r);
+});
+
+// ---------- Bearbeiten ----------
+function openDlg(r){
+  editRow=r; $('dHead').textContent=r.nr;
+  $('d_nr').value=r.nr; $('d_idx').value=r.idx||''; $('d_art').value=r.art||''; $('d_bereich').value=r.bereich||''; $('d_titel').value=r.titel||'';
+  $('d_datei').value=(r.datei_name||'')+(r.datei_groesse?' · '+fmtMB(r.datei_groesse):'')+' · '+fmtDT(r.hochgeladen_am)+(r.hochgeladen_mail?' · '+r.hochgeladen_mail:'');
+  document.querySelectorAll('[name=d_stand]').forEach(i=>i.checked=i.value===(r.stand||''));
+  const h=r.verlauf||[];
+  $('dHist').innerHTML=h.length?h.map(v=>`<li><b>Index ${esc(v.idx||'–')}</b>${v.stand==='V'?' <span class="tag v">Vorabzug</span>':v.stand==='F'?' <span class="tag f">Freigabe</span>':''} <small>${esc(v.datei_name||'')} · abgelegt ${esc(fmtD(v.hochgeladen_am))} · ersetzt ${esc(fmtDT(v.ersetzt_am))}${v.ersetzt_mail?' von '+esc(v.ersetzt_mail.split('@')[0]):''}</small></li>`).join(''):'<li><small>Keine – das ist der erste abgelegte Stand.</small></li>';
+  $('dlg').showModal();
+}
+$('dCancel').onclick=()=>$('dlg').close();
+$('dForm').onsubmit=async e=>{ e.preventDefault(); const r=editRow; if(!r) return;
+  const st=(document.querySelector('[name=d_stand]:checked')||{}).value||'';
+  const art=$('d_art').value.trim().toUpperCase();
+  $('dSave').disabled=true;
+  try{ await saveRow(r,{idx:$('d_idx').value.trim(),stand:st,art,bereich:$('d_bereich').value.trim(),titel:$('d_titel').value.trim()}); $('dlg').close(); msg('Gespeichert.','ok'); render(); }
+  catch(err){ msg('Speichern fehlgeschlagen: '+errMsg(err),'bad'); }
+  finally{ $('dSave').disabled=false; } };
+$('dDel').onclick=async()=>{ const r=editRow; if(!r) return;
+  if(!confirm(`Plan ${r.nr} (Index ${r.idx||'–'}) samt Datei löschen?`)) return;
+  const {error}=await sb.from(TABLE).delete().eq('id',r.id);
+  if(error){ msg('Löschen fehlgeschlagen: '+errMsg(error),'bad'); return; }
+  await rmFile(r.datei_pfad); rows=rows.filter(x=>x!==r); $('dlg').close(); msg(`${r.nr} gelöscht.`,'ok'); render(); };
+
+// =====================================================================
+// Export: Excel und ZIP mit Ordnerstruktur
+// =====================================================================
+function loadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=src; s.onload=res; s.onerror=()=>rej(new Error('Bibliothek nicht geladen')); document.head.appendChild(s); }); }
+async function xlsxLib(){ if(!window.XLSX) await loadScript('../stahllisten/vendor/xlsx.full.min.js'); return window.XLSX; }
+const sorted=list=>[...list].sort((a,b)=>artSort(artKey(a),artKey(b))||berSort(a.bereich||'',b.bereich||'')||nrSort(a,b));
+const zipPath=r=>`${dirSafe(artName(artKey(r)))}/${dirSafe(r.bereich||'Ohne Bereich')}/${dirSafe(r.datei_name||safeName(r.nr))}`;
+async function buildXlsx(list){
+  const X=await xlsxLib(); const SN={F:'Freigegeben',V:'Vorabzug',O:'offen'};
+  const head=['Planart','Bereich','Plan-Nr.','Index','Planstand','Titel','Datei','Größe MB','Abgelegt am','Abgelegt von','Frühere Indizes','Ablage im ZIP'];
+  const data=sorted(list).map(r=>[artName(artKey(r)),r.bereich,r.nr,r.idx,SN[standKey(r)],r.titel,r.datei_name,r.datei_groesse?Math.round(r.datei_groesse/1048576*10)/10:null,r.hochgeladen_am?new Date(r.hochgeladen_am):null,r.hochgeladen_mail,(r.verlauf||[]).map(v=>(v.idx||'–')+(v.stand?' '+v.stand:'')+' ('+fmtD(v.hochgeladen_am)+')').join(', '),zipPath(r)]);
+  const n={F:0,V:0,O:0}; list.forEach(r=>n[standKey(r)]++);
+  const ws=X.utils.aoa_to_sheet([[`Planliste – ${project.name}`],[`Stand ${fmtDT(new Date())} · ${list.length} Pläne · ${n.F} freigegeben · ${n.V} Vorabzug · ${n.O} offen`],[],head,...data],{cellDates:true});
+  ws['!cols']=[24,22,30,7,12,40,40,9,16,24,30,50].map(w=>({wch:w}));
+  ws['!autofilter']={ref:X.utils.encode_range({s:{r:3,c:0},e:{r:3+data.length,c:head.length-1}})};
+  for(let i=0;i<data.length;i++){ const a=X.utils.encode_cell({r:4+i,c:8}); if(ws[a]) ws[a].z='dd.mm.yyyy hh:mm'; }
+  const hist=[['Plan-Nr.','Index','Planstand','Datei','Abgelegt am','Abgelegt von','Ersetzt am','Ersetzt von']];
+  sorted(list).forEach(r=>{ hist.push([r.nr,r.idx,SN[standKey(r)]+' (aktuell)',r.datei_name,r.hochgeladen_am?new Date(r.hochgeladen_am):null,r.hochgeladen_mail,null,null]);
+    (r.verlauf||[]).forEach(v=>hist.push([r.nr,v.idx,v.stand==='V'?'Vorabzug':v.stand==='F'?'Freigabe':'offen',v.datei_name,v.hochgeladen_am?new Date(v.hochgeladen_am):null,v.hochgeladen_mail,v.ersetzt_am?new Date(v.ersetzt_am):null,v.ersetzt_mail])); });
+  const ws2=X.utils.aoa_to_sheet(hist,{cellDates:true}); ws2['!cols']=[30,7,18,40,16,24,16,24].map(w=>({wch:w}));
+  const wb=X.utils.book_new(); X.utils.book_append_sheet(wb,ws,'Planliste'); X.utils.book_append_sheet(wb,ws2,'Indexverlauf');
+  return new Uint8Array(X.write(wb,{type:'array',bookType:'xlsx'}));
+}
+function download(blob,name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),4000); }
+const stamp=()=>{ const d=new Date(); return d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0'); };
+$('xXlsx').onclick=async()=>{ const list=filtered(); if(!list.length){ msg('Keine Pläne für diese Auswahl.'); return; }
+  const b=$('xXlsx'); b.disabled=true; try{ download(new Blob([await buildXlsx(list)],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),`Planliste_${safeName(project.name)}_${stamp()}.xlsx`); }
+  catch(e){ msg('Excel-Export fehlgeschlagen: '+errMsg(e),'bad'); } finally{ b.disabled=false; } };
+
+// ZIP ohne Kompression (Pläne sind schon komprimiert) – keine zusätzliche Bibliothek nötig
+const CRC=(()=>{ const t=new Uint32Array(256); for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=c&1?0xEDB88320^(c>>>1):c>>>1; t[n]=c>>>0; } return t; })();
+const crc32=u=>{ let c=0xFFFFFFFF; for(let i=0;i<u.length;i++) c=CRC[(c^u[i])&255]^(c>>>8); return (c^0xFFFFFFFF)>>>0; };
+function zip(files){ const enc=new TextEncoder(), parts=[], cen=[]; let off=0; const d=new Date();
+  const dt=((d.getHours()<<11)|(d.getMinutes()<<5)|(d.getSeconds()>>1))&0xFFFF, dd=(((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate())&0xFFFF;
+  for(const f of files){ const name=enc.encode(f.name), data=f.data, crc=crc32(data);
+    const h=new DataView(new ArrayBuffer(30)); h.setUint32(0,0x04034b50,true); h.setUint16(4,20,true); h.setUint16(6,0x0800,true); h.setUint16(8,0,true); h.setUint16(10,dt,true); h.setUint16(12,dd,true);
+    h.setUint32(14,crc,true); h.setUint32(18,data.length,true); h.setUint32(22,data.length,true); h.setUint16(26,name.length,true); h.setUint16(28,0,true);
+    parts.push(new Uint8Array(h.buffer),name,data);
+    const c=new DataView(new ArrayBuffer(46)); c.setUint32(0,0x02014b50,true); c.setUint16(4,20,true); c.setUint16(6,20,true); c.setUint16(8,0x0800,true); c.setUint16(10,0,true); c.setUint16(12,dt,true); c.setUint16(14,dd,true);
+    c.setUint32(16,crc,true); c.setUint32(20,data.length,true); c.setUint32(24,data.length,true); c.setUint16(28,name.length,true); c.setUint32(42,off,true);
+    cen.push(new Uint8Array(c.buffer),name); off+=30+name.length+data.length; }
+  const size=cen.reduce((s,p)=>s+p.length,0); const e=new DataView(new ArrayBuffer(22)); e.setUint32(0,0x06054b50,true); e.setUint16(8,files.length,true); e.setUint16(10,files.length,true); e.setUint32(12,size,true); e.setUint32(16,off,true);
+  return new Blob([...parts,...cen,new Uint8Array(e.buffer)],{type:'application/zip'}); }
+$('xZip').onclick=async()=>{ const list=filtered().filter(r=>r.datei_pfad); if(!list.length){ msg('Keine Pläne für diese Auswahl.'); return; }
+  const total=list.reduce((s,r)=>s+(r.datei_groesse||0),0);
+  if(total>1.5*1073741824){ msg(`Auswahl zu groß für ein ZIP (${fmtMB(total)}). Bitte nach Planart oder Planstand filtern.`,'bad'); return; }
+  if(total>300*1048576&&!confirm(`Das ZIP wird ca. ${fmtMB(total)} groß. Fortfahren?`)) return;
+  const b=$('xZip'); b.disabled=true; const root=`Planliste_${dirSafe(project.name)}`; const files=[], used=new Set(); let i=0, fail=0;
+  try{
+    for(const r of sorted(list)){ i++; b.textContent=`Lade ${i}/${list.length} …`;
+      try{ const {data,error}=await sb.storage.from(BUCKET).download(r.datei_pfad); if(error) throw error;
+        let p=root+'/'+zipPath(r), k=p, j=2; while(used.has(k)) k=p.replace(/(\.[^./]+)?$/,m=>'_'+(j++)+m); used.add(k);
+        files.push({name:k,data:new Uint8Array(await data.arrayBuffer())}); }catch(e){ fail++; } }
+    files.push({name:`${root}/Planliste_${stamp()}.xlsx`,data:await buildXlsx(list)});
+    download(zip(files),`${root}_${stamp()}.zip`);
+    msg(fail?`ZIP erstellt, ${fail} Datei${fail===1?'':'en'} konnte${fail===1?'':'n'} nicht geladen werden.`:'ZIP erstellt: Ordner je Planart und Bereich, dazu die Planliste als Excel.',fail?'bad':'ok');
+  }catch(e){ msg('ZIP-Export fehlgeschlagen: '+errMsg(e),'bad'); } finally{ b.disabled=false; b.textContent='Ablage als ZIP'; } };
+
+// =====================================================================
+// Einrichtung (einmalig)
+// =====================================================================
+async function setupPanel(){
+  const box=$('setup'); box.hidden=false; $('main').hidden=true;
+  if(!isAdmin){ box.innerHTML='<div class="panel"><p class="msg" style="margin:0">Die Planliste ist noch nicht eingerichtet. Ein Admin der Riedel-Tools muss die Tabelle einmalig in der Datenbank anlegen.</p></div>'; return; }
+  let sql=''; try{ sql=await (await fetch('supabase-setup.sql',{cache:'no-cache'})).text(); }catch(e){ sql='-- supabase-setup.sql konnte nicht geladen werden. Datei im Repo unter planliste/ öffnen.'; }
+  const ref=((window.RIEDEL_AUTH&&window.RIEDEL_AUTH.url||'').match(/^https:\/\/([^.]+)\.supabase\.co/)||[])[1]||'';
+  box.innerHTML=`<div class="panel"><h2>Planliste einrichten</h2>
+    <p class="lead" style="margin:0 0 10px">Tabelle und Plan-Speicher fehlen noch. Einmalig im Supabase SQL Editor ausführen, danach „Erneut prüfen“.</p>
+    <div class="filters"><button class="btn red sm" type="button" id="sCopy">SQL kopieren</button>
+      <a class="btn sec sm" href="https://supabase.com/dashboard/project/${esc(ref)}/sql/new" target="_blank" rel="noopener">SQL Editor öffnen</a>
+      <button class="btn sm" type="button" id="sRetry">Erneut prüfen</button></div>
+    <pre class="sql" id="sSql">${esc(sql)}</pre></div>`;
+  $('sCopy').onclick=async()=>{ try{ await navigator.clipboard.writeText(sql); msg('SQL kopiert.','ok'); }catch(e){ const r=document.createRange(); r.selectNodeContents($('sSql')); getSelection().removeAllRanges(); getSelection().addRange(r); msg('Text markiert – mit Strg+C kopieren.'); } };
+  $('sRetry').onclick=()=>{ msg(''); start(); };
+}
+
+// =====================================================================
+// Start
+// =====================================================================
+async function start(){ $('main').hidden=false; await loadRows(); render(); }
+$('proj').innerHTML=PROJ.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
+$('proj').onchange=()=>{ project=PROJ.find(p=>p.id===$('proj').value); ls.set('plan-projekt',project.id);
+  const u=new URL(location.href); u.searchParams.set('p',project.id); history.replaceState(null,'',u); lastReport=null; renderReport(); start(); };
+// Änderungen von Kollegen nachladen
+const refresh=async()=>{ if(busy||!dbOk||document.hidden||$('dlg').open) return; await loadRows(); render(); };
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) refresh(); });
+setInterval(refresh,60000);
+(async()=>{
+  const A=window.RIEDEL_AUTH;
+  if(window.supabase&&A){
+    sb=window.supabase.createClient(A.url,A.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:A.storageKey}});
+    try{ const {data:s}=await sb.auth.getSession(); me=(s&&s.session&&s.session.user&&s.session.user.email)||''; }catch(e){}
+    try{ const {data}=await sb.rpc('tools_meine_rolle'); isAdmin=data==='admin'; }catch(e){}
+  }
+  const want=new URLSearchParams(location.search).get('p')||ls.get('plan-projekt','');
+  project=PROJ.find(p=>p.id===want)||PROJ.find(p=>p.id==='ostermeier-taufkirchen')||PROJ[0];
+  if(!project){ msg('Keine Projekte angelegt (projekte/projekte.js).','bad'); return; }
+  $('proj').value=project.id; start();
+})();
+// Für Tests: Dateinamen-Erkennung von außen prüfbar
+window.__planliste={parseName,vergleich,keyOf};
+})();
+</script>
+</body>
+</html>
