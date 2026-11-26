@@ -41,6 +41,7 @@ h2{font:700 22px/1.1 var(--cond);margin:0 0 10px}
 .msg{font-size:14px;margin:0 0 14px}
 .msg:empty{display:none}
 .msg.bad{color:var(--red-ink)}.msg.ok{color:var(--ok)}
+.report small.warn{color:var(--warn)}
 pre.sql{max-height:320px;overflow:auto;background:var(--bg);border:1px solid var(--rule);padding:10px;font-size:12px;white-space:pre-wrap}
 
 /* ---------- Ablegen ---------- */
@@ -175,7 +176,7 @@ dialog form{padding:18px 20px}
 <div class="wrap">
   <div class="head">
     <div><h1>Planliste</h1>
-      <p class="lead">Alle Pläne eines Projekts an einem Ort: Dateien hineinziehen – Plan-Nr., Index und Planstand werden aus dem Dateinamen erkannt, nach Planart und Bereich einsortiert, und ein neuer Index überschreibt den alten automatisch.</p></div>
+      <p class="lead">Alle Pläne eines Projekts an einem Ort: Dateien hineinziehen – Plan-Nr. und Index werden aus dem Dateinamen, der Planstand aus dem Plankopf erkannt, nach Planart und Bereich einsortiert, und ein neuer Index überschreibt den alten automatisch.</p></div>
     <select id="proj" aria-label="Projekt"></select>
   </div>
 
@@ -197,7 +198,8 @@ dialog form{padding:18px 20px}
     <div class="dropopt">
       <label>Planstand, wenn nicht erkennbar:
         <select id="defStand"><option value="">offen lassen</option><option value="V">Vorabzug</option><option value="F">Freigabe</option></select></label>
-      <label><input type="checkbox" id="scanPdf" checked> Planstempel im PDF lesen („Vorabzug“, „Freigegeben“)</label>
+      <label><input type="checkbox" id="scanPdf" checked> Planstand aus dem Plankopf lesen (PDF)</label>
+      <button class="btn sec xs" type="button" id="bKopf" title="Alle abgelegten PDFs öffnen und den Planstand im Plankopf prüfen">Abgelegte Pläne prüfen</button>
     </div>
 
     <div class="panel report" id="report" hidden></div>
@@ -220,7 +222,7 @@ dialog form{padding:18px 20px}
       </div>
     </div>
     <div id="tree"></div>
-    <p class="note">Erkannte Dateinamen: Plancodierung BFS (<code>BFS_88160_B_T_5_BP_U1_2233_01</code> → Index 01), Albus (<code>BP041-0-V_Bew._Gründung</code> → Index 0, Vorabzug; <code>…-0-F_…</code> = Freigabe), Planstand mit Index (<code>26-24_OST_AH_V00</code> → Vorabzug, Index 00) sowie <code>…_Index_b</code>, <code>…_Idx03</code> oder <code>…_02</code> am Ende. „Vorabzug“, „Freigabe“, „freigegeben“ oder „zur Ausführung“ im Dateinamen bzw. im Planstempel setzen den Planstand. Ein Plan mit höherem Index ersetzt den vorhandenen (die alte Datei wird gelöscht, der alte Index bleibt im Verlauf). Bei gleichem Index ersetzt eine Freigabe den Vorabzug; ein Vorabzug ersetzt nie eine Freigabe.</p>
+    <p class="note">Erkannte Dateinamen: Plancodierung BFS (<code>BFS_88160_B_T_5_BP_U1_2233_01</code> → Index 01), Albus (<code>BP041-0-V_Bew._Gründung</code> → Index 0, Vorabzug; <code>…-0-F_…</code> = Freigabe), Planstand mit Index (<code>26-24_OST_AH_V00</code> → Vorabzug, Index 00) sowie <code>…_Index_b</code>, <code>…_Idx03</code> oder <code>…_02</code> am Ende. Bei PDFs wird der Planstand im Plankopf gelesen und hat Vorrang vor dem Dateinamen: PDF-Stempel, Ankreuzfeld (☒ Vorabzug / ☒ Freigabe), Feld „Planstatus“/„Planstand“, letzte Zeile der Indextabelle oder „Vorabzug“, „Freigabe“, „zur Ausführung“ im Plankopf. Widerspricht der Dateiname dem Plankopf, steht ein Hinweis im Ergebnis. Ein Plan mit höherem Index ersetzt den vorhandenen (die alte Datei wird gelöscht, der alte Index bleibt im Verlauf). Bei gleichem Index ersetzt eine Freigabe den Vorabzug; ein Vorabzug ersetzt nie eine Freigabe.</p>
   </div>
 </div>
 
@@ -284,6 +286,7 @@ const BT_NAME={A:'Mitte (Zugang)',B:'West',C:'Ost',D:'2. Bauabschnitt','Ü':'Üb
 const EBENE_NAME={'0':'EG','1':'1. OG','2':'2. OG','3':'3. OG','4':'4. OG',U1:'1. UG',U2:'2. UG',U3:'3. UG',BP:'Gründung',G:'Gründung',D:'Dach',DA:'Dach',NORD:'Ansicht N',OST:'Ansicht O','SÜD':'Ansicht S',WEST:'Ansicht W','Ü':'übergreifend'};
 // Index: Zahlen (00, 01 …) bzw. 0, a, b … – Buchstaben sind neuer als Zahlen; leer = ältester
 const idxNum=v=>{ v=String(v??'').trim(); if(!v) return -1; if(/^[a-z]$/i.test(v)) return 1000+v.toLowerCase().charCodeAt(0); const n=parseInt(v,10); return isNaN(n)?-1:n; };
+const STAND_NAME={V:'Vorabzug',F:'Freigabe','':'offen'};
 const STAND_RE_V=/(?:^|[^a-zäöü])(vorabzug|vorab|nicht[\s_-]*zur[\s_-]*ausf(?:ü|ue)hrung|entwurf)(?![a-zäöü])/i;
 const STAND_RE_F=/(?:^|[^a-zäöü])(freigabe|freigegeben|zur[\s_-]*ausf(?:ü|ue)hrung|ausf(?:ü|ue)hrungsplan)(?![a-zäöü])/i;
 function standAus(text){ const t=String(text||''); if(STAND_RE_V.test(t)) return 'V'; if(STAND_RE_F.test(t)) return 'F'; return ''; }
@@ -346,22 +349,123 @@ function parseName(fileName){
 }
 const keyOf=nr=>String(nr||'').normalize('NFKC').toUpperCase().replace(/[\s_.-]+/g,'_');
 
-// Planstempel im PDF (erste Seite) nach „Vorabzug“ / „Freigegeben“ durchsuchen
+// =====================================================================
+// Plankopf im PDF lesen (erste Seite)
+// Reihenfolge: Stempel (PDF-Stempel oder große Schrift) → Ankreuzfeld
+// → Feld „Planstatus/Planstand“ → letzte Zeile der Indextabelle →
+// Begriffe im Plankopf. Liefert {stand, idx, quelle, text, hinweis}.
+// =====================================================================
 let pdfjsP=null;
 function pdfjs(){ if(pdfjsP) return pdfjsP;
   pdfjsP=new Promise((res,rej)=>{ if(window.pdfjsLib) return res(window.pdfjsLib); const s=document.createElement('script'); s.src='../stahllisten/vendor/pdf.min.js';
     s.onload=()=>{ window.pdfjsLib.GlobalWorkerOptions.workerSrc='../stahllisten/vendor/pdf.worker.min.js'; res(window.pdfjsLib); }; s.onerror=()=>{ pdfjsP=null; rej(new Error('pdf.js nicht geladen')); }; document.head.appendChild(s); });
   return pdfjsP; }
-async function standAusPdf(file){
+
+// „V O R A B Z U G“ (Sperrschrift) zusammenziehen
+const dense=t=>String(t||'').replace(/\b(\w) (?=\w\b)/g,'$1');
+const standText=t=>standAus(t)||standAus(dense(t));
+const MARK_RE=/^(?:[xX✕✖×☒☑■◼▪●✓✔⊠]|\[\s*[xX✓]\s*\]|\(\s*[xX✓]\s*\))$/;
+const EMPTY_RE=/^(?:[☐□○◯▢]|\[\s*\]|\(\s*\))$/;
+const MARK_PRE=/^(?:[xX✕✖×☒☑■◼▪●✓✔⊠]|\[\s*[xX✓]\s*\])\s+(?=\S)/;
+const EMPTY_PRE=/^(?:[☐□○◯▢]|\[\s*\])\s+(?=\S)/;
+const LABEL_RE=/^(?:plan[\s-]*)?(?:status|stand|zustand|planstatus|planstand|ausgabe(?:art|stand)?|freigabe[\s-]*status|planungsstand|bearbeitungsstand|leistungsphase|planphase)\b\s*:?\s*/i;
+const KOPF_RE=/(plan[\s.-]*nr|plan[\s-]*nummer|planinhalt|plantitel|planbezeichnung|ma(?:ß|ss)stab|bauherr|bauvorhaben|gezeichnet|\bgez\.|gepr(?:ü|ue)ft|\bgepr\.|planverfasser|tragwerksplan|\bindex\b|blattgr(?:ö|oe)(?:ß|ss)e|planformat|projekt[\s-]*nr)/i;
+const IDX_HEAD=/^(?:index|ind\.?|idx\.?|rev\.?|revision|änd\.?|aend\.?|änderung\s*nr\.?)$/i;
+const IDX_TOK=/^(\d{1,2}|[a-zA-Z])$/;
+const DATE_RE=/\b\d{1,2}\.\d{1,2}\.(?:\d{2}|\d{4})\b/;
+// Felder, die nur beschriftet sind („Freigabe Bauherr: ____“) – sagen nichts über den Stand
+const FELD_RE=/^(?:freigabe|freigegeben)\s*(?:durch|von|bauherr|statik|pr(?:ü|ue)f|tragwerk|architekt|am|datum|vermerk|\/|:)/i;
+
+function zeilen(items){
+  const it=[...items].sort((a,b)=>a.y-b.y||a.x-b.x), rows=[];
+  for(const i of it){ const r=rows.find(r=>Math.abs(r.y-i.y)<=Math.max(2,Math.min(r.h,i.h)*0.5)); if(r){ r.it.push(i); r.h=Math.max(r.h,i.h); } else rows.push({y:i.y,h:i.h,it:[i]}); }
+  rows.forEach(r=>{ r.it.sort((a,b)=>a.x-b.x); let t='';
+    r.it.forEach((i,k)=>{ const p=r.it[k-1]; t+=(p&&i.x-(p.x+p.w)>Math.max(1,i.h*0.25)?' ':'')+i.s; }); r.t=t.replace(/\s+/g,' ').trim(); });
+  return rows.sort((a,b)=>a.y-b.y); }
+
+function plankopfAnalyse(items,W,H,stempel){
+  items=items.filter(i=>i.s&&i.s.trim());
+  const out=(stand,quelle,text,x)=>({stand,quelle,text:String(text||'').trim().slice(0,80),idx:'',hinweis:'',...x});
+  // 1) PDF-Stempel (Anmerkung)
+  for(const t of stempel||[]){ const st=standText(t); if(st) return out(st,'PDF-Stempel',t); }
+  const hs=items.map(i=>i.h).sort((a,b)=>a-b), mh=hs[hs.length>>1]||8;
+  const rowsAll=zeilen(items);
+  // 2) großer Stempeltext („VORABZUG“ quer über den Plan)
+  const big=[];
+  rowsAll.forEach(r=>{ const bi=r.it.filter(i=>i.h>=Math.max(2.5*mh,14)); if(!bi.length) return; const t=bi.map(i=>i.s).join(' ');
+    if(t.length<=40){ const st=standText(t); if(st) big.push({st,t}); } });
+  if(big.length&&big.every(b=>b.st===big[0].st)) return out(big[0].st,'Stempel',big[0].t);
+
+  // Plankopf-Bereich: Häufung typischer Beschriftungen, sonst Viertel unten rechts
+  const anc=items.filter(i=>i.x>W*0.4&&KOPF_RE.test(i.s));
+  let R;
+  if(anc.length>=2){ const x0=Math.min(...anc.map(i=>i.x)), y0=Math.min(...anc.map(i=>i.y-i.h)), y1=Math.max(...anc.map(i=>i.y));
+    R={x0:x0-W*0.04, x1:W, y0:y0-H*0.06, y1:Math.max(y1+H*0.06,H*0.98)}; }
+  else R={x0:W*0.5,x1:W,y0:H*0.5,y1:H};
+  const inR=i=>i.x+i.w>=R.x0&&i.x<=R.x1&&i.y>=R.y0&&i.y-i.h<=R.y1;
+  const kopf=items.filter(inR), rows=zeilen(kopf);
+
+  // 3) Ankreuzfeld: ☒ Vorabzug  ☐ Freigabe
+  const marked=new Set(), unmarked=new Set(); let ank=false;
+  rows.forEach(r=>r.it.forEach((i,k)=>{ let s=i.s.trim(), m=null;
+    if(MARK_PRE.test(s)){ m=true; s=s.replace(MARK_PRE,''); } else if(EMPTY_PRE.test(s)){ m=false; s=s.replace(EMPTY_PRE,''); }
+    if(s.length>30) return; const st=standText(s); if(!st) return;
+    if(m===null){ const p=r.it[k-1]; if(p&&i.x-(p.x+p.w)<=i.h*3){ const ps=p.s.trim(); if(MARK_RE.test(ps)) m=true; else if(EMPTY_RE.test(ps)) m=false; } }
+    if(m===true){ marked.add(st); ank=true; } else if(m===false){ unmarked.add(st); ank=true; } }));
+  if(marked.size===1){ const st=[...marked][0]; return out(st,'Ankreuzfeld im Plankopf',st==='V'?'☒ Vorabzug':'☒ Freigabe'); }
+
+  // 4) Feld „Planstatus“ / „Planstand“ / „Ausgabe“ …
+  for(let ri=0;ri<rows.length;ri++){ const r=rows[ri];
+    for(let k=0;k<r.it.length;k++){ const i=r.it[k], s=i.s.trim(); const m=s.match(LABEL_RE); if(!m) continue;
+      if(/^stand\b/i.test(s)&&!/:/.test(s)&&s.length>6) continue;
+      let val=s.slice(m[0].length); const rest=[];
+      for(let j=k+1;j<r.it.length&&rest.length<6;j++){ const n=r.it[j]; if(/:\s*$/.test(n.s)&&rest.length) break; if(n.x-i.x>W*0.3) break; rest.push(n.s); }
+      val=(val+' '+rest.join(' ')).trim();
+      const both=s=>STAND_RE_V.test(s)&&STAND_RE_F.test(s);
+      if(val&&!both(val)){ const st=standText(val); if(st) return out(st,'Feld „'+m[0].replace(/[:\s]+$/,'')+'“ im Plankopf',val); }
+      // Wert in der Zeile darunter
+      const below=rows.slice(ri+1).find(b=>b.y-r.y<=r.h*2.8&&b.y>r.y);
+      if(below){ const t=below.it.filter(n=>n.x>=i.x-i.h&&n.x<=i.x+W*0.25).map(n=>n.s).join(' ');
+        if(t&&t.length<=40&&!both(t)){ const st=standText(t); if(st) return out(st,'Feld „'+m[0].replace(/[:\s]+$/,'')+'“ im Plankopf',t); } } } }
+
+  // 5) Indextabelle: Zeile mit dem höchsten Index
+  let idxRes=null;
+  for(const r of rows){ const hd=r.it.find(i=>IDX_HEAD.test(i.s.trim())); if(!hd) continue;
+    if(!/(datum|date|änderung|aenderung|beschreibung|bemerkung|inhalt|art\b|gez|status)/i.test(r.t)) continue;
+    const cx=hd.x, cand=[];
+    for(const z of rowsAll){ if(z===r||Math.abs(z.y-r.y)>H*0.35) continue;
+      const c=z.it.find(i=>Math.abs(i.x-cx)<=Math.max(hd.h*2.5,hd.w)&&IDX_TOK.test(i.s.trim())); if(!c||z.it.length<2) continue;
+      const rest=z.it.filter(i=>i!==c&&i.x>c.x-1).map(i=>i.s).join(' ');
+      if(!DATE_RE.test(rest)&&rest.length<4) continue;
+      cand.push({idx:c.s.trim(),t:rest}); }
+    if(cand.length){ cand.sort((a,b)=>idxNum(b.idx)-idxNum(a.idx)); const top=cand[0];
+      idxRes={idx:/^[A-Z]$/.test(top.idx)?top.idx.toLowerCase():top.idx, st:standText(top.t), t:top.t}; break; } }
+  if(idxRes&&idxRes.st) return out(idxRes.st,'Indextabelle (Index '+idxRes.idx+')',idxRes.t,{idx:idxRes.idx});
+  const idx=idxRes?idxRes.idx:'';
+
+  // 6) Begriffe im Plankopf
+  const hit=new Map();
+  rows.forEach(r=>r.it.forEach((i,k)=>{ const s=i.s.trim(); if(s.length>40) return; const st=standText(s); if(!st) return;
+    if(FELD_RE.test(s)){ const after=r.it.slice(k+1,k+4).map(n=>n.s).join(' '); if(!(st==='F'&&DATE_RE.test(s+' '+after))) return; }
+    if(!hit.has(st)) hit.set(st,s); }));
+  if(hit.size===1){ const [st,t]=[...hit][0]; return out(st,'Plankopf',t,{idx}); }
+  if(hit.size>1||(ank&&!marked.size)) return out('','',  '',{idx,hinweis:ank?'Ankreuzfeld im Plankopf nicht lesbar (Kreuz ist gezeichnet, kein Text)':'Plankopf nennt Vorabzug und Freigabe – nicht eindeutig'});
+  return out('','','',{idx,hinweis:items.length?'':'kein Text im PDF (eingescannt?)'});
+}
+
+async function plankopfLesen(file){
+  const leer={stand:'',idx:'',quelle:'',text:'',hinweis:''};
   try{
     const lib=await pdfjs();
     const job=(async()=>{ const doc=await lib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;
-      try{ const pg=await doc.getPage(1); const tc=await pg.getTextContent(); const txt=tc.items.map(i=>i.str).join(' ').replace(/\s+/g,' ');
-        // „V o r a b z u g“ mit Sperrschrift zusammenziehen
-        const dense=txt.replace(/\b(\w) (?=\w\b)/g,'$1');
-        return standAus(txt)||standAus(dense); } finally{ doc.destroy(); } })();
-    return await Promise.race([job,new Promise(r=>setTimeout(()=>r(''),9000))]);
-  }catch(e){ return ''; }
+      try{ const pg=await doc.getPage(1), vp=pg.getViewport({scale:1}); const tc=await pg.getTextContent();
+        const items=tc.items.filter(i=>typeof i.str==='string').map(i=>{ const t=lib.Util.transform(vp.transform,i.transform), h=Math.hypot(t[2],t[3])||Math.abs(i.height)||8;
+          return {s:i.str,x:t[4],y:t[5],w:Math.abs(i.width)||i.str.length*h*0.5,h}; });
+        let st=[]; try{ st=(await pg.getAnnotations()).filter(a=>/stamp|freetext/i.test(a.subtype||'')).map(a=>[a.contentsObj&&a.contentsObj.str,a.contents,a.name,a.titleObj&&a.titleObj.str].filter(Boolean).join(' ')
+          .replace(/\bSB?(?=[A-Z])/,'').replace(/\b(Approved|Final|Completed)\b/i,'Freigabe').replace(/\b(Draft|Preliminary\w*|ForComment|NotApproved)\b/i,'Vorabzug')); }catch(e){}
+        return plankopfAnalyse(items,vp.width,vp.height,st); } finally{ doc.destroy(); } })();
+    return await Promise.race([job,new Promise(r=>setTimeout(()=>r({...leer,hinweis:'PDF zu langsam'}),12000))]);
+  }catch(e){ return {...leer,hinweis:'PDF nicht lesbar'}; }
 }
 
 // =====================================================================
@@ -452,10 +556,14 @@ async function ablegen(files){
     const items=[];
     for(let i=0;i<files.length;i++){ const f=files[i]; prog(i,files.length,`Erkenne ${i+1} von ${files.length}: ${f.name}`);
       if(f.size>MAX){ rep.fehler.push({name:f.name,why:`zu groß (${fmtMB(f.size)}, max. 50 MB)`}); continue; }
-      const c=parseName(f.name); let quelle=c.stand?'Dateiname':'';
-      if(!c.stand&&scan&&/\.pdf$/i.test(f.name)){ c.stand=await standAusPdf(f); if(c.stand) quelle='Planstempel'; }
+      const c=parseName(f.name); let quelle=c.stand?'Dateiname':'', hinweis='';
+      if(scan&&/\.pdf$/i.test(f.name)){ const k=await plankopfLesen(f);
+        if(k.stand){ if(c.stand&&c.stand!==k.stand) hinweis=`Dateiname sagt ${STAND_NAME[c.stand]}, Plankopf sagt ${STAND_NAME[k.stand]} – Plankopf übernommen`;
+          c.stand=k.stand; quelle=k.quelle+(k.text?` „${k.text}“`:''); }
+        else if(k.hinweis) hinweis=k.hinweis;
+        if(k.idx){ if(!c.idx) c.idx=k.idx; else if(idxNum(k.idx)!==idxNum(c.idx)) hinweis=(hinweis?hinweis+' · ':'')+`Index laut Plankopf ${k.idx}, laut Dateiname ${c.idx}`; } }
       if(!c.stand&&defStand){ c.stand=defStand; quelle='Vorgabe'; }
-      items.push({file:f,c,quelle}); }
+      items.push({file:f,c,quelle,hinweis}); }
     // Mehrere Indizes desselben Plans in einem Rutsch: nur den neuesten ablegen
     const best=new Map();
     for(const it of items){ const k=keyOf(it.c.nr), b=best.get(k);
@@ -467,8 +575,8 @@ async function ablegen(files){
     let done=0;
     const worker=async()=>{ while(todo.length){ const it=todo.shift();
       try{ const r=await store(it,false);
-        if(r.status==='neu') rep.neu.push({name:it.file.name,nr:it.c.nr,c:it.c,quelle:it.quelle});
-        else if(r.status==='ersetzt') rep.ersetzt.push({name:it.file.name,nr:it.c.nr,why:r.why,c:it.c,quelle:it.quelle});
+        if(r.status==='neu') rep.neu.push({name:it.file.name,nr:it.c.nr,c:it.c,quelle:it.quelle,hinweis:it.hinweis});
+        else if(r.status==='ersetzt') rep.ersetzt.push({name:it.file.name,nr:it.c.nr,why:r.why,c:it.c,quelle:it.quelle,hinweis:it.hinweis});
         else rep.skip.push({name:it.file.name,nr:it.c.nr,why:r.why,item:it,act:r.act});
       }catch(e){ rep.fehler.push({name:it.file.name,why:errMsg(e)}); }
       done++; prog(done,best.size,`Abgelegt ${done} von ${best.size}`); } };
@@ -480,13 +588,13 @@ async function ablegen(files){
 function renderReport(){
   const r=lastReport, box=$('report'); if(!r){ box.hidden=true; return; }
   const st=c=>c&&c.stand==='V'?' <span class="tag v">Vorabzug</span>':c&&c.stand==='F'?' <span class="tag f">Freigabe</span>':' <span class="tag o">Stand offen</span>';
-  const src=q=>q&&q!=='Dateiname'?` <small>(Planstand aus ${esc(q)})</small>`:'';
+  const src=(q,h)=>(q&&q!=='Dateiname'?` <small>(Planstand aus ${esc(q)})</small>`:'')+(h?`<br><small class="warn">⚠ ${esc(h)}</small>`:'');
   const li=(a,fn)=>a.map(fn).join('');
   const sec=(title,a,fn,open)=>a.length?`<details ${open?'open':''}><summary>${title} (${a.length})</summary><ul>${li(a,fn)}</ul></details>`:'';
   box.innerHTML=`<h2>Ergebnis der Ablage <button class="btn sec xs" type="button" id="repClose">Schließen</button></h2>
     <p style="margin:0 0 6px;font-size:14px">${r.neu.length} neu · ${r.ersetzt.length} neuer Index (alter überschrieben) · ${r.skip.length} übersprungen${r.fehler.length?` · <b style="color:var(--red-ink)">${r.fehler.length} Fehler</b>`:''}</p>
-    ${sec('Neu angelegt',r.neu,x=>`<li><span><b>${esc(x.nr)}</b> Index ${esc(x.c.idx||'–')}${st(x.c)}${src(x.quelle)} <small>→ ${esc(artName(x.c.art))}${x.c.bereich?' / '+esc(x.c.bereich):''}</small></span><small>${esc(x.name)}</small></li>`,r.neu.length<=12)}
-    ${sec('Neuer Index – alter überschrieben',r.ersetzt,x=>`<li><span><b>${esc(x.nr)}</b> ${esc(x.why)}${st(x.c)}${src(x.quelle)}</span><small>${esc(x.name)}</small></li>`,true)}
+    ${sec('Neu angelegt',r.neu,x=>`<li><span><b>${esc(x.nr)}</b> Index ${esc(x.c.idx||'–')}${st(x.c)}${src(x.quelle,x.hinweis)} <small>→ ${esc(artName(x.c.art))}${x.c.bereich?' / '+esc(x.c.bereich):''}</small></span><small>${esc(x.name)}</small></li>`,r.neu.length<=12)}
+    ${sec('Neuer Index – alter überschrieben',r.ersetzt,x=>`<li><span><b>${esc(x.nr)}</b> ${esc(x.why)}${st(x.c)}${src(x.quelle,x.hinweis)}</span><small>${esc(x.name)}</small></li>`,true)}
     ${sec('Übersprungen',r.skip,(x,i)=>`<li><span><b>${esc(x.nr||'')}</b> ${esc(x.why)}<br><small>${esc(x.name)}</small></span>${x.item?`<button class="btn sec xs" type="button" data-force="${i}">Trotzdem ersetzen</button>`:''}</li>`,true)}
     ${sec('Fehler',r.fehler,x=>`<li><span><b>${esc(x.name)}</b></span><small style="color:var(--red-ink)">${esc(x.why)}</small></li>`,true)}`;
   box.hidden=false;
@@ -497,10 +605,44 @@ function renderReport(){
     if(old&&!confirm(`${x.item.c.nr}: aktuell Index ${old.idx||'–'}${old.stand==='V'?' (Vorabzug)':old.stand==='F'?' (Freigabe)':''}.\nMit „${x.item.file.name}“ überschreiben?`)) return;
     b.disabled=true;
     try{ const res=await store(x.item,true); r.skip.splice(+b.dataset.force,1);
-      (res.status==='neu'?r.neu:r.ersetzt).push({name:x.item.file.name,nr:x.item.c.nr,why:res.why||'',c:x.item.c,quelle:x.item.quelle}); }
+      (res.status==='neu'?r.neu:r.ersetzt).push({name:x.item.file.name,nr:x.item.c.nr,why:res.why||'',c:x.item.c,quelle:x.item.quelle,hinweis:x.item.hinweis}); }
     catch(e){ msg('Ersetzen fehlgeschlagen: '+errMsg(e),'bad'); b.disabled=false; return; }
     renderReport(); render(); });
 }
+
+// Abgelegte PDFs: Planstand im Plankopf nachprüfen
+async function pruefeBestand(){
+  if(busy) return msg('Es wird gerade abgelegt – bitte kurz warten.');
+  const list=rows.filter(r=>r.datei_pfad&&/\.pdf$/i.test(r.datei_name||r.datei_pfad));
+  if(!list.length) return msg('Keine abgelegten PDF-Pläne.');
+  busy=true; $('bKopf').disabled=true; const res={gleich:0,gesetzt:[],abw:[],offen:[]};
+  const prog=(i,t)=>{ $('progWrap').hidden=false; $('progBar').style.width=Math.round(i/list.length*100)+'%'; $('progTxt').textContent=t; };
+  try{ let i=0;
+    for(const r of list){ prog(i++,`Plankopf ${i} von ${list.length}: ${r.nr}`);
+      let k; try{ const {data,error}=await sb.storage.from(BUCKET).download(r.datei_pfad); if(error) throw error; k=await plankopfLesen(data); }
+      catch(e){ k={stand:'',hinweis:'Datei nicht ladbar: '+errMsg(e)}; }
+      const q=k.quelle+(k.text?` „${k.text}“`:'');
+      if(!k.stand){ res.offen.push({r,why:k.hinweis||'kein Planstand im Plankopf gefunden'}); continue; }
+      if(k.stand===r.stand){ res.gleich++; continue; }
+      if(!r.stand){ try{ await saveRow(r,{stand:k.stand}); res.gesetzt.push({r,k,q}); }catch(e){ res.offen.push({r,why:'Speichern fehlgeschlagen: '+errMsg(e)}); } }
+      else res.abw.push({r,k,q}); }
+  } finally{ busy=false; $('bKopf').disabled=false; $('progWrap').hidden=true; }
+  lastReport=null; render(); renderKopf(res);
+}
+function renderKopf(res){
+  const box=$('report'), T=s=>s==='V'?'<span class="tag v">Vorabzug</span>':s==='F'?'<span class="tag f">Freigabe</span>':'<span class="tag o">offen</span>';
+  const sec=(t,a,fn)=>a.length?`<details open><summary>${t} (${a.length})</summary><ul>${a.map(fn).join('')}</ul></details>`:'';
+  box.innerHTML=`<h2>Plankopf-Prüfung <button class="btn sec xs" type="button" id="repClose">Schließen</button></h2>
+    <p style="margin:0 0 6px;font-size:14px">${res.gleich} stimmen · ${res.gesetzt.length} Planstand ergänzt · ${res.abw.length} weichen ab · ${res.offen.length} nicht erkannt</p>
+    ${sec('Weicht vom Plankopf ab',res.abw,(x,i)=>`<li><span><b>${esc(x.r.nr)}</b> Index ${esc(x.r.idx||'–')}: gespeichert ${T(x.r.stand)}, Plankopf ${T(x.k.stand)}<br><small>${esc(x.q)}</small></span><button class="btn sec xs" type="button" data-kopf="${i}">Plankopf übernehmen</button></li>`)}
+    ${sec('Planstand aus Plankopf ergänzt',res.gesetzt,x=>`<li><span><b>${esc(x.r.nr)}</b> Index ${esc(x.r.idx||'–')} → ${T(x.k.stand)}<br><small>${esc(x.q)}</small></span></li>`)}
+    ${sec('Im Plankopf nicht erkannt',res.offen,x=>`<li><span><b>${esc(x.r.nr)}</b> <small>${esc(x.r.datei_name||'')}</small></span><small>${esc(x.why)}</small></li>`)}`;
+  box.hidden=false;
+  $('repClose').onclick=()=>{ box.hidden=true; };
+  box.querySelectorAll('[data-kopf]').forEach(b=>b.onclick=async()=>{ const x=res.abw[+b.dataset.kopf]; b.disabled=true;
+    try{ await saveRow(x.r,{stand:x.k.stand}); b.textContent='übernommen'; render(); }catch(e){ msg('Speichern fehlgeschlagen: '+errMsg(e),'bad'); b.disabled=false; } });
+}
+$('bKopf').onclick=pruefeBestand;
 
 // Drag & Drop auf der ganzen Seite
 let dragDepth=0;
@@ -741,7 +883,7 @@ setInterval(refresh,60000);
   $('proj').value=project.id; start();
 })();
 // Für Tests: Dateinamen-Erkennung von außen prüfbar
-window.__planliste={parseName,vergleich,keyOf};
+window.__planliste={parseName,vergleich,keyOf,plankopfLesen,plankopfAnalyse};
 })();
 </script>
 </body>
