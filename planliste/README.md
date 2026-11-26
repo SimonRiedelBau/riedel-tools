@@ -16,8 +16,17 @@ Alle Pläne eines Projekts an einem Ort – mit Dashboard, welche Pläne **freig
 | `Schalplan_Decke_EG_Index_b.pdf`, `…_Idx03`, `…_02` | Rest des Namens | b / 03 / 02 | – |
 
 - „Vorabzug“, „Freigabe“, „freigegeben“, „zur Ausführung“ (bzw. „nicht zur Ausführung“ = Vorabzug) im Dateinamen setzen den
-  Planstand. Ist er im Namen nicht erkennbar, wird der **Planstempel auf Seite 1 des PDFs** gelesen (abschaltbar). Sonst gilt
-  die Vorgabe „Planstand, wenn nicht erkennbar“ (offen / Vorabzug / Freigabe).
+  Planstand.
+- Bei PDFs wird der **Plankopf auf Seite 1** gelesen (abschaltbar) – er hat Vorrang vor dem Dateinamen. Geprüft wird in
+  dieser Reihenfolge: PDF-Stempel bzw. großer Stempeltext („VORABZUG“), Ankreuzfeld (☒ Vorabzug / ☒ Freigabe als Text),
+  Feld „Planstatus“ / „Planstand“ / „Ausgabe“ (Wert rechts daneben oder darunter), letzte Zeile der Indextabelle
+  (höchster Index; liefert auch den Index), sonst „Vorabzug“ / „Freigabe“ / „zur Ausführung“ im Plankopf-Bereich.
+  Allgemeine Hinweise außerhalb des Plankopfs und leere Felder wie „Freigabe Bauherr: ____“ zählen nicht.
+  Widersprechen sich Dateiname und Plankopf (Planstand oder Index), steht ein Hinweis im Ergebnis.
+- Nicht lesbar: eingescannte Pläne ohne Text und Ankreuzfelder, deren Kreuz nur gezeichnet ist – dann gilt die Vorgabe
+  „Planstand, wenn nicht erkennbar“ (offen / Vorabzug / Freigabe).
+- **„Abgelegte Pläne prüfen“** liest die Planköpfe aller schon abgelegten PDFs: fehlender Planstand wird ergänzt,
+  Abweichungen werden aufgelistet und lassen sich einzeln mit „Plankopf übernehmen“ korrigieren.
 - Nach jeder Ablage zeigt ein Kasten: neu angelegt, neuer Index (alter überschrieben), übersprungen (mit Grund und
   „Trotzdem ersetzen“), Fehler.
 
